@@ -196,7 +196,7 @@ detectCutHeight <- 0.995
 
 # Calculate the adjacency network.
 r <- bicor(t(cleanDat))
-adjm <- ((1+r)/2)^power #signed.
+adjm <- ((1+r)/2)^power #signed network.
 #adjm <- abs(r)^power     #un-signed.
 
 # Create igraph object. 
