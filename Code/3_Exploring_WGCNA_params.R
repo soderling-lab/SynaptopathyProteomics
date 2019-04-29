@@ -1,3 +1,18 @@
+#' ---
+#' title: Exploring WGCNA Parameters. 
+#' author: Tyler W Bradshaw
+#' urlcolor: blue
+#' header-includes:             
+#' - \usepackage{float}         
+#' - \floatplacement{figure}{H} 
+#' output:
+#'    pdf_document:
+#'      fig_caption: true
+#'      toc: true
+#'      number_sections: false
+#'      highlight: tango
+#' ---
+#' 
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
@@ -56,8 +71,12 @@ suppressPackageStartupMessages({
   library(igraph)
   library(RCy3)
   library(DescTools)
-  library(TBmisc)
+  library(TBmiscr)
 })
+
+# To install TBmiscr:
+#library(devtools)
+#devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
 CodeVersion <- "Exploring_Params"
@@ -67,7 +86,7 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/TMT-Analysis/Synaptosome-TMT-Analysis"
+rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
 #rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptosome-TMT-Analysis"
 setwd(rootdir)
 
@@ -85,21 +104,74 @@ source(my_functions)
 outputMatName <- paste(tissue, "_WGCNA_Analysis_", sep = "")
 
 #-------------------------------------------------------------------------------
-#' ## Load the data, prepare to run WGCNA.
+#' ## Start WGCNA. Choosing a soft thresholding power, Beta.
 #-------------------------------------------------------------------------------
+#+ eval = FALSE
 
-file <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.RDS",sep="/")
-cleanDat <- readRDS(file)
+# Estimate powers?
+estimatePower <- TRUE
+
+# Data is...
+# Load TAMPOR cleanDat from file: #2918 of 2918
+datafile <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.Rds",sep="/")
+cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
-head(cleanDat)
+cleanDat[1:5,1:5]
 dim(cleanDat)
 
-file <- paste(Rdatadir,tissue,"sample_info.RDS",sep="/")
-sample_info <- readRDS(file)
+# Load combined sample info.
+traitsfile <- paste(Rdatadir,tissue,"Combined_Cortex_Striatum_traits.Rds",sep="/")
+sample_info <- readRDS(traitsfile)
+sample_info[1:5,1:5]
+dim(sample_info)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-parallelThreads <- 11
+parallelThreads <- 9
+clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
+registerDoParallel(clusterLocal)
+
+## Determine soft power, beta.
+# Vector of powers to test:
+powers <- seq(4, 20, by = 1.0)
+
+# Soft Power selection
+if (estimatePower==TRUE){
+  sft <- pickSoftThreshold(t(cleanDat),
+                           powerVector = powers, corFnc = "bicor",
+                           blockSize = 15000, verbose = 3, networkType = "signed")
+  
+  # Create table. 
+  mytable <- round(sft$fitIndices,2)
+  mytable$truncated.R.sq <- NULL
+  table <- tableGrob(mytable, rows = NULL)
+  grid.arrange(table)
+  
+  # Save table as tiff.
+  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology_Table.tiff")
+  ggsave(file,table)
+  
+  # Figure. ggplotScaleFreeFit() generates three plots.
+  plots <- ggplotScaleFreeFit(sft)
+  plots$Grid
+  
+  # Save as tiff.
+  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology.tiff")
+  ggsave(file,plots$Grid)
+  
+  # Save plots and table as PDF.
+  #plot_list <- list(table,plots$ScaleFreeFit, plots$MeanConnectivity)
+  #file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology.pdf")
+  #ggsavePDF(plot_list,file)
+}
+
+#-------------------------------------------------------------------------------
+#' ## Prepare to sample WGCNA parameters.
+#-------------------------------------------------------------------------------
+
+# Allow parallel WGCNA calculations:
+allowWGCNAThreads()
+parallelThreads <- 8 #11
 clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 

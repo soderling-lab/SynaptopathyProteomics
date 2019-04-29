@@ -1,5 +1,5 @@
 #' ---
-#' title: Analysis of Synaptosome TMT Proteomics Data
+#' title: TMT Analysis part 1.
 #' author: Tyler W Bradshaw
 #' urlcolor: blue
 #' header-includes:
@@ -84,18 +84,23 @@ suppressWarnings({
     library(gtable)
     library(grid)
     library(ggplotify)
+    library(TBmiscr)
   })
 })
+
+# To install TBmiscr:
+#library(devtools)
+#devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
 CodeVersion <- "Semi_Final"
 
 # Define tisue type: cortex = 1; striatum = 2.
-type <- 1
+type <- 2
 tissue <- c("Cortex", "Striatum")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/TMT-Analysis/Synaptosome-TMT-Analysis"
+rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -162,6 +167,7 @@ datafile <- c(
   "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.xlsx"
 )
 
+# Load sample information.
 samplefile <- c(
   "4227_TMT_Cortex_Combined_PD_Protein_Intensity_EBD_traits.csv",
   "4227_TMT_Striatum_Combined_PD_Protein_Intensity_EBD_traits.csv"
@@ -316,7 +322,7 @@ p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
-# Can add genotype colors. Must be specified in column order.
+# Genotype specific colors must be specified in column order.
 colors <- c(rep("yellow", 11), rep("blue", 11), rep("green", 11), rep("purple", 11))
 p2 <- p2 + scale_color_manual(values = colors)
 
@@ -452,11 +458,12 @@ ggsave(file,fig)
 #' ## Impute missing peptide values within an experiment.
 #-------------------------------------------------------------------------------
 #' The function __impute_Peptides__ supports imputing missing values with the 
-#' maximum likelyhood estimation (MLE) or KNN algorithms. Impution is performed 
+#' maximum likelyhood estimation (MLE) or KNN algorithms for missing not at 
+#' random (MNAR) and missing at random data, respectively. Impution is performed 
 #' with an experiment, and rows with more than 50% missing values are censored 
 #' and will not be imputed. Peptides with more than 2 missing biological 
 #' replicates or any missing quality control (QC) replicates will be 
-#' censored and not imputed. 
+#' censored and are not imputed. 
 #' 
 #+ eval = TRUE
 
@@ -557,7 +564,7 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 filter_peptide <- filterQCv2(impute_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
-out <- c(94,77,133,59) # striatum = c(182,67,73,75)
+out <- list(c(94,77,133,59),c(182,67,73,75))[[type]] # Cox and Str peps removed.
 mytable <- data.frame(cbind(groups,out))
 table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 grid.arrange(table)
@@ -584,10 +591,11 @@ SL_protein <- normalize_SL(SL_protein, "Abundance", "Abundance")
 #-------------------------------------------------------------------------------
 #' ## IntraBatch Protein-lavel ComBat.
 #-------------------------------------------------------------------------------
-#' Each experimental cohort of 8 was prepared in two batches. This intra-batch
-#' batch effect was recorded for 6/8 experiments. We will utilize ComBat() from
-#' the sva package to remove this intra-batch effect before attempting to 
-#' correct the inter batch effect between batches with IRS normalization.
+#' Each experimental cohort of 8 was prepared in two batches. This was necessary
+#' because the ultra-centrifuge holds a maximum of 6 samples. This intra-batch
+#' batch effect was recorded for 6/8 experiments. We will utilize the __ComBat()__ 
+#' function from the sva package to remove this batch effect before attempting to 
+#' correct the inter-batch effect between batches with IRS normalization.
 #'
 #+ eval = TRUE, message = FALSE
 
@@ -597,7 +605,7 @@ colID <- "Abundance"
 data_in <- SL_protein
 
 # Loop to perform ComBat on intraBatch batch effect (prep date).
-# In there is no known batch effect, the data is returned un-regressed.
+# If there is no known batch effect, the data is returned un-regressed.
 # Note: QC samples are not adjusted by ComBat.
 
 data_out <- list() # ComBat data.
@@ -767,7 +775,7 @@ ggpubr::ggarrange(plotlist = plot_list[[4]])
 #-------------------------------------------------------------------------------
 #' ##  Examine protein identification overlap.
 #-------------------------------------------------------------------------------
-#' Approximately 90% of all proteins are identified in all experiments.
+#' Approximately 90% of all proteins are identified in all experiments. 
 #' 
 #+ eval = TRUE
 
@@ -830,7 +838,9 @@ ggsave(file,fig)
 #' ## IRS Normalization.
 #-------------------------------------------------------------------------------
 #' Internal reference sclaing (IRS) normalization equalizes the means of
-#' reference (QC) samples across all batches.
+#' reference (QC) samples across all batches. IRS normalization accounts for the 
+#' random sampling of peptides at the MS2 level--proteins are identified by 
+#' different peptides in different experiments. 
 #'
 #+ eval = TRUE
 
@@ -841,6 +851,10 @@ IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
 #-------------------------------------------------------------------------------
 #' ## Identify and remove QC outliers.
 #-------------------------------------------------------------------------------
+#' IRS normalization utilizes QC samples as reference. Outlier QC measurements
+#' (caused by interference or other artifact) would influence the IRS 
+#' normalizaiton. Thus, outlier QC samples are removed, if identified. 
+#' 
 #+ eval = TRUE
 
 # Data is...
@@ -1164,159 +1178,17 @@ file <- paste0(Rdatadir, "/", outputMatName, "_IntraBatch_Results.RDS")
 saveRDS(results_intraBatch, file)
 
 #-------------------------------------------------------------------------------
-#' ## Generate protein box plots for significantly DE proteins (IntraBatch).
-#-------------------------------------------------------------------------------
-#+ eval = FALSE
-
-# Annotate exprDat rows as gene|uniprot
-exprDat <- log2(y_DGE$counts)
-Uniprot <- rownames(exprDat)
-Gene <- mapIds(
-  org.Mm.eg.db,
-  keys = Uniprot,
-  column = "SYMBOL",
-  keytype = "UNIPROT",
-  multiVals = "first"
-)
-rownames(exprDat) <- paste(Gene, rownames(exprDat), sep = "|")
-
-# Subset the data by experimental group.
-data_sub <- lapply(
-  as.list(groups),
-  function(x) exprDat[, grepl(x, colnames(exprDat))]
-)
-
-# Remove QC samples.
-data_sub <- lapply(data_sub, function(x) x[, !grepl("QC", colnames(x))])
-
-# Keep only significant proteins.
-temp_list <- results
-temp_list$Summary <- NULL
-keep <- lapply(temp_list, function(x) x$Uniprot[x$FDR < 0.1])
-
-# Loop to keep significant proteins from each contrast.
-data <- list()
-for (i in 1:length(data_sub)) {
-  Uniprot <- keep[[i]]
-  Gene <- mapIds(
-    org.Mm.eg.db,
-    keys = Uniprot,
-    column = "SYMBOL",
-    keytype = "UNIPROT",
-    multiVals = "first"
-  )
-  idx <- paste(Gene, Uniprot, sep = "|")
-  df <- data_sub[[i]]
-  df <- subset(df, rownames(df) %in% idx)
-  data[[i]] <- df
-}
-
-# Insure trait rownames are columnNames for sample mapping.
-rownames(traits) <- traits$ColumnName
-traits_temp <- traits
-
-# Use lapply to generate boxplots for each experiment.
-# This will take several minutes.
-plots <- lapply(data, function(x)
-  ggplotProteinBoxes(x,
-    interesting.proteins = rownames(x),
-    dataType = "Relative Abundance",
-    traits = traits_temp,
-    order = c(1, 2),
-    scatter = TRUE
-  ))
-names(plots) <- groups
-
-# Custom colors based on genotype.
-colors <- list(
-  c("gray", "yellow"),
-  c("gray", "blue"),
-  c("gray", "green"),
-  c("gray", "purple")
-)
-
-# Loop to add colors to each list of plots.
-for (i in 1:length(plots)) {
-  plots[[i]] <- lapply(
-    plots[[i]],
-    function(x) x + scale_fill_manual(values = colors[[i]])
-  )
-}
-
-# Annotate stats rownames as gene|uniprot.
-stats <- results_intraBatch[-1]
-my_func <- function(x) {
-  Uniprot <- x$Uniprot
-  Gene <- mapIds(
-    org.Mm.eg.db,
-    keys = Uniprot,
-    column = "SYMBOL",
-    keytype = "UNIPROT",
-    multiVals = "first"
-  )
-  rownames(x) <- paste(Gene, Uniprot, sep = "|")
-  return(x)
-}
-stats <- lapply(stats, function(x) my_func(x))
-
-# Example, annotate a boxplot with significance stars
-# using the custome function annotate_sig().
-plot <- plots$Shank2$`Shank2|Q80Z38`
-annotate_sig(plot, stats$Shank2, "KO.Shank2", annotate = FALSE)
-
-## Loop through all plots, add significance stats, save as pdf.
-#  Note P<0.1 is considered *.
-# A box with p.adj and percent WT can be added with annotate=TRUE.
-
-# Shank2
-Shank2_plots <- lapply(plots$Shank2, function(x)
-  annotate_sig(x, stats$Shank2, "KO.Shank2", annotate = FALSE))
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Shank2_SigProts_BoxPlots.pdf")
-#ggsavePDF(Shank2_plots, file)
-
-# Shank3
-Shank3_plots <- lapply(plots$Shank3, function(x)
-  annotate_sig(x, stats$Shank3, "KO.Shank3", annotate = FALSE))
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Shank3_SigProts_BoxPlots.pdf")
-#ggsavePDF(Shank3_plots, file)
-
-# Syngap1
-Syngap1_plots <- lapply(plots$Syngap1, function(x)
-  annotate_sig(x, stats$Syngap1, "HET.Syngap1", annotate = FALSE))
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Syngap1_SigProts_BoxPlots.pdf")
-#ggsavePDF(Syngap1_plots, file)
-
-# Ube3a
-Ube3a_plots <- lapply(plots$Ube3a, function(x)
-  annotate_sig(x, stats$Ube3a, "KO.Ube3a", annotate = FALSE))
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Ube3a_SigProts_BoxPlots.pdf")
-#ggsavePDF(Ube3a_plots, file)
-
-# Check mouse genes:
-p1 <- Shank2_plots$`Shank2|Q80Z38`
-p2 <- Shank3_plots$`Shank3|Q4ACU6`
-p3 <- Syngap1_plots$`Syngap1|F6SEU4` # Something wrong with striatum?`  `
-p4 <- Ube3a_plots$`Ube3a|O08759`
-fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig
-
-# Save fig.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatch_TopSigProts.pdf")
-#ggsavePDF(fig, file)
-
-# Save tiff.
-file <- paste0(outputfigsdir, "/", outputMatName, "_TopMouseGenes.tiff")
-ggsave(file,fig)
-
-#-------------------------------------------------------------------------------
 #' ## IntraBatch GO and KEGG enrichment testing with EdgeR.
 #-------------------------------------------------------------------------------
+#' GO and KEGG enrichment analyis are performed using EdgeR's goana() and kegga()
+#' functions.
+#' 
 #+ eval = FALSE
 
 ## Perform GO and KEGG testing.
 # edgeR_GSE() is a wrapper around the goana() and kegga() functions from EdgeR.
 # This function operates on the QLF or ET objects.Rownames should be UniprotIDs.
-# Proteins with an FDR <0.1 will be considered significant.
+# Proteins with an FDR <0.1 are be considered significant.
 
 # Use lapply to generate GSE results.
 # This will take a few minutes.
@@ -1333,6 +1205,9 @@ write.excel(GSE_results, file)
 #-------------------------------------------------------------------------------
 #' ## Perform moderated EB regression of genetic strain as a covariate.
 #-------------------------------------------------------------------------------
+#' Moderated Empirical Bayes (EB) regression is performed to remove the affect of
+#' genetic background.
+#' 
 #+ eval = FALSE
 
 # Data is...
@@ -1399,68 +1274,13 @@ files <- paste0(outputfigsdir, "/", outputMatName, c("pre","post"),"_InterBatch_
 quiet(mapply(ggsave,files,list(plot1,plot2)))
 
 #-------------------------------------------------------------------------------
-#' ## Examine sample level outliers after eBLM regression.
-#-------------------------------------------------------------------------------
-#+ eval = FALSE
-
-# Data is...
-data_in <- t(2^data.fit) # eblm data adjusted for strain.
-data_in[1:5, 1:5]
-
-# Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "Abundance", threshold = -3)
-sample_connectivity$table
-plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-eBLM")
-plot
-
-# Save
-file <- paste0(outputfigsdir, "/", outputMatName, "_SampleOutliers_postEBLM.tiff")
-ggsave(file,plot)
-
-# Loop to identify Sample outliers using Oldham's connectivity method.
-n_iter <- 5
-threshold <- -3.0
-out_samples <- list()
-plots <- list()
-
-# Loop:
-for (i in 1:n_iter) {
-  data_temp <- data_in
-  oldham <- ggplotSampleConnectivityv2(data_temp, log = TRUE, colID = "Abundance")
-  plots[[i]] <- oldham$connectivityplot +
-    ggtitle(paste("Sample Connectivity (Iteration = ", i, ")", sep = ""))
-  bad_samples <- rownames(oldham$table)[oldham$table$Z.Ki < threshold]
-  print(paste(length(bad_samples), " outlier sample(s) identified in iteration ", i, ".", sep = ""))
-  if (length(bad_samples) == 0) bad_samples <- "none"
-  out_samples[[i]] <- bad_samples
-  out <- grepl(paste(unlist(out_samples), collapse = "|"), colnames(data_in))
-  data_in <- data_in[, !out]
-}
-
-# Outlier samples.
-bad_samples <- unlist(out_samples)
-bad_samples
-
-# Write to data.fit.
-data.fit <- log2(t(data_in))
-data.fit[1:5, 1:5]
-
-# Total sample outliers removed.
-total_out <- dim(subset(sample_info, !sample_info$SampleType == "QC"))[1] - dim(data.fit)[1]
-print(paste("Total number of sample outliers removed =", total_out))
-
-# Save final normalized data to file.
-file <- paste0(Rdatadir, "/", tissue, "/", "IRS_eBLM_cleanDat.RDS")
-saveRDS(data.fit, file)
-
-#-------------------------------------------------------------------------------
 #' ## Reformat final normalized, regressed data for TAMPOR processing.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE 
 
 # Data is...
 data_in <- 2^t(data.fit)
-data_in[1:5, 1:5]
+data_in[1:5, 1:5]  # un-log
 dim(data_in)
 
 # Extract Gene descriptions and uniprot accesssions for renaming rows.
@@ -1510,6 +1330,9 @@ saveRDS(cleanDat, file)
 #-------------------------------------------------------------------------------
 #' ## InterBatch Statistical comparisons with EdgeR GLM.
 #-------------------------------------------------------------------------------
+#' After regression of genetic strain, pooling of WT samples will increase 
+#' statistical power. 
+#' 
 #+ eval = FALSE
 
 # Create DGEList object with EB adjusted data.
@@ -1723,7 +1546,7 @@ file <- paste0(outputtabsdir, "/", outputMatName, "_InterBatch_eBLM_GLM_GSE_Resu
 saveWorkbook(wb, file, overwrite = TRUE)
 
 #-------------------------------------------------------------------------------
-#' ## Generate protein box plots for significantly DE proteins (Interbatch).
+#' ## Generate protein boxplots for significantly DE proteins (Interbatch).
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
 
@@ -1765,7 +1588,7 @@ colors <- c("gray", "yellow", "blue", "green", "purple")
 plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
 # Example plot.
-plot_list$`Cul4b|A2A432`
+plot_list[[1]]
 
 ## Add significance stars.
 # Build a df with statistical results.
@@ -1789,7 +1612,7 @@ df$Uniprot <- NULL
 stats <- df
 
 # Example plot.
-plot <- plot_list$`Cul4b|A2A432`
+plot <- plot_list[[1]]
 annotate_stars(plot, stats)
 
 # Loop to add stars.
@@ -1814,11 +1637,13 @@ ggsave(file,fig)
 #-------------------------------------------------------------------------------
 #' ## Render RMarkdown report.
 #-------------------------------------------------------------------------------
+#' This script is formatted for automated rendering of an RMarkdown report.
+#'
 #+ eval = FALSE
 
 # Code directory. 
-dir <- "D:/Documents/R/TMT-Analysis/Synaptosome-TMT-Analysis/Code/Bradshaw"
-file <- paste(dir,"TMT_Analysis_v14.R",sep="/")
+dir <- paste(rootdir,"Code",sep="/")
+file <- paste(dir,"1_TMT_Analysis.R",sep="/")
 
 # Save and render.
 rstudioapi::documentSave()

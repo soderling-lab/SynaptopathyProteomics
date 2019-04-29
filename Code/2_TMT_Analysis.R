@@ -1,5 +1,5 @@
 #' ---
-#' title: TAMPOR normalization. 
+#' title: TMT Analysis part 2. TAMPOR normalization. 
 #' author: Tyler W Bradshaw
 #' urlcolor: blue
 #' header-includes:             
@@ -77,7 +77,12 @@ suppressPackageStartupMessages({
   library(gtable)
   library(grid)
   library(ggplotify)
+  library(TBmiscr)
 })
+
+# To install TBmiscr:
+#library(devtools)
+#devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
 CodeVersion <- "Semi_Final"
@@ -87,7 +92,7 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/TMT-Analysis/Synaptosome-TMT-Analysis"
+rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
