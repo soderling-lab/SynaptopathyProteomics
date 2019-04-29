@@ -86,8 +86,8 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
-#rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptosome-TMT-Analysis"
+#rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
+rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -103,6 +103,9 @@ source(my_functions)
 # Define prefix for output figures and tables.
 outputMatName <- paste(tissue, "_WGCNA_Analysis_", sep = "")
 
+# Globally set ggplots theme.
+ggplot2::theme_set(theme_gray())
+
 #-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
 #-------------------------------------------------------------------------------
@@ -116,7 +119,7 @@ estimatePower <- TRUE
 datafile <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.Rds",sep="/")
 cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
-cleanDat[1:5,1:5]
+cleanDat[1:5,1:5] # Data should be log transformed. 
 dim(cleanDat)
 
 # Load combined sample info.
@@ -127,7 +130,7 @@ dim(sample_info)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-parallelThreads <- 9
+parallelThreads <- 11
 clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
@@ -148,16 +151,16 @@ if (estimatePower==TRUE){
   grid.arrange(table)
   
   # Save table as tiff.
-  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology_Table.tiff")
-  ggsave(file,table)
+  #file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology_Table.tiff")
+  #ggsave(file,table)
   
   # Figure. ggplotScaleFreeFit() generates three plots.
   plots <- ggplotScaleFreeFit(sft)
   plots$Grid
   
   # Save as tiff.
-  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology.tiff")
-  ggsave(file,plots$Grid)
+  #file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology.tiff")
+  #ggsave(file,plots$Grid)
   
   # Save plots and table as PDF.
   #plot_list <- list(table,plots$ScaleFreeFit, plots$MeanConnectivity)
@@ -171,12 +174,12 @@ if (estimatePower==TRUE){
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-parallelThreads <- 8 #11
+parallelThreads <- 11
 clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
 # Main network building parameters. 
-power <- 9
+power <- 12
 corType <- "bicor"
 networkType <- "signed"
 
@@ -193,8 +196,8 @@ detectCutHeight <- 0.995
 
 # Calculate the adjacency network.
 r <- bicor(t(cleanDat))
-#adjm <- ((1+r)/2)^power #signed.
-adjm <- abs(r)^power     #un-signed.
+adjm <- ((1+r)/2)^power #signed.
+#adjm <- abs(r)^power     #un-signed.
 
 # Create igraph object. 
 graph <- graph_from_adjacency_matrix(
@@ -247,7 +250,7 @@ for (i in 1:nboot){
                           saveTOMs = FALSE, 
                           maxBlockSize = maxBlockSize)
   
-  ## Enformce module preservation. .
+  ## Enforce module preservation. .
   # Input for NetRep:
   data_list <- list(data = t(cleanDat))
   correlation_list <- list(data = r)       
@@ -269,12 +272,14 @@ for (i in 1:nboot){
     discovery = "data", 
     test = "data",
     selfPreservation = TRUE, 
-    nThreads = 11, 
+    nThreads = parallelThreads, 
     #nPerm = 1000, # nPerm will be determined by the function. 
     null = "overlap", 
     alternative = "greater", 
     simplify = TRUE,
     verbose = FALSE)
+  
+  # Extract preservation statistics and p-values. 
   preservation <- preservation[c("observed","p.values")]
   
   # Get the maximum permutation test p-value.
