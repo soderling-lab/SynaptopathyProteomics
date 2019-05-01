@@ -86,8 +86,8 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-#rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
-rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptopathy-Proteomics"
+rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
+#rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -660,18 +660,19 @@ result$modRank <- rank(result$q2)/nrow(result)
 result$nModRank <- rank(result$nSigModules)/nrow(result)
 result$nSigModRank <- rank(result$KWsigModules)/nrow(result)
 result$maxPSMDRank <- rank(result$MaxPSMD)/nrow(result)
-#result$score <- result$coherenceRank + result$modRank - result$costRank
+result$score <- (result$coherenceRank + result$modRank)/2 - result$costRank
+#result$score <- (result$coherenceRank + result$nSigModRank + result$modRank)/3 - result$costRank
 #result$score2 <- result$maxPSMDRank + result$nSigModRank - result$costRank
 
 # Examine Dtests results.
-result$nSigDunnettTests <- do.call(rbind,
-                                   lapply(Dtests,function(x) sum(x$nSigDunnettTest)))
+#result$nSigDunnettTests <- do.call(rbind,
+#                                   lapply(Dtests,function(x) sum(x$nSigDunnettTest)))
 # If KW pval is <0.05, then number of sig Dunnett tests.
-Dtests <- lapply(Dtests,function(x) 
-  add_column(x,logic = x$nSigDunnettTest*as.numeric(x$p.adj<0.05),.after=5))
+#Dtests <- lapply(Dtests,function(x) 
+#  add_column(x,logic = x$nSigDunnettTest*as.numeric(x$p.adj<0.05),.after=5))
 # Convergence, the number of modules with more than 2 sig changes.
-result$nModsConvergance <- do.call(rbind,
-                                   lapply(Dtests,function(x) sum(x$logic>1)))
+#result$nModsConvergance <- do.call(rbind,
+#                                   lapply(Dtests,function(x) sum(x$logic>1)))
 # Write to file. 
 #write.csv(result,"params_result.csv")
 

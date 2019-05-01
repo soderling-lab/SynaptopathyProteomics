@@ -1,0 +1,2130 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\PassOptionsToPackage{usenames,dvipsnames}{color} % color is loaded by hyperref
+\hypersetup{unicode=true,
+            pdftitle={TMT Analysis part 1.},
+            pdfauthor={Tyler W Bradshaw},
+            colorlinks=true,
+            linkcolor=Maroon,
+            citecolor=Blue,
+            urlcolor=blue,
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\usepackage{longtable,booktabs}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{TMT Analysis part 1.}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{Tyler W Bradshaw}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+      \predate{\centering\large\emph}
+  \postdate{\par}
+    \date{Tue Apr 30 12:31:05 2019}
+
+\usepackage{float}
+\floatplacement{figure}{H}
+
+\begin{document}
+\maketitle
+
+{
+\hypersetup{linkcolor=black}
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\subsection{Prepare the workspace.}\label{prepare-the-workspace.}
+
+Prepare the R workspace for the analysis. Load all required packages and
+custom functions. Set-up directories for saving output files.
+
+\subsection{Load the raw data and sample info (traits) from
+excel.}\label{load-the-raw-data-and-sample-info-traits-from-excel.}
+
+The raw peptide intensity data were exported from ProteomeDiscover (PD)
+version 2.2. Note that the default export from PD2.x is a unitless
+signal to noise ratio, and it is not recommended to use ths for
+quantification.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Load the data from excel using readxl::read_excel}
+\NormalTok{datafile <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}
+  \StringTok{"4227_TMT_Cortex_Combined_PD_Peptide_Intensity.xlsx"}\NormalTok{,}
+  \StringTok{"4227_TMT_Striatum_Combined_PD_Peptide_Intensity.xlsx"}
+\NormalTok{)}
+
+\CommentTok{# Load sample information.}
+\NormalTok{samplefile <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}
+  \StringTok{"4227_TMT_Cortex_Combined_PD_Protein_Intensity_EBD_traits.csv"}\NormalTok{,}
+  \StringTok{"4227_TMT_Striatum_Combined_PD_Protein_Intensity_EBD_traits.csv"}
+\NormalTok{)}
+
+\CommentTok{# Load the data from PD and sample info.}
+\NormalTok{data_PD <-}\StringTok{ }\KeywordTok{read_excel}\NormalTok{(}\KeywordTok{paste}\NormalTok{(datadir, }\StringTok{"/"}\NormalTok{, datafile[type], }\DataTypeTok{sep =} \StringTok{""}\NormalTok{), }\DecValTok{1}\NormalTok{)}
+\NormalTok{sample_info <-}\StringTok{ }\KeywordTok{read.csv}\NormalTok{(}\KeywordTok{paste}\NormalTok{(datadir, }\StringTok{"/"}\NormalTok{, samplefile[type], }\DataTypeTok{sep =} \StringTok{""}\NormalTok{))}
+
+\CommentTok{# Insure traits are in matching order.}
+\NormalTok{sample_info <-}\StringTok{ }\NormalTok{sample_info[}\KeywordTok{order}\NormalTok{(sample_info}\OperatorTok{$}\NormalTok{Order), ]}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Cleanup and reorganize the data from
+PD.}\label{cleanup-and-reorganize-the-data-from-pd.}
+
+The raw data are cleaned up with the custom function \textbf{cleanPD}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Load the data from PD.}
+\NormalTok{raw_peptide <-}\StringTok{ }\KeywordTok{cleanPD}\NormalTok{(data_PD, sample_info)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Examine peptide and protein level identification
+overalap.}\label{examine-peptide-and-protein-level-identification-overalap.}
+
+Approximately 40,000 unique peptides cooresponding to
+\textasciitilde{}3,000 proteins are quantified across all four
+experiments. When comparing the peptides identified in each experiment,
+the overlap is only \textasciitilde{}25\%. \textasciitilde{}20\$ of
+peptides are identified in all four experiments. This means that in
+different experiments, the same protein will likely be quantified by
+different peptides. This is a major reason the internal reference
+scaling (IRS) normalizaiton approach is employed below.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Total number of unique peptides:}
+\NormalTok{nPeptides <-}\StringTok{ }\KeywordTok{format}\NormalTok{(}\KeywordTok{length}\NormalTok{(}\KeywordTok{unique}\NormalTok{(raw_peptide}\OperatorTok{$}\NormalTok{Sequence)), }\DataTypeTok{big.mark =} \StringTok{","}\NormalTok{)}
+\KeywordTok{print}\NormalTok{(}\KeywordTok{paste}\NormalTok{(nPeptides, }\StringTok{" unique peptides identified."}\NormalTok{, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "42,287 unique peptides identified."
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Total number of unique proteins}
+\NormalTok{nProteins <-}\StringTok{ }\KeywordTok{format}\NormalTok{(}\KeywordTok{length}\NormalTok{(}\KeywordTok{unique}\NormalTok{(raw_peptide}\OperatorTok{$}\NormalTok{Accession)), }\DataTypeTok{big.mark =} \StringTok{","}\NormalTok{)}
+\KeywordTok{print}\NormalTok{(}\KeywordTok{paste}\NormalTok{(nProteins, }\StringTok{" unique proteins identified."}\NormalTok{,}\DataTypeTok{sep =} \StringTok{""}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "3,492 unique proteins identified."
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Table}
+\NormalTok{mytable <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{nPeptides =}\NormalTok{ nPeptides,}
+                         \DataTypeTok{nProteins =}\NormalTok{ nProteins)}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(mytable, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{theme =} \KeywordTok{ttheme_default}\NormalTok{())}
+\KeywordTok{grid.arrange}\NormalTok{(table)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-12-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Save as tiff.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_Raw_nPeptides_nProteins.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,table)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Examine the number of peptides per protein.}
+\NormalTok{nPep <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(raw_peptide) }\OperatorTok{%>%}
+\StringTok{  }\KeywordTok{group_by}\NormalTok{(Accession) }\OperatorTok{%>%}
+\StringTok{  }\NormalTok{dplyr}\OperatorTok{::}\KeywordTok{summarize}\NormalTok{(}\DataTypeTok{nPeptides =} \KeywordTok{length}\NormalTok{(Sequence))}
+
+\CommentTok{# Creat table with stats.}
+\NormalTok{stats <-}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{(}\KeywordTok{summary}\NormalTok{(nPep}\OperatorTok{$}\NormalTok{nPeptides))}
+\NormalTok{df <-}\StringTok{ }\KeywordTok{add_column}\NormalTok{(}\KeywordTok{as.data.frame}\NormalTok{(stats), }\KeywordTok{rownames}\NormalTok{(stats), }\DataTypeTok{.before =} \DecValTok{1}\NormalTok{)}
+\NormalTok{tt <-}\StringTok{ }\KeywordTok{ttheme_default}\NormalTok{(}\DataTypeTok{base_size =} \DecValTok{11}\NormalTok{, }\DataTypeTok{core =} \KeywordTok{list}\NormalTok{(}\DataTypeTok{bg_params =} \KeywordTok{list}\NormalTok{(}\DataTypeTok{fill =} \StringTok{"white"}\NormalTok{)))}
+\NormalTok{tab <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(df, }\DataTypeTok{cols =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{theme =}\NormalTok{ tt)}
+\NormalTok{g <-}\StringTok{ }\KeywordTok{gtable_add_grob}\NormalTok{(tab,}
+  \DataTypeTok{grobs =} \KeywordTok{rectGrob}\NormalTok{(}\DataTypeTok{gp =} \KeywordTok{gpar}\NormalTok{(}\DataTypeTok{fill =} \OtherTok{NA}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{1}\NormalTok{)),}
+  \DataTypeTok{t =} \DecValTok{1}\NormalTok{, }\DataTypeTok{b =} \KeywordTok{nrow}\NormalTok{(tab), }\DataTypeTok{l =} \DecValTok{1}\NormalTok{, }\DataTypeTok{r =} \KeywordTok{ncol}\NormalTok{(tab)}
+\NormalTok{)}
+
+\CommentTok{# Generate plot.}
+\NormalTok{plot <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(nPep, }\KeywordTok{aes}\NormalTok{(nPeptides)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_histogram}\NormalTok{(}\DataTypeTok{bins =} \DecValTok{100}\NormalTok{, }\DataTypeTok{fill =} \StringTok{"black"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Number of peptides per protein"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}
+    \DataTypeTok{plot.title =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{hjust =} \FloatTok{0.5}\NormalTok{, }\DataTypeTok{color =} \StringTok{"black"}\NormalTok{, }\DataTypeTok{size =} \DecValTok{14}\NormalTok{, }\DataTypeTok{face =} \StringTok{"bold"}\NormalTok{),}
+    \DataTypeTok{axis.title.x =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{color =} \StringTok{"black"}\NormalTok{, }\DataTypeTok{size =} \DecValTok{11}\NormalTok{, }\DataTypeTok{face =} \StringTok{"bold"}\NormalTok{),}
+    \DataTypeTok{axis.title.y =} \KeywordTok{element_text}\NormalTok{(}\DataTypeTok{color =} \StringTok{"black"}\NormalTok{, }\DataTypeTok{size =} \DecValTok{11}\NormalTok{, }\DataTypeTok{face =} \StringTok{"bold"}\NormalTok{)}
+\NormalTok{  )}
+
+\CommentTok{# Add annotation.}
+\NormalTok{p <-}\StringTok{ }\KeywordTok{ggranges}\NormalTok{(plot)}\OperatorTok{$}\NormalTok{TopRight }\CommentTok{# ggranges calculates position of annotation.}
+\NormalTok{plot <-}\StringTok{ }\NormalTok{plot }\OperatorTok{+}\StringTok{ }\KeywordTok{annotation_custom}\NormalTok{(g, p}\OperatorTok{$}\NormalTok{xmin, p}\OperatorTok{$}\NormalTok{xmax, p}\OperatorTok{$}\NormalTok{ymin, p}\OperatorTok{$}\NormalTok{ymax)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-13-1} 
+
+}
+
+\caption{Number of peptides identified per protein.}\label{fig:unnamed-chunk-13}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-14-1} 
+
+}
+
+\caption{Peptide identification overlap. All experimental pairwise comparisons.}\label{fig:unnamed-chunk-14}
+\end{figure}\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-15-1} 
+
+}
+
+\caption{Peptide identification overlap.}\label{fig:unnamed-chunk-15}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Examine the raw data.}\label{examine-the-raw-data.}
+
+The need for normalization is evident in the raw data. Note that in the
+MDS plot, samples cluster by experiment--evidence of a batch effect.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{raw_peptide}
+\NormalTok{title <-}\StringTok{ }\OtherTok{NULL}
+\CommentTok{# Colors for boxplot must be specified in ggplot order for boxplot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+
+\CommentTok{# Generate boxplot.}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotBoxPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title)}
+
+\CommentTok{# Generate density plot.}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotDensity}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title) }\OperatorTok{+}\StringTok{ }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\CommentTok{# Genotype specific colors must be specified in column order.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p2 <-}\StringTok{ }\NormalTok{p2 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =}\NormalTok{ colors)}
+
+\CommentTok{# Generate meanSd plot.}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotMeanSdPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Removed 9 rows containing non-finite values (stat_binhex).
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate MDS plot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{3}\NormalTok{))}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotMDS}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title, sample_info, }\DataTypeTok{labels =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"Raw peptide data. A. Boxplot B. Density plot. }
+\StringTok{                   C. Mean SD plot. D. MDS plot."}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-19-1} 
+
+}
+
+\caption{Raw peptide data. A. Boxplot B. Density plot.  C. Mean SD plot. D. MDS plot.}\label{fig:unnamed-chunk-19}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Sample loading normalization within
+experiments.}\label{sample-loading-normalization-within-experiments.}
+
+The function \textbf{normalize\_SL} performs sample loading (SL)
+normalization to equalize the run level intensity (column) sums. The
+data in each column are multiplied by a factor such that the mean of the
+column sums are are equal. Sample loading normalization is performed
+within an experiment under the assumption that equal amounts of protein
+were used for each of the 11 TMT channels.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Define data columns for SL within experiments:}
+\NormalTok{colID <-}\StringTok{ "Abundance"}
+\NormalTok{groups <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Shank2"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+
+\CommentTok{# Perform SL normalization.}
+\NormalTok{SL_peptide <-}\StringTok{ }\KeywordTok{normalize_SL}\NormalTok{(raw_peptide, colID, groups)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Examine the SL Data.}\label{examine-the-sl-data.}
+
+Sample loading normalization equalizes the run-level sums within an
+11-plex TMT experiment.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{SL_peptide}
+\NormalTok{title <-}\StringTok{ }\OtherTok{NULL}
+
+\CommentTok{# Generate boxplot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotBoxPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title)}
+
+\CommentTok{# Generate density plot.}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotDensity}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title) }\OperatorTok{+}\StringTok{ }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p2 <-}\StringTok{ }\NormalTok{p2 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =}\NormalTok{ colors)}
+
+\CommentTok{# Generate meanSd plot.}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotMeanSdPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Removed 9 rows containing non-finite values (stat_binhex).
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate MDS plot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{3}\NormalTok{))}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotMDS}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title, sample_info, }\DataTypeTok{labels =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"Sample loading normalized peptide data. A. Boxplot B. Density plot. }
+\StringTok{                   C. Mean SD plot. D. MDS plot."}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-26-1} 
+
+}
+
+\caption{Sample loading normalized peptide data. A. Boxplot B. Density plot.  C. Mean SD plot. D. MDS plot.}\label{fig:unnamed-chunk-26}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Examine the nature of missing
+values.}\label{examine-the-nature-of-missing-values.}
+
+Missing values are inherent in high throughput experiments. There are
+two main classes of missing values, missing at random (MAR) and missing
+not at random (MNAR). The appropriate imputing algorithm should be
+chosen based on the nature of missing values. The distribution of
+peptides with missing values is examined by a density plot. The
+left-shifted distribution of peptides with missing values indicates that
+peptides that have missing values are generally lower in abundance.
+Missing values are likely then to be not missing at random (MNAR), but
+missing because they are low-abundance and at or near the limit of
+detection. MNAR data can be imputed with the k-nearest neighbors (knn)
+algorithm in the next chunk.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Define groups for subseting the data.}
+\NormalTok{groups <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Shank2"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+
+\CommentTok{# Generate plots.}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotDetect}\NormalTok{(SL_peptide, groups[}\DecValTok{1}\NormalTok{]) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotDetect}\NormalTok{(SL_peptide, groups[}\DecValTok{2}\NormalTok{]) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotDetect}\NormalTok{(SL_peptide, groups[}\DecValTok{3}\NormalTok{]) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotDetect}\NormalTok{(SL_peptide, groups[}\DecValTok{4}\NormalTok{]) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"Peptide-level missing value distributions. A. Shank2 B. Shank3. }
+\StringTok{                   C. Syngap1. D. Ube3a."}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-30-1} 
+
+}
+
+\caption{Peptide-level missing value distributions. A. Shank2 B. Shank3.  C. Syngap1. D. Ube3a.}\label{fig:unnamed-chunk-30}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Impute missing peptide values within an
+experiment.}\label{impute-missing-peptide-values-within-an-experiment.}
+
+The function \textbf{impute\_Peptides} supports imputing missing values
+with the maximum likelyhood estimation (MLE) or KNN algorithms for
+missing not at random (MNAR) and missing at random data, respectively.
+Impution is performed with an experiment, and rows with more than 50\%
+missing values are censored and will not be imputed. Peptides with more
+than 2 missing biological replicates or any missing quality control (QC)
+replicates will be censored and are not imputed.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Define experimental groups for checking QC variability:}
+\NormalTok{groups <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Shank2"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+
+\CommentTok{# Impute missing values using KNN algorithm for MNAR data.}
+\CommentTok{# Rows with missing QC replicates are ingored (qc_threshold=0).}
+\CommentTok{# Rows with more than 2 (50%) missing biological replicates are }
+\CommentTok{# ignored (bio_threshold=2).}
+\NormalTok{data_impute <-}\StringTok{ }\KeywordTok{impute_Peptides}\NormalTok{(SL_peptide, groups, }\DataTypeTok{method =} \StringTok{"knn"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 128 values from Shank2 are missing and will be replaced by imputing.
+## 57 values from Shank3 are missing and will be replaced by imputing.
+## 75 values from Syngap1 are missing and will be replaced by imputing.
+## 89 values from Ube3a are missing and will be replaced by imputing.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{impute_peptide <-}\StringTok{ }\NormalTok{data_impute}\OperatorTok{$}\NormalTok{data_imputed}
+
+\CommentTok{# Table of n imputed peptides.}
+\NormalTok{n_out <-}\StringTok{ }\NormalTok{data_impute}\OperatorTok{$}\NormalTok{n_out}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{do.call}\NormalTok{(rbind, n_out))}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{add_column}\NormalTok{(table, }\KeywordTok{rownames}\NormalTok{(table), }\DataTypeTok{.before =} \DecValTok{1}\NormalTok{)}
+\KeywordTok{colnames}\NormalTok{(table) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Experiment"}\NormalTok{, }\StringTok{"N Imputed"}\NormalTok{)}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(table, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{theme =} \KeywordTok{ttheme_default}\NormalTok{())}
+
+\CommentTok{# Table.}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-34-1} 
+
+}
+
+\caption{Summary of imputed values.}\label{fig:unnamed-chunk-34}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Illustrate the mean variance relationship of QC
+peptides.}\label{illustrate-the-mean-variance-relationship-of-qc-peptides.}
+
+Quality control samples can be used to asses intra-experimental
+variability. Peptides that have highly variable QC measurements will
+increase protein level variability and should be removed. The
+peptide-level QC data are binned by intensity, and peptides whose mean
+ratio are more than four standard deviations away from the mean are
+considered outliers and removed.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate QC correlation scatter plots for all experimental groups.}
+\NormalTok{groups <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Shank2"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+\NormalTok{plots <-}\StringTok{ }\KeywordTok{ggplotcorQC}\NormalTok{(impute_peptide, groups, }\DataTypeTok{colID =} \StringTok{"QC"}\NormalTok{, }\DataTypeTok{nbins =} \DecValTok{5}\NormalTok{)}
+
+\CommentTok{# Generate intensity bin histograms. Example, Shank2.}
+\NormalTok{hist_list <-}\StringTok{ }\KeywordTok{list}\NormalTok{()}
+\NormalTok{hist_list[[}\StringTok{"Shank2"}\NormalTok{]] <-}\StringTok{ }\KeywordTok{ggplotQCHist}\NormalTok{(impute_peptide, }\StringTok{"Shank2"}\NormalTok{, }\DataTypeTok{nbins =} \DecValTok{5}\NormalTok{, }\DataTypeTok{threshold =} \DecValTok{4}\NormalTok{)}
+\NormalTok{hist_list[[}\StringTok{"Shank3"}\NormalTok{]] <-}\StringTok{ }\KeywordTok{ggplotQCHist}\NormalTok{(impute_peptide, }\StringTok{"Shank3"}\NormalTok{, }\DataTypeTok{nbins =} \DecValTok{5}\NormalTok{, }\DataTypeTok{threshold =} \DecValTok{4}\NormalTok{)}
+\NormalTok{hist_list[[}\StringTok{"Syngap1"}\NormalTok{]] <-}\StringTok{ }\KeywordTok{ggplotQCHist}\NormalTok{(impute_peptide, }\StringTok{"Syngap1"}\NormalTok{, }\DataTypeTok{nbins =} \DecValTok{5}\NormalTok{, }\DataTypeTok{threshold =} \DecValTok{4}\NormalTok{)}
+\NormalTok{hist_list[[}\StringTok{"Ube3a"}\NormalTok{]] <-}\StringTok{ }\KeywordTok{ggplotQCHist}\NormalTok{(impute_peptide, }\StringTok{"Ube3a"}\NormalTok{, }\DataTypeTok{nbins =} \DecValTok{5}\NormalTok{, }\DataTypeTok{threshold =} \DecValTok{4}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\CommentTok{#fixme: should optimize size of figure for faster render on pdf. also, annotation layers are not scaled correctly. }
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-38-1} 
+
+}
+
+\caption{Shank2.}\label{fig:unnamed-chunk-38}
+\end{figure}
+
+\begin{verbatim}
+## NULL
+\end{verbatim}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Peptide level filtering.}\label{peptide-level-filtering.}
+
+Peptides that were not quantified in all three qc replicates are
+removed. The data are binned by intensity, and measruments that are 4xSD
+from the mean ratio of the intensity bin are considered outliers and
+removed.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Define experimental groups for checking QC variability:}
+\NormalTok{groups <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Shank2"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+
+\CommentTok{# Filter peptides based on QC precision.}
+\NormalTok{filter_peptide <-}\StringTok{ }\KeywordTok{filterQCv2}\NormalTok{(impute_peptide, groups, }\DataTypeTok{nbins =} \DecValTok{5}\NormalTok{, }\DataTypeTok{threshold =} \DecValTok{4}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "182 peptides will be removed from  Shank2  because of QC imprecision"
+## [1] "67 peptides will be removed from  Shank3  because of QC imprecision"
+## [1] "73 peptides will be removed from  Syngap1  because of QC imprecision"
+## [1] "75 peptides will be removed from  Ube3a  because of QC imprecision"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate table.}
+\NormalTok{out <-}\StringTok{ }\KeywordTok{list}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\DecValTok{94}\NormalTok{,}\DecValTok{77}\NormalTok{,}\DecValTok{133}\NormalTok{,}\DecValTok{59}\NormalTok{),}\KeywordTok{c}\NormalTok{(}\DecValTok{182}\NormalTok{,}\DecValTok{67}\NormalTok{,}\DecValTok{73}\NormalTok{,}\DecValTok{75}\NormalTok{))[[type]] }\CommentTok{# Cox and Str peps removed.}
+\NormalTok{mytable <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\KeywordTok{cbind}\NormalTok{(groups,out))}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(mytable, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{theme =} \KeywordTok{ttheme_default}\NormalTok{())}
+\KeywordTok{grid.arrange}\NormalTok{(table)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-41-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Save as tiff.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_nProteins_Filtered.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,table)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Protein level summarization and normalization across all
+batches.}\label{protein-level-summarization-and-normalization-across-all-batches.}
+
+Summarize to protein level by summing peptide intensities. Note that the
+peptide column in the returned data frame reflects the total number of
+peptides identified for a given protein across all experiments.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Summarize to protein level:}
+\NormalTok{SL_protein <-}\StringTok{ }\KeywordTok{summarize_Protein}\NormalTok{(filter_peptide)}
+
+\CommentTok{# Normalize across all columns (experiments).}
+\NormalTok{SL_protein <-}\StringTok{ }\KeywordTok{normalize_SL}\NormalTok{(SL_protein, }\StringTok{"Abundance"}\NormalTok{, }\StringTok{"Abundance"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{IntraBatch Protein-lavel
+ComBat.}\label{intrabatch-protein-lavel-combat.}
+
+Each experimental cohort of 8 was prepared in two batches. This was
+necessary because the ultra-centrifuge holds a maximum of 6 samples.
+This intra-batch batch effect was recorded for 6/8 experiments. We will
+utilize the \textbf{ComBat()} function from the sva package to remove
+this batch effect before attempting to correct the inter-batch effect
+between batches with IRS normalization.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Define experimental groups and column ID for expression data.}
+\NormalTok{groups}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "Shank2"  "Shank3"  "Syngap1" "Ube3a"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{colID <-}\StringTok{ "Abundance"}
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{SL_protein}
+
+\CommentTok{# Loop to perform ComBat on intraBatch batch effect (prep date).}
+\CommentTok{# If there is no known batch effect, the data is returned un-regressed.}
+\CommentTok{# Note: QC samples are not adjusted by ComBat.}
+
+\NormalTok{data_out <-}\StringTok{ }\KeywordTok{list}\NormalTok{() }\CommentTok{# ComBat data.}
+\NormalTok{plot_list <-}\StringTok{ }\KeywordTok{list}\NormalTok{() }\CommentTok{# MDS plots.}
+\NormalTok{R <-}\StringTok{ }\KeywordTok{list}\NormalTok{() }\CommentTok{# Bicor stats [bicor(batch,PC1)]}
+
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(groups)) \{}
+  \CommentTok{# Meta data.}
+\NormalTok{  info_cols <-}\StringTok{ }\NormalTok{data_in[, }\OperatorTok{!}\KeywordTok{grepl}\NormalTok{(colID, }\KeywordTok{colnames}\NormalTok{(data_in))]}
+
+  \CommentTok{# Expression data.}
+\NormalTok{  group <-}\StringTok{ }\NormalTok{groups[[i]]}
+\NormalTok{  cols <-}\StringTok{ }\KeywordTok{grepl}\NormalTok{(group, }\KeywordTok{colnames}\NormalTok{(data_in))}
+\NormalTok{  data_work <-}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{(data_in[, cols])}
+  \KeywordTok{rownames}\NormalTok{(data_work) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(data_in}\OperatorTok{$}\NormalTok{Accession,}
+    \KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(data_in)),}
+    \DataTypeTok{sep =} \StringTok{"_"}
+\NormalTok{  )}
+\NormalTok{  rows_out <-}\StringTok{ }\KeywordTok{apply}\NormalTok{(data_work, }\DecValTok{1}\NormalTok{, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{sum}\NormalTok{(}\KeywordTok{is.na}\NormalTok{(x) }\OperatorTok{>}\StringTok{ }\DecValTok{0}\NormalTok{))}
+\NormalTok{  data <-}\StringTok{ }\NormalTok{data_work[}\OperatorTok{!}\NormalTok{rows_out, ]}
+
+  \CommentTok{# Get Traits info.}
+\NormalTok{  idx <-}\StringTok{ }\KeywordTok{match}\NormalTok{(}\KeywordTok{colnames}\NormalTok{(data), sample_info}\OperatorTok{$}\NormalTok{ColumnName)}
+\NormalTok{  traits_sub <-}\StringTok{ }\NormalTok{sample_info[idx, ]}
+  \KeywordTok{rownames}\NormalTok{(traits_sub) <-}\StringTok{ }\NormalTok{traits_sub}\OperatorTok{$}\NormalTok{ColumnName}
+
+  \CommentTok{# QC Samples will be ignored.}
+\NormalTok{  ignore <-}\StringTok{ }\KeywordTok{is.na}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{PrepDate)}
+\NormalTok{  data_QC <-}\StringTok{ }\NormalTok{data[, ignore]}
+\NormalTok{  CombatInfo <-}\StringTok{ }\NormalTok{traits_sub[}\OperatorTok{!}\NormalTok{ignore, ]}
+\NormalTok{  data <-}\StringTok{ }\NormalTok{data[, }\OperatorTok{!}\NormalTok{ignore]}
+
+  \CommentTok{# There should be no negative values.}
+  \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{min}\NormalTok{(data, }\DataTypeTok{na.rm =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{<}\StringTok{ }\DecValTok{1}\NormalTok{) \{}
+\NormalTok{    data[data }\OperatorTok{<}\StringTok{ }\DecValTok{1}\NormalTok{] <-}\StringTok{ }\DecValTok{1}
+    \KeywordTok{print}\NormalTok{(}\StringTok{"Warning: Expression values less than 1 will be replaced with 1."}\NormalTok{)}
+\NormalTok{  \}}
+
+  \CommentTok{# Check the correlation between batch and PC1.}
+\NormalTok{  pc1 <-}\StringTok{ }\KeywordTok{prcomp}\NormalTok{(}\KeywordTok{t}\NormalTok{(}\KeywordTok{log2}\NormalTok{(data)))}\OperatorTok{$}\NormalTok{x[, }\DecValTok{1}\NormalTok{]}
+\NormalTok{  batch <-}\StringTok{ }\KeywordTok{as.numeric}\NormalTok{(}\KeywordTok{as.factor}\NormalTok{(CombatInfo}\OperatorTok{$}\NormalTok{PrepDate)) }\OperatorTok{-}\StringTok{ }\DecValTok{1}
+\NormalTok{  r1 <-}\StringTok{ }\KeywordTok{suppressWarnings}\NormalTok{(}\KeywordTok{bicor}\NormalTok{(batch, pc1))}
+
+  \CommentTok{# Check that r2 is not NA.}
+  \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.na}\NormalTok{(r1)) \{}
+\NormalTok{    r1 <-}\StringTok{ }\DecValTok{0}
+\NormalTok{  \}}
+
+  \CommentTok{# Check, in matching order?}
+  \ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\KeywordTok{all}\NormalTok{(}\KeywordTok{colnames}\NormalTok{(data) }\OperatorTok{==}\StringTok{ }\NormalTok{CombatInfo}\OperatorTok{$}\NormalTok{ColumnName)) \{}
+    \KeywordTok{print}\NormalTok{(}\StringTok{"Warning: Names of traits and expression data do not match."}\NormalTok{)}
+\NormalTok{  \}}
+
+  \CommentTok{# Check MDS plot prior to ComBat.}
+\NormalTok{  traits_sub}\OperatorTok{$}\NormalTok{Sample.Model <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\StringTok{"b"}\NormalTok{, }
+                                   \KeywordTok{as.numeric}\NormalTok{(}\KeywordTok{as.factor}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{PrepDate)), }\DataTypeTok{sep =} \StringTok{"."}\NormalTok{)}
+\NormalTok{  title <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\KeywordTok{gsub}\NormalTok{(}\StringTok{" "}\NormalTok{, }\StringTok{""}\NormalTok{, }\KeywordTok{unique}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{Model)), }\StringTok{"pre-ComBat"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{" "}\NormalTok{)}
+\NormalTok{  plot1 <-}\StringTok{ }\KeywordTok{ggplotMDSv2}\NormalTok{(}\KeywordTok{log2}\NormalTok{(data),}
+    \DataTypeTok{colID =} \StringTok{"b"}\NormalTok{,}
+    \DataTypeTok{title =}\NormalTok{ title, }\DataTypeTok{traits =}\NormalTok{ traits_sub}
+\NormalTok{  )}\OperatorTok{$}\NormalTok{plot }\OperatorTok{+}\StringTok{ }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\NormalTok{  plot1 <-}\StringTok{ }\NormalTok{plot1 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =} \KeywordTok{unique}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{Color))}
+
+  \CommentTok{# Apply ComBat.}
+  \KeywordTok{cat}\NormalTok{(}\KeywordTok{paste}\NormalTok{(}\StringTok{"Performing"}\NormalTok{, groups[i], }\StringTok{"ComBat..."}\NormalTok{, }\StringTok{"}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{))}
+  \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{length}\NormalTok{(}\KeywordTok{unique}\NormalTok{(CombatInfo}\OperatorTok{$}\NormalTok{PrepDate)) }\OperatorTok{>}\StringTok{ }\DecValTok{1} \OperatorTok{&}\StringTok{ }\KeywordTok{abs}\NormalTok{(r1) }\OperatorTok{>}\StringTok{ }\FloatTok{0.1}\NormalTok{) \{}
+    \CommentTok{# Create ComBat model.}
+\NormalTok{    model <-}\StringTok{ }\KeywordTok{model.matrix}\NormalTok{(}\OperatorTok{~}\StringTok{ }\KeywordTok{as.factor}\NormalTok{(CombatInfo}\OperatorTok{$}\NormalTok{SampleType), }
+                          \DataTypeTok{data =} \KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{log2}\NormalTok{(data)))}
+\NormalTok{    data_ComBat <-}\StringTok{ }\KeywordTok{ComBat}\NormalTok{(}
+      \DataTypeTok{dat =} \KeywordTok{log2}\NormalTok{(data),}
+      \DataTypeTok{batch =} \KeywordTok{as.vector}\NormalTok{(CombatInfo}\OperatorTok{$}\NormalTok{PrepDate), }\DataTypeTok{mod =}\NormalTok{ model, }\DataTypeTok{mean.only =} \OtherTok{FALSE}
+\NormalTok{    )}
+\NormalTok{  \} }\ControlFlowTok{else}\NormalTok{ \{}
+    \CommentTok{# No batch effect.}
+    \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{abs}\NormalTok{(r1) }\OperatorTok{<}\StringTok{ }\FloatTok{0.1}\NormalTok{) \{}
+      \KeywordTok{cat}\NormalTok{(}\KeywordTok{c}\NormalTok{(}
+        \StringTok{"Error: No quantifiable batch effect!"}\NormalTok{,}
+        \StringTok{"}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, }\StringTok{"The un-regressed data will be returned."}\NormalTok{, }\StringTok{"}\CharTok{\textbackslash{}n}\StringTok{"}
+\NormalTok{      ))}
+\NormalTok{      data_ComBat <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(data)}
+\NormalTok{    \} }\ControlFlowTok{else}\NormalTok{ \{}
+      \CommentTok{# No batch effect.}
+      \KeywordTok{cat}\NormalTok{(}\KeywordTok{c}\NormalTok{(}
+        \StringTok{"Error: ComBat can only be applied to factors with more than two levels!"}\NormalTok{,}
+        \StringTok{"}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{, }\StringTok{"The un-regressed data will be returned."}\NormalTok{, }\StringTok{"}\CharTok{\textbackslash{}n}\StringTok{"}
+\NormalTok{      ))}
+\NormalTok{      data_ComBat <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(data)}
+\NormalTok{    \}}
+\NormalTok{  \}}
+
+  \CommentTok{# Correlation between batch and PC1 post-ComBat.}
+\NormalTok{  pc1 <-}\StringTok{ }\KeywordTok{prcomp}\NormalTok{(}\KeywordTok{t}\NormalTok{(data_ComBat))}\OperatorTok{$}\NormalTok{x[, }\DecValTok{1}\NormalTok{]}
+\NormalTok{  batch <-}\StringTok{ }\KeywordTok{as.numeric}\NormalTok{(}\KeywordTok{as.factor}\NormalTok{(CombatInfo}\OperatorTok{$}\NormalTok{PrepDate)) }\OperatorTok{-}\StringTok{ }\DecValTok{1}
+\NormalTok{  r2 <-}\StringTok{ }\KeywordTok{suppressWarnings}\NormalTok{(}\KeywordTok{bicor}\NormalTok{(batch, pc1))}
+
+  \CommentTok{# Check that r2 is not NA.}
+  \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.na}\NormalTok{(r2)) \{}
+\NormalTok{    r2 <-}\StringTok{ }\DecValTok{0}
+\NormalTok{  \}}
+
+\NormalTok{  R[[i]] <-}\StringTok{ }\KeywordTok{cbind}\NormalTok{(r1, r2)}
+
+  \CommentTok{# Check MDS plot after ComBat.}
+\NormalTok{  title <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\KeywordTok{gsub}\NormalTok{(}\StringTok{" "}\NormalTok{, }\StringTok{""}\NormalTok{, }\KeywordTok{unique}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{Model)), }\StringTok{"post-ComBat"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{" "}\NormalTok{)}
+\NormalTok{  plot2 <-}\StringTok{ }\KeywordTok{ggplotMDSv2}\NormalTok{(}
+    \DataTypeTok{data_in =}\NormalTok{ data_ComBat, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{,}
+    \DataTypeTok{title =}\NormalTok{ title, }\DataTypeTok{traits =}\NormalTok{ traits_sub}
+\NormalTok{  )}\OperatorTok{$}\NormalTok{plot }\OperatorTok{+}\StringTok{ }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\NormalTok{  plot2 <-}\StringTok{ }\NormalTok{plot2 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =} \KeywordTok{unique}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{Color))}
+  \CommentTok{# Add annotation layer.}
+  \CommentTok{# xpos <- sum(unlist(ggplot_build(plot2)$layout$panel_params[[1]][1]))/2}
+  \CommentTok{# ypos <- sum(unlist(ggplot_build(plot2)$layout$panel_params[[1]][8]))/2}
+  \CommentTok{# lab <- paste("bicor(batch,PC1) = ",round(r2$bicor,3))}
+  \CommentTok{# plot2 <- plot2 + annotate("text",  x = xpos, y = ypos, label = lab)}
+
+  \CommentTok{# Un-log.}
+\NormalTok{  data_ComBat <-}\StringTok{ }\DecValTok{2}\OperatorTok{^}\NormalTok{data_ComBat}
+  \CommentTok{# Recombine with QC data.}
+\NormalTok{  data_out[[i]] <-}\StringTok{ }\KeywordTok{cbind}\NormalTok{(info_cols[}\OperatorTok{!}\NormalTok{rows_out, ], data_QC, data_ComBat)}
+  \KeywordTok{names}\NormalTok{(data_out)[[i]] <-}\StringTok{ }\NormalTok{group}
+
+\NormalTok{  plots <-}\StringTok{ }\KeywordTok{list}\NormalTok{(plot1, plot2)}
+\NormalTok{  plot_list[[i]] <-}\StringTok{ }\NormalTok{plots}
+  \KeywordTok{names}\NormalTok{(plot_list[[i]]) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(groups[i], }\KeywordTok{c}\NormalTok{(}\StringTok{"preComBat"}\NormalTok{, }\StringTok{"postComBat"}\NormalTok{))}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Performing Shank2 ComBat... 
+## Standardizing Data across genes
+\end{verbatim}
+
+\begin{verbatim}
+## Performing Shank3 ComBat... 
+## Error: No quantifiable batch effect! 
+##  The un-regressed data will be returned.
+\end{verbatim}
+
+\begin{verbatim}
+## Performing Syngap1 ComBat... 
+## Error: No quantifiable batch effect! 
+##  The un-regressed data will be returned.
+\end{verbatim}
+
+\begin{verbatim}
+## Performing Ube3a ComBat... 
+## Standardizing Data across genes
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Merge the data frames with reduce()}
+\NormalTok{data_return <-}\StringTok{ }\NormalTok{data_out }\OperatorTok{%>%}\StringTok{ }\KeywordTok{reduce}\NormalTok{(left_join, }\DataTypeTok{by =} \KeywordTok{c}\NormalTok{(}\KeywordTok{colnames}\NormalTok{(data_in)[}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{)]))}
+
+\CommentTok{# Quantifying the batch effect.}
+\CommentTok{# Check bicor correlation with batch before and after ComBat.}
+\NormalTok{df <-}\StringTok{ }\KeywordTok{do.call}\NormalTok{(rbind, }\KeywordTok{lapply}\NormalTok{(R, }\ControlFlowTok{function}\NormalTok{(x) x[}\DecValTok{1}\NormalTok{, ]))}
+\NormalTok{df <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{t}\NormalTok{(}\KeywordTok{apply}\NormalTok{(df, }\DecValTok{1}\NormalTok{, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{round}\NormalTok{(}\KeywordTok{abs}\NormalTok{(}\KeywordTok{as.numeric}\NormalTok{(x)), }\DecValTok{3}\NormalTok{))))}
+\KeywordTok{rownames}\NormalTok{(df) <-}\StringTok{ }\NormalTok{groups}
+\NormalTok{df <-}\StringTok{ }\KeywordTok{add_column}\NormalTok{(df, }\KeywordTok{rownames}\NormalTok{(df), }\DataTypeTok{.before =} \DecValTok{1}\NormalTok{)}
+\KeywordTok{colnames}\NormalTok{(df) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Experiment"}\NormalTok{, }\StringTok{"preComBat"}\NormalTok{, }\StringTok{"postComBat"}\NormalTok{)}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(df, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{)}
+
+\CommentTok{# Table and figures.}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-48-1} 
+
+}
+
+\caption{Quantification of the intra-batch batch effect.}\label{fig:unnamed-chunk-48}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-49-1} 
+
+}
+
+\caption{Shank2 ComBat.}\label{fig:unnamed-chunk-49}
+\end{figure}\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-50-1} 
+
+}
+
+\caption{Shank3 ComBat.}\label{fig:unnamed-chunk-50}
+\end{figure}\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-51-1} 
+
+}
+
+\caption{Syngap1 ComBat.}\label{fig:unnamed-chunk-51}
+\end{figure}\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-52-1} 
+
+}
+
+\caption{Ube3a ComBat.}\label{fig:unnamed-chunk-52}
+\end{figure}
+
+\subsection{Examine protein identification
+overlap.}\label{examine-protein-identification-overlap.}
+
+Approximately 90\% of all proteins are identified in all experiments.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Inspect the overlap in protein identifcation.}
+\NormalTok{plot <-}\StringTok{ }\KeywordTok{ggplotFreqOverlap}\NormalTok{(SL_protein, }\StringTok{"Abundance"}\NormalTok{, groups) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Protein Identification Overlap"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-56-1} 
+
+}
+
+\caption{Protein identification overlap.}\label{fig:unnamed-chunk-56}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Examine the Normalized protein level
+data.}\label{examine-the-normalized-protein-level-data.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{SL_protein}
+\NormalTok{title <-}\StringTok{ "Normalized protein"}
+
+\CommentTok{# Generate boxplot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotBoxPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title)}
+
+\CommentTok{# Generate density plot.}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotDensity}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title) }\OperatorTok{+}\StringTok{ }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p2 <-}\StringTok{ }\NormalTok{p2 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =}\NormalTok{ colors)}
+
+\CommentTok{# Generate meanSd plot.}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotMeanSdPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Removed 1 rows containing non-finite values (stat_binhex).
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate MDS plot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{3}\NormalTok{))}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotMDS}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title, sample_info, }\DataTypeTok{labels =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"Normalized protein level data. A. Boxplot. B. Density plot. }
+\StringTok{                   C. Mean SD plot. D. MDS plot."}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-60-1} 
+
+}
+
+\caption{Normalized protein level data. A. Boxplot. B. Density plot.  C. Mean SD plot. D. MDS plot.}\label{fig:unnamed-chunk-60}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{IRS Normalization.}\label{irs-normalization.}
+
+Internal reference sclaing (IRS) normalization equalizes the means of
+reference (QC) samples across all batches. IRS normalization accounts
+for the random sampling of peptides at the MS2 level--proteins are
+identified by different peptides in different experiments.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Perform IRS normaliztion.}
+\NormalTok{groups <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Shank2"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+\NormalTok{IRS_protein <-}\StringTok{ }\KeywordTok{normalize_IRS}\NormalTok{(SL_protein, }\StringTok{"QC"}\NormalTok{, groups, }\DataTypeTok{robust =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "Used robust (geometric) mean."
+\end{verbatim}
+
+\subsection{Identify and remove QC
+outliers.}\label{identify-and-remove-qc-outliers.}
+
+IRS normalization utilizes QC samples as reference. Outlier QC
+measurements (caused by interference or other artifact) would influence
+the IRS normalizaiton. Thus, outlier QC samples are removed, if
+identified.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Data is...}
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{IRS_protein}
+
+\CommentTok{# Illustrate Oldham's sample connectivity.}
+\NormalTok{sample_connectivity <-}\StringTok{ }\KeywordTok{ggplotSampleConnectivityv2}\NormalTok{(IRS_protein, }\DataTypeTok{colID =} \StringTok{"QC"}\NormalTok{)}
+\NormalTok{tab <-}\StringTok{ }\NormalTok{sample_connectivity}\OperatorTok{$}\NormalTok{table}
+\NormalTok{df <-}\StringTok{ }\KeywordTok{add_column}\NormalTok{(tab,}\DataTypeTok{SampleName =} \KeywordTok{rownames}\NormalTok{(tab),}\DataTypeTok{.before =} \DecValTok{1}\NormalTok{)}
+\KeywordTok{rownames}\NormalTok{(df) <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{(df)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrr@{}}
+\toprule
+SampleName & Z.Ki & Sample\tabularnewline
+\midrule
+\endhead
+Abundance: F2: 131C, Sample, SPQC, 38901, Ube3a & -2.4285099 &
+5\tabularnewline
+Abundance: F2: 129N, Sample, SPQC, 38900, Ube3a & -0.6944381 &
+3\tabularnewline
+Abundance: F1: 129N, Sample, SPQC, 37847, Syngap1 & -0.6922050 &
+4\tabularnewline
+Abundance: F1: 126, Sample, SPQC, 37846, Syngap1 & -0.5299421 &
+1\tabularnewline
+Abundance: F2: 126, Sample, SPQC, 38899, Ube3a & 0.0355540 &
+9\tabularnewline
+Abundance: F4: 126, Sample, SPQC, 38910, Shank2 & 0.0427824 &
+12\tabularnewline
+Abundance: F3: 131C, Sample, SPQC, 41354, Shank3 & 0.1083114 &
+7\tabularnewline
+Abundance: F1: 131C, Sample, SPQC, 37848, Syngap1 & 0.4476606 &
+10\tabularnewline
+Abundance: F4: 129N, Sample, SPQC, 38911, Shank2 & 0.6434615 &
+8\tabularnewline
+Abundance: F3: 126, Sample, SPQC, 41352, Shank3 & 0.8178823 &
+6\tabularnewline
+Abundance: F3: 129N, Sample, SPQC, 41353, Shank3 & 0.9984023 &
+11\tabularnewline
+Abundance: F4: 131C, Sample, SPQC, 38912, Shank2 & 1.2510404 &
+2\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{plot <-}\StringTok{ }\NormalTok{sample_connectivity}\OperatorTok{$}\NormalTok{connectivityplot }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"QC Sample Connectivity"}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"QC Sample Connectivity. Examination of QC samples Z-Score }
+\StringTok{                  normalized connectivity as a means of identifying outlier }
+\StringTok{                  QC samples."}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-67-1} 
+
+}
+
+\caption{QC Sample Connectivity after outlier removal.}\label{fig:unnamed-chunk-67}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{verbatim}
+## [1] "0 outlier sample(s) identified in iteration 1."
+## [1] "0 outlier sample(s) identified in iteration 2."
+## [1] "0 outlier sample(s) identified in iteration 3."
+## [1] "0 outlier sample(s) identified in iteration 4."
+## [1] "0 outlier sample(s) identified in iteration 5."
+\end{verbatim}
+
+\begin{verbatim}
+## [1] "none" "none" "none" "none" "none"
+\end{verbatim}
+
+\begin{verbatim}
+## [1] "Used robust (geometric) mean."
+\end{verbatim}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-68-1} 
+
+}
+
+\caption{QC Sample Connectivity after outlier removal.}\label{fig:unnamed-chunk-68}
+\end{figure}
+
+\subsection{Examine the IRS Normalized protein level
+data.}\label{examine-the-irs-normalized-protein-level-data.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{IRS_protein}
+\NormalTok{title <-}\StringTok{ "IRS Normalized protein"}
+
+\CommentTok{# Generate boxplot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{), }
+            \KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotBoxPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title)}
+
+\CommentTok{# Generate density plot.}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotDensity}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{), }
+            \KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p2 <-}\StringTok{ }\NormalTok{p2 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =}\NormalTok{ colors)}
+
+\CommentTok{# Generate meanSd plot.}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotMeanSdPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Removed 1 rows containing non-finite values (stat_binhex).
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate MDS plot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{3}\NormalTok{))}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotMDS}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title, sample_info, }\DataTypeTok{labels =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"IRS normalized protein. A. Boxplot. B. Density plot.}
+\StringTok{                   C. Mean SD plot. D. MDS plot"}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-72-1} 
+
+}
+
+\caption{IRS normalized protein. A. Boxplot. B. Density plot.  C. Mean SD plot. D. MDS plot}\label{fig:unnamed-chunk-72}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Protein level filtering, imputing, and final TMM
+normalization.}\label{protein-level-filtering-imputing-and-final-tmm-normalization.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Remove proteins that are identified by only 1 peptide.}
+\CommentTok{# Remove proteins identified in less than 50% of samples.}
+\NormalTok{filt_protein <-}\StringTok{ }\KeywordTok{filter_proteins}\NormalTok{(IRS_protein, }\StringTok{"Abundance"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] "119 proteins are identified by only one peptide and will be removed."
+## [1] "10 proteins are identified in less than 50% of samples and are removed."
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Generate plot to examine distribution of remaining missing values.}
+\NormalTok{plot <-}\StringTok{ }\KeywordTok{ggplotDetect}\NormalTok{(filt_protein, }\StringTok{"Abundance"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Protein missing value distribution"}\NormalTok{)}
+
+\CommentTok{# Figure}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Protein level missing value distribution."}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Cluster size 3363 broken into 2130 1233 
+## Cluster size 2130 broken into 1407 723 
+## Done cluster 1407 
+## Done cluster 723 
+## Done cluster 2130 
+## Done cluster 1233
+\end{verbatim}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{Examine the TMM Normalized protein level
+data.}\label{examine-the-tmm-normalized-protein-level-data.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{TMM_protein}
+\NormalTok{title <-}\StringTok{ "TMM Normalized protein"}
+
+\CommentTok{# Generate boxplot.}
+\CommentTok{# Adjust color vector if samples were removed.}
+\CommentTok{# Cortex outliers = 1x Ube3a, and 1x Syngap1}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotBoxPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title)}
+
+\CommentTok{# Generate density plot.}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotDensity}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title) }\OperatorTok{+}\StringTok{ }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{11}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{11}\NormalTok{))}
+\NormalTok{p2 <-}\StringTok{ }\NormalTok{p2 }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_color_manual}\NormalTok{(}\DataTypeTok{values =}\NormalTok{ colors)}
+
+\CommentTok{# Generate meanSd plot.}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotMeanSdPlot}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, title, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# Generate MDS plot.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{rep}\NormalTok{(}\StringTok{"yellow"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"blue"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"green"}\NormalTok{, }\DecValTok{3}\NormalTok{), }\KeywordTok{rep}\NormalTok{(}\StringTok{"purple"}\NormalTok{, }\DecValTok{3}\NormalTok{))}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotMDS}\NormalTok{(data_in, }\DataTypeTok{colID =} \StringTok{"Abundance"}\NormalTok{, colors, title, sample_info, }\DataTypeTok{labels =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{theme}\NormalTok{(}\DataTypeTok{legend.position =} \StringTok{"none"}\NormalTok{)}
+
+\CommentTok{# Figure.}
+\NormalTok{caption <-}\StringTok{ }\KeywordTok{strwrap}\NormalTok{(}\StringTok{"TMM normalized protein. A. Boxplot. B. Density plot.}
+\StringTok{                   C. Mean SD plot. D. MDS plot"}\NormalTok{, }\DataTypeTok{width =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{simplify =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+
+{\centering \includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-80-1} 
+
+}
+
+\caption{TMM normalized protein. A. Boxplot. B. Density plot.  C. Mean SD plot. D. MDS plot}\label{fig:unnamed-chunk-80}
+\end{figure}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\subsection{IntraBatch statistical testing: EdgeR
+GLM.}\label{intrabatch-statistical-testing-edger-glm.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# data is...}
+\NormalTok{data_in <-}\StringTok{ }\NormalTok{TMM_protein }\CommentTok{# normalized, imputed, protein level data.}
+\NormalTok{data_in[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   Accession Peptides Abundance: F4: 126, Sample, SPQC, 38910, Shank2
+## 1    A2A5R2       16                                       241145.69
+## 2    A2A690       20                                       721806.74
+## 3    A2A699       15                                       578377.03
+## 4    A2A8L5       15                                       202235.86
+## 5    A2AAE1        4                                        28034.55
+##   Abundance: F4: 129N, Sample, SPQC, 38911, Shank2
+## 1                                        249254.75
+## 2                                        698435.19
+## 3                                        597695.33
+## 4                                        193536.45
+## 5                                         30967.43
+##   Abundance: F4: 131C, Sample, SPQC, 38912, Shank2
+## 1                                        250369.86
+## 2                                        711757.65
+## 3                                        558300.22
+## 4                                        212743.13
+## 5                                         30340.11
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{dim}\NormalTok{(data_in)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 3363   46
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Format data for EdgeR. Remove QC Samples!}
+\NormalTok{cols <-}\StringTok{ }\KeywordTok{grepl}\NormalTok{(}\StringTok{"Abundance"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(TMM_protein))}
+\NormalTok{dm <-}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{(data_in[, cols])}
+\KeywordTok{rownames}\NormalTok{(dm) <-}\StringTok{ }\NormalTok{data_in}\OperatorTok{$}\NormalTok{Accession}
+\NormalTok{out <-}\StringTok{ }\KeywordTok{grepl}\NormalTok{(}\StringTok{"QC"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(dm))}
+\NormalTok{dm <-}\StringTok{ }\NormalTok{dm[, }\OperatorTok{!}\NormalTok{out]}
+\KeywordTok{dim}\NormalTok{(dm)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 3363   32
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Check, there should be no missing values.}
+\KeywordTok{sum}\NormalTok{(}\KeywordTok{is.na}\NormalTok{(dm)) }\OperatorTok{==}\StringTok{ }\DecValTok{0}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] TRUE
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Check, traits and data in matching order?}
+\NormalTok{traits <-}\StringTok{ }\NormalTok{sample_info}
+\NormalTok{traits_sub <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(traits, }\OperatorTok{!}\NormalTok{traits}\OperatorTok{$}\NormalTok{SampleType }\OperatorTok{==}\StringTok{ "QC"}\NormalTok{)}
+\NormalTok{traits_sub <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(traits_sub, traits_sub}\OperatorTok{$}\NormalTok{ColumnName }\OperatorTok{%in%}\StringTok{ }\KeywordTok{colnames}\NormalTok{(dm))}
+\KeywordTok{all}\NormalTok{(}\KeywordTok{colnames}\NormalTok{(dm) }\OperatorTok{==}\StringTok{ }\NormalTok{traits_sub}\OperatorTok{$}\NormalTok{ColumnName)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] TRUE
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Create DGEList object with mapping to genotype (group).}
+\NormalTok{group <-}\StringTok{ }\KeywordTok{as.factor}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{Sample.Model)}
+\NormalTok{y_DGE <-}\StringTok{ }\KeywordTok{DGEList}\NormalTok{(}\DataTypeTok{counts =}\NormalTok{ dm, }\DataTypeTok{group =}\NormalTok{ group)}
+
+\CommentTok{# Basic design matrix for GLM.}
+\NormalTok{design <-}\StringTok{ }\KeywordTok{model.matrix}\NormalTok{(}\OperatorTok{~}\StringTok{ }\DecValTok{0} \OperatorTok{+}\StringTok{ }\NormalTok{group, }\DataTypeTok{data =}\NormalTok{ y_DGE}\OperatorTok{$}\NormalTok{samples)}
+\KeywordTok{colnames}\NormalTok{(design)[}\DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(}\KeywordTok{unique}\NormalTok{(traits_sub}\OperatorTok{$}\NormalTok{Sample.Model))] <-}\StringTok{ }\KeywordTok{levels}\NormalTok{(y_DGE}\OperatorTok{$}\NormalTok{samples}\OperatorTok{$}\NormalTok{group)}
+\NormalTok{design}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##                                                  HET.Syngap1 KO.Shank2
+## Abundance: F4: 127N, Sample, WT, 38902, Shank2             0         0
+## Abundance: F4: 128N, Sample, WT, 38903, Shank2             0         0
+## Abundance: F4: 129C, Sample, WT, 38908, Shank2             0         0
+## Abundance: F4: 130C, Sample, WT, 42373, Shank2             0         0
+## Abundance: F4: 127C, Sample, KO, 38905, Shank2             0         1
+## Abundance: F4: 128C, Sample, KO, 38907, Shank2             0         1
+## Abundance: F4: 130N, Sample, KO, 38909, Shank2             0         1
+## Abundance: F4: 131N, Sample, KO, 42372, Shank2             0         1
+## Abundance: F3: 127N, Sample, WT, 41341, Shank3             0         0
+## Abundance: F3: 128N, Sample, WT, 41342, Shank3             0         0
+## Abundance: F3: 129C, Sample, WT, 41347, Shank3             0         0
+## Abundance: F3: 130C, Sample, WT, 41348, Shank3             0         0
+## Abundance: F3: 127C, Sample, KO, 41343, Shank3             0         0
+## Abundance: F3: 128C, Sample, KO, 41344, Shank3             0         0
+## Abundance: F3: 130N, Sample, KO, 41345, Shank3             0         0
+## Abundance: F3: 131N, Sample, KO, 41346, Shank3             0         0
+## Abundance: F1: 127N, Sample, WT, 37649, Syngap1            0         0
+## Abundance: F1: 128N, Sample, WT, 37650, Syngap1            0         0
+## Abundance: F1: 129C, Sample, WT, 37651, Syngap1            0         0
+## Abundance: F1: 130C, Sample, WT, 37652, Syngap1            0         0
+## Abundance: F1: 127C, Sample, HET, 37648, Syngap1           1         0
+## Abundance: F1: 128C, Sample, HET, 37653, Syngap1           1         0
+## Abundance: F1: 130N, Sample, HET, 37654, Syngap1           1         0
+## Abundance: F1: 131N, Sample, HET, 37655, Syngap1           1         0
+## Abundance: F2: 127N, Sample, WT, 38891, Ube3a              0         0
+## Abundance: F2: 128N, Sample, WT, 38892, Ube3a              0         0
+## Abundance: F2: 129C, Sample, WT, 38895, Ube3a              0         0
+## Abundance: F2: 130C, Sample, WT, 38896, Ube3a              0         0
+## Abundance: F2: 127C, Sample, KO, 38893, Ube3a              0         0
+## Abundance: F2: 128C, Sample, KO, 38894, Ube3a              0         0
+## Abundance: F2: 130N, Sample, KO, 38897, Ube3a              0         0
+## Abundance: F2: 131N, Sample, KO, 38898, Ube3a              0         0
+##                                                  KO.Shank3 KO.Ube3a
+## Abundance: F4: 127N, Sample, WT, 38902, Shank2           0        0
+## Abundance: F4: 128N, Sample, WT, 38903, Shank2           0        0
+## Abundance: F4: 129C, Sample, WT, 38908, Shank2           0        0
+## Abundance: F4: 130C, Sample, WT, 42373, Shank2           0        0
+## Abundance: F4: 127C, Sample, KO, 38905, Shank2           0        0
+## Abundance: F4: 128C, Sample, KO, 38907, Shank2           0        0
+## Abundance: F4: 130N, Sample, KO, 38909, Shank2           0        0
+## Abundance: F4: 131N, Sample, KO, 42372, Shank2           0        0
+## Abundance: F3: 127N, Sample, WT, 41341, Shank3           0        0
+## Abundance: F3: 128N, Sample, WT, 41342, Shank3           0        0
+## Abundance: F3: 129C, Sample, WT, 41347, Shank3           0        0
+## Abundance: F3: 130C, Sample, WT, 41348, Shank3           0        0
+## Abundance: F3: 127C, Sample, KO, 41343, Shank3           1        0
+## Abundance: F3: 128C, Sample, KO, 41344, Shank3           1        0
+## Abundance: F3: 130N, Sample, KO, 41345, Shank3           1        0
+## Abundance: F3: 131N, Sample, KO, 41346, Shank3           1        0
+## Abundance: F1: 127N, Sample, WT, 37649, Syngap1          0        0
+## Abundance: F1: 128N, Sample, WT, 37650, Syngap1          0        0
+## Abundance: F1: 129C, Sample, WT, 37651, Syngap1          0        0
+## Abundance: F1: 130C, Sample, WT, 37652, Syngap1          0        0
+## Abundance: F1: 127C, Sample, HET, 37648, Syngap1         0        0
+## Abundance: F1: 128C, Sample, HET, 37653, Syngap1         0        0
+## Abundance: F1: 130N, Sample, HET, 37654, Syngap1         0        0
+## Abundance: F1: 131N, Sample, HET, 37655, Syngap1         0        0
+## Abundance: F2: 127N, Sample, WT, 38891, Ube3a            0        0
+## Abundance: F2: 128N, Sample, WT, 38892, Ube3a            0        0
+## Abundance: F2: 129C, Sample, WT, 38895, Ube3a            0        0
+## Abundance: F2: 130C, Sample, WT, 38896, Ube3a            0        0
+## Abundance: F2: 127C, Sample, KO, 38893, Ube3a            0        1
+## Abundance: F2: 128C, Sample, KO, 38894, Ube3a            0        1
+## Abundance: F2: 130N, Sample, KO, 38897, Ube3a            0        1
+## Abundance: F2: 131N, Sample, KO, 38898, Ube3a            0        1
+##                                                  WT.Shank2 WT.Shank3
+## Abundance: F4: 127N, Sample, WT, 38902, Shank2           1         0
+## Abundance: F4: 128N, Sample, WT, 38903, Shank2           1         0
+## Abundance: F4: 129C, Sample, WT, 38908, Shank2           1         0
+## Abundance: F4: 130C, Sample, WT, 42373, Shank2           1         0
+## Abundance: F4: 127C, Sample, KO, 38905, Shank2           0         0
+## Abundance: F4: 128C, Sample, KO, 38907, Shank2           0         0
+## Abundance: F4: 130N, Sample, KO, 38909, Shank2           0         0
+## Abundance: F4: 131N, Sample, KO, 42372, Shank2           0         0
+## Abundance: F3: 127N, Sample, WT, 41341, Shank3           0         1
+## Abundance: F3: 128N, Sample, WT, 41342, Shank3           0         1
+## Abundance: F3: 129C, Sample, WT, 41347, Shank3           0         1
+## Abundance: F3: 130C, Sample, WT, 41348, Shank3           0         1
+## Abundance: F3: 127C, Sample, KO, 41343, Shank3           0         0
+## Abundance: F3: 128C, Sample, KO, 41344, Shank3           0         0
+## Abundance: F3: 130N, Sample, KO, 41345, Shank3           0         0
+## Abundance: F3: 131N, Sample, KO, 41346, Shank3           0         0
+## Abundance: F1: 127N, Sample, WT, 37649, Syngap1          0         0
+## Abundance: F1: 128N, Sample, WT, 37650, Syngap1          0         0
+## Abundance: F1: 129C, Sample, WT, 37651, Syngap1          0         0
+## Abundance: F1: 130C, Sample, WT, 37652, Syngap1          0         0
+## Abundance: F1: 127C, Sample, HET, 37648, Syngap1         0         0
+## Abundance: F1: 128C, Sample, HET, 37653, Syngap1         0         0
+## Abundance: F1: 130N, Sample, HET, 37654, Syngap1         0         0
+## Abundance: F1: 131N, Sample, HET, 37655, Syngap1         0         0
+## Abundance: F2: 127N, Sample, WT, 38891, Ube3a            0         0
+## Abundance: F2: 128N, Sample, WT, 38892, Ube3a            0         0
+## Abundance: F2: 129C, Sample, WT, 38895, Ube3a            0         0
+## Abundance: F2: 130C, Sample, WT, 38896, Ube3a            0         0
+## Abundance: F2: 127C, Sample, KO, 38893, Ube3a            0         0
+## Abundance: F2: 128C, Sample, KO, 38894, Ube3a            0         0
+## Abundance: F2: 130N, Sample, KO, 38897, Ube3a            0         0
+## Abundance: F2: 131N, Sample, KO, 38898, Ube3a            0         0
+##                                                  WT.Syngap1 WT.Ube3a
+## Abundance: F4: 127N, Sample, WT, 38902, Shank2            0        0
+## Abundance: F4: 128N, Sample, WT, 38903, Shank2            0        0
+## Abundance: F4: 129C, Sample, WT, 38908, Shank2            0        0
+## Abundance: F4: 130C, Sample, WT, 42373, Shank2            0        0
+## Abundance: F4: 127C, Sample, KO, 38905, Shank2            0        0
+## Abundance: F4: 128C, Sample, KO, 38907, Shank2            0        0
+## Abundance: F4: 130N, Sample, KO, 38909, Shank2            0        0
+## Abundance: F4: 131N, Sample, KO, 42372, Shank2            0        0
+## Abundance: F3: 127N, Sample, WT, 41341, Shank3            0        0
+## Abundance: F3: 128N, Sample, WT, 41342, Shank3            0        0
+## Abundance: F3: 129C, Sample, WT, 41347, Shank3            0        0
+## Abundance: F3: 130C, Sample, WT, 41348, Shank3            0        0
+## Abundance: F3: 127C, Sample, KO, 41343, Shank3            0        0
+## Abundance: F3: 128C, Sample, KO, 41344, Shank3            0        0
+## Abundance: F3: 130N, Sample, KO, 41345, Shank3            0        0
+## Abundance: F3: 131N, Sample, KO, 41346, Shank3            0        0
+## Abundance: F1: 127N, Sample, WT, 37649, Syngap1           1        0
+## Abundance: F1: 128N, Sample, WT, 37650, Syngap1           1        0
+## Abundance: F1: 129C, Sample, WT, 37651, Syngap1           1        0
+## Abundance: F1: 130C, Sample, WT, 37652, Syngap1           1        0
+## Abundance: F1: 127C, Sample, HET, 37648, Syngap1          0        0
+## Abundance: F1: 128C, Sample, HET, 37653, Syngap1          0        0
+## Abundance: F1: 130N, Sample, HET, 37654, Syngap1          0        0
+## Abundance: F1: 131N, Sample, HET, 37655, Syngap1          0        0
+## Abundance: F2: 127N, Sample, WT, 38891, Ube3a             0        1
+## Abundance: F2: 128N, Sample, WT, 38892, Ube3a             0        1
+## Abundance: F2: 129C, Sample, WT, 38895, Ube3a             0        1
+## Abundance: F2: 130C, Sample, WT, 38896, Ube3a             0        1
+## Abundance: F2: 127C, Sample, KO, 38893, Ube3a             0        0
+## Abundance: F2: 128C, Sample, KO, 38894, Ube3a             0        0
+## Abundance: F2: 130N, Sample, KO, 38897, Ube3a             0        0
+## Abundance: F2: 131N, Sample, KO, 38898, Ube3a             0        0
+## attr(,"assign")
+## [1] 1 1 1 1 1 1 1 1
+## attr(,"contrasts")
+## attr(,"contrasts")$group
+## [1] "contr.treatment"
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Estimate dispersion:}
+\NormalTok{y_DGE <-}\StringTok{ }\KeywordTok{estimateDisp}\NormalTok{(y_DGE, design, }\DataTypeTok{robust =} \OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# PlotBCV}
+\NormalTok{plot <-}\StringTok{ }\KeywordTok{ggplotBCV}\NormalTok{(y_DGE)}
+\NormalTok{plot}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-83-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Fit a general linear model.}
+\NormalTok{fit <-}\StringTok{ }\KeywordTok{glmQLFit}\NormalTok{(y_DGE, design, }\DataTypeTok{robust =} \OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# Examine the QL fitted dispersion.}
+\KeywordTok{plotQLDisp}\NormalTok{(fit)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-83-2.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Create a list of contrasts for pairwise comparisons.}
+\NormalTok{contrasts <-}\StringTok{ }\KeywordTok{list}\NormalTok{(}
+\NormalTok{  WTvKO.Shank2 <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(KO.Shank2 }\OperatorTok{-}\StringTok{ }\NormalTok{WT.Shank2, }\DataTypeTok{levels =}\NormalTok{ design),}
+\NormalTok{  WTvKO.Shank3 <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(KO.Shank3 }\OperatorTok{-}\StringTok{ }\NormalTok{WT.Shank3, }\DataTypeTok{levels =}\NormalTok{ design),}
+\NormalTok{  WTvHET.Syngap1 <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(HET.Syngap1 }\OperatorTok{-}\StringTok{ }\NormalTok{WT.Syngap1, }\DataTypeTok{levels =}\NormalTok{ design),}
+\NormalTok{  WTvKO.Ube3a <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(KO.Ube3a }\OperatorTok{-}\StringTok{ }\NormalTok{WT.Ube3a, }\DataTypeTok{levels =}\NormalTok{ design)}
+\NormalTok{)}
+
+\CommentTok{# Call glmQLFTest() to evaluate differences in contrasts.}
+\NormalTok{qlf <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(contrasts, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{glmQLFTest}\NormalTok{(fit, }\DataTypeTok{contrast =}\NormalTok{ x))}
+
+\NormalTok{## Determine number of significant results with decideTests().}
+\CommentTok{#  Default FDR is 0.05.}
+\NormalTok{summary_table <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(qlf, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{summary}\NormalTok{(}\KeywordTok{decideTests}\NormalTok{(x)))}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{t}\NormalTok{(}\KeywordTok{matrix}\NormalTok{(}\KeywordTok{unlist}\NormalTok{(summary_table), }\DataTypeTok{nrow =} \DecValTok{3}\NormalTok{, }\DataTypeTok{ncol =} \DecValTok{4}\NormalTok{))}
+\KeywordTok{rownames}\NormalTok{(overall) <-}\StringTok{ }\KeywordTok{unlist}\NormalTok{(}\KeywordTok{lapply}\NormalTok{(contrasts, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{colnames}\NormalTok{(x)))}
+\KeywordTok{colnames}\NormalTok{(overall) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Down"}\NormalTok{, }\StringTok{"NotSig"}\NormalTok{, }\StringTok{"Up"}\NormalTok{)}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(overall)}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{add_column}\NormalTok{(overall, }\DataTypeTok{Contrast =} \KeywordTok{rownames}\NormalTok{(overall), }\DataTypeTok{.before =} \DecValTok{1}\NormalTok{)}
+\NormalTok{overall <-}\StringTok{ }\NormalTok{overall[, }\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{4}\NormalTok{)]}
+\NormalTok{overall}\OperatorTok{$}\NormalTok{TotalSig <-}\StringTok{ }\KeywordTok{rowSums}\NormalTok{(overall[, }\KeywordTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{, }\DecValTok{4}\NormalTok{)])}
+\CommentTok{# Table of DE candidates.}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(overall, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{)}
+\KeywordTok{grid.arrange}\NormalTok{(table)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-83-3.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Save table.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_InraBatch_GLM_Table.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,table)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Call topTags to add FDR. Gather tablurized results.}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(qlf, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{topTags}\NormalTok{(x, }\DataTypeTok{n =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{sort.by =} \StringTok{"none"}\NormalTok{)}\OperatorTok{$}\NormalTok{table)}
+
+\CommentTok{# Convert logCPM column to percent WT.}
+\CommentTok{# Annotate with candidate column.}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(results, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{annotateTopTags}\NormalTok{(x))}
+
+\CommentTok{# Annotate with Gene names and Entrez IDS.}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(results, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{annotate_Entrez}\NormalTok{(x))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 'select()' returned 1:many mapping between keys and columns
+\end{verbatim}
+
+\begin{verbatim}
+## 'select()' returned 1:many mapping between keys and columns
+## 'select()' returned 1:many mapping between keys and columns
+## 'select()' returned 1:many mapping between keys and columns
+## 'select()' returned 1:many mapping between keys and columns
+## 'select()' returned 1:many mapping between keys and columns
+## 'select()' returned 1:many mapping between keys and columns
+## 'select()' returned 1:many mapping between keys and columns
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Add fitted data to results. Sort by p-value.}
+\KeywordTok{names}\NormalTok{(results) <-}\StringTok{ }\NormalTok{groups}
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(groups)) \{}
+\NormalTok{  cols <-}\StringTok{ }\KeywordTok{grepl}\NormalTok{(groups[i], }\KeywordTok{colnames}\NormalTok{(fit}\OperatorTok{$}\NormalTok{fitted.values))}
+\NormalTok{  results[[i]] <-}\StringTok{ }\KeywordTok{merge}\NormalTok{(results[[i]],}
+    \KeywordTok{log2}\NormalTok{(fit}\OperatorTok{$}\NormalTok{fitted.values[, cols]),}
+    \DataTypeTok{by =} \StringTok{"row.names"}
+\NormalTok{  )}
+\NormalTok{  results[[i]]}\OperatorTok{$}\NormalTok{Row.names <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{  results[[i]] <-}\StringTok{ }\NormalTok{results[[i]][}\KeywordTok{order}\NormalTok{(results[[i]]}\OperatorTok{$}\NormalTok{FDR), ]}
+\NormalTok{\}}
+
+\CommentTok{# Pvalue histograms.}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{1}\NormalTok{]], }\StringTok{"gold1"}\NormalTok{, }\StringTok{"Shank2"}\NormalTok{)}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{2}\NormalTok{]], }\StringTok{"blue"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{)}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{3}\NormalTok{]], }\StringTok{"green"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{)}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{4}\NormalTok{]], }\StringTok{"purple"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+\NormalTok{fig <-}\StringTok{ }\KeywordTok{plot_grid}\NormalTok{(p1, p2, p3, p4, }\DataTypeTok{labels =} \StringTok{"auto"}\NormalTok{)}
+\NormalTok{fig}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{1_TMT_Analysis_files/figure-latex/unnamed-chunk-83-4.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Save as tiff.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_IntraBatch_GLM_PvalueHist.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,fig)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Saving 6.5 x 4.5 in image
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Add summary table to results.}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{list}\NormalTok{(overall)}
+\KeywordTok{names}\NormalTok{(overall) <-}\StringTok{ "Summary"}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{c}\NormalTok{(overall, results)}
+\NormalTok{results_intraBatch <-}\StringTok{ }\NormalTok{results}
+
+\CommentTok{# Save workbook.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputtabsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_IntraBatch_GLM_results.xlsx"}\NormalTok{)}
+\KeywordTok{write.excel}\NormalTok{(results, file)}
+
+\CommentTok{# Save figures.}
+\CommentTok{#file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatch_GLM_DE_Summary.pdf")}
+\CommentTok{#ggsavePDF(plots = list(table, p1, p2, p3, p4), file)}
+
+\CommentTok{# Save to RDS.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(Rdatadir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_IntraBatch_Results.RDS"}\NormalTok{)}
+\KeywordTok{saveRDS}\NormalTok{(results_intraBatch, file)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{IntraBatch GO and KEGG enrichment testing with
+EdgeR.}\label{intrabatch-go-and-kegg-enrichment-testing-with-edger.}
+
+GO and KEGG enrichment analyis are performed using EdgeR's goana() and
+kegga() functions.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{## Perform GO and KEGG testing.}
+\CommentTok{# edgeR_GSE() is a wrapper around the goana() and kegga() functions from EdgeR.}
+\CommentTok{# This function operates on the QLF or ET objects.Rownames should be UniprotIDs.}
+\CommentTok{# Proteins with an FDR <0.1 are be considered significant.}
+
+\CommentTok{# Use lapply to generate GSE results.}
+\CommentTok{# This will take a few minutes.}
+\NormalTok{GSE_results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(qlf, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{edgeR_GSE}\NormalTok{(x, }\DataTypeTok{FDR =} \FloatTok{0.1}\NormalTok{, }\DataTypeTok{filter =} \OtherTok{TRUE}\NormalTok{))}
+
+\CommentTok{# Name GSE_results.}
+\NormalTok{GSE_results <-}\StringTok{ }\KeywordTok{unlist}\NormalTok{(GSE_results, }\DataTypeTok{recursive =} \OtherTok{FALSE}\NormalTok{)}
+\KeywordTok{names}\NormalTok{(GSE_results) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\KeywordTok{rep}\NormalTok{(groups, }\DataTypeTok{each =} \DecValTok{2}\NormalTok{), }\KeywordTok{names}\NormalTok{(GSE_results))}
+
+\CommentTok{# Save workbook.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputtabsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_IntraBatch_GLM_GSE_Results.xlsx"}\NormalTok{)}
+\KeywordTok{write.excel}\NormalTok{(GSE_results, file)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Perform moderated EB regression of genetic strain as a
+covariate.}\label{perform-moderated-eb-regression-of-genetic-strain-as-a-covariate.}
+
+Moderated Empirical Bayes (EB) regression is performed to remove the
+affect of genetic background.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Data is...}
+\CommentTok{# Check, there should be no missing values.}
+\KeywordTok{sum}\NormalTok{(}\KeywordTok{is.na}\NormalTok{(TMM_protein)) }\OperatorTok{==}\StringTok{ }\DecValTok{0}
+\NormalTok{data_in <-}\StringTok{ }\KeywordTok{na.omit}\NormalTok{(TMM_protein)}
+\KeywordTok{dim}\NormalTok{(data_in)}
+\NormalTok{colID <-}\StringTok{ "Abundance"}
+\NormalTok{traits <-}\StringTok{ }\NormalTok{sample_info}
+
+\CommentTok{# Remove the QC Data}
+\NormalTok{out <-}\StringTok{ }\KeywordTok{grepl}\NormalTok{(}\StringTok{"QC"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(data_in))}
+\NormalTok{data <-}\StringTok{ }\NormalTok{data_in[, }\OperatorTok{!}\NormalTok{out]}
+\NormalTok{traits <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(traits, }\OperatorTok{!}\NormalTok{traits}\OperatorTok{$}\NormalTok{SampleType }\OperatorTok{==}\StringTok{ "QC"}\NormalTok{)}
+\NormalTok{traits <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(traits, traits}\OperatorTok{$}\NormalTok{ColumnName }\OperatorTok{%in%}\StringTok{ }\KeywordTok{colnames}\NormalTok{(data_in))}
+
+\CommentTok{# Format data for EBLM}
+\NormalTok{cols <-}\StringTok{ }\KeywordTok{grep}\NormalTok{(}\StringTok{"Abundance"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(data))}
+\NormalTok{data <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(}\KeywordTok{as.matrix}\NormalTok{(data[, cols]))}
+\KeywordTok{rownames}\NormalTok{(data) <-}\StringTok{ }\NormalTok{data_in}\OperatorTok{$}\NormalTok{Accession}
+\NormalTok{data <-}\StringTok{ }\KeywordTok{t}\NormalTok{(data)}
+\NormalTok{data[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
+\KeywordTok{dim}\NormalTok{(data)}
+
+\CommentTok{# Check, data and traits are in matching order?}
+\KeywordTok{all}\NormalTok{(}\KeywordTok{rownames}\NormalTok{(data) }\OperatorTok{==}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{ColumnName)}
+
+\CommentTok{# Define covariates.}
+\NormalTok{status <-}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{SampleType}
+\NormalTok{sex <-}\StringTok{ }\KeywordTok{as.factor}\NormalTok{(traits}\OperatorTok{$}\NormalTok{Sex)}
+\NormalTok{age <-}\StringTok{ }\KeywordTok{as.numeric}\NormalTok{(traits}\OperatorTok{$}\NormalTok{Age)}
+\NormalTok{batch <-}\StringTok{ }\KeywordTok{as.factor}\NormalTok{(traits}\OperatorTok{$}\NormalTok{PrepDate)}
+\NormalTok{strain <-}\StringTok{ }\KeywordTok{as.factor}\NormalTok{(traits}\OperatorTok{$}\NormalTok{Model)}
+
+\CommentTok{# Design, we will perform regression on strain (mouse genetic background).}
+\NormalTok{design <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{cbind}\NormalTok{(status, strain, batch, sex, age))}
+\NormalTok{covariates <-}\StringTok{ }\KeywordTok{cbind}\NormalTok{(design}\OperatorTok{$}\NormalTok{strain)}
+
+\CommentTok{# Eblm regression.}
+\NormalTok{fit.eblm <-}\StringTok{ }\KeywordTok{empiricalBayesLM}\NormalTok{(data,}
+  \DataTypeTok{removedCovariates =}\NormalTok{ covariates,}
+  \DataTypeTok{fitToSamples =}\NormalTok{ design}\OperatorTok{$}\NormalTok{status }\OperatorTok{==}\StringTok{ "WT"}
+\NormalTok{)}
+
+\CommentTok{# Get fitted data.}
+\NormalTok{data.fit <-}\StringTok{ }\NormalTok{fit.eblm}\OperatorTok{$}\NormalTok{adjustedData}
+
+\CommentTok{# Examine overall PCA before and after EB regression.}
+\NormalTok{colors <-}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{Color}
+\NormalTok{plot1 <-}\StringTok{ }\KeywordTok{ggplotPCA}\NormalTok{(}\KeywordTok{t}\NormalTok{(data), traits, colors, }\DataTypeTok{title =} \StringTok{"2D PCA Plot (Pre-Regression)"}\NormalTok{)}
+\NormalTok{plot2 <-}\StringTok{ }\KeywordTok{ggplotPCA}\NormalTok{(}\KeywordTok{t}\NormalTok{(data.fit), traits, colors, }\DataTypeTok{title =} \StringTok{"2D PCA Plot (Post-Regression)"}\NormalTok{)}
+\NormalTok{fig <-}\StringTok{ }\KeywordTok{plot_grid}\NormalTok{(plot1, plot2)}
+\NormalTok{fig }
+
+\CommentTok{# Just post-regression:}
+\NormalTok{plot2}
+
+\CommentTok{# Save plots.}
+\CommentTok{#file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_eBLM_Regression_PCA.pdf")}
+\CommentTok{#ggsavePDF(plots = list(plot1, plot2), file)}
+
+\CommentTok{# Save tiffs. }
+\NormalTok{files <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\KeywordTok{c}\NormalTok{(}\StringTok{"pre"}\NormalTok{,}\StringTok{"post"}\NormalTok{),}\StringTok{"_InterBatch_eBLM_Regression_PCA.tiff"}\NormalTok{)}
+\KeywordTok{quiet}\NormalTok{(}\KeywordTok{mapply}\NormalTok{(ggsave,files,}\KeywordTok{list}\NormalTok{(plot1,plot2)))}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Reformat final normalized, regressed data for TAMPOR
+processing.}\label{reformat-final-normalized-regressed-data-for-tampor-processing.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Data is...}
+\NormalTok{data_in <-}\StringTok{ }\DecValTok{2}\OperatorTok{^}\KeywordTok{t}\NormalTok{(data.fit)}
+\NormalTok{data_in[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]  }\CommentTok{# un-log}
+\KeywordTok{dim}\NormalTok{(data_in)}
+
+\CommentTok{# Extract Gene descriptions and uniprot accesssions for renaming rows.}
+\NormalTok{idx <-}\StringTok{ }\KeywordTok{match}\NormalTok{(}\KeywordTok{rownames}\NormalTok{(data_in), SL_peptide}\OperatorTok{$}\NormalTok{Accession)}
+\NormalTok{descriptions <-}\StringTok{ }\NormalTok{SL_peptide}\OperatorTok{$}\NormalTok{Description[idx]}
+\NormalTok{uniprot <-}\StringTok{ }\NormalTok{SL_peptide}\OperatorTok{$}\NormalTok{Accession[idx]}
+
+\CommentTok{# Split at "GN=", extract the second element.}
+\NormalTok{long_names <-}\StringTok{ }\KeywordTok{sapply}\NormalTok{(}\KeywordTok{strsplit}\NormalTok{(descriptions, }\StringTok{"GN="}\NormalTok{, }\DataTypeTok{fixed =} \OtherTok{TRUE}\NormalTok{), }\StringTok{"["}\NormalTok{, }\DecValTok{2}\NormalTok{)}
+
+\CommentTok{# Split at " ", extract the first element.}
+\NormalTok{gene_names <-}\StringTok{ }\KeywordTok{sapply}\NormalTok{(}\KeywordTok{strsplit}\NormalTok{(long_names, }\StringTok{"}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{ "}\NormalTok{), }\StringTok{"["}\NormalTok{, }\DecValTok{1}\NormalTok{)}
+
+\CommentTok{# Row names are Gene|Uniprot}
+\NormalTok{row_names <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(gene_names, uniprot, }\DataTypeTok{sep =} \StringTok{"|"}\NormalTok{)}
+\KeywordTok{head}\NormalTok{(row_names)}
+
+\CommentTok{# Gather data, set row names}
+\NormalTok{cols <-}\StringTok{ }\KeywordTok{grep}\NormalTok{(}\StringTok{"Abundance"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(data_in))}
+\NormalTok{data_out <-}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{(data_in[, cols])}
+\KeywordTok{rownames}\NormalTok{(data_out) <-}\StringTok{ }\NormalTok{row_names}
+
+\CommentTok{# Column names are batch.channel}
+\NormalTok{idx <-}\StringTok{ }\KeywordTok{match}\NormalTok{(}\KeywordTok{colnames}\NormalTok{(data_out), sample_info}\OperatorTok{$}\NormalTok{ColumnName)}
+\NormalTok{idx}
+\NormalTok{col_names <-}\StringTok{ }\NormalTok{sample_info}\OperatorTok{$}\NormalTok{SampleID[idx]}
+\KeywordTok{colnames}\NormalTok{(data_out) <-}\StringTok{ }\NormalTok{col_names}
+\KeywordTok{head}\NormalTok{(col_names)}
+
+\CommentTok{# Reorder based on batch.}
+\NormalTok{data_out <-}\StringTok{ }\NormalTok{data_out[, }\KeywordTok{order}\NormalTok{(}\KeywordTok{colnames}\NormalTok{(data_out))]}
+
+\CommentTok{# Save as cleanDat}
+\NormalTok{cleanDat <-}\StringTok{ }\NormalTok{data_out}
+\NormalTok{cleanDat[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
+\KeywordTok{dim}\NormalTok{(cleanDat)}
+
+\CommentTok{# Save to Rdata}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(Rdatadir, tissue, }\StringTok{"CleanDat_IRS_eBLM_TAMPOR_format.Rds"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{"/"}\NormalTok{)}
+\KeywordTok{saveRDS}\NormalTok{(cleanDat, file)}
+\CommentTok{# cleanDat <- readRDS(file)}
+
+\CommentTok{# The cortex and striatum data from this chunk will be combined for TAMPOR}
+\CommentTok{# normalization and statistical testing in the}
+\CommentTok{# TMT_Analysis_EBD_v14_Combined_Cortex_Striatum.R script.}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{InterBatch Statistical comparisons with EdgeR
+GLM.}\label{interbatch-statistical-comparisons-with-edger-glm.}
+
+After regression of genetic strain, pooling of WT samples will increase
+statistical power.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Create DGEList object with EB adjusted data.}
+\NormalTok{data <-}\StringTok{ }\DecValTok{2}\OperatorTok{^}\KeywordTok{t}\NormalTok{(data.fit)}
+\NormalTok{data[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
+\NormalTok{y_DGE <-}\StringTok{ }\KeywordTok{DGEList}\NormalTok{(}\DataTypeTok{counts =}\NormalTok{ data)}
+
+\CommentTok{# Example, checking the the normalization with plotMD.}
+\KeywordTok{plotMD}\NormalTok{(}\KeywordTok{cpm}\NormalTok{(y_DGE, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{), }\DataTypeTok{column =} \DecValTok{2}\NormalTok{)}
+\KeywordTok{abline}\NormalTok{(}\DataTypeTok{h =} \DecValTok{0}\NormalTok{, }\DataTypeTok{col =} \StringTok{"red"}\NormalTok{, }\DataTypeTok{lty =} \DecValTok{2}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{2}\NormalTok{)}
+
+\CommentTok{# Create sample mapping.}
+\NormalTok{traits <-}\StringTok{ }\NormalTok{sample_info}
+\KeywordTok{rownames}\NormalTok{(traits) <-}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{ColumnName}
+\NormalTok{traits <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(traits, }\KeywordTok{rownames}\NormalTok{(traits) }\OperatorTok{%in%}\StringTok{ }\KeywordTok{colnames}\NormalTok{(data))}
+\KeywordTok{all}\NormalTok{(traits}\OperatorTok{$}\NormalTok{ColumnName }\OperatorTok{==}\StringTok{ }\KeywordTok{colnames}\NormalTok{(data))}
+\NormalTok{group <-}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{Sample.Model}
+\NormalTok{strain <-}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{Model}
+\NormalTok{sex <-}\StringTok{ }\NormalTok{traits}\OperatorTok{$}\NormalTok{Sex}
+\KeywordTok{unique}\NormalTok{(group)}
+\NormalTok{group[}\KeywordTok{grepl}\NormalTok{(}\StringTok{"WT"}\NormalTok{, group)] <-}\StringTok{ "WT"}
+\KeywordTok{unique}\NormalTok{(group)}
+\NormalTok{y_DGE}\OperatorTok{$}\NormalTok{samples}\OperatorTok{$}\NormalTok{group <-}\StringTok{ }\KeywordTok{as.factor}\NormalTok{(group)}
+
+\CommentTok{# Basic design matrix for GLM.}
+\NormalTok{design <-}\StringTok{ }\KeywordTok{model.matrix}\NormalTok{(}\OperatorTok{~}\StringTok{ }\DecValTok{0} \OperatorTok{+}\StringTok{ }\NormalTok{group, }\DataTypeTok{data =}\NormalTok{ y_DGE}\OperatorTok{$}\NormalTok{samples)}
+\KeywordTok{colnames}\NormalTok{(design) <-}\StringTok{ }\KeywordTok{levels}\NormalTok{(y_DGE}\OperatorTok{$}\NormalTok{samples}\OperatorTok{$}\NormalTok{group)}
+\NormalTok{design}
+
+\CommentTok{# Estimate dispersion:}
+\NormalTok{y_DGE <-}\StringTok{ }\KeywordTok{estimateDisp}\NormalTok{(y_DGE, design, }\DataTypeTok{robust =} \OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# PlotBCV}
+\NormalTok{plot <-}\StringTok{ }\KeywordTok{ggplotBCV}\NormalTok{(y_DGE)}
+\NormalTok{plot}
+
+\CommentTok{# Fit a general linear model.}
+\NormalTok{fit <-}\StringTok{ }\KeywordTok{glmQLFit}\NormalTok{(y_DGE, design, }\DataTypeTok{robust =} \OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# Examine the QL fitted dispersion.}
+\KeywordTok{plotQLDisp}\NormalTok{(fit)}
+
+\CommentTok{# Which genes are DE among all contrasts?}
+\CommentTok{# Create contrast matrix for ANOVA-like comparison.}
+\NormalTok{aov_contrasts <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(}
+  \DataTypeTok{WTvKO.Shank2 =}\NormalTok{ KO.Shank2 }\OperatorTok{-}\StringTok{ }\NormalTok{WT,}
+  \DataTypeTok{WTvKO.Shank3 =}\NormalTok{ KO.Shank3 }\OperatorTok{-}\StringTok{ }\NormalTok{WT,}
+  \DataTypeTok{WTvHET.Syngap1 =}\NormalTok{ HET.Syngap1 }\OperatorTok{-}\StringTok{ }\NormalTok{WT,}
+  \DataTypeTok{WTvKO.Ube3a =}\NormalTok{ KO.Ube3a }\OperatorTok{-}\StringTok{ }\NormalTok{WT, }\DataTypeTok{levels =}\NormalTok{ design}
+\NormalTok{)}
+\NormalTok{aov_contrasts}
+
+\CommentTok{# Calculate ANOVA-like results.}
+\CommentTok{# The QL F-test is applied to identify genes that are DE among all four groups. This}
+\CommentTok{# combines the four pairwise comparisons into a single F-statistic and p-value. The top set of}
+\CommentTok{# significant genes can be displayed with topTags.}
+\NormalTok{aov <-}\StringTok{ }\KeywordTok{glmQLFTest}\NormalTok{(fit, }\DataTypeTok{contrast =}\NormalTok{ aov_contrasts)}
+\NormalTok{aov_tt <-}\StringTok{ }\KeywordTok{topTags}\NormalTok{(aov, }\DataTypeTok{n =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{sort.by =} \StringTok{"none"}\NormalTok{)}
+
+\CommentTok{# Extract the results, and annotated with Entrez IDS and gene symbols.}
+\NormalTok{res <-}\StringTok{ }\KeywordTok{annotate_Entrez}\NormalTok{(aov_tt}\OperatorTok{$}\NormalTok{table)}
+\CommentTok{# Discard the CPM column.}
+\NormalTok{res}\OperatorTok{$}\NormalTok{logCPM <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{results_GLMoverall <-}\StringTok{ }\NormalTok{res}
+
+\CommentTok{# Create a list of contrasts for pairwise comparisons.}
+\NormalTok{contrasts <-}\StringTok{ }\KeywordTok{list}\NormalTok{(}
+\NormalTok{  WTvKO.Shank2 <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(KO.Shank2 }\OperatorTok{-}\StringTok{ }\NormalTok{WT, }\DataTypeTok{levels =}\NormalTok{ design),}
+\NormalTok{  WTvKO.Shank3 <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(KO.Shank3 }\OperatorTok{-}\StringTok{ }\NormalTok{WT, }\DataTypeTok{levels =}\NormalTok{ design),}
+\NormalTok{  WTvHET.Syngap1 <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(HET.Syngap1 }\OperatorTok{-}\StringTok{ }\NormalTok{WT, }\DataTypeTok{levels =}\NormalTok{ design),}
+\NormalTok{  WTvKO.Ube3a <-}\StringTok{ }\KeywordTok{makeContrasts}\NormalTok{(KO.Ube3a }\OperatorTok{-}\StringTok{ }\NormalTok{WT, }\DataTypeTok{levels =}\NormalTok{ design)}
+\NormalTok{)}
+
+\CommentTok{# Call glmQLFTest() to evaluate differences in contrasts.}
+\NormalTok{qlf <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(contrasts, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{glmQLFTest}\NormalTok{(fit, }\DataTypeTok{contrast =}\NormalTok{ x))}
+
+\NormalTok{## Determine number of significant results with decideTests().}
+\NormalTok{summary_table <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(qlf, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{summary}\NormalTok{(}\KeywordTok{decideTests}\NormalTok{(x)))}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{t}\NormalTok{(}\KeywordTok{matrix}\NormalTok{(}\KeywordTok{unlist}\NormalTok{(summary_table), }\DataTypeTok{nrow =} \DecValTok{3}\NormalTok{, }\DataTypeTok{ncol =} \DecValTok{4}\NormalTok{))}
+\KeywordTok{rownames}\NormalTok{(overall) <-}\StringTok{ }\KeywordTok{unlist}\NormalTok{(}\KeywordTok{lapply}\NormalTok{(contrasts, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{colnames}\NormalTok{(x)))}
+\KeywordTok{colnames}\NormalTok{(overall) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Down"}\NormalTok{, }\StringTok{"NotSig"}\NormalTok{, }\StringTok{"Up"}\NormalTok{)}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(overall)}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{add_column}\NormalTok{(overall, }\DataTypeTok{Contrast =} \KeywordTok{rownames}\NormalTok{(overall), }\DataTypeTok{.before =} \DecValTok{1}\NormalTok{)}
+\NormalTok{overall <-}\StringTok{ }\NormalTok{overall[, }\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{4}\NormalTok{)]}
+\NormalTok{overall}\OperatorTok{$}\NormalTok{TotalSig <-}\StringTok{ }\KeywordTok{rowSums}\NormalTok{(overall[, }\KeywordTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{, }\DecValTok{4}\NormalTok{)])}
+\CommentTok{# Table of DE candidates.}
+\NormalTok{table <-}\StringTok{ }\KeywordTok{tableGrob}\NormalTok{(overall, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{)}
+\KeywordTok{grid.arrange}\NormalTok{(table)}
+
+\CommentTok{# Save table.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_InterBatch_eBLM_Table.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,table)}
+
+\CommentTok{# Call topTags to add FDR. Gather tablurized results.}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(qlf, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{topTags}\NormalTok{(x, }\DataTypeTok{n =} \OtherTok{Inf}\NormalTok{, }\DataTypeTok{sort.by =} \StringTok{"none"}\NormalTok{)}\OperatorTok{$}\NormalTok{table)}
+
+\CommentTok{# Function to annotate DE candidates:}
+\NormalTok{annotateTopTags <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(y_TT) \{}
+\NormalTok{  y_TT}\OperatorTok{$}\NormalTok{logCPM <-}\StringTok{ }\DecValTok{100} \OperatorTok{*}\StringTok{ }\NormalTok{(}\DecValTok{2}\OperatorTok{^}\NormalTok{y_TT}\OperatorTok{$}\NormalTok{logFC)}
+  \KeywordTok{colnames}\NormalTok{(y_TT)[}\DecValTok{2}\NormalTok{] <-}\StringTok{ "%WT"}
+  \KeywordTok{colnames}\NormalTok{(y_TT)[}\DecValTok{3}\NormalTok{] <-}\StringTok{ "F Value"}
+\NormalTok{  y_TT}\OperatorTok{$}\NormalTok{candidate <-}\StringTok{ "no"}
+\NormalTok{  y_TT[}\KeywordTok{which}\NormalTok{(y_TT}\OperatorTok{$}\NormalTok{FDR }\OperatorTok{<=}\StringTok{ }\FloatTok{0.10} \OperatorTok{&}\StringTok{ }\NormalTok{y_TT}\OperatorTok{$}\NormalTok{FDR }\OperatorTok{>}\StringTok{ }\FloatTok{0.05}\NormalTok{), }\KeywordTok{dim}\NormalTok{(y_TT)[}\DecValTok{2}\NormalTok{]] <-}\StringTok{ "low"}
+\NormalTok{  y_TT[}\KeywordTok{which}\NormalTok{(y_TT}\OperatorTok{$}\NormalTok{FDR }\OperatorTok{<=}\StringTok{ }\FloatTok{0.05} \OperatorTok{&}\StringTok{ }\NormalTok{y_TT}\OperatorTok{$}\NormalTok{FDR }\OperatorTok{>}\StringTok{ }\FloatTok{0.01}\NormalTok{), }\KeywordTok{dim}\NormalTok{(y_TT)[}\DecValTok{2}\NormalTok{]] <-}\StringTok{ "med"}
+\NormalTok{  y_TT[}\KeywordTok{which}\NormalTok{(y_TT}\OperatorTok{$}\NormalTok{FDR }\OperatorTok{<=}\StringTok{ }\FloatTok{0.01}\NormalTok{), }\KeywordTok{dim}\NormalTok{(y_TT)[}\DecValTok{2}\NormalTok{]] <-}\StringTok{ "high"}
+\NormalTok{  y_TT}\OperatorTok{$}\NormalTok{candidate <-}\StringTok{ }\KeywordTok{factor}\NormalTok{(y_TT}\OperatorTok{$}\NormalTok{candidate, }\DataTypeTok{levels =} \KeywordTok{c}\NormalTok{(}\StringTok{"high"}\NormalTok{, }\StringTok{"med"}\NormalTok{, }\StringTok{"low"}\NormalTok{, }\StringTok{"no"}\NormalTok{))}
+  \KeywordTok{return}\NormalTok{(y_TT)}
+\NormalTok{\}}
+
+\CommentTok{# Convert logCPM column to percent WT.}
+\CommentTok{# Annotate with candidate column.}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(results, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{annotateTopTags}\NormalTok{(x))}
+
+\CommentTok{# Annotate with Gene names and Entrez IDS.}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(results, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{annotate_Entrez}\NormalTok{(x))}
+
+\NormalTok{## Add GLM overall stats and fitted data to results.}
+\NormalTok{GLM_stats <-}\StringTok{ }\NormalTok{results_GLMoverall[, }\KeywordTok{c}\NormalTok{(}\DecValTok{8}\NormalTok{, }\DecValTok{9}\NormalTok{, }\DecValTok{10}\NormalTok{)]}
+\KeywordTok{colnames}\NormalTok{(GLM_stats)[}\DecValTok{1}\NormalTok{] <-}\StringTok{ "F Value"}
+\KeywordTok{colnames}\NormalTok{(GLM_stats) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\StringTok{"Overall"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(GLM_stats))}
+\KeywordTok{names}\NormalTok{(results) <-}\StringTok{ }\NormalTok{groups}
+\NormalTok{data_glm <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(qlf[[}\DecValTok{1}\NormalTok{]]}\OperatorTok{$}\NormalTok{fitted.values)}
+\NormalTok{data_glm <-}\StringTok{ }\KeywordTok{merge}\NormalTok{(GLM_stats, data_glm, }\DataTypeTok{by =} \StringTok{"row.names"}\NormalTok{, }\DataTypeTok{all =} \OtherTok{TRUE}\NormalTok{)}
+\KeywordTok{rownames}\NormalTok{(data_glm) <-}\StringTok{ }\NormalTok{data_glm}\OperatorTok{$}\NormalTok{Row.names}
+\NormalTok{data_glm}\OperatorTok{$}\NormalTok{Row.names <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{data_glm[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
+
+\CommentTok{# Loop to add fitted data + GLM overall stats to pairwise comparisons in results.}
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(groups)) \{}
+\NormalTok{  cols <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, }\KeywordTok{grep}\NormalTok{(}\KeywordTok{paste}\NormalTok{(groups[i], }\StringTok{"WT"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{"|"}\NormalTok{), }\KeywordTok{colnames}\NormalTok{(data_glm)))}
+\NormalTok{  results[[i]] <-}\StringTok{ }\KeywordTok{merge}\NormalTok{(results[[i]], data_glm[, cols], }\DataTypeTok{by =} \StringTok{"row.names"}\NormalTok{)}
+\NormalTok{  results[[i]]}\OperatorTok{$}\NormalTok{Row.names <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{  results[[i]] <-}\StringTok{ }\NormalTok{results[[i]][}\KeywordTok{order}\NormalTok{(results[[i]]}\OperatorTok{$}\NormalTok{PValue), ]}
+\NormalTok{\}}
+
+\CommentTok{# Loop to Re-organize columns.}
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(groups)) \{}
+\NormalTok{  col_names <-}\StringTok{ }\KeywordTok{colnames}\NormalTok{(results[[i]])}
+\NormalTok{  colsWT <-}\StringTok{ }\KeywordTok{grep}\NormalTok{(}\StringTok{"WT"}\NormalTok{, col_names)[}\OperatorTok{-}\DecValTok{1}\NormalTok{]}
+\NormalTok{  colsKO <-}\StringTok{ }\KeywordTok{grep}\NormalTok{(}\StringTok{"KO|HET"}\NormalTok{, col_names)}
+\NormalTok{  colsOverall <-}\StringTok{ }\KeywordTok{grep}\NormalTok{(}\StringTok{"Overall"}\NormalTok{, col_names)}
+\NormalTok{  colsElse <-}\StringTok{ }\NormalTok{(}\DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(col_names))[}\OperatorTok{-}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, colsWT, colsKO, colsOverall)]}
+\NormalTok{  idx <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, colsOverall, colsElse, colsKO, colsWT)}
+\NormalTok{  col_names[idx]}
+\NormalTok{  results[[i]] <-}\StringTok{ }\NormalTok{results[[i]][col_names[idx]]}
+\NormalTok{\}}
+
+\CommentTok{# Results}
+\NormalTok{results_interBatch <-}\StringTok{ }\NormalTok{results}
+
+\CommentTok{# Pvalue Histograms (need to ingore "P overall" column):}
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{1}\NormalTok{]][}\OperatorTok{-}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\DecValTok{6}\NormalTok{)], }\StringTok{"gold1"}\NormalTok{, }\StringTok{"Shank2"}\NormalTok{)}
+\NormalTok{p2 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{2}\NormalTok{]][}\OperatorTok{-}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\DecValTok{6}\NormalTok{)], }\StringTok{"blue"}\NormalTok{, }\StringTok{"Shank3"}\NormalTok{)}
+\NormalTok{p3 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{3}\NormalTok{]][}\OperatorTok{-}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\DecValTok{6}\NormalTok{)], }\StringTok{"green"}\NormalTok{, }\StringTok{"Syngap1"}\NormalTok{)}
+\NormalTok{p4 <-}\StringTok{ }\KeywordTok{ggplotPvalHist}\NormalTok{(results[[}\DecValTok{4}\NormalTok{]][}\OperatorTok{-}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\DecValTok{6}\NormalTok{)], }\StringTok{"purple"}\NormalTok{, }\StringTok{"Ube3a"}\NormalTok{)}
+\NormalTok{fig <-}\StringTok{ }\KeywordTok{plot_grid}\NormalTok{(p1, p2, p3, p4, }\DataTypeTok{labels =} \StringTok{"auto"}\NormalTok{)}
+\NormalTok{fig}
+
+\CommentTok{# Save plots.}
+\CommentTok{#file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_GLM_PvalHist.pdf")}
+\CommentTok{#ggsavePDF(plots = list(table, p1, p2, p3, p4), file)}
+
+\CommentTok{# Save as tiff.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_InterBatch_GLM_PvalHist.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,fig)}
+
+\NormalTok{## Write results to file.}
+\CommentTok{# Add summary table to results.}
+\NormalTok{overall <-}\StringTok{ }\KeywordTok{list}\NormalTok{(overall)}
+\KeywordTok{names}\NormalTok{(overall) <-}\StringTok{ "Summary"}
+\NormalTok{results <-}\StringTok{ }\KeywordTok{c}\NormalTok{(overall, results)}
+
+\CommentTok{# Save workbook.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputtabsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_InterBatch_eBLM_GLM_Results.xlsx"}\NormalTok{)}
+\KeywordTok{write.excel}\NormalTok{(results, file)}
+
+\CommentTok{# Save to RDS.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(Rdatadir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_InterBatch_Results.RDS"}\NormalTok{)}
+\KeywordTok{saveRDS}\NormalTok{(results_interBatch, file)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{InterBatch GO and KEGG enrichment
+testing.}\label{interbatch-go-and-kegg-enrichment-testing.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{## Perform GO and KEGG testing.}
+\CommentTok{# qlf_GSE() is a wrapper around the goana() and kegga() functions from EdgeR.}
+\CommentTok{# This function operates on the QLF object.}
+\CommentTok{# Proteins with FDR <0.05 will be considered differentially expressed.}
+
+\CommentTok{# Use lapply to generate GSE results with custom function edgeR_GSE().}
+\CommentTok{# This will take a few minutes.}
+\NormalTok{GSE_results <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(qlf, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{edgeR_GSE}\NormalTok{(x, }\DataTypeTok{FDR =} \FloatTok{0.05}\NormalTok{, }\DataTypeTok{filter =} \OtherTok{TRUE}\NormalTok{))}
+
+\CommentTok{# Name GSE_results.}
+\NormalTok{GSE_results <-}\StringTok{ }\KeywordTok{unlist}\NormalTok{(GSE_results, }\DataTypeTok{recursive =} \OtherTok{FALSE}\NormalTok{)}
+\KeywordTok{names}\NormalTok{(GSE_results) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\KeywordTok{rep}\NormalTok{(groups, }\DataTypeTok{each =} \DecValTok{2}\NormalTok{), }\KeywordTok{names}\NormalTok{(GSE_results))}
+
+\CommentTok{# Initiate an excel workbook.}
+\NormalTok{wb <-}\StringTok{ }\KeywordTok{createWorkbook}\NormalTok{()}
+
+\CommentTok{# Loop to add a worksheets:}
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(GSE_results)) \{}
+\NormalTok{  df <-}\StringTok{ }\NormalTok{GSE_results[[i]]}
+  \KeywordTok{addWorksheet}\NormalTok{(wb, }\DataTypeTok{sheetName =} \KeywordTok{names}\NormalTok{(GSE_results[i]))}
+  \KeywordTok{writeData}\NormalTok{(wb, }\DataTypeTok{sheet =}\NormalTok{ i, df)}
+\NormalTok{\}}
+
+\CommentTok{# Save workbook.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputtabsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"_InterBatch_eBLM_GLM_GSE_Results.xlsx"}\NormalTok{)}
+\KeywordTok{saveWorkbook}\NormalTok{(wb, file, }\DataTypeTok{overwrite =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Generate protein boxplots for significantly DE proteins
+(Interbatch).}\label{generate-protein-boxplots-for-significantly-de-proteins-interbatch.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Subset the data. Keep proteins with p.adj overall <0.05.}
+\NormalTok{data_sub <-}\StringTok{ }\NormalTok{results}\OperatorTok{$}\NormalTok{Shank2[results_interBatch}\OperatorTok{$}\NormalTok{Shank2}\OperatorTok{$}\StringTok{`}\DataTypeTok{Overall PValue}\StringTok{`} \OperatorTok{<}\StringTok{ }\FloatTok{0.05}\NormalTok{, ]}
+\NormalTok{keep <-}\StringTok{ }\NormalTok{data_sub}\OperatorTok{$}\NormalTok{Uniprot}
+\NormalTok{exprDat <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(y_DGE}\OperatorTok{$}\NormalTok{counts)}
+\NormalTok{idx <-}\StringTok{ }\KeywordTok{rownames}\NormalTok{(exprDat) }\OperatorTok{%in%}\StringTok{ }\NormalTok{keep}
+\NormalTok{exprDat <-}\StringTok{ }\NormalTok{exprDat[idx, ]}
+
+\CommentTok{# Annotate exprDat rows as gene|uniprot}
+\NormalTok{exprDat <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(y_DGE}\OperatorTok{$}\NormalTok{counts)}
+\NormalTok{Uniprot <-}\StringTok{ }\KeywordTok{rownames}\NormalTok{(exprDat)}
+\NormalTok{Gene <-}\StringTok{ }\KeywordTok{mapIds}\NormalTok{(}
+\NormalTok{  org.Mm.eg.db,}
+  \DataTypeTok{keys =}\NormalTok{ Uniprot,}
+  \DataTypeTok{column =} \StringTok{"SYMBOL"}\NormalTok{,}
+  \DataTypeTok{keytype =} \StringTok{"UNIPROT"}\NormalTok{,}
+  \DataTypeTok{multiVals =} \StringTok{"first"}
+\NormalTok{)}
+\KeywordTok{rownames}\NormalTok{(exprDat) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(Gene, }\KeywordTok{rownames}\NormalTok{(exprDat), }\DataTypeTok{sep =} \StringTok{"|"}\NormalTok{)}
+
+\CommentTok{# Insure all WT samples are annotated as WT in traits.}
+\NormalTok{traits_temp <-}\StringTok{ }\NormalTok{traits}
+\NormalTok{traits_temp}\OperatorTok{$}\NormalTok{Sample.Model[}\KeywordTok{grepl}\NormalTok{(}\StringTok{"WT"}\NormalTok{, traits_temp}\OperatorTok{$}\NormalTok{Sample.Model)] <-}\StringTok{ "WT"}
+\NormalTok{traits_temp <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(traits_temp, }\KeywordTok{rownames}\NormalTok{(traits_temp) }\OperatorTok{%in%}\StringTok{ }\KeywordTok{colnames}\NormalTok{(exprDat))}
+
+\CommentTok{# Generate plots.}
+\NormalTok{plot_list <-}\StringTok{ }\KeywordTok{ggplotProteinBoxes}\NormalTok{(}
+  \DataTypeTok{data_in =}\NormalTok{ exprDat,}
+  \DataTypeTok{interesting.proteins =} \KeywordTok{rownames}\NormalTok{(exprDat),}
+  \DataTypeTok{dataType =} \StringTok{"Relative Abundance"}\NormalTok{,}
+  \DataTypeTok{traits =}\NormalTok{ traits_temp,}
+  \DataTypeTok{order =} \KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{, }\DecValTok{3}\NormalTok{, }\DecValTok{4}\NormalTok{, }\DecValTok{5}\NormalTok{),}
+  \DataTypeTok{scatter =} \OtherTok{TRUE}
+\NormalTok{)}
+\CommentTok{# Add custom colors.}
+\NormalTok{colors <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"gray"}\NormalTok{, }\StringTok{"yellow"}\NormalTok{, }\StringTok{"blue"}\NormalTok{, }\StringTok{"green"}\NormalTok{, }\StringTok{"purple"}\NormalTok{)}
+\NormalTok{plot_list <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(plot_list, }\ControlFlowTok{function}\NormalTok{(x) x }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_fill_manual}\NormalTok{(}\DataTypeTok{values =}\NormalTok{ colors))}
+
+\CommentTok{# Example plot.}
+\NormalTok{plot_list[[}\DecValTok{1}\NormalTok{]]}
+
+\NormalTok{## Add significance stars.}
+\CommentTok{# Build a df with statistical results.}
+\NormalTok{stats <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(results_interBatch, }\ControlFlowTok{function}\NormalTok{(x)}
+  \KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{cbind}\NormalTok{(}\DataTypeTok{Uniprot =}\NormalTok{ x}\OperatorTok{$}\NormalTok{Uniprot, }\DataTypeTok{FDR =}\NormalTok{ x}\OperatorTok{$}\NormalTok{FDR)))}
+\KeywordTok{names}\NormalTok{(stats) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"KO.Shank2"}\NormalTok{, }\StringTok{"KO.Shank3"}\NormalTok{, }\StringTok{"HET.Syngap1"}\NormalTok{, }\StringTok{"KO.Ube3a"}\NormalTok{)}
+\NormalTok{df <-}\StringTok{ }\NormalTok{stats }\OperatorTok{%>%}\StringTok{ }\KeywordTok{reduce}\NormalTok{(left_join, }\DataTypeTok{by =} \StringTok{"Uniprot"}\NormalTok{)}
+\KeywordTok{colnames}\NormalTok{(df)[}\KeywordTok{c}\NormalTok{(}\DecValTok{2}\OperatorTok{:}\KeywordTok{ncol}\NormalTok{(df))] <-}\StringTok{ }\KeywordTok{names}\NormalTok{(stats)}
+
+\CommentTok{# Annotate rows as gene|uniprot}
+\NormalTok{Uniprot <-}\StringTok{ }\NormalTok{df}\OperatorTok{$}\NormalTok{Uniprot}
+\NormalTok{Gene <-}\StringTok{ }\KeywordTok{mapIds}\NormalTok{(}
+\NormalTok{  org.Mm.eg.db,}
+  \DataTypeTok{keys =}\NormalTok{ Uniprot,}
+  \DataTypeTok{column =} \StringTok{"SYMBOL"}\NormalTok{,}
+  \DataTypeTok{keytype =} \StringTok{"UNIPROT"}\NormalTok{,}
+  \DataTypeTok{multiVals =} \StringTok{"first"}
+\NormalTok{)}
+\KeywordTok{rownames}\NormalTok{(df) <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(Gene, Uniprot, }\DataTypeTok{sep =} \StringTok{"|"}\NormalTok{)}
+\NormalTok{df}\OperatorTok{$}\NormalTok{Uniprot <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{stats <-}\StringTok{ }\NormalTok{df}
+
+\CommentTok{# Example plot.}
+\NormalTok{plot <-}\StringTok{ }\NormalTok{plot_list[[}\DecValTok{1}\NormalTok{]]}
+\KeywordTok{annotate_stars}\NormalTok{(plot, stats)}
+
+\CommentTok{# Loop to add stars.}
+\NormalTok{plot_list <-}\StringTok{ }\KeywordTok{lapply}\NormalTok{(plot_list, }\ControlFlowTok{function}\NormalTok{(x) }\KeywordTok{annotate_stars}\NormalTok{(x, stats))}
+
+\CommentTok{# Top proteins.}
+\NormalTok{p1 <-}\StringTok{ }\NormalTok{plot_list}\OperatorTok{$}\StringTok{`}\DataTypeTok{Shank2|Q80Z38}\StringTok{`}
+\NormalTok{p2 <-}\StringTok{ }\NormalTok{plot_list}\OperatorTok{$}\StringTok{`}\DataTypeTok{Shank3|Q4ACU6}\StringTok{`}
+\NormalTok{p3 <-}\StringTok{ }\NormalTok{plot_list}\OperatorTok{$}\StringTok{`}\DataTypeTok{Syngap1|F6SEU4}\StringTok{`}
+\NormalTok{p4 <-}\StringTok{ }\NormalTok{plot_list}\OperatorTok{$}\StringTok{`}\DataTypeTok{Ube3a|O08759}\StringTok{`}
+\NormalTok{fig <-}\StringTok{ }\KeywordTok{plot_grid}\NormalTok{(p1,p2,p3,p4)}
+\NormalTok{fig}
+
+\CommentTok{# Save to pdf.}
+\CommentTok{#file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")}
+\CommentTok{#ggsavePDF(plots = plot_list, file)}
+
+\CommentTok{# Save as tiff.}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste0}\NormalTok{(outputfigsdir, }\StringTok{"/"}\NormalTok{, outputMatName, }\StringTok{"TopProteins_BoxPlots.tiff"}\NormalTok{)}
+\KeywordTok{ggsave}\NormalTok{(file,fig)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Render RMarkdown report.}\label{render-rmarkdown-report.}
+
+This script is formatted for automated rendering of an RMarkdown report.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Code directory. }
+\NormalTok{dir <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(rootdir,}\StringTok{"Code"}\NormalTok{,}\DataTypeTok{sep=}\StringTok{"/"}\NormalTok{)}
+\NormalTok{file <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(dir,}\StringTok{"1_TMT_Analysis.R"}\NormalTok{,}\DataTypeTok{sep=}\StringTok{"/"}\NormalTok{)}
+
+\CommentTok{# Save and render.}
+\NormalTok{rstudioapi}\OperatorTok{::}\KeywordTok{documentSave}\NormalTok{()}
+\NormalTok{rmarkdown}\OperatorTok{::}\KeywordTok{render}\NormalTok{(file)}
+\end{Highlighting}
+\end{Shaded}
+
+
+\end{document}
