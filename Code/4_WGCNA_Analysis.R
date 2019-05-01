@@ -1283,9 +1283,10 @@ contrasts
 
 # Generate plot.
 plot_data <- ggplotVerboseBoxplot(x,g,levels,contrasts,color,stats=TRUE, 
-                                  method = "dunnett")
+                                  method = "dunn")
 plot_data$plot
-plot_data$dunnett
+#plot_data$dunnett
+plot_data$dunn
 
 # Loop through ME_list and generate verboseBoxPlot.
 # lapply wont work here because the name is not preserved when you call lapply()...
@@ -1295,7 +1296,7 @@ for (i in 1:dim(MEs)[2]){
   x <- ME_list[[i]]$x
   g <- ME_list[[i]]$groups
   color <- names(ME_list)[[i]]
-  plot <- ggplotVerboseBoxplot(x,g,levels,contrasts,color,stats=TRUE,method="dunnett")
+  plot <- ggplotVerboseBoxplot(x,g,levels,contrasts,color,stats=TRUE,method="dunn")
   plot_data[[i]] <- plot
   names(plot_data)[[i]] <- color
 }
@@ -1511,12 +1512,19 @@ p1
 
 # Prepare a df for generating colored bars.
 df2 <- data.frame(
-  cluster = cutreeDynamic(hc, distM = diss, method="tree", minClusterSize = 2, verbose = 0),
+  cluster = cutreeDynamic(hc, distM = diss, method="tree", minClusterSize = 3, verbose = 0),
   module  = factor(hc$labels, levels=hc$labels[hc$order]))
 df2$order <- match(df2$module,dendro_data(hc)$labels$label)
 df2 <- df2[order(df2$order),]
 df2$module <- factor(df2$module,levels = df2$module)
 head(df2)
+
+# Meta modules.
+meta_modules <- data.frame(
+  protein = rownames(cleanDat),
+  module = net$colors,
+  meta_module = df2$cluster[match(net$colors,df2$module)]
+)
 
 # Generate colored bars.
 p2 <- ggplot(df2,aes(module, y = 1, fill=factor(cluster))) + geom_tile() +
@@ -1527,6 +1535,30 @@ p2 <- ggplot(df2,aes(module, y = 1, fill=factor(cluster))) + geom_tile() +
         legend.position="none")
 p2
 
+# Modularity of the network.
+r <- bicor(t(cleanDat))
+adjm <- ((1+r)/2)^power #signed.
+#adjm <- abs(r)^power     #un-signed.
+
+# Create igraph object. 
+graph <- graph_from_adjacency_matrix(
+  adjmatrix = adjm, 
+  mode = c("undirected"), 
+  weighted = TRUE, 
+  diag = FALSE)
+
+# Calculate modularity, q.
+membership <- as.numeric(as.factor(net$colors))
+q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
+q1
+
+# Without "grey" nodes.
+v <- rownames(cleanDat)[!net$colors=="grey"]
+subg <- induced_subgraph(graph,v)
+membership <- as.numeric(as.factor(net$colors))
+membership <- membership[!net$colors=="grey"]
+q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
+q2
 
 # Combine.
 gp1 <- ggplotGrob(p1)
