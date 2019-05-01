@@ -790,6 +790,8 @@ saveRDS(results,file)
 #-------------------------------------------------------------------------------
 #' ## Render report.
 #-------------------------------------------------------------------------------
+#' This script is formatted for automated rendering of an RMarkdown report.
+#'
 #+ eval = FALSE
 
 # Code directory. 

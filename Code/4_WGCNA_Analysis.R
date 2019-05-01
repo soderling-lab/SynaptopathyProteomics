@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 })
 
 # Define version of the code.
-CodeVersion <- "params_981"
+CodeVersion <- "params"
 
 # Define tisue type: cortex = 1; striatum = 2.
 type <- 3
@@ -142,6 +142,7 @@ ggplot2::theme_set(theme_gray())
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
 
+# Fixme:
 # InterBatch statistical comparisons with EdgeR GLM:
 file <- paste0(rootdir,"/","Tables/Combined/v14_TAMPOR/Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx")
 results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
@@ -153,7 +154,7 @@ names(results) <- excel_sheets(file)
 #+ eval = FALSE
 
 # Estimate powers?
-estimatePower <- TRUE
+estimatePower <- FALSE
 
 # Data is...
 # Load TAMPOR cleanDat from file: #2918 of 2918
@@ -224,7 +225,7 @@ sampled_params$iter <- c(1:nrow(sampled_params))
 dim(sampled_params)[1]
 
 # Choose network building parameters.
-params_iter <- 981 #981 # 10 #691 10, 507 530
+params_iter <- 738 #573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
 params <- sampled_params[params_iter,]
 params[,c(1:7)]
 
@@ -235,7 +236,7 @@ file <- paste0(outputfigsdir,"/",outputMatName,"Network_Parameters.tiff")
 ggsave(file,table,width = 9, height = 1)
 
 # Network parameters:
-power <- 9
+power <- 12 #9
 networkType <- "signed"
 corType <- "bicor"
 enforceMMS <- TRUE         # Should minimal modules size be inforced? Done after network building.
@@ -286,9 +287,12 @@ net <- blockwiseModules(t(cleanDat),
 #' preservation statistics.)
 #' 
 # Input for NetRep:
-data_list <- list(data = t(cleanDat)) 
-correlation_list <- list(data = bicor(t(cleanDat)))       
-network_list <- list(data = abs(bicor(t(cleanDat)))^power)       
+r <- bicor(t(cleanDat))
+adjm <- ((1+r)/2)^power # Signed network. 
+
+data_list <- list(data = t(cleanDat))
+correlation_list <- list(data = r)       
+network_list <- list(data = adjm)       
 module_labels <- net$colors     
 names(module_labels) <- rownames(cleanDat)
 
@@ -1650,7 +1654,7 @@ write.excel(results_GOenrichment,file)
 #' ## Module summary.
 #-------------------------------------------------------------------------------
 
-# Module sumamry data frame. 
+# Module summary data frame. 
 module_summary <- KW_results
 
 # Add module sizes
