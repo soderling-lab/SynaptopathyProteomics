@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 })
 
 # Define version of the code.
-CodeVersion <- "params"
+CodeVersion <- "Semi_Final"
 
 # Define tisue type: cortex = 1; striatum = 2.
 type <- 3
@@ -144,9 +144,9 @@ ggplot2::theme_set(theme_gray())
 
 # Fixme:
 # InterBatch statistical comparisons with EdgeR GLM:
-file <- paste0(rootdir,"/","Tables/Combined/v14_TAMPOR/Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx")
-results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
-names(results) <- excel_sheets(file)
+#file <- paste0(rootdir,"/","Tables/Combined/v14_TAMPOR/Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx")
+#results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
+#names(results) <- excel_sheets(file)
 
 #-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
@@ -157,7 +157,7 @@ names(results) <- excel_sheets(file)
 estimatePower <- FALSE
 
 # Data is...
-# Load TAMPOR cleanDat from file: #2918 of 2918
+# Load TAMPOR cleanDat from file: #2918 or 3022 rows.
 datafile <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.Rds",sep="/")
 cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
@@ -286,6 +286,8 @@ net <- blockwiseModules(t(cleanDat),
 #' Remove modules that are not preserved (i.e. have insignificant module 
 #' preservation statistics.)
 #' 
+#+ eval = FALSE
+
 # Input for NetRep:
 r <- bicor(t(cleanDat))
 adjm <- ((1+r)/2)^power # Signed network. 
@@ -472,8 +474,8 @@ dev.off()
 
 # Calculate the adjacency network.
 r <- bicor(t(cleanDat))
-#adjm <- ((1+r)/2)^power #signed.
-adjm <- abs(r)^power     #un-signed.
+adjm <- ((1+r)/2)^power #signed.
+#adjm <- abs(r)^power     #un-signed.
 
 # Create igraph object. 
 graph <- graph_from_adjacency_matrix(
@@ -1480,8 +1482,8 @@ ggsave(file,plot)
 #-------------------------------------------------------------------------------
 
 # WGCNA Function:
-file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
-CairoPDF(file = file, width = 16, height = 12)
+#file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
+#CairoPDF(file = file, width = 16, height = 12)
 plotEigengeneNetworks(MEs[,!colnames(MEs)=="grey"], "Eigengene Network",
                       excludeGrey = TRUE, greyLabel = "grey",
                       marHeatmap = c(3, 4, 2, 2), 
@@ -1491,11 +1493,11 @@ plotEigengeneNetworks(MEs[,!colnames(MEs)=="grey"], "Eigengene Network",
                       printAdjacency = FALSE,
                       xLabelsAngle = 90, 
                       heatmapColors = blueWhiteRed(50))
-dev.off()  
+#dev.off()  
 
 
 # Generate distance matrix. 
-r <- bicor(MEs[!colnames(MEs)=="grey"])
+r <- bicor(MEs[!colnames(MEs)=="MEgrey"])
 diss <- 1 - r
 
 # ME network 
@@ -1512,19 +1514,24 @@ p1
 
 # Prepare a df for generating colored bars.
 df2 <- data.frame(
-  cluster = cutreeDynamic(hc, distM = diss, method="tree", minClusterSize = 3, verbose = 0),
+  cluster = cutreeDynamic(hc, distM = diss, method="tree", minClusterSize = 2, verbose = 0),
   module  = factor(hc$labels, levels=hc$labels[hc$order]))
 df2$order <- match(df2$module,dendro_data(hc)$labels$label)
 df2 <- df2[order(df2$order),]
 df2$module <- factor(df2$module,levels = df2$module)
+df2$module <- gsub("ME","", df2$module)
 head(df2)
+
+# Number of meta modules.
+length(unique(df2$cluster))
 
 # Meta modules.
 meta_modules <- data.frame(
   protein = rownames(cleanDat),
   module = net$colors,
-  meta_module = df2$cluster[match(net$colors,df2$module)]
-)
+  meta_module = df2$cluster[match(net$colors,df2$module)])
+# Convert NA to zero.
+meta_modules$meta_module[is.na(meta_modules$meta_module)] <- 0
 
 # Generate colored bars.
 p2 <- ggplot(df2,aes(module, y = 1, fill=factor(cluster))) + geom_tile() +
@@ -1534,31 +1541,6 @@ p2 <- ggplot(df2,aes(module, y = 1, fill=factor(cluster))) + geom_tile() +
         axis.text=element_blank(),
         legend.position="none")
 p2
-
-# Modularity of the network.
-r <- bicor(t(cleanDat))
-adjm <- ((1+r)/2)^power #signed.
-#adjm <- abs(r)^power     #un-signed.
-
-# Create igraph object. 
-graph <- graph_from_adjacency_matrix(
-  adjmatrix = adjm, 
-  mode = c("undirected"), 
-  weighted = TRUE, 
-  diag = FALSE)
-
-# Calculate modularity, q.
-membership <- as.numeric(as.factor(net$colors))
-q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
-q1
-
-# Without "grey" nodes.
-v <- rownames(cleanDat)[!net$colors=="grey"]
-subg <- induced_subgraph(graph,v)
-membership <- as.numeric(as.factor(net$colors))
-membership <- membership[!net$colors=="grey"]
-q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
-q2
 
 # Combine.
 gp1 <- ggplotGrob(p1)
@@ -1574,6 +1556,32 @@ fig
 # Save as tiff.
 file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
 ggsave(file,fig)
+
+
+# Modularity of the meta module network.
+collectGarbage()
+r <- bicor(t(cleanDat))
+adjm <- ((1+r)/2)^power #signed.
+
+# Create igraph object. 
+graph <- graph_from_adjacency_matrix(
+  adjmatrix = adjm, 
+  mode = c("undirected"), 
+  weighted = TRUE, 
+  diag = FALSE)
+
+# Calculate modularity, q.
+membership <- as.numeric(as.factor(meta_modules$meta_module))
+q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
+q1
+
+# Without grey modules.
+v <- rownames(cleanDat)[!meta_modules$meta_module==0]
+subg <- induced_subgraph(graph,v)
+membership <- as.numeric(as.factor(meta_modules$meta_module))
+membership <- membership[!meta_modules$meta_module==0]
+q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
+q2
 
 #-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of Modules (colors).

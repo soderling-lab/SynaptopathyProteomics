@@ -601,7 +601,7 @@ plot
 plots <- ggplotMDSv2(log2(relAbundanceNorm2), colID="b", traits, title = "Normalized Abundance")
 plot1 <- plots$plot + theme(legend.position = "none")
 plot2 <- plots$dendro
-plot_grid(plot1,plot2,labels="auto")
+plot1
 
 # Save plots.
 #plot_list <- list(plot,plot1)
@@ -621,7 +621,7 @@ data_in <- relAbundanceNorm2
 data_in[1:5,1:5]
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(data_in,log=TRUE,colID="b",threshold = -3)
+sample_connectivity <- ggplotSampleConnectivityv2(data_in,log=TRUE,colID="b",threshold = -3.0)
 sample_connectivity$table
 sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
 
@@ -708,8 +708,8 @@ plotQLDisp(fit)
 g1 <- colnames(design)[grepl("Cortex",colnames(design))][-5]
 g2 <- colnames(design)[grepl("Striatum",colnames(design))][-5]
 
-cont1 <- makePairwiseContrasts(list("Cortex.WT"),list(g1))
-cont2 <- makePairwiseContrasts(list("Striatum.WT"),list(g2))
+cont1 <- makePairwiseContrasts(list(g1),list("Cortex.WT"))
+cont2 <- makePairwiseContrasts(list(g2),list("Striatum.WT"))
 
 # For some reason loops or lapply dont work with the makeContrasts function.
 contrasts <- list(

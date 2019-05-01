@@ -96,7 +96,7 @@ suppressWarnings({
 CodeVersion <- "Semi_Final"
 
 # Define tisue type: cortex = 1; striatum = 2.
-type <- 2
+type <- 1
 tissue <- c("Cortex", "Striatum")[type]
 
 # Set the working directory.
@@ -420,13 +420,14 @@ ggsave(file,fig)
 #' main classes of missing values, missing at random (MAR) and missing not at
 #' random (MNAR). The appropriate imputing algorithm should be chosen based on 
 #' the nature of missing values. The distribution of peptides with missing 
-#' values is examined by a density plot. The left-shifted distribution of 
+#' values is examined by density plots. The left-shifted distribution of 
 #' peptides with missing values indicates that peptides that have missing 
 #' values are generally lower in abundance. Missing values are likely then to be
-#' not missing at random (MNAR), but missing because they are low-abundance 
+#' missing not at random (MNAR), but missing because they are low-abundance 
 #' and at or near the limit of detection. MNAR data can be imputed with the 
-#' k-nearest neighbors (knn) algorithm in the next chunk. 
-#'   
+#' k-nearest neighbors (knn) algorithm in the next chunk. The __impute.knn__
+#' from the package `impute` is used to impute MNAR data.
+#' 
 #+ eval = TRUE
 
 # Define groups for subseting the data.
@@ -592,10 +593,13 @@ SL_protein <- normalize_SL(SL_protein, "Abundance", "Abundance")
 #' ## IntraBatch Protein-lavel ComBat.
 #-------------------------------------------------------------------------------
 #' Each experimental cohort of 8 was prepared in two batches. This was necessary
-#' because the ultra-centrifuge holds a maximum of 6 samples. This intra-batch
-#' batch effect was recorded for 6/8 experiments. We will utilize the __ComBat()__ 
-#' function from the sva package to remove this batch effect before attempting to 
-#' correct the inter-batch effect between batches with IRS normalization.
+#' because the ultra-centrifuge rotor used to prepare purified synaptosomes
+#' holds a maximum of 6 samples. This intra-batch batch effect was recorded for 
+#' 6/8 experiments. Here I will utilize the __ComBat()__ function from the `sva` 
+#' package to remove this batch effect before correcting for inter-batch batch 
+#' effects between batches with IRS normalization and regression. Note that in 
+#' the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1), 
+#' ComBat is not applied.
 #'
 #+ eval = TRUE, message = FALSE
 
@@ -775,7 +779,7 @@ ggpubr::ggarrange(plotlist = plot_list[[4]])
 #-------------------------------------------------------------------------------
 #' ##  Examine protein identification overlap.
 #-------------------------------------------------------------------------------
-#' Approximately 90% of all proteins are identified in all experiments. 
+#' Approximately 80-90% of all proteins are identified in all experiments. 
 #' 
 #+ eval = TRUE
 
@@ -837,10 +841,11 @@ ggsave(file,fig)
 #-------------------------------------------------------------------------------
 #' ## IRS Normalization.
 #-------------------------------------------------------------------------------
-#' Internal reference sclaing (IRS) normalization equalizes the means of
-#' reference (QC) samples across all batches. IRS normalization accounts for the 
-#' random sampling of peptides at the MS2 level--proteins are identified by 
-#' different peptides in different experiments. 
+#' Internal reference sclaing (IRS) normalization equalizes the protein-wise means 
+#' of reference (QC) samples across all batches. Thus, IRS normalization accounts 
+#' for the random sampling of peptides at the MS2 level which results in the 
+#' identification/quantificaiton of proteins by different peptides in each 
+#' experiment. IRS normalization was first described by __Plubell et al., 2017__. 
 #'
 #+ eval = TRUE
 
@@ -851,9 +856,11 @@ IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
 #-------------------------------------------------------------------------------
 #' ## Identify and remove QC outliers.
 #-------------------------------------------------------------------------------
-#' IRS normalization utilizes QC samples as reference. Outlier QC measurements
-#' (caused by interference or other artifact) would influence the IRS 
-#' normalizaiton. Thus, outlier QC samples are removed, if identified. 
+#' IRS normalization utilizes QC samples as reference samples. Outlier QC 
+#' measurements (caused by interference or other artifact) would influence the 
+#' create unwanted variability. Thus, outlier QC samples are removed, if 
+#' identified. The method used by __Oldham et al., 2016__ is used to identify 
+#' QC sample outliers. A threshold of -2.5 is used. 
 #' 
 #+ eval = TRUE
 
@@ -861,7 +868,8 @@ IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
 data_in <- IRS_protein
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(IRS_protein, colID = "QC")
+sample_connectivity <- ggplotSampleConnectivityv2(IRS_protein, colID = "QC", 
+                                                  threshold = -2.5)
 tab <- sample_connectivity$table
 df <- add_column(tab,SampleName = rownames(tab),.before = 1)
 rownames(df) <- NULL
@@ -882,7 +890,7 @@ ggsave(file,plot)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
-threshold <- -2.5
+threshold <- -3.0
 data_in <- SL_protein
 out_samples <- list()
 plots <- list()
@@ -976,6 +984,12 @@ ggsave(file,fig)
 #-------------------------------------------------------------------------------
 #' ## Protein level filtering, imputing, and final TMM normalization.
 #-------------------------------------------------------------------------------
+#' Proteins that are identified by only a single peptide are removed. Proteins 
+#' that are identified in less than 50% of all samples are also removed. The 
+#' nature of the remaining missng values are examined by density plot and 
+#' imputed with the KNN algorithm for MNAR data. Finally, TMM normalization is
+#' applied to correct for any biases introduced by these previous steps. 
+#' 
 #+ eval = TRUE
 
 # Remove proteins that are identified by only 1 peptide.
@@ -1050,6 +1064,10 @@ ggsave(file,fig)
 #-------------------------------------------------------------------------------
 #' ## IntraBatch statistical testing: EdgeR GLM.
 #-------------------------------------------------------------------------------
+#' Differential protein expression is evaluated using a generalized linear model
+#' (GLM) implemented by `EdgeR's` __glmQLFit()__ and __glmQLFTest()__ functions.
+#' Comparisons are made within a batch (WT vs KO or HET).
+#' 
 #+ eval = TRUE
 
 # data is...
@@ -1180,8 +1198,8 @@ saveRDS(results_intraBatch, file)
 #-------------------------------------------------------------------------------
 #' ## IntraBatch GO and KEGG enrichment testing with EdgeR.
 #-------------------------------------------------------------------------------
-#' GO and KEGG enrichment analyis are performed using EdgeR's goana() and kegga()
-#' functions.
+#' GO and KEGG enrichment analyis are performed using `EdgeR's`` __goana()__ 
+#' and __kegga()__ functions.
 #' 
 #+ eval = FALSE
 
@@ -1205,7 +1223,8 @@ write.excel(GSE_results, file)
 #-------------------------------------------------------------------------------
 #' ## Perform moderated EB regression of genetic strain as a covariate.
 #-------------------------------------------------------------------------------
-#' Moderated Empirical Bayes (EB) regression is performed to remove the affect of
+#' Moderated Empirical Bayes (EB) regression as implemented by the `WGCNA` 
+#' function is __empiricalBayesLM()__ is performed to remove the affect of
 #' genetic background.
 #' 
 #+ eval = FALSE
@@ -1276,6 +1295,8 @@ quiet(mapply(ggsave,files,list(plot1,plot2)))
 #-------------------------------------------------------------------------------
 #' ## Reformat final normalized, regressed data for TAMPOR processing.
 #-------------------------------------------------------------------------------
+#' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
+#' 
 #+ eval = FALSE 
 
 # Data is...
@@ -1330,8 +1351,8 @@ saveRDS(cleanDat, file)
 #-------------------------------------------------------------------------------
 #' ## InterBatch Statistical comparisons with EdgeR GLM.
 #-------------------------------------------------------------------------------
-#' After regression of genetic strain, pooling of WT samples will increase 
-#' statistical power. 
+#' After regression of genetic strain, differential protein expression is 
+#' evaluated across batches, using all WT samples. 
 #' 
 #+ eval = FALSE
 
