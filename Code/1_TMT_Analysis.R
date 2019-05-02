@@ -93,10 +93,10 @@ suppressWarnings({
 #devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
-CodeVersion <- "Semi_Final"
+CodeVersion <- "Final_Preprocessing"
 
 # Define tisue type: cortex = 1; striatum = 2.
-type <- 1
+type <- 2
 tissue <- c("Cortex", "Striatum")[type]
 
 # Set the working directory.
@@ -890,7 +890,7 @@ ggsave(file,plot)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
-threshold <- -3.0
+threshold <- -2.5
 data_in <- SL_protein
 out_samples <- list()
 plots <- list()
@@ -1009,6 +1009,8 @@ imp_protein <- impute_KNN(filt_protein, "Abundance")
 
 # Final normalization with TMM.
 TMM_protein <- normalize_TMM(imp_protein, "Abundance")
+
+dim(TMM_protein)
 
 # Save plot.
 #file <- paste0(outputfigsdir, "/", outputMatName, 

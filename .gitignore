@@ -1,3 +1,4 @@
+# Files and folders/ to ignore.
 .Rproj.user
 .Rhistory
 .RData
@@ -5,3 +6,4 @@
 Figures/
 Reports/
 Tables/
+RData/

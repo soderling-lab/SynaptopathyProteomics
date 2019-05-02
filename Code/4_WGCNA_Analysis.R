@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 })
 
 # Define version of the code.
-CodeVersion <- "Semi_Final"
+CodeVersion <- "Final_WGNCA"
 
 # Define tisue type: cortex = 1; striatum = 2.
 type <- 3
@@ -140,13 +140,16 @@ ggplot2::theme_set(theme_gray())
 #-------------------------------------------------------------------------------
 #' ## Load the EdgeR statistical results.
 #-------------------------------------------------------------------------------
+#' Statistical comparisons post-TAMPOR normalization with pooled WT versus 
+#' HET and KO mice. 
+#' 
 #+ eval = FALSE
 
-# Fixme:
 # InterBatch statistical comparisons with EdgeR GLM:
-#file <- paste0(rootdir,"/","Tables/Combined/v14_TAMPOR/Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx")
-#results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
-#names(results) <- excel_sheets(file)
+file <- paste(outputtabs,"Final_TAMPOR",
+              "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx", sep = "/")
+results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
+names(results) <- excel_sheets(file)
 
 #-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
@@ -154,15 +157,15 @@ ggplot2::theme_set(theme_gray())
 #+ eval = FALSE
 
 # Estimate powers?
-estimatePower <- FALSE
+estimatePower <- TRUE
 
 # Data is...
-# Load TAMPOR cleanDat from file: #2918 or 3022 rows.
+# Load TAMPOR cleanDat from file: #3022 rows.
 datafile <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.Rds",sep="/")
 cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
 cleanDat[1:5,1:5]
-dim(cleanDat)
+dim(cleanDat) # 1 outlier removed.
 
 # Load combined sample info.
 traitsfile <- paste(Rdatadir,tissue,"Combined_Cortex_Striatum_traits.Rds",sep="/")
@@ -1499,6 +1502,7 @@ plotEigengeneNetworks(MEs[,!colnames(MEs)=="grey"], "Eigengene Network",
 # Generate distance matrix. 
 r <- bicor(MEs[!colnames(MEs)=="MEgrey"])
 diss <- 1 - r
+diag(diss) <- 0
 
 # ME network 
 MEnet <- r
@@ -1512,29 +1516,18 @@ hc <- hclust(as.dist(diss), method = "average")
 p1 <- ggdendrogram(hc, rotate=FALSE)
 p1
 
-# Prepare a df for generating colored bars.
-df2 <- data.frame(
-  cluster = cutreeDynamic(hc, distM = diss, method="tree", minClusterSize = 2, verbose = 0),
-  module  = factor(hc$labels, levels=hc$labels[hc$order]))
-df2$order <- match(df2$module,dendro_data(hc)$labels$label)
-df2 <- df2[order(df2$order),]
-df2$module <- factor(df2$module,levels = df2$module)
-df2$module <- gsub("ME","", df2$module)
-head(df2)
+# cuttree into 4 major groups.
+# Sort based on order in dendro.
+k = 3
+meta_modules = data.frame(module = hc$labels[hc$order],
+                          community = factor(cutree(hc, k = k)[hc$order]),
+                          row.names = NULL)
+meta_modules$module <- gsub("ME","",meta_modules$module)
 
-# Number of meta modules.
-length(unique(df2$cluster))
-
-# Meta modules.
-meta_modules <- data.frame(
-  protein = rownames(cleanDat),
-  module = net$colors,
-  meta_module = df2$cluster[match(net$colors,df2$module)])
-# Convert NA to zero.
-meta_modules$meta_module[is.na(meta_modules$meta_module)] <- 0
+meta_modules$module = factor(meta_modules$module, levels = meta_modules$module)
 
 # Generate colored bars.
-p2 <- ggplot(df2,aes(module, y = 1, fill=factor(cluster))) + geom_tile() +
+p2 <- ggplot(meta_modules, aes(module, y = 0.5, fill=community)) + geom_tile() +
   scale_y_continuous(expand=c(0,0)) +
   theme(axis.title=element_blank(),
         axis.ticks=element_blank(),
@@ -1558,8 +1551,15 @@ file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
 ggsave(file,fig)
 
 
+# Meta modules.
+metaModule_df <- data.frame(
+  protein = rownames(cleanDat),
+  module = net$colors,
+  metaModule = as.numeric(meta_modules$community[match(net$colors,meta_modules$module)]))
+# Convert NA to zero.
+metaModule_df$metaModule[is.na(metaModule_df$metaModule)] <- 0
+
 # Modularity of the meta module network.
-collectGarbage()
 r <- bicor(t(cleanDat))
 adjm <- ((1+r)/2)^power #signed.
 
@@ -1571,22 +1571,35 @@ graph <- graph_from_adjacency_matrix(
   diag = FALSE)
 
 # Calculate modularity, q.
-membership <- as.numeric(as.factor(meta_modules$meta_module))
+membership <- as.numeric(as.factor(metaModule_df$metaModule))
 q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
 q1
 
 # Without grey modules.
-v <- rownames(cleanDat)[!meta_modules$meta_module==0]
+v <- rownames(cleanDat)[!metaModule_df$metaModule==0]
 subg <- induced_subgraph(graph,v)
-membership <- as.numeric(as.factor(meta_modules$meta_module))
-membership <- membership[!meta_modules$meta_module==0]
+membership <- as.numeric(as.factor(metaModule_df$metaModule))
+membership <- membership[!metaModule_df$metaModule==0]
 q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
 q2
+
+#-------------------------------------------------------------------------------
+#' ## GO Enrichment analysis of meta Modules.
+#-------------------------------------------------------------------------------
+
+## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
+geneNames <- rownames(cleanDat)
+dynamicColors <- df$meta
+results_modules <- as.data.frame(cbind(geneNames,dynamicColors))
+
 
 #-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of Modules (colors).
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
+
+# Load GO enrichment results from file?
+load_GOenrichment_from_file <- TRUE
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
 geneNames <- rownames(cleanDat)
@@ -1628,40 +1641,72 @@ table(colors)
 # The colors matrix and vector of cooresponding entrez IDs 
 # will be passed to enrichmentAnalysis().
 
-# Build a GO annotation collection:
-if (!exists(deparse(substitute(musGOcollection)))){
-  musGOcollection <- buildGOcollection(organism = "mouse")
-}
+# This chunk performs GOenrichment or loads from file. 
+if (load_GOenrichment_from_file == TRUE){
+  
+  # Load GOenrichment result.
+  file <- paste(Rdatadir,tissue,"GOenrichment_data.RDS",sep="/")
+  GOenrichment <- readRDS(file)
+  
+  }else{
+    # Perform GO enrichment testing...
+    
+    # Build a GO annotation collection:
+    if (!exists(deparse(substitute(musGOcollection)))){
+      musGOcollection <- buildGOcollection(organism = "mouse")}
+    
+    # Creates some space by clearing some memory.
+    collectGarbage()
 
-# Creates some space by clearing some memory.
-collectGarbage()
+    # Save GO data as RDS.
+    file <- paste(Rdatadir,tissue,"GO_data.RDS",sep="/")
+    GO_data = list("colors" = colors,
+                  "entrez" = entrez,
+                  "musGOcollection" = musGOcollection)
+    saveRDS(GO_data,file)
 
-# Perform GO analysis for each module using hypergeometric (Fisher.test) test.
-# As implmented by the WGCNA function enrichmentAnalysis().
-# FDR is the BH adjusted p-value. 
-# Insure that the correct background (used as reference for enrichment)
-# has been selected!
-# useBackgroud = "given" will use all given genes as reference background.
+    # Extract data for GO analysis from RDS object. 
+    file <- paste(Rdatadir,tissue,"GO_data.RDS",sep="/")
+    GO_data <- readRDS(file)
+    colors <- GO_data$colors
+    entrez <- GO_data$entrez
+    musGOcollection <- GO_data$musGOcollection
+    collectGarbage()
 
-GOenrichment <- enrichmentAnalysis(
-  classLabels = colors,
-  identifiers = entrez,
-  refCollection = musGOcollection,
-  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
-  threshold = 0.05,
-  thresholdType = "Bonferroni",
-  getOverlapEntrez = TRUE,
-  getOverlapSymbols = TRUE,
-  ignoreLabels = "0")
+    # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
+    # As implmented by the WGCNA function enrichmentAnalysis().
+    # FDR is the BH adjusted p-value. 
+    # Insure that the correct background (used as reference for enrichment)
+    # has been selected!
+    # useBackgroud = "given" will use all given genes as reference background.
 
-# Create some space by clearing some memory.
-collectGarbage()
+    GOenrichment <- enrichmentAnalysis(
+      classLabels = colors,
+      identifiers = entrez,
+      refCollection = musGOcollection,
+      useBackground = "given", # options are: given, reference (all), intersection, and provided. 
+      threshold = 0.05,
+      thresholdType = "Bonferroni",
+      getOverlapEntrez = TRUE,
+      getOverlapSymbols = TRUE,
+      ignoreLabels = "0")
+
+    # Save GOenrichment as RDS
+    file <- paste(Rdatadir,tissue,"GOenrichment_data.RDS",sep="/")
+    saveRDS(GOenrichment,file)
+
+    # Create some space by clearing some memory.
+    collectGarbage()
+  }
+# END GOenrichment chunk. 
 
 # Collect the results. 
 results_GOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)){
   results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
 }
+
+length(results_GOenrichment)
 
 # Combined result
 GO_result <- do.call(rbind,results_GOenrichment)
@@ -1673,18 +1718,15 @@ print(paste("There are", nsig, "GO terms that exhibit significant enrichment amo
 topGO <- subset(GO_result,rank==1)
 
 # Number of modules with sig. GO enrichment.
-table(topGO$FDR<0.05)[2]         
-table(topGO$Bonferroni<0.05)[2]
-sigGO <- subset(topGO,FDR<0.05)
+table(topGO$FDR<0.1)[2]         
+table(topGO$Bonferroni<0.1)[2]
+sigGO <- subset(topGO,FDR<0.1)
 
 # These are the unique sig. GO terms.
 unique(sigGO$shortDataSetName)
 
-# Add to results_GOenrichment list()
-results_GOenrichment <- c(list(topGO),results_GOenrichment)
-
 # Add names to list of results. 
-names(results_GOenrichment) <- c("topGO",gsub(" FDR","",colnames(colors)))
+names(results_GOenrichment) <- colnames(colors)
 
 # Write results to file. 
 file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
@@ -1739,7 +1781,7 @@ write.excel(module_summary, file)
 
 # Singple plot.
 # Specify the top percent of terms to print with topN. 
-ggplotGOscatter(results_GOenrichment,color = "darkred", topN = 1)
+ggplotGOscatter(results_GOenrichment,color = "cyan", topN = 1)
 
 # All plots. 
 colors <- as.list(net$colors)

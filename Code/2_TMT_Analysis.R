@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 #devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
-CodeVersion <- "Semi_Final"
+CodeVersion <- "Final_TAMPOR"
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined. 
 type <- 3
@@ -621,7 +621,7 @@ data_in <- relAbundanceNorm2
 data_in[1:5,1:5]
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(data_in,log=TRUE,colID="b",threshold = -3.0)
+sample_connectivity <- ggplotSampleConnectivityv2(data_in,log=TRUE,colID="b")
 sample_connectivity$table
 sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
 
@@ -778,6 +778,7 @@ names(results) <- c(
 
 # Sort by pvalue.
 results <- lapply(results,function(x) x[order(x$PValue),])
+names(results) <- sapply(strsplit(overall$Contrast," "),"[",1)
 
 # Write to excel.
 file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_GLM_Results.xlsx")
