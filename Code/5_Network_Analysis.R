@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 })
 
 # Define version of the code.
-CodeVersion <- "params"
+CodeVersion <- "Network_Analysis"
 
 # Define tisue type: cortex = 1; striatum = 2.
 type <- 3

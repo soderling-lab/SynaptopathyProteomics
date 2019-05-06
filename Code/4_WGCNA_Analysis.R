@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 })
 
 # Define version of the code.
-CodeVersion <- "Final_WGNCA"
+CodeVersion <- "WGCNA_Analysis"
 
 # Define tisue type: cortex = 1; striatum = 2.
 type <- 3
@@ -157,7 +157,7 @@ names(results) <- excel_sheets(file)
 #+ eval = FALSE
 
 # Estimate powers?
-estimatePower <- TRUE
+estimatePower <- FALSE
 
 # Data is...
 # Load TAMPOR cleanDat from file: #3022 rows.
@@ -1584,16 +1584,6 @@ q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
 q2
 
 #-------------------------------------------------------------------------------
-#' ## GO Enrichment analysis of meta Modules.
-#-------------------------------------------------------------------------------
-
-## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
-geneNames <- rownames(cleanDat)
-dynamicColors <- df$meta
-results_modules <- as.data.frame(cbind(geneNames,dynamicColors))
-
-
-#-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of Modules (colors).
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -1705,7 +1695,6 @@ results_GOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)){
   results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
 }
-
 length(results_GOenrichment)
 
 # Combined result
@@ -1727,9 +1716,92 @@ unique(sigGO$shortDataSetName)
 
 # Add names to list of results. 
 names(results_GOenrichment) <- colnames(colors)
-
+names(results_GOenrichment)
 # Write results to file. 
 file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
+write.excel(results_GOenrichment,file)
+
+#-------------------------------------------------------------------------------
+#' ## GO Enrichment analysis of meta Modules.
+#-------------------------------------------------------------------------------
+
+## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
+geneNames <- metaModule_df$protein
+dynamicColors <- metaModule_df$metaModule
+results_modules <- as.data.frame(cbind(geneNames,dynamicColors))
+
+# Reshape the module colors data.
+colors <- as.data.frame(results_modules)
+mytable <- table(colors)
+colors <- as.data.frame.matrix(mytable)
+colnames(colors) <- paste0("MM",colnames(colors))
+
+# Convert 0 and 1 to column names. 
+logic <- colors == 1 # 1 will become TRUE, and 0 will become FALSE.
+# Loop through each column to replace 1 with column header (color).
+for (i in 1:ncol(logic)){
+  col_header <- colnames(colors)[i]
+  colors[logic[,i],i] <- col_header
+}
+head(colors)
+
+## Map Uniprot IDs to Entrez.
+# Get Uniprot IDs and gene symbols from rownames
+#Uniprot_IDs <- as.character(rownames(colors))
+Uniprot_IDs <- as.character(colsplit(rownames(colors),"\\|",c("Symbol","UniprotID"))[,2])
+# Map Uniprot IDs to Entrez IDs:
+entrez <- mapIds(org.Mm.eg.db, 
+                 keys = Uniprot_IDs, 
+                 column = "ENTREZID", 
+                 keytype = "UNIPROT", 
+                 multiVals = "first")
+
+# Insure that colors is a matrix.
+colors <- as.matrix(colors)
+head(colors)
+head(entrez)
+
+# Build a GO annotation collection:
+if (!exists(deparse(substitute(musGOcollection)))){
+  musGOcollection <- buildGOcollection(organism = "mouse")}
+
+# Creates some space by clearing some memory.
+collectGarbage()
+
+# GO enrichment analysis:
+GOenrichment <- enrichmentAnalysis(
+  classLabels = colors,
+  identifiers = entrez,
+  refCollection = musGOcollection,
+  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
+  threshold = 0.05,
+  thresholdType = "Bonferroni",
+  getOverlapEntrez = TRUE,
+  getOverlapSymbols = TRUE,
+  ignoreLabels = "0")
+
+# Collect the results. 
+results_GOenrichment <- list()
+for (i in 1:length(GOenrichment$setResults)){
+  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
+}
+length(results_GOenrichment)
+
+# Combined result
+GO_result <- do.call(rbind,results_GOenrichment)
+idx <- GO_result$Bonferroni<0.05
+nsig <- length(idx[idx==TRUE])
+print(paste("There are", nsig, "GO terms that exhibit significant enrichment among all modules."))
+
+# Top Term for each module.
+topMetaGO <- subset(GO_result,rank==1)
+
+# Add names to list of results. 
+names(results_GOenrichment) <- colnames(colors)
+names(results_GOenrichment)
+
+# Write results to file. 
+file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_MetaModule_GOenrichment_Results.xlsx")
 write.excel(results_GOenrichment,file)
 
 #-------------------------------------------------------------------------------
@@ -1774,6 +1846,11 @@ module_summary$Hubs <- hubs[idx]
 # Write to excel.
 file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_Module_Summary.xlsx")
 write.excel(module_summary, file)
+
+# Save network, modules, and meta modules as RDS.
+data <- list(net=net,meta=metaModule_df)
+file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
+saveRDS(data,file)
 
 #-------------------------------------------------------------------------------
 #' ## Examine module GO enrichment.

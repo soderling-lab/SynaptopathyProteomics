@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 #devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
-CodeVersion <- "Final_TAMPOR"
+CodeVersion <- "TMT_Analysis_2"
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined. 
 type <- 3
