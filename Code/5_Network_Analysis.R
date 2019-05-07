@@ -100,6 +100,11 @@ functiondir <- paste(rootdir, "Functions", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir,"RData", sep = "/")
 
+# Load required custom functions.
+functiondir <- paste(rootdir, "Functions", sep = "/")
+my_functions <- paste(functiondir, "TMT_Preprocess_Functions.R", sep = "/")
+source(my_functions)
+
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
 
@@ -122,34 +127,19 @@ dir <- paste(datadir,"PPI Network", sep="/")
 file <- paste(dir,"Cortex_SIF_031019.txt", sep="/")
 sif <- read.table(file,header=TRUE, sep=",")
 
+# Load WGCNA network and meta Modules.
+file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
+data <- readRDS(file)
+net <- data$net
+meta <- data$meta
+
 #-------------------------------------------------------------------------------
-#' ## Evaluate modularity of PPI graph based on WGCNA partitions.
+#' ## PPI graph of WGCNA communities.
 #-------------------------------------------------------------------------------
-
-# Load colors.
-# Load Parameters and network stats.
-files <- list.files(Rdatadir, pattern = "Stats")
-file <- paste0(Rdatadir,"/",files)
-file
-out <- readRDS(file)
-length(out)
-
-# Network stats
-result <- do.call(rbind,sapply(out,"[",1))
-result$iter <- c(1:nrow(result))
-rownames(result) <- paste0("params_",1:nrow(result))
-
-# Module colors.
-modcolors <- sapply(out,"[",2)
-names(modcolors) <- rownames(result)
-
-# Preservation stats.
-modstats <- sapply(out,"[",3)
-names(modstats) <- rownames(result)
 
 # Build data frame.
-df <- data.frame(Protein = rownames(cleanDat),
-                 Color = NA)
+df <- data.frame(Protein = meta$protein,
+                 Color = meta$metaModule)
 # Map uniprot IDs to Entrez.
 df$Uniprot <- sapply(strsplit(df$Protein,"\\|"),"[",2)
 df$Gene <- sapply(strsplit(df$Protein,"\\|"),"[",1)
@@ -157,6 +147,7 @@ df$Entrez <- mapIds(org.Mm.eg.db, keys=df$Uniprot, column="ENTREZID",
                     keytype="UNIPROT", multiVals="first")
 df$Entrez2 <- mapIds(org.Mm.eg.db, keys=df$Gene, column="ENTREZID", 
                      keytype="SYMBOL", multiVals="first")
+head(df)
 
 # Function to get non-NA value as Entrez ID. 
 my_func <- function(x){
@@ -167,67 +158,8 @@ my_func <- function(x){
   }
 }
 df$id <- apply(df,1,function(x) my_func(x))
+df$moduleColor <- net$colors[match(df$Protein,rownames(cleanDat))]
 
-out <- list()
-# Loop to calculate modularity.
-for (i in 1:length(modcolors)){
-  print(i)
-  # Add colors.
-  df$Color <- modcolors[[i]]
-
-  # Remove sif rows that are not mapped to genes in df.
-  sif$logic <- sif$EntrezA %in% df$id & sif$EntrezB %in% df$id
-  sif <- sif[sif$logic,]
-
-  # Make igraph.
-  sif_df <- sif[,c(3,4)]
-  g <- graph_from_data_frame(sif_df, directed = FALSE)
-
-  nodes <- vertex_attr(g, "name")
-  colors <- df$Color[match(nodes,df$id)]
-
-  # Calculate modularity, q.
-  membership <- as.numeric(as.factor(colors))
-  q1 <- modularity(g, membership)
-
-  # Without "grey" nodes.
-  v <- nodes[!colors=="grey"]
-  subg <- induced_subgraph(g,v)
-  membership <- as.numeric(as.factor(colors))
-  membership <- membership[!colors=="grey"]
-  q2 <- modularity(subg, membership)
-  dm <- cbind(q1,q2)
-  out[[i]] <- dm
-}
-
-result <- as.data.frame(do.call(rbind,out))
-result$params <- c(1:nrow(result))
-sub <- result[result[,2]==max(result[,2]),]
-
-#-------------------------------------------------------------------------------
-#' ## PPI graph of WGCNA modules.
-#-------------------------------------------------------------------------------
-
-# Build data frame.
-df <- data.frame(Protein = rownames(cleanDat),
-                 Color = net$colors)
-# Map uniprot IDs to Entrez.
-df$Uniprot <- sapply(strsplit(df$Protein,"\\|"),"[",2)
-df$Gene <- sapply(strsplit(df$Protein,"\\|"),"[",1)
-df$Entrez <- mapIds(org.Mm.eg.db, keys=df$Uniprot, column="ENTREZID", 
-                    keytype="UNIPROT", multiVals="first")
-df$Entrez2 <- mapIds(org.Mm.eg.db, keys=df$Gene, column="ENTREZID", 
-                     keytype="SYMBOL", multiVals="first")
-
-# Function to get non-NA value as Entrez ID. 
-my_func <- function(x){
-  if (!is.na(x[5])){
-    y = x[5]
-  }else{
-    y = x[6]
-  }
-}
-df$id <- apply(df,1,function(x) my_func(x))
 
 # Subset sif based on proteins in df.
 sif$logic <- sif$EntrezA %in% df$id & sif$EntrezB %in% df$id
@@ -248,10 +180,6 @@ idx <- match(vertex_attr(subg)$name,df$id)
 subg <- set.vertex.attribute(subg,"name",value = df$Gene[idx])
 plot(subg)
 
-# Sig modules.
-sigMods <- module_summary$Module[module_summary$p.adj<0.1]
-modules <- modules[names(modules)[names(modules) %in% sigMods]]
-
 # Send module subgraphs to cytoscape. 
 cytoscapePing()
 
@@ -265,11 +193,14 @@ for (i in 1:length(modules)){
   # Change vertex names to gene symbol. 
   idx <- match(vertex_attr(subg)$name,df$id)
   subg <- set.vertex.attribute(subg,"name",value = df$Gene[idx])
-  setNodeColorDefault(col2hex(color)) # Must be hex.
+  #setNodeColorDefault(col2hex(color)) # Must be hex.
   setNodeShapeDefault('Ellipse')
   lockNodeDimensions(TRUE)
   quiet(RCy3::createNetworkFromIgraph(subg,color))
 }
+
+
+
 
 #-------------------------------------------------------------------------------
 

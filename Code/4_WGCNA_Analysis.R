@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 })
 
 # Define version of the code.
-CodeVersion <- "WGCNA_Analysis"
+CodeVersion <- "Final_WGCNA_Analysis"
 
 # Define tisue type: cortex = 1; striatum = 2.
 type <- 3
@@ -214,7 +214,7 @@ if (estimatePower==TRUE){
 }
 
 #-------------------------------------------------------------------------------
-#' ## Build the WG(P)CNA Network.
+#' ## Build the WPCNA Network.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
 
@@ -283,6 +283,10 @@ net <- blockwiseModules(t(cleanDat),
                         saveTOMs = FALSE, 
                         maxBlockSize = maxBlockSize)
 
+# Check the number of modules. 
+nModules.original <- length(unique(net$colors))
+nModules.original # 124, 111
+
 #-------------------------------------------------------------------------------
 #' ## Enforce module preservation.
 #-------------------------------------------------------------------------------
@@ -318,13 +322,12 @@ preservation <- NetRep::modulePreservation(
   alternative = "greater", 
   simplify = TRUE,
   verbose = TRUE)
+
 # Collect stats. 
 preservation <- preservation[c("observed","p.values")]
 
 # Get the maximum permutation test p-value.
 maxPval <- apply(preservation$p.values, 1, function(x) max(x,na.rm=TRUE))
-nModules.original <- length(unique(net$colors))-1
-nModules.original
 
 # Modules removed if adjusted pvalue is greater than alpha.
 alpha = 0.05
@@ -332,10 +335,13 @@ modules_out <- names(maxPval)[maxPval>alpha/nModules.original]
 length(modules_out)
 names(net$MEs)[grepl(paste(modules_out,collapse="|"),names(net$MEs))]<-"MEgrey"
 
-# Drop nsig Modules (Set color to grey)
+# Set non-significant modules to grey.
 net$colors[net$colors %in% modules_out] <- "grey"
+
+# Total number of modules, excluding grey:
 nModules <- length(unique(net$colors))-1
 params$nModules <- nModules
+nModules
 
 # Check percent grey.
 percent_grey <- round(100*sum(net$colors=="grey")/length(net$colors),2)
@@ -346,7 +352,7 @@ params$PercentGrayNodes <- percent_grey
 mytable <- data.frame(
   nNodes = sum(net$colors!="grey"),
   PercentGrey = params$PercentGrayNodes,
-  nModules = params$nSigModules,
+  nModules = params$nModules,
   MedianCoherence = round(params$medianModCoherence,3),
   NetworkModularity = round(params$q2,3))
 table <- tableGrob(mytable, rows = NULL)
@@ -550,6 +556,169 @@ plot
 # Save as tiff.
 file <- paste0(outputfigsdir,"/",outputMatName,"Module_Sizes.tiff")
 ggsave(file,plot)
+
+#-------------------------------------------------------------------------------
+#' ## Calculate Module EigenProteins.
+#-------------------------------------------------------------------------------
+#' 
+#' Eigenproteins (also, eigengenes) are the first principle component of a 
+#' module. They are a summary of a module. An eigenprotein is not an actual 
+#' protein.
+#' 
+#+ eval = FALSE
+
+# Calculate Module EigenProteins (MEs)
+MEs <- tmpMEs <- data.frame()
+MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
+MEs <- orderMEs(MEList$eigengenes)
+
+# Remove prefix.
+colnames(MEs) <- gsub("ME", "", colnames(MEs)) 
+rownames(MEs) <- rownames(numericMeta)
+MEs[1:5,1:5]
+
+# Write to excel.
+file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_ModuleEigenprotein_expression.xlsx")
+write.excel(MEs,file,rowNames = TRUE)
+
+#-------------------------------------------------------------------------------
+#' ## Build module (Eigengene) network.
+#-------------------------------------------------------------------------------
+
+# WGCNA Function:
+#file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
+#CairoPDF(file = file, width = 16, height = 12)
+plotEigengeneNetworks(MEs, "Eigengene Network",
+                      excludeGrey = TRUE, greyLabel = "grey",
+                      marHeatmap = c(3, 4, 2, 2), 
+                      marDendro = c(0, 4, 2, 0), 
+                      plotDendrograms = TRUE, 
+                      plotAdjacency = FALSE,
+                      printAdjacency = FALSE,
+                      xLabelsAngle = 90, 
+                      heatmapColors = blueWhiteRed(50))
+#dev.off()  
+
+# Generate distance matrix. 
+r <- bicor(MEs[!colnames(MEs)=="grey"])
+diss <- 1 - r
+diag(diss) <- 0
+
+# ME network 
+MEnet <- r
+diag(MEnet) <- NA
+MEnet_list <- melt(MEnet)
+
+# Perform hierarchical clustering
+hc <- hclust(as.dist(diss), method = "average")
+
+# Generate dendrogram.
+p1 <- ggdendrogram(hc, rotate=FALSE)
+p1
+
+# cuttree into major groups.
+# Sort based on order in dendro.
+k = 3
+meta_modules = data.frame(module = hc$labels[hc$order],
+                          community = factor(cutree(hc, k = k)[hc$order]),
+                          row.names = NULL)
+meta_modules$module <- gsub("ME","",meta_modules$module)
+
+meta_modules$module = factor(meta_modules$module, levels = meta_modules$module)
+
+# Generate colored bars for module colors.
+p2 <- ggplot(meta_modules,aes(module, y = 0.1, fill=module)) + geom_tile() + 
+  scale_y_continuous(expand=c(0,0)) + 
+  scale_fill_manual(values=levels(meta_modules$module)) + 
+  theme(axis.title=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text=element_blank(),
+        legend.position="none")
+
+# Generate colored bars.
+p3 <- ggplot(meta_modules, aes(module, y = 0.5, fill=community)) + geom_tile() +
+  scale_y_continuous(expand=c(0,0)) +
+  theme(axis.title=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text=element_blank(),
+        legend.position="none")
+
+# Combine as figure.
+gp1 <- ggplotGrob(p1)
+gp2 <- ggplotGrob(p2)
+gp3 <- ggplotGrob(p3)  
+maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5], gp3$widths[2:5])
+
+gp1$widths[2:5] <- as.list(maxWidth)
+gp2$widths[2:5] <- as.list(maxWidth)
+gp3$widths[2:5] <- as.list(maxWidth)
+
+fig <- as.ggplot(grid.arrange(gp1, gp2, gp3, ncol=1,heights=c(4/5,1/5, 1/5)))
+fig
+
+# Save as tiff.
+file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
+ggsave(file,fig)
+
+# Meta modules.
+metaModule_df <- data.frame(
+  protein = rownames(cleanDat),
+  module = net$colors,
+  metaModule = NA)
+
+# This is ugly...
+metaModule_df$metaModule <- meta_modules$community[match(metaModule_df$module,meta_modules$module)]
+metaModule_df$metaModule <- as.numeric(metaModule_df$metaModule)
+
+# Convert NA to zero.
+metaModule_df$metaModule[is.na(metaModule_df$metaModule)] <- 0
+
+# Modularity of the WGCNA network based on meta module partition.
+r <- bicor(t(cleanDat))
+adjm <- ((1+r)/2)^power #signed.
+
+# Create igraph object. 
+graph <- graph_from_adjacency_matrix(
+  adjmatrix = adjm, 
+  mode = c("undirected"), 
+  weighted = TRUE, 
+  diag = FALSE)
+
+# Calculate modularity, q1, with grey.
+membership <- as.numeric(as.factor(metaModule_df$metaModule))
+q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
+q1
+
+# Without grey modules, q2.
+v <- rownames(cleanDat)[!metaModule_df$metaModule==0]
+subg <- induced_subgraph(graph,v)
+membership <- as.numeric(as.factor(metaModule_df$metaModule))
+membership <- membership[!metaModule_df$metaModule==0]
+q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
+q2
+
+# Map uniprot ids to Entrez...
+uniprot <- sapply(strsplit(metaModule_df$protein,"\\|"),"[",2)
+gene <- sapply(strsplit(metaModule_df$protein,"\\|"),"[",1)
+entrez <- mapIds(org.Mm.eg.db, 
+                 keys = uniprot, 
+                 column = "ENTREZID", 
+                 keytype = "UNIPROT", 
+                 multiVals = "first")
+# Use gene symbols to map any un-mapped ids to entrez.
+idx <- is.na(entrez)
+entrez[idx] <- mapIds(org.Mm.eg.db, 
+                      keys = gene[idx], 
+                      column = "ENTREZID", 
+                      keytype = "SYMBOL", 
+                      multiVals = "first")
+# Number of remaining un-mapped ids.
+sum(is.na(entrez)) # only 3 un-mapped, good.
+metaModule_df$entrez <- entrez
+
+# Save to file.
+file <- paste0(outputtabsdir,"/",outputMatName,"metaModules.csv")
+write.csv(metaModule_df,file)
 
 #-------------------------------------------------------------------------------
 #' ## Show that the expression of interacting proteins are highly correlated. 
@@ -802,31 +971,7 @@ numericIndices <- unique(c(which(!is.na(apply(numericMeta, 2, function(x) sum(as
                            which(!(apply(numericMeta, 2, function(x) sum(as.numeric(x), na.rm = T))) == 0)))
 
 #-------------------------------------------------------------------------------
-#' ## Calculate Module EigenProteins.
-#-------------------------------------------------------------------------------
-#' 
-#' Eigenproteins (also, eigengenes) are the first principle component of a 
-#' module. They are a summary of a module. An eigenprotein is not an actual 
-#' protein.
-#' 
-#+ eval = FALSE
-
-# Calculate Module EigenProteins (MEs)
-MEs <- tmpMEs <- data.frame()
-MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
-MEs <- orderMEs(MEList$eigengenes)
-
-# Remove prefix.
-colnames(MEs) <- gsub("ME", "", colnames(MEs)) 
-rownames(MEs) <- rownames(numericMeta)
-MEs[1:5,1:5]
-
-# Write to excel.
-file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_ModuleEigenprotein_expression.xlsx")
-write.excel(MEs,file,rowNames = TRUE)
-
-#-------------------------------------------------------------------------------
-#' ## Determine module membership (kME). 
+#' ## Calculate module membership (kME). 
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
 
@@ -851,12 +996,12 @@ file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_ModuleMembership_kME.xl
 write.excel(kMEdat,file)
 
 #-------------------------------------------------------------------------------
-#' ## Identify module Hub proteins.
+#' ## Identify top module Hub proteins.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Modify traits$Sample.Model for grouping all WT's together. 
 traits <- sample_info
@@ -944,7 +1089,7 @@ plot_list[[1]]
 # Store as list.
 mhplots <- split(plot_list,HubProteins$Module)
 
-# Print to pdf.
+# Print to pdf (all plots).
 if (saveplots==TRUE){
   file <- paste0(outputfigsdir,"/",tissue,"_WGCNA_Analysis_HubProtein_Expression.pdf")
   ggsavePDF(plot_list,file)
@@ -962,8 +1107,6 @@ my_func <- function(color){
     ggsave(file,plot)
   }
 }
-
-# Use lapply to generate plots for desired colors.
 
 #-------------------------------------------------------------------------------
 #' ## Determine protein-wise correlation with traits (Gene Significance). 
@@ -1003,7 +1146,7 @@ write.excel(data,file,rowNames = TRUE)
 #-------------------------------------------------------------------------------
 
 # Module significance is the average GS of all proteins in a module. 
-# Which module is the most important for a given trait (e.g. Ube3a_KO)?
+# I.E., Which module is the most important for a given trait (e.g. Ube3a_KO)?
 
 # Should plots be saved?
 saveplots = FALSE
@@ -1058,7 +1201,10 @@ write.excel(MS_list,file)
 #' ## Module significance - Which modules are enriched for DEPs?
 #-------------------------------------------------------------------------------
 
-## Insure statistical results are loaded.
+# Another way of assessing module importance may be to examine its enrichment 
+# for differentially expressed proteins (DEPs).
+
+# Insure statistical results are loaded.
 # InterBatch statistical comparisons with EdgeR GLM:
 file <- paste0(rootdir,"/","Tables/Combined/v14_TAMPOR/Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx")
 results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
@@ -1190,7 +1336,8 @@ df <- data.frame(Color  = rownames(ESdf),
                  Degree = ESdf$Degree)
 x <- df$Degree
 g <- df$Color
-ggplot(df,aes(x=Color,y=Degree,fill=Color)) + geom_col()
+ggplot(df,aes(x=Color,y=Degree,fill=Color)) + geom_col() + 
+  theme(legend.position = "none")
 
 # Calculate module coherence (Percent variation explained by ME).
 pve <- as.data.frame(
@@ -1206,7 +1353,7 @@ colnames(pve)[2] <- "PVE"
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Calculate Module EigenProteins.
 MEs <- tmpMEs <- data.frame()
@@ -1349,7 +1496,7 @@ for (i in 1:length(idx)){
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Calculate MEs
 MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
@@ -1481,115 +1628,12 @@ file <- paste0(outputfigsdir,"/",outputMatName,"Turquose_Verbose_Scatter.tiff")
 ggsave(file,plot)
 
 #-------------------------------------------------------------------------------
-#' ## Build module (Eigengene) network.
-#-------------------------------------------------------------------------------
-
-# WGCNA Function:
-#file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
-#CairoPDF(file = file, width = 16, height = 12)
-plotEigengeneNetworks(MEs[,!colnames(MEs)=="grey"], "Eigengene Network",
-                      excludeGrey = TRUE, greyLabel = "grey",
-                      marHeatmap = c(3, 4, 2, 2), 
-                      marDendro = c(0, 4, 2, 0), 
-                      plotDendrograms = TRUE, 
-                      plotAdjacency = FALSE,
-                      printAdjacency = FALSE,
-                      xLabelsAngle = 90, 
-                      heatmapColors = blueWhiteRed(50))
-#dev.off()  
-
-
-# Generate distance matrix. 
-r <- bicor(MEs[!colnames(MEs)=="MEgrey"])
-diss <- 1 - r
-diag(diss) <- 0
-
-# ME network 
-MEnet <- r
-diag(MEnet) <- NA
-MEnet_list <- melt(MEnet)
-
-# Perform hierarchical clustering
-hc <- hclust(as.dist(diss), method = "average")
-
-# Generate dendrogram.
-p1 <- ggdendrogram(hc, rotate=FALSE)
-p1
-
-# cuttree into 4 major groups.
-# Sort based on order in dendro.
-k = 3
-meta_modules = data.frame(module = hc$labels[hc$order],
-                          community = factor(cutree(hc, k = k)[hc$order]),
-                          row.names = NULL)
-meta_modules$module <- gsub("ME","",meta_modules$module)
-
-meta_modules$module = factor(meta_modules$module, levels = meta_modules$module)
-
-# Generate colored bars.
-p2 <- ggplot(meta_modules, aes(module, y = 0.5, fill=community)) + geom_tile() +
-  scale_y_continuous(expand=c(0,0)) +
-  theme(axis.title=element_blank(),
-        axis.ticks=element_blank(),
-        axis.text=element_blank(),
-        legend.position="none")
-p2
-
-# Combine.
-gp1 <- ggplotGrob(p1)
-gp2 <- ggplotGrob(p2)  
-
-maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5])
-gp1$widths[2:5] <- as.list(maxWidth)
-gp2$widths[2:5] <- as.list(maxWidth)
-
-fig <- as.ggplot(grid.arrange(gp1, gp2, ncol=1,heights=c(4/5,1/5)))
-fig
-
-# Save as tiff.
-file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
-ggsave(file,fig)
-
-
-# Meta modules.
-metaModule_df <- data.frame(
-  protein = rownames(cleanDat),
-  module = net$colors,
-  metaModule = as.numeric(meta_modules$community[match(net$colors,meta_modules$module)]))
-# Convert NA to zero.
-metaModule_df$metaModule[is.na(metaModule_df$metaModule)] <- 0
-
-# Modularity of the meta module network.
-r <- bicor(t(cleanDat))
-adjm <- ((1+r)/2)^power #signed.
-
-# Create igraph object. 
-graph <- graph_from_adjacency_matrix(
-  adjmatrix = adjm, 
-  mode = c("undirected"), 
-  weighted = TRUE, 
-  diag = FALSE)
-
-# Calculate modularity, q.
-membership <- as.numeric(as.factor(metaModule_df$metaModule))
-q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
-q1
-
-# Without grey modules.
-v <- rownames(cleanDat)[!metaModule_df$metaModule==0]
-subg <- induced_subgraph(graph,v)
-membership <- as.numeric(as.factor(metaModule_df$metaModule))
-membership <- membership[!metaModule_df$metaModule==0]
-q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
-q2
-
-#-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of Modules (colors).
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
 
 # Load GO enrichment results from file?
-load_GOenrichment_from_file <- TRUE
+load_GOenrichment_from_file <- FALSE
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
 geneNames <- rownames(cleanDat)
@@ -1717,6 +1761,11 @@ unique(sigGO$shortDataSetName)
 # Add names to list of results. 
 names(results_GOenrichment) <- colnames(colors)
 names(results_GOenrichment)
+
+# Add topGo to list.
+results_GOenrichment <- c(list(topGO = topGO),results_GOenrichment)
+names(results_GOenrichment)
+
 # Write results to file. 
 file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
 write.excel(results_GOenrichment,file)
@@ -1743,6 +1792,9 @@ for (i in 1:ncol(logic)){
   col_header <- colnames(colors)[i]
   colors[logic[,i],i] <- col_header
 }
+
+# Remove MM0
+colors$MM0 <- NULL
 head(colors)
 
 ## Map Uniprot IDs to Entrez.
@@ -1781,14 +1833,14 @@ GOenrichment <- enrichmentAnalysis(
   ignoreLabels = "0")
 
 # Collect the results. 
-results_GOenrichment <- list()
+results_metaModuleGOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)){
   results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
 }
-length(results_GOenrichment)
+length(results_metaModuleGOenrichment)
 
 # Combined result
-GO_result <- do.call(rbind,results_GOenrichment)
+GO_result <- do.call(rbind,results_metaModuleGOenrichment)
 idx <- GO_result$Bonferroni<0.05
 nsig <- length(idx[idx==TRUE])
 print(paste("There are", nsig, "GO terms that exhibit significant enrichment among all modules."))
@@ -1797,12 +1849,17 @@ print(paste("There are", nsig, "GO terms that exhibit significant enrichment amo
 topMetaGO <- subset(GO_result,rank==1)
 
 # Add names to list of results. 
-names(results_GOenrichment) <- colnames(colors)
-names(results_GOenrichment)
+names(results_metaModuleGOenrichment) <- colnames(colors)
+names(results_metaModuleGOenrichment)
+
+# Add TopGO to list.
+results_metaModuleGOenrichment <- c(list(topGO = topMetaGO), 
+                                    results_metaModuleGOenrichment)
+names(results_metaModuleGOenrichment)
 
 # Write results to file. 
 file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_MetaModule_GOenrichment_Results.xlsx")
-write.excel(results_GOenrichment,file)
+write.excel(results_metaModuleGOenrichment,file)
 
 #-------------------------------------------------------------------------------
 #' ## Module summary.
@@ -1853,12 +1910,25 @@ file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
 saveRDS(data,file)
 
 #-------------------------------------------------------------------------------
+#' ## Examine metaModule GO enrichment.
+#-------------------------------------------------------------------------------
+
+# Module name should be a color for the plot.
+names(results_metaModuleGOenrichment) <- c("topGO", "blue","red","green")
+
+# Specify the top percent of terms to print with topN. 
+ggplotGOscatter(results_metaModuleGOenrichment, color = "blue", topN = 0.25)
+ggplotGOscatter(results_metaModuleGOenrichment, color = "red", topN = 0.25)
+ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.25)
+
+#-------------------------------------------------------------------------------
 #' ## Examine module GO enrichment.
 #-------------------------------------------------------------------------------
 
 # Singple plot.
 # Specify the top percent of terms to print with topN. 
-ggplotGOscatter(results_GOenrichment,color = "cyan", topN = 1)
+names(results_GOenrichment) <- c("topGO", "blue","red","green")
+ggplotGOscatter(results_GOenrichment, color = "blue", topN = 0.25)
 
 # All plots. 
 colors <- as.list(net$colors)
@@ -1869,35 +1939,6 @@ goplots <- plot_list
 # Examine a plot.
 plot_list$lightyellow
 
-# Function for visualizing GO terms.
-ggplotGOscatter <- function(results_GOenrichment,color,topN=1.0){
-  # Collect data in df.
-  GOres <- results_GOenrichment[[color]]
-  x <- GOres$enrichmentRatio
-  y <- -log(GOres$pValue)
-  FDR <- as.numeric(GOres$Bonferroni)
-  nGenes <- GOres$nCommonGenes
-  label <- GOres$shortDataSetName
-  df <- data.frame(x,y,FDR,nGenes,label)
-  df <- df[order(df$FDR),]
-  
-  # Hide some of the labels.
-  df$label[seq(round(topN*nrow(df)),nrow(df))] <- ""
-  
-  # Generate plot. 
-  plot <- ggplot(df,aes(x = x,y = y, colour = FDR, size = nGenes, label=label)) + 
-    geom_point() +  geom_text_repel(colour = "black",alpha = 0.85) + 
-    scale_colour_gradient(low = color, high = "white") + 
-    xlab("Fold Enrichment") +
-    ylab("-Log(P-value)") + 
-    ggtitle("Go Enrichment") + 
-    theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-      axis.title.x = element_text(color = "black", size = 11, face = "bold"), 
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"))
-  return(plot)
-}
-
 # Save top modules as tiff.
 idx <- module_summary$Module[module_summary$p.adj<0.1]
 for (i in 1:length(idx)){
@@ -1905,6 +1946,9 @@ for (i in 1:length(idx)){
   file <- paste0(outputfigsdir,"/",outputMatName,"GO_Scatter_",color,".tiff")
   ggsave(file,plot_list[[color]])
 }
+
+
+
 
 #-------------------------------------------------------------------------------
 # EBD::Generate Global Network Plots.

@@ -93,10 +93,10 @@ suppressWarnings({
 #devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
-CodeVersion <- "TMT_Analysis_1"
+CodeVersion <- "Final_TMT_Analysis_part1"
 
 # Define tisue type: cortex = 1; striatum = 2.
-type <- 2
+type <- 1
 tissue <- c("Cortex", "Striatum")[type]
 
 # Set the working directory.

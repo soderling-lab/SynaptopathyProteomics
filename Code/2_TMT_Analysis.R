@@ -85,7 +85,7 @@ suppressPackageStartupMessages({
 #devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
-CodeVersion <- "TMT_Analysis_2"
+CodeVersion <- "TMT_Analysis_part2"
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined. 
 type <- 3
@@ -576,43 +576,6 @@ file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking.tiff")
 ggsave(file,fig)
 
 #-------------------------------------------------------------------------------
-#' ## Examine sample clustering with MDS and PCA post-TAMPOR Normalization. 
-#-------------------------------------------------------------------------------
-
-# Insure that any samples that were ignored are removed. 
-out <- paste(samplesToIgnore,collapse="|")
-relAbundanceNorm2 <- relAbundanceNorm2[,!grepl(out,colnames(relAbundanceNorm2))]
-cleanDatNorm2 <- cleanDatNorm2[,!grepl(out,colnames(cleanDatNorm2))]
-traits <- traits[!grepl(out,rownames(traits)),]
-
-# Check, traits should match data.
-all(rownames(traits) == colnames(relAbundanceNorm2))
-all(rownames(traits) == colnames(cleanDatNorm2))
-
-## PCA Plots.
-# Relative abundance. 
-colors <- traits$Color
-traits$ColumnName <- rownames(traits)
-plot <- ggplotPCA(log2(relAbundanceNorm2), traits, colors, title = "Normalized Abundance Post-TAMPOR")
-plot
-
-## MDS Plots.
-# Relative abundance. 
-plots <- ggplotMDSv2(log2(relAbundanceNorm2), colID="b", traits, title = "Normalized Abundance")
-plot1 <- plots$plot + theme(legend.position = "none")
-plot2 <- plots$dendro
-plot1
-
-# Save plots.
-#plot_list <- list(plot,plot1)
-#file <- paste0(outputfigsdir,"/",outputMatName,"_PCA_Post_TAMPOR.pdf")
-#ggsavePDF(plot_list,file)
-
-# Save as tiff.
-file <- paste0(outputfigsdir, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
-ggsave(file,plot)
-       
-#-------------------------------------------------------------------------------
 #' ## Remove any sample outliers.
 #-------------------------------------------------------------------------------
 
@@ -651,6 +614,46 @@ cleanDat <- data_in
 dim(cleanDat)
 datafile <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.Rds",sep="/")
 saveRDS(cleanDat,datafile)
+
+#-------------------------------------------------------------------------------
+#' ## Examine sample clustering with MDS and PCA post-TAMPOR Normalization. 
+#-------------------------------------------------------------------------------
+
+# Split into cortex and striatum plots. 
+
+# Insure that any outlier samples have been removed.
+traits <- traits[rownames(traits) %in% colnames(cleanDat),]
+
+# Check, traits and cleanDat should match data.
+all(rownames(traits) == colnames(cleanDat))
+
+## PCA Plots.
+# Relative abundance. 
+colors <- traits$Color
+traits$ColumnName <- rownames(traits)
+
+# Cortex and striatum.
+idx <- traits$Tissue=="Cortex"
+idy <- traits$Tissue=="Striatum"
+plot1 <- ggplotPCA(log2(cleanDat[,idx]), traits, colors[idx], title = "Cortex")
+plot2 <- ggplotPCA(log2(cleanDat[,idy]), traits, colors[idy], title = "Striatum")
+
+plot1
+plot2
+fig <- plot_grid(plot1,plot2)
+fig 
+
+## MDS Plots.
+# Relative abundance. 
+#plots <- ggplotMDSv2(log2(cleanDat), colID="b", traits, title = "Normalized Abundance")
+#plot1 <- plots$plot + theme(legend.position = "none")
+#plot2 <- plots$dendro
+#plot1
+
+# Save as tiff.
+file <- paste0(outputfigsdir, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
+ggsave(file,fig)
+
 
 #-------------------------------------------------------------------------------
 #' ## Statistical comparisons post-TAMPOR.
