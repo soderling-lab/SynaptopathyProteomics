@@ -157,7 +157,7 @@ names(results) <- excel_sheets(file)
 #+ eval = FALSE
 
 # Estimate powers?
-estimatePower <- FALSE
+estimatePower <- TRUE
 
 # Data is...
 # Load TAMPOR cleanDat from file: #3022 rows.
@@ -416,6 +416,19 @@ moduleColors <- data.frame(protein = rownames(cleanDat),
                            module  = net$colors)
 
 #-------------------------------------------------------------------------------
+#' ## Save/Load workspace image.
+#-------------------------------------------------------------------------------
+
+load_workspace = TRUE
+
+file <- paste(Rdatadir,tissue,"WGCNA_Network.RData",sep="/")
+#save.image(file)
+
+if (load_workspace == TRUE){
+  load(file)
+}
+  
+#-------------------------------------------------------------------------------
 #' ## Visualize the WGCNA adjaceny network.
 #-------------------------------------------------------------------------------
 
@@ -511,6 +524,7 @@ q2
 pve <- propVarExplained(datExpr=t(cleanDat), colors=net$colors, 
                         MEs=net$MEs, corFnc = "cor", corOptions = "use = 'p'")
 median(pve[!names(pve)=="PVEgrey"])
+sd(pve[!names(pve)=="PVEgrey"])
 mean(pve[!names(pve)=="PVEgrey"])
 
 # Examine distribution of Module sizes.
@@ -1353,7 +1367,7 @@ colnames(pve)[2] <- "PVE"
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = TRUE
+saveplots = FALSE
 
 # Calculate Module EigenProteins.
 MEs <- tmpMEs <- data.frame()
@@ -1496,7 +1510,7 @@ for (i in 1:length(idx)){
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = TRUE
+saveplots = FALSE
 
 # Calculate MEs
 MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
@@ -1801,12 +1815,27 @@ head(colors)
 # Get Uniprot IDs and gene symbols from rownames
 #Uniprot_IDs <- as.character(rownames(colors))
 Uniprot_IDs <- as.character(colsplit(rownames(colors),"\\|",c("Symbol","UniprotID"))[,2])
+Gene_Symbols <- as.character(colsplit(rownames(colors),"\\|",c("Symbol","UniprotID"))[,1])
+
 # Map Uniprot IDs to Entrez IDs:
 entrez <- mapIds(org.Mm.eg.db, 
                  keys = Uniprot_IDs, 
                  column = "ENTREZID", 
                  keytype = "UNIPROT", 
                  multiVals = "first")
+
+# Number of missing entrez ids.
+sum(is.na(entrez))
+
+# Map unmapped gene symbols to Entrez IDs:
+entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db, 
+                                keys = Gene_Symbols[is.na(entrez)], 
+                                column = "ENTREZID", 
+                                keytype = "SYMBOL", 
+                                multiVals = "first")
+
+# Number of unmapped ids.
+sum(is.na(entrez))
 
 # Insure that colors is a matrix.
 colors <- as.matrix(colors)
@@ -1835,7 +1864,7 @@ GOenrichment <- enrichmentAnalysis(
 # Collect the results. 
 results_metaModuleGOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)){
-  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
+  results_metaModuleGOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
 }
 length(results_metaModuleGOenrichment)
 
@@ -1946,9 +1975,6 @@ for (i in 1:length(idx)){
   file <- paste0(outputfigsdir,"/",outputMatName,"GO_Scatter_",color,".tiff")
   ggsave(file,plot_list[[color]])
 }
-
-
-
 
 #-------------------------------------------------------------------------------
 # EBD::Generate Global Network Plots.

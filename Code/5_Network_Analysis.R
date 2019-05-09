@@ -100,10 +100,39 @@ functiondir <- paste(rootdir, "Functions", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir,"RData", sep = "/")
 
+# Create code-version specific figure and tables folders if they do not already exist.
+# Creat otuput direcotry for figures.
+outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
+outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
+if (!file.exists(outputfigsdir)) {
+  dir.create(file.path(outputfigsdir))
+} else {
+  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
+}
+# Create output directory for tables.
+outputtabs <- paste(rootdir, "Tables", tissue, sep = "/")
+outputtabsdir <- paste(outputtabs, CodeVersion, sep = "/")
+if (!file.exists(outputtabsdir)) {
+  dir.create(file.path(outputtabsdir))
+} else {
+  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
+}
+# Create output directory for reports.
+outputreports <- paste(rootdir, "Reports", tissue, sep = "/")
+outputrepsdir <- paste(outputreports, CodeVersion, sep = "/")
+if (!file.exists(outputrepsdir)) {
+  dir.create(file.path(outputrepsdir))
+} else {
+  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
+}
+
 # Load required custom functions.
 functiondir <- paste(rootdir, "Functions", sep = "/")
 my_functions <- paste(functiondir, "TMT_Preprocess_Functions.R", sep = "/")
 source(my_functions)
+
+# Define prefix for output figures and tables.
+outputMatName <- paste(tissue, "_Network_Analysis_", sep = "")
 
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
@@ -120,10 +149,8 @@ cleanDat <- log2(cleanDat)
 cleanDat[1:5,1:5]
 dim(cleanDat)
 
-# Directory for PPI data.
+# Load PPI data
 dir <- paste(datadir,"PPI Network", sep="/")
-
-# Load SIF.
 file <- paste(dir,"Cortex_SIF_031019.txt", sep="/")
 sif <- read.table(file,header=TRUE, sep=",")
 
@@ -133,8 +160,102 @@ data <- readRDS(file)
 net <- data$net
 meta <- data$meta
 
+# Load TAMPOR statistical results.
+file <- paste(outputtabs,"Final_TAMPOR",
+              "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx", sep = "/")
+results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
+names(results) <- excel_sheets(file)
+
 #-------------------------------------------------------------------------------
-#' ## PPI graph of WGCNA communities.
+#' ## Build NOA file.
+#-------------------------------------------------------------------------------
+
+# Add Tissue.Genotype column names to results.
+cols <- do.call(rbind,strsplit(names(results),"\\."))[,-2]
+col_names <- apply(cols, 1, function(x) paste(x,collapse="."))
+
+# Loop to rename columns of dataframes in list. 
+for (i in 1:length(results)){
+  df <- results[[i]]
+  y <- col_names[i]
+  colnames(df)[c(4:ncol(x))] <- paste(y,colnames(x)[c(4:ncol(x))])
+  results[[i]] <- df
+}
+
+# Bind dataframes in list together.
+df_NOA <- results %>% reduce(left_join, by = c("Uniprot","Entrez","Gene"))
+
+# Remove candiate columns.
+df_NOA <- df_NOA[,-grep("candidate",colnames(df_NOA))]
+
+# Percentage of genes mapped to sif.
+table(df_NOA$Entrez %in% sif$EntrezA | df_NOA$Entrez %in% sif$EntrezB)[2]/
+  length(unique(c(sif$EntrezA,sif$EntrezB)))
+
+# Annotate as Cortex.Sig, Genotype.Sig, and Tissue.Genotype.Sig
+idx <- grep("FDR",colnames(df_NOA))
+logic <- df_NOA[,idx] < 0.05
+ids <- paste(sapply(strsplit(colnames(logic)," "),"[",1),"sig",sep = ".")
+
+# Loop to convert TRUE to Tissue.Genotype.Sig
+out <- list()
+
+# Loop through each column to replace 1 with column header (color).
+for (i in 1:ncol(logic)){
+  col_header <- ids[i]
+  temp <- logic[,i]
+  temp[temp] <- col_header
+  out[[i]] <- temp
+}
+
+# Bind togehter, replace FALSE, add column names. 
+out <- do.call(cbind,out)
+out[out==FALSE] <- "NA"
+colnames(out) <- paste0("cat",c(1:ncol(out)))
+
+# Add to NOA table. 
+df_NOA <- cbind(df_NOA,out)
+
+# Export NOA and sif
+file <- paste(outputtabsdir,"NOA.csv",sep="/")
+write.csv(df_NOA,file)
+
+file <- paste(outputtabsdir,"SIF.csv",sep="/")
+write.csv(sif,file)
+
+## Add WGCNA modules to NOA.
+gene <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",1)
+uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
+
+# Map Uniprot to entrez.
+entrez <- mapIds(org.Mm.eg.db, keys=uniprot, column="ENTREZID", 
+                 keytype="UNIPROT", multiVals="first")
+table(is.na(entrez))
+
+# Map un-mapped genes to entrez.
+entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db, keys=gene[is.na(entrez)], 
+                                column="ENTREZID", keytype="SYMBOL", multiVals="first")
+table(is.na(entrez)) # Good only 3 remaining ids are not mapped.
+
+# Check, meta and cleanDat in matching order.
+all(meta$protein == rownames(cleanDat))
+
+# Add meta modules.
+df_NOA2 <- data.frame(Uniprot = uniprot,
+                 Entrez = entrez,
+                 Gene = gene,
+                 Module = net$colors,
+                 MetaModule = meta$metaModule)
+
+# Change meta Module ids to MM#
+df_NOA2$MetaModule <- paste0("MM",df_NOA2$MetaModule)
+
+# Save to csv.
+file <- paste(outputtabsdir,"NOA2.csv",sep="/")
+write.csv(df_NOA2,file)
+
+#-------------------------------------------------------------------------------
+#' ## PPI graph of WGCNA meta Module communities.
 #-------------------------------------------------------------------------------
 
 # Build data frame.
@@ -228,7 +349,7 @@ pcomm <- add_column(pcomm,Uniprot,.after=1)
 pcomm <- add_column(pcomm,Entrez,.after=2)
 
 #-------------------------------------------------------------------------------
-# V#isualize WPCNA communities. 
+# Visualize WPCNA communities. 
 #-------------------------------------------------------------------------------
 #sif
 

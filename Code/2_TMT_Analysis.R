@@ -328,6 +328,8 @@ for (i in batchIndex) {
 
 iterationTrackingDF <- data.frame(Iteration = 1:iterations, FrobeniusNorm = NA, FrobenPrev = NA, FrobenDiff = NA, FrobenOverFirstFroben = NA)
 cat(paste0("Starting # of Rows in data: ", nrow(cleanDat), ".\n"))
+
+# START TAMPOR:
 for (repeats in 1:iterations) {
   #-------------------------------------------------------------------------------
   # STEP 1a. Ratio data and prepare to row-normalize
@@ -567,7 +569,7 @@ plot2 <- ggplot(data=iterationTrackingDF, aes(x=Iteration, y=log10(abs(FrobenDif
 fig <- plot_grid(plot1,plot2, labels = "auto")
 fig 
 
-# Save figures. 
+# Save figures as pdf. 
 #file <- paste0(outputfigsdir,"/",tissue,"Iteration_Tracking.pdf")
 #ggsavePDF(plots=list(plot1,plot2),file)
 
@@ -638,8 +640,11 @@ idy <- traits$Tissue=="Striatum"
 plot1 <- ggplotPCA(log2(cleanDat[,idx]), traits, colors[idx], title = "Cortex")
 plot2 <- ggplotPCA(log2(cleanDat[,idy]), traits, colors[idy], title = "Striatum")
 
+# plots
 plot1
 plot2
+
+# Figure
 fig <- plot_grid(plot1,plot2)
 fig 
 
@@ -790,6 +795,87 @@ write.excel(results,file)
 # Write to RDS.
 file <- paste0(Rdatadir,"/",outputMatName,"_TAMPOR_GLM_Results.RDS")
 saveRDS(results,file)
+
+#-------------------------------------------------------------------------------
+#' ## Generate protein boxplots for significantly DE proteins.
+#-------------------------------------------------------------------------------
+#+ eval = FALSE
+
+# Expression data. 
+exprDat <- log2(y_DGE$counts)
+
+# Insure all WT samples are annotated as WT in traits.
+traits_temp <- traits
+traits_temp$Sample.Model <- paste(traits_temp$Tissue,traits_temp$Sample.Model,sep=".")
+traits_temp$Sample.Model[grepl("Cortex.WT", traits_temp$Sample.Model)] <- "Cortex.WT"
+traits_temp$Sample.Model[grepl("Striatum.WT", traits_temp$Sample.Model)] <- "Striatum.WT"
+traits_temp <- subset(traits_temp, rownames(traits_temp) %in% colnames(exprDat))
+
+# Generate plots.
+plot_list <- ggplotProteinBoxes(
+  data_in = exprDat,
+  interesting.proteins = rownames(exprDat),
+  dataType = "Relative Abundance",
+  traits = traits_temp,
+  order = c(2,7,4,6,5,8,1,9,3,10),
+  scatter = TRUE
+)
+
+# Add custom colors.
+colors <- c("gray","gray",
+            "yellow", "yellow",
+            "blue", "blue",
+            "green", "green",
+            "purple","purple")
+plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
+
+# Example plot.
+plot_list[[1]]
+
+## Add significance stars.
+# Build a df with statistical results.
+stats <- lapply(results, function(x)
+  as.data.frame(cbind(Uniprot = x$Uniprot, FDR = x$FDR)))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = "Uniprot")
+colnames(df)[c(2:ncol(df))] <- names(stats)
+head(df)
+
+# Annotate rows as gene|uniprot
+Uniprot <- df$Uniprot
+Gene <- mapIds(
+  org.Mm.eg.db,
+  keys = Uniprot,
+  column = "SYMBOL",
+  keytype = "UNIPROT",
+  multiVals = "first"
+)
+rownames(df) <- paste(Gene, Uniprot, sep = "|")
+df$Uniprot <- NULL
+stats <- df
+
+# Example plot.
+plot <- plot_list[[1]]
+annotate_stars(plot, stats)
+
+# Loop to add stars.
+plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
+
+# Top proteins.
+p1 <- plot_list$`Shank2|Q80Z38`
+p2 <- plot_list$`Shank3|Q4ACU6`
+p3 <- plot_list$`Syngap1|F6SEU4`
+p4 <- plot_list$`Ube3a|O08759`
+plots <- list(p1,p2,p3,p4)
+
+# Save to pdf.
+file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
+ggsavePDF(plots = plot_list, file)
+
+# Save as tiff.
+genos <- c("Shank2","Shank3","Syngap1","Ube3a")
+files <- as.list(paste0(outputfigsdir, "/", outputMatName, genos,"_BoxPlot.tiff"))
+mapply(ggsave(files, plots)
 
 #-------------------------------------------------------------------------------
 #' ## Render report.
