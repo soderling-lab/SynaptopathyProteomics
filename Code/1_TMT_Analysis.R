@@ -140,7 +140,7 @@ if (!file.exists(outputrepsdir)) {
 
 # Load required custom functions.
 functiondir <- paste(rootdir, "Functions", sep = "/")
-my_functions <- paste(functiondir, "TMT_Preprocess_Functions.R", sep = "/")
+my_functions <- paste(functiondir, list.files(functiondir), sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.

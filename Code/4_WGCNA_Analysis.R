@@ -157,7 +157,7 @@ names(results) <- excel_sheets(file)
 #+ eval = FALSE
 
 # Estimate powers?
-estimatePower <- TRUE
+estimatePower <- FALSE
 
 # Data is...
 # Load TAMPOR cleanDat from file: #3022 rows.
@@ -175,8 +175,8 @@ dim(sample_info)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-parallelThreads <- 9
-clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
+nThreads <- 9
+clusterLocal <- makeCluster(c(rep("localhost", nThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
 ## Determine soft power, beta.
@@ -284,8 +284,8 @@ net <- blockwiseModules(t(cleanDat),
                         maxBlockSize = maxBlockSize)
 
 # Check the number of modules. 
-nModules.original <- length(unique(net$colors))
-nModules.original # 124, 111
+nModules_original <- length(unique(net$colors))
+nModules_original # 124, 111
 
 #-------------------------------------------------------------------------------
 #' ## Enforce module preservation.
@@ -316,8 +316,8 @@ preservation <- NetRep::modulePreservation(
   discovery = "data", 
   test = "data",
   selfPreservation = TRUE, 
-  #nThreads, 
-  #nPerm = 1000, # nPerm will be determined by the function. 
+  nThreads-1, 
+  nPerm = 10000, # nPerm will be determined by the function. 
   null = "overlap", 
   alternative = "greater", 
   simplify = TRUE,
@@ -329,10 +329,10 @@ preservation <- preservation[c("observed","p.values")]
 # Get the maximum permutation test p-value.
 maxPval <- apply(preservation$p.values, 1, function(x) max(x,na.rm=TRUE))
 
-# Modules removed if adjusted pvalue is greater than alpha.
+# Modules removed if adjusted pvalue is greater than alpha = 0.05.
 alpha = 0.05
-modules_out <- names(maxPval)[maxPval>alpha/nModules.original]
-length(modules_out)
+modules_out <- names(maxPval)[maxPval>alpha/nModules_original]
+nModules_out <- length(modules_out)
 names(net$MEs)[grepl(paste(modules_out,collapse="|"),names(net$MEs))]<-"MEgrey"
 
 # Set non-significant modules to grey.
@@ -415,15 +415,32 @@ net$MEs <- MEs$eigengenes
 moduleColors <- data.frame(protein = rownames(cleanDat),
                            module  = net$colors)
 
+# Check number of modules.
+nModules_original
+nModules
+nModules_out
+
 #-------------------------------------------------------------------------------
-#' ## Save/Load workspace image.
+#' ## Save/Load workspace image for reproducibility.
 #-------------------------------------------------------------------------------
 
+# The permutation approach which tests module preservation against random 
+# permutations of the network results in some slight variation in the total number
+# of preserved modules. These modules are very similar, but are not exactly the 
+# same. Thus, to insure reproducible results in the downstream analysis, load the
+# workspace from file, and work from the saved results. 
+
+save_workspace = FALSE
 load_workspace = TRUE
 
 file <- paste(Rdatadir,tissue,"WGCNA_Network.RData",sep="/")
-#save.image(file)
 
+# Save workspace? 
+if (save_workspace == TRUE){
+  save.image(file)
+}
+
+# Load workspace?
 if (load_workspace == TRUE){
   load(file)
 }
@@ -572,281 +589,6 @@ file <- paste0(outputfigsdir,"/",outputMatName,"Module_Sizes.tiff")
 ggsave(file,plot)
 
 #-------------------------------------------------------------------------------
-#' ## Calculate Module EigenProteins.
-#-------------------------------------------------------------------------------
-#' 
-#' Eigenproteins (also, eigengenes) are the first principle component of a 
-#' module. They are a summary of a module. An eigenprotein is not an actual 
-#' protein.
-#' 
-#+ eval = FALSE
-
-# Calculate Module EigenProteins (MEs)
-MEs <- tmpMEs <- data.frame()
-MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
-MEs <- orderMEs(MEList$eigengenes)
-
-# Remove prefix.
-colnames(MEs) <- gsub("ME", "", colnames(MEs)) 
-rownames(MEs) <- rownames(numericMeta)
-MEs[1:5,1:5]
-
-# Write to excel.
-file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_ModuleEigenprotein_expression.xlsx")
-write.excel(MEs,file,rowNames = TRUE)
-
-#-------------------------------------------------------------------------------
-#' ## Build module (Eigengene) network.
-#-------------------------------------------------------------------------------
-
-# WGCNA Function:
-#file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
-#CairoPDF(file = file, width = 16, height = 12)
-plotEigengeneNetworks(MEs, "Eigengene Network",
-                      excludeGrey = TRUE, greyLabel = "grey",
-                      marHeatmap = c(3, 4, 2, 2), 
-                      marDendro = c(0, 4, 2, 0), 
-                      plotDendrograms = TRUE, 
-                      plotAdjacency = FALSE,
-                      printAdjacency = FALSE,
-                      xLabelsAngle = 90, 
-                      heatmapColors = blueWhiteRed(50))
-#dev.off()  
-
-# Generate distance matrix. 
-r <- bicor(MEs[!colnames(MEs)=="grey"])
-diss <- 1 - r
-diag(diss) <- 0
-
-# ME network 
-MEnet <- r
-diag(MEnet) <- NA
-MEnet_list <- melt(MEnet)
-
-# Perform hierarchical clustering
-hc <- hclust(as.dist(diss), method = "average")
-
-# Generate dendrogram.
-p1 <- ggdendrogram(hc, rotate=FALSE)
-p1
-
-# cuttree into major groups.
-# Sort based on order in dendro.
-k = 3
-meta_modules = data.frame(module = hc$labels[hc$order],
-                          community = factor(cutree(hc, k = k)[hc$order]),
-                          row.names = NULL)
-meta_modules$module <- gsub("ME","",meta_modules$module)
-
-meta_modules$module = factor(meta_modules$module, levels = meta_modules$module)
-
-# Generate colored bars for module colors.
-p2 <- ggplot(meta_modules,aes(module, y = 0.1, fill=module)) + geom_tile() + 
-  scale_y_continuous(expand=c(0,0)) + 
-  scale_fill_manual(values=levels(meta_modules$module)) + 
-  theme(axis.title=element_blank(),
-        axis.ticks=element_blank(),
-        axis.text=element_blank(),
-        legend.position="none")
-
-# Generate colored bars.
-p3 <- ggplot(meta_modules, aes(module, y = 0.5, fill=community)) + geom_tile() +
-  scale_y_continuous(expand=c(0,0)) +
-  theme(axis.title=element_blank(),
-        axis.ticks=element_blank(),
-        axis.text=element_blank(),
-        legend.position="none")
-
-# Combine as figure.
-gp1 <- ggplotGrob(p1)
-gp2 <- ggplotGrob(p2)
-gp3 <- ggplotGrob(p3)  
-maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5], gp3$widths[2:5])
-
-gp1$widths[2:5] <- as.list(maxWidth)
-gp2$widths[2:5] <- as.list(maxWidth)
-gp3$widths[2:5] <- as.list(maxWidth)
-
-fig <- as.ggplot(grid.arrange(gp1, gp2, gp3, ncol=1,heights=c(4/5,1/5, 1/5)))
-fig
-
-# Save as tiff.
-file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
-ggsave(file,fig)
-
-# Meta modules.
-metaModule_df <- data.frame(
-  protein = rownames(cleanDat),
-  module = net$colors,
-  metaModule = NA)
-
-# This is ugly...
-metaModule_df$metaModule <- meta_modules$community[match(metaModule_df$module,meta_modules$module)]
-metaModule_df$metaModule <- as.numeric(metaModule_df$metaModule)
-
-# Convert NA to zero.
-metaModule_df$metaModule[is.na(metaModule_df$metaModule)] <- 0
-
-# Modularity of the WGCNA network based on meta module partition.
-r <- bicor(t(cleanDat))
-adjm <- ((1+r)/2)^power #signed.
-
-# Create igraph object. 
-graph <- graph_from_adjacency_matrix(
-  adjmatrix = adjm, 
-  mode = c("undirected"), 
-  weighted = TRUE, 
-  diag = FALSE)
-
-# Calculate modularity, q1, with grey.
-membership <- as.numeric(as.factor(metaModule_df$metaModule))
-q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
-q1
-
-# Without grey modules, q2.
-v <- rownames(cleanDat)[!metaModule_df$metaModule==0]
-subg <- induced_subgraph(graph,v)
-membership <- as.numeric(as.factor(metaModule_df$metaModule))
-membership <- membership[!metaModule_df$metaModule==0]
-q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
-q2
-
-# Map uniprot ids to Entrez...
-uniprot <- sapply(strsplit(metaModule_df$protein,"\\|"),"[",2)
-gene <- sapply(strsplit(metaModule_df$protein,"\\|"),"[",1)
-entrez <- mapIds(org.Mm.eg.db, 
-                 keys = uniprot, 
-                 column = "ENTREZID", 
-                 keytype = "UNIPROT", 
-                 multiVals = "first")
-# Use gene symbols to map any un-mapped ids to entrez.
-idx <- is.na(entrez)
-entrez[idx] <- mapIds(org.Mm.eg.db, 
-                      keys = gene[idx], 
-                      column = "ENTREZID", 
-                      keytype = "SYMBOL", 
-                      multiVals = "first")
-# Number of remaining un-mapped ids.
-sum(is.na(entrez)) # only 3 un-mapped, good.
-metaModule_df$entrez <- entrez
-
-# Save to file.
-file <- paste0(outputtabsdir,"/",outputMatName,"metaModules.csv")
-write.csv(metaModule_df,file)
-
-#-------------------------------------------------------------------------------
-#' ## Show that the expression of interacting proteins are highly correlated. 
-#-------------------------------------------------------------------------------
-
-# Illustrate the correaltion of two proteins.
-saveplots = FALSE
-
-# Calculate bicor adjacency matrix.
-R <- cor(t(cleanDat))
-diag(R) <- NA
-R[lower.tri(R)] <- NA
-R <- na.omit(melt(R))
-colnames(R) <- c("Protein1","Protein2","Bicor")
-R <- R[order(R$Bicor,decreasing=TRUE),]
-prot1 <- "Wdr7|Q920I9"
-prot2 <- "Rogdi|Q3TDK6"
-
-# Generate a protein scatter plot.
-#ggplotProteinScatterPlot(cleanDat,prot1,prot2)
-#file <- "Protein_ScatterPlot.tiff"
-#ggsave(file)
-
-
-# Load simple interaction file (SIF). An edge list of known PPIs among all 
-# identified proteins (Cortex + striatum). 
-files <- c(
-  paste(datadir,"PPI Network","Cortex_SIF_031019.txt",sep="/"),
-  paste(datadir,"PPI Network","Striatum_SIF_031219.txt",sep="/")
-)
-sif_list <- lapply(as.list(files),function(x) read.table(x,header = TRUE, sep=","))
-
-# Merge SIFS.
-sif <- do.call(rbind,sif_list)
-head(sif)
-
-# Map rownames of cleanDat (UniprotIDs) to Entrez.
-Uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
-Entrez <- mapIds(org.Mm.eg.db, keys=Uniprot, column="ENTREZID", 
-                 keytype="UNIPROT", multiVals="first")
-length(Entrez)
-
-# Subset SIF Keep only those proteins mapped to cleanDat:Entrez.
-idx <- sif$EntrezA %in% Entrez & sif$EntrezB %in% Entrez
-sif <- sif[idx,]
-
-# Subset Entrez IDs. Keep only those mapped to sif:Entrez.
-idx <- Entrez %in% sif$EntrezA | Entrez  %in% sif$EntrezB
-Entrez <- Entrez[idx]
-length(Entrez)
-
-# Create iGraph.
-edgeList <- cbind(sif$EntrezA,sif$EntrezB)
-PPIgraph <- graph_from_edgelist(edgeList, directed = FALSE)
-
-# Calculate bicor adjacency matrix.
-dat <- cleanDat
-Uniprot <- sapply(strsplit(rownames(dat),"\\|"),"[",2)
-rownames(dat) <- mapIds(org.Mm.eg.db, keys=Uniprot, column="ENTREZID", 
-                        keytype="UNIPROT", multiVals="first")
-  
-R <- bicor(t(dat))
-#idx <- melt(upper.tri(R,diag=FALSE))
-#idx <- idx$value
-diag(R) <- NA
-R <- na.omit(melt(R))
-colnames(R) <- c("ProteinA","ProteinB","Bicor")
-R$ID <- paste(R$ProteinA,R$ProteinB,sep="_")
-head(R)
-
-# Add TRUE/FALSE if known interacting pair.
-sif$IntA <- paste(sif$EntrezA,sif$EntrezB,sep="_")
-sif$IntB <- paste(sif$EntrezB,sif$EntrezA,sep="_")
-R$InteractionPair <- as.numeric(R$ID %in% sif$IntA | R$ID %in% sif$IntB)
-table(R$InteractionPair)
-
-# The data is really large, sample N data points from 
-# the distributions of interacting and non-interacting proteins.
-# set.seed to insure reproducible random samples.
-set.seed(7)
-x <- cbind(sample(R$Bicor[R$InteractionPair==0],2000),FALSE)
-set.seed(7)
-y <- cbind(sample(R$Bicor[R$InteractionPair==1],2000),TRUE)
-df <- as.data.frame(rbind(x,y))
-colnames(df) <- c("bicor","group")
-df$group <- as.factor(df$group)
-
-# Generate a plot.
-plot <- ggplot(df, aes(x=group, y=bicor, fill=group)) + 
-  geom_boxplot(outlier.colour="black", outlier.shape=20, outlier.size=1)
-
-# Annotate with Wilcoxon Rank sum p-value.
-wrs <- wilcox.test(y[,1], x[,1],alternative = "greater")
-pval <- paste("P =", formatC(wrs$p.value,format="e",digits=2))
-plot <- plot + annotate("text",x = 1.5, y = 1, label = "*", size = 12, color="black") + 
-  ggtitle(paste("Wilcox Rank Sum", pval)) + 
-  theme(
-    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold")
-  )
-plot  
-
-# Save to file.
-if (saveplots==TRUE){
-  file <- paste0(outputfigsdir,"/",outputMatName,"InteractingProteinBicorBoxplot.pdf")
-  ggsavePDF(plot,file)
-}
-
-# Save as tiff.
-file <- paste0(outputfigsdir,"/",outputMatName,"Interacting_Protein_Bicor.tiff")
-ggsave(file,plot)
-
-#-------------------------------------------------------------------------------
 #' ## Prepare Numeric metadata for WGCNA analysis. 
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -985,6 +727,294 @@ numericIndices <- unique(c(which(!is.na(apply(numericMeta, 2, function(x) sum(as
                            which(!(apply(numericMeta, 2, function(x) sum(as.numeric(x), na.rm = T))) == 0)))
 
 #-------------------------------------------------------------------------------
+#' ## Calculate Module EigenProteins.
+#-------------------------------------------------------------------------------
+#' 
+#' Eigenproteins (also, eigengenes) are the first principle component of a 
+#' module. They are a summary of a module. An eigenprotein is not an actual 
+#' protein.
+#' 
+#+ eval = FALSE
+
+# Calculate Module EigenProteins (MEs)
+MEs <- tmpMEs <- data.frame()
+MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
+MEs <- orderMEs(MEList$eigengenes)
+
+# Remove prefix.
+colnames(MEs) <- gsub("ME", "", colnames(MEs)) 
+rownames(MEs) <- rownames(numericMeta)
+MEs[1:5,1:5]
+
+# Write to excel.
+file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_ModuleEigenprotein_expression.xlsx")
+write.excel(MEs,file,rowNames = TRUE)
+
+#-------------------------------------------------------------------------------
+#' ## Build module (Eigengene) network.
+#-------------------------------------------------------------------------------
+
+# WGCNA Function:
+#file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
+#CairoPDF(file = file, width = 16, height = 12)
+plotEigengeneNetworks(MEs, "Eigengene Network",
+                      excludeGrey = TRUE, greyLabel = "grey",
+                      marHeatmap = c(3, 4, 2, 2), 
+                      marDendro = c(0, 4, 2, 0), 
+                      plotDendrograms = TRUE, 
+                      plotAdjacency = FALSE,
+                      printAdjacency = FALSE,
+                      xLabelsAngle = 90, 
+                      heatmapColors = blueWhiteRed(50))
+#dev.off()  
+
+# Generate distance matrix. 
+r <- bicor(MEs[!colnames(MEs)=="grey"])
+diss <- 1 - r
+diag(diss) <- 0
+
+# ME network 
+MEnet <- r
+diag(MEnet) <- NA
+MEnet_list <- melt(MEnet)
+
+# Perform hierarchical clustering
+hc <- hclust(as.dist(diss), method = "average")
+
+# Generate dendrogram.
+p1 <- ggdendrogram(hc, rotate=FALSE)
+p1
+
+# Cut tree into k = 3 major groups.
+# Sort based on order in dendrogram.
+k = 3
+meta_modules = data.frame(module = hc$labels[hc$order],
+                          community = factor(cutree(hc, k = k)[hc$order]),
+                          row.names = NULL)
+meta_modules$module <- gsub("ME","",meta_modules$module)
+
+meta_modules$module = factor(meta_modules$module, levels = meta_modules$module)
+
+# Generate colored bars for module colors.
+p2 <- ggplot(meta_modules,aes(module, y = 0.1, fill=module)) + geom_tile() + 
+  scale_y_continuous(expand=c(0,0)) + 
+  scale_fill_manual(values=levels(meta_modules$module)) + 
+  theme(axis.title=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text=element_blank(),
+        legend.position="none")
+
+# Generate colored bars.
+p3 <- ggplot(meta_modules, aes(module, y = 0.5, fill=community)) + geom_tile() +
+  scale_y_continuous(expand=c(0,0)) +
+  theme(axis.title=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text=element_blank(),
+        legend.position="none")
+
+# Combine as figure.
+gp1 <- ggplotGrob(p1)
+gp2 <- ggplotGrob(p2)
+gp3 <- ggplotGrob(p3)  
+maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5], gp3$widths[2:5])
+
+gp1$widths[2:5] <- as.list(maxWidth)
+gp2$widths[2:5] <- as.list(maxWidth)
+gp3$widths[2:5] <- as.list(maxWidth)
+
+fig <- as.ggplot(grid.arrange(gp1, gp2, gp3, ncol=1,heights=c(4/5,1/5, 1/5)))
+fig
+
+# Save as tiff.
+file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
+ggsave(file,fig)
+
+# Meta modules.
+metaModule_df <- data.frame(
+  protein = rownames(cleanDat),
+  module = net$colors,
+  metaModule = NA)
+
+# This is ugly...
+metaModule_df$metaModule <- meta_modules$community[match(metaModule_df$module,meta_modules$module)]
+metaModule_df$metaModule <- as.numeric(metaModule_df$metaModule)
+
+# Convert NA to zero.
+metaModule_df$metaModule[is.na(metaModule_df$metaModule)] <- 0
+
+# Modularity of the WGCNA network based on meta module partition.
+r <- bicor(t(cleanDat))
+adjm <- ((1+r)/2)^power #signed.
+
+# Create igraph object. 
+graph <- graph_from_adjacency_matrix(
+  adjmatrix = adjm, 
+  mode = c("undirected"), 
+  weighted = TRUE, 
+  diag = FALSE)
+
+# Calculate modularity, q1, with grey.
+membership <- as.numeric(as.factor(metaModule_df$metaModule))
+q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
+q1
+
+# Without grey modules, q2.
+v <- rownames(cleanDat)[!metaModule_df$metaModule==0]
+subg <- induced_subgraph(graph,v)
+membership <- as.numeric(as.factor(metaModule_df$metaModule))
+membership <- membership[!metaModule_df$metaModule==0]
+q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
+q2
+
+# Map uniprot ids to Entrez...
+uniprot <- sapply(strsplit(metaModule_df$protein,"\\|"),"[",2)
+gene <- sapply(strsplit(metaModule_df$protein,"\\|"),"[",1)
+entrez <- mapIds(org.Mm.eg.db, 
+                 keys = uniprot, 
+                 column = "ENTREZID", 
+                 keytype = "UNIPROT", 
+                 multiVals = "first")
+
+# Use gene symbols to map any un-mapped ids to entrez...
+idx <- is.na(entrez)
+entrez[idx] <- mapIds(org.Mm.eg.db, 
+                      keys = gene[idx], 
+                      column = "ENTREZID", 
+                      keytype = "SYMBOL", 
+                      multiVals = "first")
+# Number of remaining un-mapped ids.
+sum(is.na(entrez)) # only 3 un-mapped, good.
+metaModule_df$entrez <- entrez
+
+# Save to file.
+file <- paste0(outputtabsdir,"/",outputMatName,"metaModules.csv")
+write.csv(metaModule_df,file)
+
+
+## Modularity of the meta module communities.
+# Without grey modules, q2.
+v <- rownames(cleanDat)[metaModule_df$metaModule==3]
+subg <- induced_subgraph(graph,v)
+membership <- as.numeric(as.factor(metaModule_df$module))
+membership <- membership[!metaModule_df$metaModule=="grey"]
+q3 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
+q3
+
+# Modularity of these communities seems very low, justification for merging modules?
+
+#-------------------------------------------------------------------------------
+#' ## Show that the expression of interacting proteins are highly correlated. 
+#-------------------------------------------------------------------------------
+
+# Illustrate the correaltion of two proteins.
+saveplots = FALSE
+
+# Calculate bicor adjacency matrix.
+R <- cor(t(cleanDat))
+diag(R) <- NA
+R[lower.tri(R)] <- NA
+R <- na.omit(melt(R))
+colnames(R) <- c("Protein1","Protein2","Bicor")
+R <- R[order(R$Bicor,decreasing=TRUE),]
+prot1 <- "Wdr7|Q920I9"
+prot2 <- "Rogdi|Q3TDK6"
+
+# Generate a protein scatter plot.
+#ggplotProteinScatterPlot(cleanDat,prot1,prot2)
+#file <- "Protein_ScatterPlot.tiff"
+#ggsave(file)
+
+
+# Load simple interaction file (SIF). An edge list of known PPIs among all 
+# identified proteins (Cortex + striatum). 
+files <- c(
+  paste(datadir,"PPI Network","Cortex_SIF_031019.txt",sep="/"),
+  paste(datadir,"PPI Network","Striatum_SIF_031219.txt",sep="/")
+)
+sif_list <- lapply(as.list(files),function(x) read.table(x,header = TRUE, sep=","))
+
+# Merge SIFS.
+sif <- do.call(rbind,sif_list)
+head(sif)
+
+# Map rownames of cleanDat (UniprotIDs) to Entrez.
+Uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
+Entrez <- mapIds(org.Mm.eg.db, keys=Uniprot, column="ENTREZID", 
+                 keytype="UNIPROT", multiVals="first")
+length(Entrez)
+
+# Subset SIF Keep only those proteins mapped to cleanDat:Entrez.
+idx <- sif$EntrezA %in% Entrez & sif$EntrezB %in% Entrez
+sif <- sif[idx,]
+
+# Subset Entrez IDs. Keep only those mapped to sif:Entrez.
+idx <- Entrez %in% sif$EntrezA | Entrez  %in% sif$EntrezB
+Entrez <- Entrez[idx]
+length(Entrez)
+
+# Create iGraph.
+edgeList <- cbind(sif$EntrezA,sif$EntrezB)
+PPIgraph <- graph_from_edgelist(edgeList, directed = FALSE)
+
+# Calculate bicor adjacency matrix.
+dat <- cleanDat
+Uniprot <- sapply(strsplit(rownames(dat),"\\|"),"[",2)
+rownames(dat) <- mapIds(org.Mm.eg.db, keys=Uniprot, column="ENTREZID", 
+                        keytype="UNIPROT", multiVals="first")
+  
+R <- bicor(t(dat))
+#idx <- melt(upper.tri(R,diag=FALSE))
+#idx <- idx$value
+diag(R) <- NA
+R <- na.omit(melt(R))
+colnames(R) <- c("ProteinA","ProteinB","Bicor")
+R$ID <- paste(R$ProteinA,R$ProteinB,sep="_")
+head(R)
+
+# Add TRUE/FALSE if known interacting pair.
+sif$IntA <- paste(sif$EntrezA,sif$EntrezB,sep="_")
+sif$IntB <- paste(sif$EntrezB,sif$EntrezA,sep="_")
+R$InteractionPair <- as.numeric(R$ID %in% sif$IntA | R$ID %in% sif$IntB)
+table(R$InteractionPair)
+
+# The data is really large, sample N data points from 
+# the distributions of interacting and non-interacting proteins.
+# set.seed to insure reproducible random samples.
+set.seed(7)
+x <- cbind(sample(R$Bicor[R$InteractionPair==0],2000),FALSE)
+set.seed(7)
+y <- cbind(sample(R$Bicor[R$InteractionPair==1],2000),TRUE)
+df <- as.data.frame(rbind(x,y))
+colnames(df) <- c("bicor","group")
+df$group <- as.factor(df$group)
+
+# Generate a plot.
+plot <- ggplot(df, aes(x=group, y=bicor, fill=group)) + 
+  geom_boxplot(outlier.colour="black", outlier.shape=20, outlier.size=1)
+
+# Annotate with Wilcoxon Rank sum p-value.
+wrs <- wilcox.test(y[,1], x[,1],alternative = "greater")
+pval <- paste("P =", formatC(wrs$p.value,format="e",digits=2))
+plot <- plot + annotate("text",x = 1.5, y = 1, label = "*", size = 12, color="black") + 
+  ggtitle(paste("Wilcox Rank Sum", pval)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 11, face = "bold")
+  )
+plot  
+
+# Save to file.
+if (saveplots==TRUE){
+  file <- paste0(outputfigsdir,"/",outputMatName,"InteractingProteinBicorBoxplot.pdf")
+  ggsavePDF(plot,file)
+}
+
+# Save as tiff.
+file <- paste0(outputfigsdir,"/",outputMatName,"Interacting_Protein_Bicor.tiff")
+ggsave(file,plot)
+
+#-------------------------------------------------------------------------------
 #' ## Calculate module membership (kME). 
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -1015,7 +1045,7 @@ write.excel(kMEdat,file)
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = TRUE
+saveplots = FALSE
 
 # Modify traits$Sample.Model for grouping all WT's together. 
 traits <- sample_info
@@ -1479,7 +1509,7 @@ if (saveplots==TRUE){
   ggsavePDF(plot_list,file)
 }
 
-# Extract Dunnett test stats.
+# Extract post-hoc test stats.
 Dtest_stats <- sapply(plot_data,"[",3)
 names(Dtest_stats) <- sapply(strsplit(names(Dtest_stats),"\\."),"[",1)
 
@@ -1497,13 +1527,95 @@ idx <- match(KW_results$Module,rownames(nsig))
 KW_results$DunnettTestNsig <- nsig[idx,]
 
 # Save tiffs of top plots.
-idx <- subset(KW_results,p.adj<0.1)$Module
-for (i in 1:length(idx)){
-  color <- idx[i]
-  file <- paste0(outputfigsdir,"/",outputMatName,"Verbose_boxplot_",color,".tiff")
-  ggsave(file,vbplots[[paste(color,"plot",sep=".")]])
+#idx <- subset(KW_results,p.adj<0.1)$Module
+#for (i in 1:length(idx)){
+#  color <- idx[i]
+#  file <- paste0(outputfigsdir,"/",outputMatName,"Verbose_boxplot_",color,".tiff")
+#  ggsave(file,vbplots[[paste(color,"plot",sep=".")]])
+#}
+
+# Convert Dtest stats into data frame. By casting long data into wide.
+# dcast should work for multiple value.var, but it isnt...
+df <- do.call(rbind,
+  lapply(Dtest_stats, 
+              function(x) reshape2::dcast(x, Module ~ Comparison, value.var=c("Z"))))
+df2 <- do.call(rbind,
+              lapply(Dtest_stats, 
+                     function(x) reshape2::dcast(x, Module ~ Comparison, value.var=c("P.unadj"))))
+
+# Fix column names. 
+colnames(df)[2:ncol(df)] <- paste(colnames(df)[2:ncol(df)],"Z")
+colnames(df2)[2:ncol(df2)] <- paste(colnames(df2)[2:ncol(df2)],"P.value")
+
+# Bind as single df. Drop grey.
+data <- cbind(df,df2)
+data <- data[!data$Module=="grey",]
+dim(data)
+
+# Add KW P.value and FDR.
+idx <- match(data$Module,KW_results$Module)
+data <- add_column(data,KW.P.value = KW_results$p.value[idx],.after = 1)
+data <- add_column(data,KW.FDR = KW_results$FDR[idx],.after = 2)
+
+# Subset only sig
+data <- subset(data,data$KW.P.value<0.05)
+
+# Count instances of significant change.
+idx <- grep("P.value",colnames(data))[-1] # Remove kw p.value
+logic <- data[,idx] < 0.05
+ids <- sapply(strsplit(colnames(logic),"\\ "),"[",3)
+out <- list()
+for (i in 1:ncol(logic)){
+  col <- logic[,i]
+  col[col] <- ids[i]
+  out[[i]] <- col
+  }
+dm <- do.call(cbind,out)
+dm[dm=="FALSE"] <- ""
+colnames(dm) <- ids
+data$SigTests <- apply(dm,1,function(x) paste(unique(x),collapse=" "))
+KWdf <- data
+
+# Counts (does not take KW FDR into account)
+df <- count(KWdf$SigTests)
+df <- df[-1,]
+
+foo <- split(KWdf,KWdf$SigTests)
+man <- lapply(foo,function(x) unique(x$Module))
+
+module_overlap <- man[-1]
+
+# Save this to file.
+file <- paste(Rdatadir,"module_overlap.Rds", sep="/")
+saveRDS(module_overlap,file)
+
+# Write groups of tiffs to file.
+# Fix names of vbplots.
+names(vbplots) <- sapply(strsplit(names(vbplots),"\\."),"[",1)
+
+# Make a directory for storing all vbplots.
+new_dir <- paste(outputfigsdir,"Vbplots",sep="/")
+if (!exists(new_dir)){
+  dir.create(new_dir)
 }
 
+# Loop over groups of plots, and save them in common directory. 
+for (i in 1:length(module_overlap)){
+  namen <- sub(" ","",names(module_overlap)[i])
+  namen <- sub("\\ ","_",gsub("\\.","",namen))
+  group <- module_overlap[[i]]
+  output_directory <- paste(new_dir,namen,sep="/")
+  dir.create(output_directory)
+  plot_names <- module_overlap[[i]]
+  # Loop to save plots as individual tiffs.
+  for (k in 1:length(plot_names)){
+    plot_name <- plot_names[k]
+    plot <- vbplots[[plot_name]]
+    file <- paste0(output_directory,"/",plot_name,".tiff")
+    ggsave(file,plot,width = 8.17, height = 5.17)
+  }
+}
+    
 #-------------------------------------------------------------------------------
 #' ## VerboseScatter plots.
 #-------------------------------------------------------------------------------
@@ -1647,7 +1759,7 @@ ggsave(file,plot)
 #+ eval = FALSE
 
 # Load GO enrichment results from file?
-load_GOenrichment_from_file <- FALSE
+load_GOenrichment_from_file <- TRUE
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
 geneNames <- rownames(cleanDat)
@@ -1956,8 +2068,7 @@ ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.25)
 
 # Singple plot.
 # Specify the top percent of terms to print with topN. 
-names(results_GOenrichment) <- c("topGO", "blue","red","green")
-ggplotGOscatter(results_GOenrichment, color = "blue", topN = 0.25)
+ggplotGOscatter(results_GOenrichment, color = "blue")
 
 # All plots. 
 colors <- as.list(net$colors)

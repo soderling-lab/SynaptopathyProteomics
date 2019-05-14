@@ -672,7 +672,7 @@ cleanDat <- readRDS(file)
 traitsfile <- paste(Rdatadir,tissue,"Combined_Cortex_Striatum_traits.Rds",sep="/")
 sample_info <- readRDS(traitsfile)
 
-# Create DGEList object.
+# Create DGEList object...
 data <- cleanDat
 data[1:5,1:5]
 y_DGE <- DGEList(counts = data)
@@ -797,6 +797,82 @@ file <- paste0(Rdatadir,"/",outputMatName,"_TAMPOR_GLM_Results.RDS")
 saveRDS(results,file)
 
 #-------------------------------------------------------------------------------
+#' ## GO Enrichment analysis of DEPs.
+#-------------------------------------------------------------------------------
+#+ eval = FALSE
+
+# GO testing with the EdgeR qlf object...
+# Extract rownames and map to entrez ids.
+uniprot <- sapply(strsplit(rownames(qlf[[1]]),"\\|"),"[",2)
+symbols <- sapply(strsplit(rownames(qlf[[1]]),"\\|"),"[",1)
+
+# Map Uniprot IDs to Entrez IDs:
+entrez <- mapIds(org.Mm.eg.db, 
+                 keys = uniprot, 
+                 column = "ENTREZID", 
+                 keytype = "UNIPROT", 
+                 multiVals = "first")
+
+# Number of missing entrez ids.
+sum(is.na(entrez))
+
+# Map unmapped gene symbols to Entrez IDs:
+entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db, 
+                                keys = symbols[is.na(entrez)], 
+                                column = "ENTREZID", 
+                                keytype = "SYMBOL", 
+                                multiVals = "first")
+
+# Number of remaining missing entrez ids.
+sum(is.na(entrez))
+
+# Perform GO and KEGG enrichment testing (using proteins with FDR<0.1).
+GO <- lapply(qlf, function(x) goana(x, geneid = entrez, species="Mm", FDR=0.1))
+KEGG <- lapply(qlf, function(x) kegga(x, geneid = entrez, species="Mm", FDR=0.1))
+
+# Add names.
+contrasts <- unlist(lapply(qlf,function(x) x$comparison))
+contrasts <- gsub(" -1", "",sapply(strsplit(contrasts,"\\*"),"[",2))
+names(GO) <- contrasts
+names(KEGG) <- contrasts
+
+# Calculate adjusted p.values.
+my_func <- function(x){
+  x$P.adj.Up <- p.adjust(x$P.Up, method = "bonferroni")
+  x$P.adj.Down <- p.adjust(x$P.Down, method = "bonferroni")
+  x$FDR.Up <- p.adjust(x$P.Up, method = "BH")
+  x$FDR.Down <- p.adjust(x$P.Down, method = "BH")
+  return(x)
+}
+
+GO <- lapply(GO, function(x) my_func(x))
+KEGG <- lapply(KEGG, function(x) my_func(x))
+
+# Combined result
+GO_result <- do.call(rbind,GO)
+GO_result <- add_column(
+  GO_result,
+  class = sapply(strsplit(rownames(GO_result),".GO"),"[",1),
+  .before = 1
+)
+GO_result <- add_column(
+  GO_result,
+  GOID = sapply(strsplit(rownames(GO_result),"\\."),"[",4),
+  .after = 1
+)
+rownames(GO_result) <- NULL
+
+# Subset sig results.
+sigGO <- lapply(GO,function(x) subset(x,FDR.Up < 0.1 | x$FDR.Down < 0.1))
+
+# Write to excel.
+file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_GO_Results.xlsx")
+write.excel(GO,file)
+
+file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_sigGO_Results.xlsx")
+write.excel(sigGO,file)
+
+#-------------------------------------------------------------------------------
 #' ## Generate protein boxplots for significantly DE proteins.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -875,7 +951,7 @@ ggsavePDF(plots = plot_list, file)
 # Save as tiff.
 genos <- c("Shank2","Shank3","Syngap1","Ube3a")
 files <- as.list(paste0(outputfigsdir, "/", outputMatName, genos,"_BoxPlot.tiff"))
-mapply(ggsave(files, plots)
+mapply(ggsave(files, plots))
 
 #-------------------------------------------------------------------------------
 #' ## Render report.

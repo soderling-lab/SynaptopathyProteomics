@@ -160,14 +160,22 @@ data <- readRDS(file)
 net <- data$net
 meta <- data$meta
 
+# Add gene name.
+meta$gene <- mapIds(org.Mm.eg.db, keys=meta$entrez, column="SYMBOL", 
+                    keytype="ENTREZID", multiVals="first")
+
 # Load TAMPOR statistical results.
 file <- paste(outputtabs,"Final_TAMPOR",
               "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx", sep = "/")
 results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
 names(results) <- excel_sheets(file)
 
+# Load convergent modules.
+file <- paste(Rdatadir,"module_overlap.Rds", sep="/")
+module_overlap <- readRDS(file)
+
 #-------------------------------------------------------------------------------
-#' ## Build NOA file.
+#' ## Build SIF and NOA files.
 #-------------------------------------------------------------------------------
 
 # Add Tissue.Genotype column names to results.
@@ -178,7 +186,7 @@ col_names <- apply(cols, 1, function(x) paste(x,collapse="."))
 for (i in 1:length(results)){
   df <- results[[i]]
   y <- col_names[i]
-  colnames(df)[c(4:ncol(x))] <- paste(y,colnames(x)[c(4:ncol(x))])
+  colnames(df)[c(4:ncol(df))] <- paste(y,colnames(df)[c(4:ncol(df))])
   results[[i]] <- df
 }
 
@@ -250,9 +258,144 @@ df_NOA2 <- data.frame(Uniprot = uniprot,
 # Change meta Module ids to MM#
 df_NOA2$MetaModule <- paste0("MM",df_NOA2$MetaModule)
 
+# Add hex colors for modules.
+colors <- unlist(lapply(as.list(df_NOA2$Module),function(x) col2hex(x)))
+df_NOA2$Module_color <- colors
+
 # Save to csv.
 file <- paste(outputtabsdir,"NOA2.csv",sep="/")
 write.csv(df_NOA2,file)
+
+# Add column for interacton type to sif.
+sif <- add_column(sif,type = "ppi",.after=ncol(sif))
+
+# Export this as csv.
+file <- paste(outputtabsdir,"SIF.csv",sep="/")
+write.csv(sif,file)
+
+sif2 <- data.frame(NodeA = df_NOA2$Gene,
+                   NodeB = df_NOA2$Module,
+                   EntrezA = df_NOA2$Entrez,
+                   EntrezB = df_NOA2$Module,
+                   type = "module-gene")
+
+# Bind and export as csv.
+file <- paste(outputtabsdir,"SIF2.csv",sep="/")
+write.csv(sif2,file)
+
+# Build a WPCE network.
+data <- cleanDat
+all(rownames(data)==meta$protein)
+rownames(data) <- meta$entrez
+# Omit un-mapped (NA) rows.
+data <- data[!is.na(rownames(data)),] 
+r <- bicor(t(data))
+adjm <- ((1+r)/2)^12 # Signed network.
+
+# Create igraph object.
+graph <- graph_from_adjacency_matrix(
+  adjmatrix = adjm, 
+  mode = c("undirected"), 
+  weighted = TRUE, 
+  diag = FALSE)
+
+#-------------------------------------------------------------------------------
+#' ## Find first degree neighbors with 2+ degree to seed nodes.
+#-------------------------------------------------------------------------------
+
+# Create a Dictionary-like object of genes and entrez ids.
+entrez <- as.list(meta$gene)
+genes <- as.list(meta$entrez)
+names(entrez) <- meta$entrez
+names(genes) <- meta$gene
+
+# Create igraph object.
+g <- graph_from_data_frame(sif[,c(3,4,1,2)], directed = FALSE)
+
+seeds <- list()
+network_size <- list()
+degree_to_stay <- 2
+
+# Loop to create networks.
+for (i in 1:length(module_overlap)){
+  
+  # Get subset of nodes (v) in modules overlap.
+  # We will use these to seed a network.
+  v <- meta$entrez[meta$module %in% module_overlap[[i]]]
+  
+  # Insure that all nodes are in the network.
+  #table(v %in% vertex_attr(g, "name"))
+  v <- v[v %in% vertex_attr(g, "name")]
+  seeds[[i]] <- v
+  names(seeds)[[i]] <- names(module_overlap)[[i]]
+  
+  # Create list of subgraphs (subg) for every seed node.
+  subg <- make_ego_graph(g, 
+                         order = 1, 
+                         nodes = v,
+                         mode = "all", 
+                         mindist = 0)
+  # Number of nodes in each network.
+  #unlist(lapply(subg,function(x) length(V(x))))
+  #sum(unlist(lapply(subg,function(x) length(V(x)))))
+
+  # Combine subgraphs, union. 
+  uniong <- do.call(igraph::union,subg)
+
+  # Calculate distances from seed nodes to all else.
+  dist <- as.data.frame(
+    distances(uniong,
+              v = V(uniong), 
+              to = v, 
+              mode = "all",
+              weights = NULL, 
+              algorithm = "unweighted")
+    )
+  
+  # Only consider direct connections to seed nodes (distance == 1).
+  dist[dist!=1] <- 0
+
+  # Exclude Ywha* genes (14-3-3 proteins).
+  out <- as.character(genes[grep("Ywha*",names(genes))])
+  dist[rownames(dist) %in% out,] <- 0
+  
+  # Calculate closeness centrality.
+  cc <- closeness(uniong, 
+                  vids = V(uniong), 
+                  mode = "all",
+                  weights = NULL, 
+                  normalized = TRUE)
+  # Add to dist.
+  dist$closeness <- cc[match(rownames(dist),names(cc))]
+  
+  # Calculate degree to seed nodes (sum).
+  dist$SeedDegree <- apply(dist[,-ncol(dist)],1,function(x) sum(x))
+  
+  # We will keep nodes that have at least 2 degrees with seed nodes.
+  keep <- dist$SeedDegree>=degree_to_stay
+  dist <- dist[keep,]
+  
+  # Rank by closeness centrality. 
+  dist$ccRank <- rank(dist$closeness)/nrow(dist)
+  
+  # Keep top 25%
+  dist <- dist[order(dist$ccRank,decreasing = TRUE),]
+  n <- round(.25 * nrow(dist))
+  sub <- dist[c(1:n),]
+  keepers <- unique(c(rownames(sub),v))
+  subg <- induced_subgraph(g,keepers)
+  network_size[[i]] <- length(V(subg))
+  
+  # Send to cytoscape.
+  cytoscapePing()
+  print(paste("Working on subgraph", i,"..."))
+  quiet(RCy3::createNetworkFromIgraph(subg,names(module_overlap)[i]))
+  if (i==length(module_overlap)){print("Complete!")}
+}
+
+# Number of seed nodes for each graph.
+result <- data.frame(Seed_Number = unlist(lapply(seeds,function(x) length(x))),
+                     Network_Size = unlist(network_size))
 
 #-------------------------------------------------------------------------------
 #' ## PPI graph of WGCNA meta Module communities.
@@ -293,6 +436,7 @@ g <- graph_from_data_frame(ppi_df,directed = FALSE)
 # Subset of graph based on module colors.
 modules <- split(df$id,df$Color)
 v <- modules$darkgrey
+
 # Insure all of v are in g
 v <- v[v %in% vertex_attr(g,"name")]
 subg <- induced_subgraph(g,v)
