@@ -306,7 +306,7 @@ net <- blockwiseModules(t(cleanDat),
 
 # Check the number of modules. 
 nModules_original <- length(unique(net$colors))
-nModules_original # 124, 111
+nModules_original # 124
 
 #-------------------------------------------------------------------------------
 #' ## Enforce module preservation.
@@ -320,10 +320,10 @@ nModules_original # 124, 111
 r <- bicor(t(cleanDat)) # Data has already be log-transformed. 
 adjm <- ((1+r)/2)^power # Signed network. 
 
-data_list <- list(data = t(cleanDat))
-correlation_list <- list(data = r)       
-network_list <- list(data = adjm)       
-module_labels <- net$colors     
+data_list <- list(data = t(cleanDat))  # The protein expression data. 
+correlation_list <- list(data = r)     # The bicor correlation matrix. 
+network_list <- list(data = adjm)      # The weighted, signed co-expresion network.   
+module_labels <- net$colors            # Module labels. 
 names(module_labels) <- rownames(cleanDat)
 
 # Try self-preservation test.
@@ -338,7 +338,7 @@ preservation <- NetRep::modulePreservation(
   test = "data",
   selfPreservation = TRUE, 
   nThreads-1, 
-  nPerm = 10000, # nPerm will be determined by the function. 
+  nPerm = 100000, # Increase nPerm to 100,000 in order to stabilize the result with large number of modules. 
   null = "overlap", 
   alternative = "greater", 
   simplify = TRUE,
@@ -441,31 +441,6 @@ nModules_original
 nModules
 nModules_out
 
-#-------------------------------------------------------------------------------
-#' ## Save/Load workspace image for reproducibility.
-#-------------------------------------------------------------------------------
-
-# The permutation approach which tests module preservation against random 
-# permutations of the network results in some slight variation in the total number
-# of preserved modules. These modules are very similar, but are not exactly the 
-# same. Thus, to insure reproducible results in the downstream analysis, load the
-# workspace from file, and work from the saved results. 
-
-save_workspace = FALSE
-load_workspace = TRUE
-
-file <- paste(Rdatadir,tissue,"WGCNA_Network.RData",sep="/")
-
-# Save workspace? 
-if (save_workspace == TRUE){
-  save.image(file)
-}
-
-# Load workspace?
-if (load_workspace == TRUE){
-  load(file)
-}
-  
 #-------------------------------------------------------------------------------
 #' ## Visualize the WGCNA adjaceny network.
 #-------------------------------------------------------------------------------

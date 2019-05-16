@@ -175,75 +175,20 @@ file <- paste(Rdatadir,"module_overlap.Rds", sep="/")
 module_overlap <- readRDS(file)
 
 #-------------------------------------------------------------------------------
-#' ## Examine Synaptic proteome.
+#' ## Load compiled PPI network
 #-------------------------------------------------------------------------------
 
-# Scale free topology is the ~linear relationship between log node degree and
-# log probability of observing that degree. 
-
-# Load PPI data
-dir <- paste(datadir,"PPI Network", sep="/")
-file <- paste(dir,"Cortex_SIF_031019.txt", sep="/")
-sif <- read.table(file,header=TRUE, sep=",")
-head(sif)
-
-g <- graph_from_data_frame(sif[,c(3,4,1,2)], directed = FALSE)
-
-connectivity <- degree(g, 
-                       v = V(g), 
-                       mode = "all",
-                       loops = FALSE, 
-                       normalized = FALSE)
-head(connectivity)
-
-scaleFreePlot(connectivity)
-
-length(E(g))
-
-# The synaptic proteome is not scale free!!
-
-#-------------------------------------------------------------------------------
-#' ## Download compiled PPI database.
-#-------------------------------------------------------------------------------
-
-# Get PPIs
-ppi_data <- getPPIs()
-dim(ppi_data)
-
-# Summarize number of interactions from each database. 
-table(ppi_data$Database)
-
-# Get ppis with experimental annotation.
-sub <- subset(ppi_data,!ppi_data$PMID=="NaN")
-table(sub$Database)
-
-# Genes identified by TMT MS.
-entrez <- as.list(meta$gene)
-genes <- as.list(meta$entrez)
-names(entrez) <- meta$entrez
-names(genes) <- meta$gene
-
-# Subset experimentally annotated ppis.
-idx <- sub$musEntrezA %in% names(entrez) & sub$musEntrezB %in% names(entrez)
-sif <- sub[idx,c((ncol(sub)-3):ncol(sub))]
-dim(sif)
+# Load the data.
+dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+file <- paste(dir,"SIF.csv",sep="/")
+sif <- read.csv(file)
 
 # Make igraph object. 
 g <- graph_from_data_frame(sif, directed = FALSE)
 
-# Number of edges. 
+# Number of nodes and edges. 
+length(V(g))
 length(E(g))
-
-# Calcualte node degree (connectivity)
-connectivity <- degree(g, loops = TRUE)
-head(connectivity)
-
-# Calculate scale free fit.
-scaleFreePlot(connectivity)
-
-# Send to cytoscape.
-#cytoscapePing()
-#quiet(RCy3::createNetworkFromIgraph(g,"synprot"))
 
 #-------------------------------------------------------------------------------
 #' ## Build SIF and NOA files.
@@ -266,10 +211,6 @@ df_NOA <- results %>% reduce(left_join, by = c("Uniprot","Entrez","Gene"))
 
 # Remove candiate columns.
 df_NOA <- df_NOA[,-grep("candidate",colnames(df_NOA))]
-
-# Percentage of genes mapped to sif.
-table(df_NOA$Entrez %in% sif$EntrezA | df_NOA$Entrez %in% sif$EntrezB)[2]/
-  length(unique(c(sif$EntrezA,sif$EntrezB)))
 
 # Annotate as Cortex.Sig, Genotype.Sig, and Tissue.Genotype.Sig
 idx <- grep("FDR",colnames(df_NOA))
@@ -295,14 +236,7 @@ colnames(out) <- paste0("cat",c(1:ncol(out)))
 # Add to NOA table. 
 df_NOA <- cbind(df_NOA,out)
 
-# Export NOA and sif
-file <- paste(outputtabsdir,"NOA.csv",sep="/")
-write.csv(df_NOA,file)
-
-file <- paste(outputtabsdir,"SIF.csv",sep="/")
-write.csv(sif,file)
-
-## Add WGCNA modules to NOA.
+# Add WGCNA modules to NOA.
 gene <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",1)
 uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
 
@@ -320,55 +254,20 @@ table(is.na(entrez)) # Good only 3 remaining ids are not mapped.
 all(meta$protein == rownames(cleanDat))
 
 # Add meta modules.
-df_NOA2 <- data.frame(Uniprot = uniprot,
-                 Entrez = entrez,
-                 Gene = gene,
-                 Module = net$colors,
-                 MetaModule = meta$metaModule)
+df_NOA$Module <- net$colors
+df_NOA$MetaModule <- meta$metaModule
 
 # Change meta Module ids to MM#
-df_NOA2$MetaModule <- paste0("MM",df_NOA2$MetaModule)
+df_NOA$MetaModule <- paste0("MM",df_NOA$MetaModule)
 
 # Add hex colors for modules.
-colors <- unlist(lapply(as.list(df_NOA2$Module),function(x) col2hex(x)))
-df_NOA2$Module_color <- colors
+colors <- unlist(lapply(as.list(df_NOA$Module),function(x) col2hex(x)))
+df_NOA$Module_color <- colors
 
 # Save to csv.
-file <- paste(outputtabsdir,"NOA2.csv",sep="/")
-write.csv(df_NOA2,file)
-
-# Add column for interacton type to sif.
-sif <- add_column(sif,type = "ppi",.after=ncol(sif))
-
-# Export this as csv.
-file <- paste(outputtabsdir,"SIF.csv",sep="/")
-write.csv(sif,file)
-
-sif2 <- data.frame(NodeA = df_NOA2$Gene,
-                   NodeB = df_NOA2$Module,
-                   EntrezA = df_NOA2$Entrez,
-                   EntrezB = df_NOA2$Module,
-                   type = "module-gene")
-
-# Bind and export as csv.
-file <- paste(outputtabsdir,"SIF2.csv",sep="/")
-write.csv(sif2,file)
-
-# Build a WPCE network.
-data <- cleanDat
-all(rownames(data)==meta$protein)
-rownames(data) <- meta$entrez
-# Omit un-mapped (NA) rows.
-data <- data[!is.na(rownames(data)),] 
-r <- bicor(t(data))
-adjm <- ((1+r)/2)^12 # Signed network.
-
-# Create igraph object.
-graph <- graph_from_adjacency_matrix(
-  adjmatrix = adjm, 
-  mode = c("undirected"), 
-  weighted = TRUE, 
-  diag = FALSE)
+dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+file <- paste(dir,"NOA.csv",sep="/")
+write.csv(df_NOA,file, row.names = FALSE)
 
 #-------------------------------------------------------------------------------
 #' ## Find first degree neighbors with 2+ degree to seed nodes.
@@ -381,7 +280,7 @@ names(entrez) <- meta$entrez
 names(genes) <- meta$gene
 
 # Create igraph object.
-g <- graph_from_data_frame(sif[,c(3,4,1,2)], directed = FALSE)
+g <- graph_from_data_frame(sif[,c(1,2,4,5)], directed = FALSE)
 
 seeds <- list()
 network_size <- list()

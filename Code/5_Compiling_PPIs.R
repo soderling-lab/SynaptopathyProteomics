@@ -24,7 +24,7 @@ cat(f) #cat("\014") #alt= > cat("\f")
 options(stringsAsFactors = FALSE)
 
 # Set the working directory
-dir <- "D:/Documents/R/getPPIs/getPPIs"
+dir <- "D:/Documents/R/Synaptopathy-Proteomics"
 setwd(dir)
 
 # Load required libraries:
@@ -125,6 +125,7 @@ data$Entrez2[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
 # Number of unmapped genes remaining:
 print(paste("Number of unmapped genes:", 
             table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
+
 # We have ~halved the number of unmapped genes.
 
 # Subset the interaction data, keeping just those with Uniprot ID mapped to 
@@ -186,8 +187,8 @@ data$musEntrezB <- mus_homology_data$EntrezGene.ID[idx]
 
 # Keep genes that are mapped to homologous mouse genes. 
 keep <- !is.na(data$musEntrezA) & !is.na(data$musEntrezB)
-table(keep) # Big hit. 
 data <- data[keep,]
+dim(data)
 
 #-------------------------------------------------------------------------------
 # Extract PPIs for genes identified by TMT MS.
@@ -205,10 +206,51 @@ idx <- data$musEntrezA %in% meta$entrez & data$musEntrezB %in% meta$entrez
 sif <- data[idx,c(18,19,14)]
 head(sif)
 
+# Add gene symbol annotation.
+entrez <- unique(c(sif$musEntrezA,sif$musEntrezB))
+symbol <- mapIds(org.Mm.eg.db, keys=entrez, column="SYMBOL", 
+                 keytype="ENTREZID", multiVals="first")
+# Create map and add gene symbols. 
+map <- as.list(symbol)
+names(map) <- entrez
+sif$geneA <- map[sif$musEntrezA]
+sif$geneB <- map[sif$musEntrezB]
+
 # Remove any missing values. There should be none.
 out <- is.na(sif$musEntrezA) | is.na(sif$musEntrezB)
+table(out)
 sif <- sif[!out,]
 dim(sif)
+
+# Sif is a data frame of lists... fix this.
+apply(sif,2,function(x) class(x))
+sif <- as.data.frame(apply(sif,2,function(x) unlist(x)))
+rownames(sif) <- NULL
+
+# Write to file.
+outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+file <- paste(outdir,"Cortex_SIF.csv",sep="/")
+write.csv(sif,file, row.names = FALSE)
+
+# Create a simple node attributes file for mapping node name to gene symbol.
+foo <- data.frame("EntrezID" = sif$musEntrezA,
+                  "Symbol" = sif$geneA)
+
+man <- data.frame("EntrezID" = sif$musEntrezB,
+                  "Symbol" = sif$geneB)
+
+noa <- unique(rbind(foo,man))
+
+# Write to file.
+outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+file <- paste(outdir,"Cortex_NOA.csv",sep="/")
+write.csv(noa,file, row.names = FALSE)
+
+class(noa$EntrezID)
+class(noa$Symbol)
+#-------------------------------------------------------------------------------
+#' ## Evaluate topology of the network.
+#-------------------------------------------------------------------------------
 
 # Create igraph object.
 graph <- graph_from_data_frame(sif,directed=FALSE)
