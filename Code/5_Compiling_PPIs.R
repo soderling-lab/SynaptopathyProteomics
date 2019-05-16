@@ -1,0 +1,388 @@
+#' ---
+#' title: Compiling protein protein interactions. 
+#' author: Tyler W Bradshaw
+#' urlcolor: blue
+#' header-includes:             
+#' - \usepackage{float}         
+#' - \floatplacement{figure}{H} 
+#' output:
+#'    pdf_document:
+#'      fig_caption: true
+#'      toc: true
+#'      number_sections: false
+#'      highlight: tango
+#' ---
+
+#-------------------------------------------------------------------------------
+#' ## Setup the workspace.
+#-------------------------------------------------------------------------------
+
+rm(list = ls())
+dev.off()
+f = "\f"
+cat(f) #cat("\014") #alt= > cat("\f")
+options(stringsAsFactors = FALSE)
+
+# Set the working directory
+dir <- "D:/Documents/R/getPPIs/getPPIs"
+setwd(dir)
+
+# Load required libraries:
+suppressPackageStartupMessages({
+  library(igraph)
+  library(AnnotationDbi)
+  library(org.Mm.eg.db)
+  library(WGCNA)
+})
+
+#-------------------------------------------------------------------------------
+#' ## Load HitPredict interactions.
+#-------------------------------------------------------------------------------
+
+# Download HitPredict data. This will take several minutes. 
+url <- "http://hintdb.hgc.jp/htp/download/HitPredict_interactions.txt.tgz"
+gzfile <- paste(dir,"HitPredict_interactions.txt.tgz",sep="/")
+if(!file.exists(gzfile)){download.file(url,gzfile); }else{print("file exists!")}
+
+# Unzip and read data.
+untar(gzfile)
+unlink(gzfile)
+file <- paste(dir,"HitPredict_interactions.txt",sep="/")
+data <- read.delim(file, header=TRUE, skip = 5)
+unlink(file)
+
+# We need to insure that genes are mapped to their stable, unique 
+# Entrez identifier. First, replace blanks with NA.
+data$Entrez1[data$Entrez1==""] <- NA
+data$Entrez2[data$Entrez2==""] <- NA
+
+# Subset human, mouse, and rat data.
+taxids <- c(9606,10090,10116)
+data <- subset(data,data$Taxonomy %in% taxids)
+
+# Number of unmapped genes:
+print(paste("Number of unmapped genes:", 
+            table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
+
+# Utilize the AnnotationDbi mapIds() function and organism specific 
+# datases (e.g. org.Mm.eg.db) to map uniprot Ids to Entrez IDS.
+uniprot <- unique(c(data$Uniprot1,data$Uniprot2))
+
+# Mapping mouse uniprot...
+entrez <- mapIds(org.Mm.eg.db, keys=uniprot, column="ENTREZID", 
+                 keytype="UNIPROT", multiVals="first")
+map <- as.list(entrez)
+names(map) <- uniprot
+
+# Map missing Entrez1
+is_missing <- is.na(data$Entrez1)
+data$Entrez1[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Map missing Entrez2
+is_missing <- is.na(data$Entrez2)
+data$Entrez2[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Number of unmapped genes:
+print(paste("Number of unmapped genes:", 
+            table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
+
+# Mapping human uniprot ids...
+library(org.Hs.eg.db)
+
+entrez <- mapIds(org.Hs.eg.db, keys=uniprot, column="ENTREZID", 
+                 keytype="UNIPROT", multiVals="first")
+map <- as.list(entrez)
+names(map) <- uniprot
+
+# Map missing Entrez1
+is_missing <- is.na(data$Entrez1)
+data$Entrez1[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Map missing Entrez2
+is_missing <- is.na(data$Entrez2)
+data$Entrez2[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Number of unmapped genes:
+print(paste("Number of unmapped genes:", 
+            table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
+
+# Mapping rat uniprot ids...
+library(org.Rn.eg.db)
+
+entrez <- mapIds(org.Rn.eg.db, keys=uniprot, column="ENTREZID", 
+                 keytype="UNIPROT", multiVals="first")
+map <- as.list(entrez)
+names(map) <- uniprot
+
+# Map missing Entrez1
+is_missing <- is.na(data$Entrez1)
+data$Entrez1[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Map missing Entrez2
+is_missing <- is.na(data$Entrez2)
+data$Entrez2[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Number of unmapped genes remaining:
+print(paste("Number of unmapped genes:", 
+            table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
+# We have ~halved the number of unmapped genes.
+
+# Subset the interaction data, keeping just those with Uniprot ID mapped to 
+# human, mouse, or rat Entrez IDs.
+out <- is.na(data$Entrez1) | is.na(data$Entrez2)
+data <- data[!out,]
+dim(data)
+
+#-------------------------------------------------------------------------------
+#' ## Map Entrez gene IDs to their homologous mouse gene.
+#-------------------------------------------------------------------------------
+
+# Download and load NCBI homology gene data.
+url <- "ftp://ftp.ncbi.nih.gov/pub/HomoloGene/current/homologene.data"
+destfile <- paste(dir,"homologene.data",sep="/")
+download.file(url,destfile)
+homology_data <- read.delim(destfile, header = FALSE)
+unlink(destfile)
+
+# Fix column names. 
+# Gene ID is a genes organism specific Entrez ID.
+# HID is the genes homology id.
+colnames(homology_data) <- c("HID","TaxonomyID","GeneID",
+                             "GeneSymbol","ProteinGI","ProteinAccession")
+
+# Create homology map for human, mouse, and rat.
+homology_data <- subset(homology_data,homology_data$TaxonomyID %in% taxids)
+homology_map <- as.list(homology_data$HID)
+names(homology_map) <- homology_data$GeneID
+
+# Map Entrez gene IDs to HID.
+# If you have not subsetted the data, then this operation 
+# will be expensive and very slow!
+data$HIDA <- homology_map[as.character(data$Entrez1)]
+data$HIDB <- homology_map[as.character(data$Entrez2)]
+
+#-------------------------------------------------------------------------------
+#' ## Map HIDs to mouse Entrez using MGI.
+#-------------------------------------------------------------------------------
+
+# Download mouse homology data from MGI.
+url <- "http://www.informatics.jax.org/downloads/reports/HGNC_homologene.rpt"
+file <- paste(dir,"HGNC_homologene.rpt",sep="/")
+if(!file.exists(file)){download.file(url, file); }else{ print("file exists!")}
+mus_homology_data <- read.delim(file, header = TRUE, sep="\t", row.names = NULL)
+unlink(file)
+
+# Fix column names.
+col_names <- colnames(mus_homology_data)[-1]
+mus_homology_data <- mus_homology_data[,-ncol(mus_homology_data)]
+colnames(mus_homology_data) <- col_names
+
+# Map HIDs to Mus Entrez.
+idx <- match(data$HIDA,mus_homology_data$HomoloGene.ID)
+data$musEntrezA <- mus_homology_data$EntrezGene.ID[idx]
+
+idx <- match(data$HIDB,mus_homology_data$HomoloGene.ID)
+data$musEntrezB <- mus_homology_data$EntrezGene.ID[idx]
+
+# Keep genes that are mapped to homologous mouse genes. 
+keep <- !is.na(data$musEntrezA) & !is.na(data$musEntrezB)
+table(keep) # Big hit. 
+data <- data[keep,]
+
+#-------------------------------------------------------------------------------
+# Extract PPIs for genes identified by TMT MS.
+#-------------------------------------------------------------------------------
+
+# Load proteins identified by TMT.
+Rdatadir <- "D:/Documents/R/Synaptopathy-Proteomics/RData"
+file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
+network_data <- readRDS(file)
+net <- network_data$net
+meta <- network_data$meta
+
+# PPIs
+idx <- data$musEntrezA %in% meta$entrez & data$musEntrezB %in% meta$entrez
+sif <- data[idx,c(18,19,14)]
+head(sif)
+
+# Remove any missing values. There should be none.
+out <- is.na(sif$musEntrezA) | is.na(sif$musEntrezB)
+sif <- sif[!out,]
+dim(sif)
+
+# Create igraph object.
+graph <- graph_from_data_frame(sif,directed=FALSE)
+length(V(graph)) # number of vertices (nodes).
+
+# Calculate node connectivity (degree).
+connectivity <- degree(graph)
+head(connectivity)
+
+# Evaluate scale free fit with WGCNA function scaleFreePlot()
+scaleFreePlot(connectivity,truncated = TRUE, nBreaks = 10)
+
+
+# Fixme: make ggplot function!
+
+
+
+
+
+
+
+
+
+
+#-------------------------------------------------------------------------------
+# Load the mouse HitPredict data.
+
+# Directory with database downloads. 
+#database_dir <- paste(dir,"Databases",sep="/")
+#file <- paste(database_dir,"HitPredict_051519_M_musculus_interactions.txt",sep="/")
+
+
+
+data <- read.delim(file,header=TRUE, skip = 5)
+
+# Try mapping missing entrez values.
+# Utilizes the AnnotationDbi and org.Mm.eg.db packages. 
+uniprot <- unique(c(data$Uniprot1,data$Uniprot2))
+entrez <- mapIds(org.Mm.eg.db, keys=uniprot, column="ENTREZID", 
+                    keytype="UNIPROT", multiVals="first")
+map <- as.list(entrez)
+names(map) <- uniprot
+
+# Number of unmapped genes:
+print(paste("Number of unmapped genes:", 
+            table(c(data$Entrez1=="",data$Entrez2==""))[2]))
+
+# Map missing Entrez1
+is_missing <- data$Entrez1==""
+data$Entrez1[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Map missing Entrez2
+is_missing <- data$Entrez2==""
+data$Entrez2[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
+
+# Number of unmapped genes:
+print(paste("Number of unmapped genes:", 
+            table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
+
+# Extract PPIs for genes identified by TMT MS.
+Rdatadir <- "D:/Documents/R/Synaptopathy-Proteomics/RData"
+file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
+network_data <- readRDS(file)
+net <- network_data$net
+meta <- network_data$meta
+
+# PPIs
+idx <- data$Entrez1 %in% meta$entrez & data$Entrez2 %in% meta$entrez
+sif <- data[idx,c(5,6)]
+
+# Remove any missing values.
+out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
+sif <- sif[!out,]
+dim(sif)
+
+# Make graph.
+graph <- graph_from_data_frame(sif,directed=FALSE)
+
+# Calculate node connectivity.
+connectivity <- degree(graph)
+head(connectivity)
+
+# Evaluate scale free fit with WGCNA function scaleFreePlot()
+scaleFreePlot(connectivity,truncated = TRUE)
+
+#-------------------------------------------------------------------------------
+# Try whole proteome.
+sif <- data[,c(5,6)]
+
+# Remove unmapped genes.
+out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
+sif <- sif[!out,]
+graph <- graph_from_data_frame(sif,directed = FALSE)
+length(V(graph))
+length(E(graph))
+connectivity <- degree(graph)
+scaleFreePlot(connectivity,truncated = TRUE)
+
+# Can we threshold the network and make it scale free?
+# Use confidence score to threshold ppis.
+sif <- data[,c(5,6,14)]
+head(sif)
+out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
+sif <- sif[!out,]
+
+# Define some hard thresholds (gamma).
+summary(sif$Interaction_score)
+gamma <- seq(min(sif$Interaction_score),max(sif$Interaction_score), by =0.001)
+
+# Loop to calculate scale free fit for given thresholds.
+result <- list()
+for (i in 1:length(gamma)){
+  sub <- subset(sif,sif$Interaction_score>gamma[i])
+  graph <- graph_from_data_frame(sub,directed = FALSE)
+  connectivity <- degree(graph)
+  # Call scaleFreePlot, but supress the plot output. 
+  ff <- tempfile()
+  png(filename=ff)
+  df <- scaleFreePlot(connectivity,truncated = FALSE)
+  dev.off()
+  unlink(ff)
+  # Add gamma and basic network properties. 
+  df$gamma <- gamma[i]
+  df$Nodes <- length(V(graph))
+  df$Edges <- length(E(graph))
+  result[[i]] <- df
+}
+
+# Gather results. 
+out <- do.call(rbind,result)
+head(out)
+
+#-------------------------------------------------------------------------------
+# Try applying a hard threshold to the synaptic proteome!
+
+# Synaptic SIF
+idx <- data$Entrez1 %in% meta$entrez & data$Entrez2 %in% meta$entrez
+sif <- data[idx,c(5,6,14)]
+head(sif)
+
+# Remove any missing values.
+out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
+sif <- sif[!out,]
+length(unique(c(sif$Entrez1,sif$Entrez2))) # how can this be more than unique in meta!?
+
+# Define some hard thresholds (gamma).
+summary(sif$Interaction_score)
+gamma <- seq(min(sif$Interaction_score),max(sif$Interaction_score), by =0.001)
+
+# Loop to calculate scale free fit for given thresholds.
+result <- list()
+for (i in 1:length(gamma)){
+  sub <- subset(sif,sif$Interaction_score>gamma[i])
+  graph <- graph_from_data_frame(sub,directed = FALSE)
+  connectivity <- degree(graph)
+  # Call scaleFreePlot, but supress the plot output. 
+  ff <- tempfile()
+  png(filename=ff)
+  df <- scaleFreePlot(connectivity,truncated = FALSE)
+  dev.off()
+  unlink(ff)
+  # Add gamma and basic network properties. 
+  df$gamma <- gamma[i]
+  df$Nodes <- length(V(graph))
+  df$Edges <- length(E(graph))
+  result[[i]] <- df
+}
+
+# Gather results. 
+out <- do.call(rbind,result)
+head(out)
+
+# Can scale free topology be achieved?
+# No...
+
+# Are there too many or too few interactions?
+

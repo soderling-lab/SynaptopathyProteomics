@@ -213,6 +213,27 @@ if (estimatePower==TRUE){
   #ggsavePDF(plot_list,file)
 }
 
+# Calculate node connectivity in the Weighted co-expression network.  
+connectivity <- softConnectivity(
+  datExpr=t(cleanDat), 
+  corFnc = "bicor",
+  weights = NULL,
+  type = "signed",
+  power = 12, 
+  blockSize = 15000, 
+  minNSamples = NULL, 
+  verbose = 0, 
+  indent = 0)
+
+# Examine fit. 
+scaleFreePlot(connectivity)
+
+# Save as pdf.
+file = paste0(outputfigsdir,"/",outputMatName,"ScaleFreeFit",".pdf")
+CairoPDF(file, width = 16, height = 12)
+scaleFreePlot(connectivity)
+dev.off()
+
 #-------------------------------------------------------------------------------
 #' ## Build the WPCNA Network.
 #-------------------------------------------------------------------------------
@@ -296,7 +317,7 @@ nModules_original # 124, 111
 #+ eval = FALSE
 
 # Input for NetRep:
-r <- bicor(t(cleanDat))
+r <- bicor(t(cleanDat)) # Data has already be log-transformed. 
 adjm <- ((1+r)/2)^power # Signed network. 
 
 data_list <- list(data = t(cleanDat))
@@ -907,7 +928,7 @@ q3
 #-------------------------------------------------------------------------------
 
 # Illustrate the correaltion of two proteins.
-saveplots = FALSE
+saveplots = TRUE
 
 # Calculate bicor adjacency matrix.
 R <- cor(t(cleanDat))
@@ -1021,17 +1042,18 @@ ggsave(file,plot)
 
 # Module membership (kME) is the strength of association (correlation) between a 
 # proteins expression vector and that of module EigenProteins.
-tmpMEs <- net$MEs
-colnames(tmpMEs) <- paste("ME", colnames(MEs), sep = "")
+
+colors <- as.list(net$colors)
+names(colors) <- rownames(cleanDat)
 
 # The protein-wise correlation with module Eigenproteins. 
-kMEdat <- signedKME(t(cleanDat), tmpMEs, corFnc = "bicor")
+kMEdat <- signedKME(t(cleanDat), net$MEs, corFnc = "bicor")
 colnames(kMEdat) <- gsub("kME","",colnames(kMEdat))
 kMEdat[1:5,1:5]
 
 # Clean up a little.
 idx <- match(rownames(kMEdat),rownames(cleanDat))
-kMEdat <- add_column(kMEdat,Protein = rownames(kMEdat),.before = 1)
+kMEdat <- add_column(kMEdat, Protein = rownames(kMEdat),.before = 1)
 kMEdat <- add_column(kMEdat,Module = net$colors[idx],.after = 1)
 rownames(kMEdat) <- NULL
 
@@ -1045,7 +1067,7 @@ write.excel(kMEdat,file)
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Modify traits$Sample.Model for grouping all WT's together. 
 traits <- sample_info
@@ -1193,7 +1215,7 @@ write.excel(data,file,rowNames = TRUE)
 # I.E., Which module is the most important for a given trait (e.g. Ube3a_KO)?
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Module Assignment summary.
 geneNames <- rownames(cleanDat)
@@ -1397,7 +1419,7 @@ colnames(pve)[2] <- "PVE"
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Calculate Module EigenProteins.
 MEs <- tmpMEs <- data.frame()
@@ -1622,7 +1644,7 @@ for (i in 1:length(module_overlap)){
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
 
 # Calculate MEs
 MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
@@ -1759,7 +1781,7 @@ ggsave(file,plot)
 #+ eval = FALSE
 
 # Load GO enrichment results from file?
-load_GOenrichment_from_file <- TRUE
+load_GOenrichment_from_file <- FALSE
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
 geneNames <- rownames(cleanDat)
