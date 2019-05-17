@@ -27,12 +27,18 @@ options(stringsAsFactors = FALSE)
 dir <- "D:/Documents/R/Synaptopathy-Proteomics"
 setwd(dir)
 
+# Load required custom functions.
+functiondir <- paste(dir, "Functions", sep = "/")
+my_functions <- paste(functiondir, "TMT_Preprocess_Functions.R", sep = "/")
+source(my_functions)
+
 # Load required libraries:
 suppressPackageStartupMessages({
   library(igraph)
   library(AnnotationDbi)
   library(org.Mm.eg.db)
   library(WGCNA)
+  library(TBmiscr)
 })
 
 #-------------------------------------------------------------------------------
@@ -191,7 +197,7 @@ data <- data[keep,]
 dim(data)
 
 #-------------------------------------------------------------------------------
-# Extract PPIs for genes identified by TMT MS.
+# Build PPI network for proteins identified by TMT MS.
 #-------------------------------------------------------------------------------
 
 # Load proteins identified by TMT.
@@ -229,8 +235,8 @@ rownames(sif) <- NULL
 
 # Write to file.
 outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(outdir,"Cortex_SIF.csv",sep="/")
-write.csv(sif,file, row.names = FALSE)
+file <- paste(outdir,"SIF.xlsx",sep="/")
+write.excel(sif,file)
 
 # Create a simple node attributes file for mapping node name to gene symbol.
 foo <- data.frame("EntrezID" = sif$musEntrezA,
@@ -241,190 +247,51 @@ man <- data.frame("EntrezID" = sif$musEntrezB,
 
 noa <- unique(rbind(foo,man))
 
+# Add module id and meta module id
+map1 <- as.list(meta$module)
+names(map1) <- meta$entrez
+
+map2 <- as.list(meta$metaModule)
+names(map2) <- meta$entrez
+
+# add module and meta module annotations. 
+noa$Module <- map1[noa$EntrezID]
+noa$MetaModule <- map2[noa$EntrezID]
+noa$MetaModule <- paste0("MM",noa$MetaModule)
+
+# Convert module color to hex
+noa$ModuleColor <- lapply(as.list(noa$Module),function(x) col2hex(x))
+
+# Insure that noa is a df.
+noa <- as.data.frame(apply(noa,2,function(x) unlist(x)))
+
 # Write to file.
 outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(outdir,"Cortex_NOA.csv",sep="/")
-write.csv(noa,file, row.names = FALSE)
+file <- paste(outdir,"NOA.xlsx",sep="/")
+write.excel(noa,file)
 
-class(noa$EntrezID)
-class(noa$Symbol)
 #-------------------------------------------------------------------------------
 #' ## Evaluate topology of the network.
 #-------------------------------------------------------------------------------
 
 # Create igraph object.
-graph <- graph_from_data_frame(sif,directed=FALSE)
+graph <- graph_from_data_frame(sif, directed=FALSE)
 length(V(graph)) # number of vertices (nodes).
 
+# Remove duplicate edges and self-loops.
+graph <- simplify(graph)
+is_simple(graph)
+
 # Calculate node connectivity (degree).
-connectivity <- degree(graph)
+connectivity <- degree(graph, loops = FALSE)
 head(connectivity)
 
 # Evaluate scale free fit with WGCNA function scaleFreePlot()
-scaleFreePlot(connectivity,truncated = TRUE, nBreaks = 10)
-
-
-# Fixme: make ggplot function!
-
-
+plot <- ggplotScaleFreePlot(connectivity, nBreaks = 10)$ggplot
+plot
+# The synaptic proteome exhibits a scale free topology!
 
 
 
 
-
-
-
-
-#-------------------------------------------------------------------------------
-# Load the mouse HitPredict data.
-
-# Directory with database downloads. 
-#database_dir <- paste(dir,"Databases",sep="/")
-#file <- paste(database_dir,"HitPredict_051519_M_musculus_interactions.txt",sep="/")
-
-
-
-data <- read.delim(file,header=TRUE, skip = 5)
-
-# Try mapping missing entrez values.
-# Utilizes the AnnotationDbi and org.Mm.eg.db packages. 
-uniprot <- unique(c(data$Uniprot1,data$Uniprot2))
-entrez <- mapIds(org.Mm.eg.db, keys=uniprot, column="ENTREZID", 
-                    keytype="UNIPROT", multiVals="first")
-map <- as.list(entrez)
-names(map) <- uniprot
-
-# Number of unmapped genes:
-print(paste("Number of unmapped genes:", 
-            table(c(data$Entrez1=="",data$Entrez2==""))[2]))
-
-# Map missing Entrez1
-is_missing <- data$Entrez1==""
-data$Entrez1[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
-
-# Map missing Entrez2
-is_missing <- data$Entrez2==""
-data$Entrez2[is_missing] <- map[as.character(data$Uniprot1[is_missing])]
-
-# Number of unmapped genes:
-print(paste("Number of unmapped genes:", 
-            table(c(is.na(data$Entrez1),is.na(data$Entrez2)))[2]))
-
-# Extract PPIs for genes identified by TMT MS.
-Rdatadir <- "D:/Documents/R/Synaptopathy-Proteomics/RData"
-file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
-network_data <- readRDS(file)
-net <- network_data$net
-meta <- network_data$meta
-
-# PPIs
-idx <- data$Entrez1 %in% meta$entrez & data$Entrez2 %in% meta$entrez
-sif <- data[idx,c(5,6)]
-
-# Remove any missing values.
-out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
-sif <- sif[!out,]
-dim(sif)
-
-# Make graph.
-graph <- graph_from_data_frame(sif,directed=FALSE)
-
-# Calculate node connectivity.
-connectivity <- degree(graph)
-head(connectivity)
-
-# Evaluate scale free fit with WGCNA function scaleFreePlot()
-scaleFreePlot(connectivity,truncated = TRUE)
-
-#-------------------------------------------------------------------------------
-# Try whole proteome.
-sif <- data[,c(5,6)]
-
-# Remove unmapped genes.
-out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
-sif <- sif[!out,]
-graph <- graph_from_data_frame(sif,directed = FALSE)
-length(V(graph))
-length(E(graph))
-connectivity <- degree(graph)
-scaleFreePlot(connectivity,truncated = TRUE)
-
-# Can we threshold the network and make it scale free?
-# Use confidence score to threshold ppis.
-sif <- data[,c(5,6,14)]
-head(sif)
-out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
-sif <- sif[!out,]
-
-# Define some hard thresholds (gamma).
-summary(sif$Interaction_score)
-gamma <- seq(min(sif$Interaction_score),max(sif$Interaction_score), by =0.001)
-
-# Loop to calculate scale free fit for given thresholds.
-result <- list()
-for (i in 1:length(gamma)){
-  sub <- subset(sif,sif$Interaction_score>gamma[i])
-  graph <- graph_from_data_frame(sub,directed = FALSE)
-  connectivity <- degree(graph)
-  # Call scaleFreePlot, but supress the plot output. 
-  ff <- tempfile()
-  png(filename=ff)
-  df <- scaleFreePlot(connectivity,truncated = FALSE)
-  dev.off()
-  unlink(ff)
-  # Add gamma and basic network properties. 
-  df$gamma <- gamma[i]
-  df$Nodes <- length(V(graph))
-  df$Edges <- length(E(graph))
-  result[[i]] <- df
-}
-
-# Gather results. 
-out <- do.call(rbind,result)
-head(out)
-
-#-------------------------------------------------------------------------------
-# Try applying a hard threshold to the synaptic proteome!
-
-# Synaptic SIF
-idx <- data$Entrez1 %in% meta$entrez & data$Entrez2 %in% meta$entrez
-sif <- data[idx,c(5,6,14)]
-head(sif)
-
-# Remove any missing values.
-out <- is.na(sif$Entrez1) | is.na(sif$Entrez2)
-sif <- sif[!out,]
-length(unique(c(sif$Entrez1,sif$Entrez2))) # how can this be more than unique in meta!?
-
-# Define some hard thresholds (gamma).
-summary(sif$Interaction_score)
-gamma <- seq(min(sif$Interaction_score),max(sif$Interaction_score), by =0.001)
-
-# Loop to calculate scale free fit for given thresholds.
-result <- list()
-for (i in 1:length(gamma)){
-  sub <- subset(sif,sif$Interaction_score>gamma[i])
-  graph <- graph_from_data_frame(sub,directed = FALSE)
-  connectivity <- degree(graph)
-  # Call scaleFreePlot, but supress the plot output. 
-  ff <- tempfile()
-  png(filename=ff)
-  df <- scaleFreePlot(connectivity,truncated = FALSE)
-  dev.off()
-  unlink(ff)
-  # Add gamma and basic network properties. 
-  df$gamma <- gamma[i]
-  df$Nodes <- length(V(graph))
-  df$Edges <- length(E(graph))
-  result[[i]] <- df
-}
-
-# Gather results. 
-out <- do.call(rbind,result)
-head(out)
-
-# Can scale free topology be achieved?
-# No...
-
-# Are there too many or too few interactions?
 

@@ -226,13 +226,13 @@ connectivity <- softConnectivity(
   indent = 0)
 
 # Examine fit. 
-scaleFreePlot(connectivity)
+fit <- ggplotScaleFreePlot(connectivity)
+fit$stats
+plot <- fit$ggplot
+plot
 
-# Save as pdf.
+# Save fig. 
 file = paste0(outputfigsdir,"/",outputMatName,"ScaleFreeFit",".pdf")
-CairoPDF(file, width = 16, height = 12)
-scaleFreePlot(connectivity)
-dev.off()
 
 #-------------------------------------------------------------------------------
 #' ## Build the WPCNA Network.
@@ -585,6 +585,28 @@ file <- paste0(outputfigsdir,"/",outputMatName,"Module_Sizes.tiff")
 ggsave(file,plot)
 
 #-------------------------------------------------------------------------------
+#' ## Examine the pairwise correlation between proteins.
+#-------------------------------------------------------------------------------
+
+# Calculate bicor adjacency matrix.
+R <- cor(t(cleanDat))
+diag(R) <- NA
+R[lower.tri(R)] <- NA
+R <- na.omit(melt(R))
+colnames(R) <- c("Protein1","Protein2","Bicor")
+R <- R[order(R$Bicor,decreasing=TRUE),]
+
+prots <- as.list(rownames(cleanDat))
+names(prots) <- rownames(cleanDat)
+
+prot1 <- prots$`Erc2|Q6PH08`
+prot2 <- prots$`Rimbp2|Q80U40`
+
+# Generate a protein scatter plot.
+plot <- ggplotProteinScatterPlot(cleanDat,prot1,prot2)
+plot
+
+#-------------------------------------------------------------------------------
 #' ## Prepare Numeric metadata for WGCNA analysis. 
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -733,7 +755,6 @@ numericIndices <- unique(c(which(!is.na(apply(numericMeta, 2, function(x) sum(as
 #+ eval = FALSE
 
 # Calculate Module EigenProteins (MEs)
-MEs <- tmpMEs <- data.frame()
 MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
 MEs <- orderMEs(MEList$eigengenes)
 
@@ -886,40 +907,11 @@ metaModule_df$entrez <- entrez
 file <- paste0(outputtabsdir,"/",outputMatName,"metaModules.csv")
 write.csv(metaModule_df,file)
 
-
-## Modularity of the meta module communities.
-# Without grey modules, q2.
-v <- rownames(cleanDat)[metaModule_df$metaModule==3]
-subg <- induced_subgraph(graph,v)
-membership <- as.numeric(as.factor(metaModule_df$module))
-membership <- membership[!metaModule_df$metaModule=="grey"]
-q3 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
-q3
-
-# Modularity of these communities seems very low, justification for merging modules?
-
 #-------------------------------------------------------------------------------
 #' ## Show that the expression of interacting proteins are highly correlated. 
 #-------------------------------------------------------------------------------
 
-# Illustrate the correaltion of two proteins.
 saveplots = TRUE
-
-# Calculate bicor adjacency matrix.
-R <- cor(t(cleanDat))
-diag(R) <- NA
-R[lower.tri(R)] <- NA
-R <- na.omit(melt(R))
-colnames(R) <- c("Protein1","Protein2","Bicor")
-R <- R[order(R$Bicor,decreasing=TRUE),]
-prot1 <- "Wdr7|Q920I9"
-prot2 <- "Rogdi|Q3TDK6"
-
-# Generate a protein scatter plot.
-#ggplotProteinScatterPlot(cleanDat,prot1,prot2)
-#file <- "Protein_ScatterPlot.tiff"
-#ggsave(file)
-
 
 # Load simple interaction file (SIF). An edge list of known PPIs among all 
 # identified proteins (Cortex + striatum). 
@@ -1394,7 +1386,7 @@ colnames(pve)[2] <- "PVE"
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = TRUE
+saveplots = FALSE
 
 # Calculate Module EigenProteins.
 MEs <- tmpMEs <- data.frame()
@@ -1413,6 +1405,16 @@ all(rownames(traits)==rownames(MEs))
 groups <- paste(numericMeta$TissueType,numericMeta$Sample.Model,sep=".")
 groups[grepl("Cortex.WT",groups)] <- "WT.Cortex"
 groups[grepl("Striatum.WT",groups)] <- "WT.Striatum"
+unique(groups)
+
+# Other groupings...
+groups <- paste(numericMeta$SexType,numericMeta$TissueType,numericMeta$Sample.Model,sep=".")
+groups[grepl("F.*.KO.*",groups)] <- "F.ASD"
+groups[grepl("F.*.HET.*",groups)] <- "F.ASD"
+groups[grepl("M.*.KO.*",groups)] <- "M.ASD"
+groups[grepl("M.*.HET.*",groups)] <- "M.ASD"
+groups[grepl("M.*.WT.*",groups)] <- "M.WT"
+groups[grepl("F.*.WT.*",groups)] <- "F.WT"
 unique(groups)
 
 # Calculate Kruskal-Wallis pvalues for all modules (columns of MEs df).
@@ -1457,7 +1459,7 @@ g <- ME_list[[1]]$groups
 color <- names(ME_list)[1]
 color
 # Define levels for order of bars in plot.
-#levels <- c("WT.Cortex","ASD.Cortex","WT.Striatum","ASD.Striatum")
+levels <- c("M.WT","M.ASD","F.WT","F.ASD")
 levels <- c("WT.Cortex","WT.Striatum",
             "Cortex.KO.Shank2","Striatum.KO.Shank2",
             "Cortex.KO.Shank3","Striatum.KO.Shank3",
@@ -1465,8 +1467,7 @@ levels <- c("WT.Cortex","WT.Striatum",
             "Cortex.KO.Ube3a","Striatum.KO.Ube3a")
 
 # Generate contrasts matrix for comparisons of interest.
-#contrasts <- makePairwiseContrasts(list("WT.Cortex","WT.Striatum"),list("ASD.Cortex","ASD.Striatum"))
-#contrasts
+contrasts <- makePairwiseContrasts(list("M.WT","F.WT"),list("M.ASD","F.ASD"))
 g1 <- list("WT.Cortex","WT.Striatum")
 g2 <- list(
   c("Cortex.KO.Shank2","Cortex.KO.Shank3","Cortex.HET.Syngap1","Cortex.KO.Ube3a"),
@@ -1502,7 +1503,7 @@ vbplots <- plot_list
 
 # Save all plots.
 if (saveplots==TRUE){
-  file <- paste0(outputfigsdir,"/",tissue,"_WGCNA_Analysis_VerboseBoxPlots.pdf")
+  file <- paste0(outputfigsdir,"/",tissue,"_WGCNA_Analysis_MF_VerboseBoxPlots.pdf")
   ggsavePDF(plot_list,file)
 }
 
@@ -1592,9 +1593,7 @@ names(vbplots) <- sapply(strsplit(names(vbplots),"\\."),"[",1)
 
 # Make a directory for storing all vbplots.
 new_dir <- paste(outputfigsdir,"Vbplots",sep="/")
-if (!exists(new_dir)){
-  dir.create(new_dir)
-}
+dir.create(new_dir)
 
 # Loop over groups of plots, and save them in common directory. 
 for (i in 1:length(module_overlap)){

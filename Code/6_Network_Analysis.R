@@ -82,6 +82,7 @@ suppressPackageStartupMessages({
   library(RCy3)
   library(DescTools)
   library(TBmiscr)
+  library(GOSemSim)
 })
 
 # Define version of the code.
@@ -160,7 +161,7 @@ data <- readRDS(file)
 net <- data$net
 meta <- data$meta
 
-# Add gene name.
+# Add gene names.
 meta$gene <- mapIds(org.Mm.eg.db, keys=meta$entrez, column="SYMBOL", 
                     keytype="ENTREZID", multiVals="first")
 
@@ -180,94 +181,201 @@ module_overlap <- readRDS(file)
 
 # Load the data.
 dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(dir,"SIF.csv",sep="/")
-sif <- read.csv(file)
+file <- paste(dir,"SIF.xlsx",sep="/")
+sif <- read_excel(file,sheet = 1)
+
+# Node attributes. 
+nodes <- data.frame(Entrez = unlist(meta$entrez[!is.na(meta$entrez)]),
+                    Symbol = unlist(meta$gene[!is.na(meta$entrez)]),
+                    Module = unlist(meta$module[!is.na(meta$entrez)]),
+                    MetaModule = unlist(meta$metaModule[!is.na(meta$entrez)]))
+nodes$MetaModule <- paste0("MM",nodes$MetaModule)
+
+# Add hex colors for modules.
+colors <- unlist(lapply(as.list(meta$module),function(x) col2hex(x)))
+colors <- colors[!is.na(meta$entrez)]
+nodes$ModulColor <- colors
 
 # Make igraph object. 
-g <- graph_from_data_frame(sif, directed = FALSE)
+g <- graph_from_data_frame(d=sif, vertices=nodes, directed=FALSE)
+
+# Coerce to simple graph--remove duplicate edges and self-loops.
+g <- simplify(g)
+is.simple(g)
 
 # Number of nodes and edges. 
 length(V(g))
 length(E(g))
 
 #-------------------------------------------------------------------------------
-#' ## Build SIF and NOA files.
+#' ## Generate module subgraphs.
 #-------------------------------------------------------------------------------
 
-# Add Tissue.Genotype column names to results.
-cols <- do.call(rbind,strsplit(names(results),"\\."))[,-2]
-col_names <- apply(cols, 1, function(x) paste(x,collapse="."))
+# Generate subgraphs for all modules.
+module_membership <- split(meta$entrez,meta$module)
 
-# Loop to rename columns of dataframes in list. 
-for (i in 1:length(results)){
-  df <- results[[i]]
-  y <- col_names[i]
-  colnames(df)[c(4:ncol(df))] <- paste(y,colnames(df)[c(4:ncol(df))])
-  results[[i]] <- df
+# Empty lists for output of loop
+module_subraphs <- list()
+cc <- list()
+
+# Loop:
+n <- length(module_membership)
+send_to_cytoscape <- FALSE
+
+# Open Cytoscape application.
+#system('"C:/Program Files/Cytoscape_v3.6.1/Cytoscape.exe"', wait = FALSE)
+if (send_to_cytoscape == TRUE){ cytoscapePing() }
+
+for (i in 1:n){
+  
+  # Subset of nodes.
+  # Insure that all are in graph.
+  v <- module_membership[[i]]
+  v <- v[v %in% names(V(g))]
+  
+  # Make subgraph
+  subg <- induced_subgraph(g,v)
+  module_subraphs[[i]] <- subg
+  
+  # Calculate subg's mean clustering coefficent or transitivity.
+  # This is a measure of a graphs interconnectedness. 
+  cc[[i]] <- mean(transitivity(subg, type = "local", isolates = "zero"))
+  
+  # Send to cytoscape.
+  if (send_to_cytoscape == TRUE){
+    print(paste("Working on subgraph", i,"..."))
+    # Change vertex names to gene symbol. 
+    idx <- match(vertex_attr(subg)$name,meta$entrez)
+    subg <- set.vertex.attribute(subg,"name",value = meta$gene[idx])
+    color <- col2hex(names(module_membership)[i])
+    setNodeShapeDefault('Ellipse')
+    lockNodeDimensions(TRUE)
+    quiet(RCy3::createNetworkFromIgraph(subg,names(module_membership)[i]))
+  }
 }
 
-# Bind dataframes in list together.
-df_NOA <- results %>% reduce(left_join, by = c("Uniprot","Entrez","Gene"))
+# Gather clustering coefficients. 
+result <- data.frame(Module = names(module_membership),
+                     MeanClusteringCoefficient = unlist(cc))
 
-# Remove candiate columns.
-df_NOA <- df_NOA[,-grep("candidate",colnames(df_NOA))]
+result$EdgeDensity <- unlist(
+  lapply(module_subraphs,function(x) length(E(x))/length(V(x))))
 
-# Annotate as Cortex.Sig, Genotype.Sig, and Tissue.Genotype.Sig
-idx <- grep("FDR",colnames(df_NOA))
-logic <- df_NOA[,idx] < 0.05
-ids <- paste(sapply(strsplit(colnames(logic)," "),"[",1),"sig",sep = ".")
 
-# Loop to convert TRUE to Tissue.Genotype.Sig
+#-------------------------------------------------------------------------------
+# Evaluate GO Semantic similarity for module subgraphs. 
+
+# Utilize the GOSemSim package to create GO similarity matrixes for module 
+# Subgraphs.
+
+# Build GO database.
+if (!exists("msGO")){ msGO <- godata('org.Mm.eg.db', ont= "MF") }
+
+# empty list for output of loop.
 out <- list()
+n <- length(module_membership)
 
-# Loop through each column to replace 1 with column header (color).
-for (i in 1:ncol(logic)){
-  col_header <- ids[i]
-  temp <- logic[,i]
-  temp[temp] <- col_header
-  out[[i]] <- temp
+# Loop:
+for (i in 1:n){
+  print(paste0("Working on subgraph: ", i, "..."))
+  goSim <- mgeneSim(genes = module_membership[[i]],
+                    semData = msGO, measure="Wang",verbose=FALSE)
+  # Evaluate centrality as mean clustering coefficient in the GO similarity graph. 
+  subg <- graph_from_adjacency_matrix(goSim, mode = "undirected", weighted = TRUE)
+  cc <- mean(transitivity(subg, type = "local", isolates = "zero"))
+  out[[i]] <- list(goSim = goSim, subg = subg, Centrality = cc)
 }
 
-# Bind togehter, replace FALSE, add column names. 
-out <- do.call(cbind,out)
-out[out==FALSE] <- "NA"
-colnames(out) <- paste0("cat",c(1:ncol(out)))
+# Clean up results. 
+names(out) <- names(module_membership)
+goCentrality <- data.frame(Centrality = do.call(rbind, sapply(out,"[",3)))
+rownames(goCentrality) <- gsub(".Centrality","",rownames(goCentrality))
 
-# Add to NOA table. 
-df_NOA <- cbind(df_NOA,out)
+head(goCentrality)
 
-# Add WGCNA modules to NOA.
-gene <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",1)
-uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
+# Add to results...
+result$goCentrality <- goCentrality$Centrality
 
-# Map Uniprot to entrez.
-entrez <- mapIds(org.Mm.eg.db, keys=uniprot, column="ENTREZID", 
-                 keytype="UNIPROT", multiVals="first")
-table(is.na(entrez))
 
-# Map un-mapped genes to entrez.
-entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db, keys=gene[is.na(entrez)], 
-                                column="ENTREZID", keytype="SYMBOL", multiVals="first")
-table(is.na(entrez)) # Good only 3 remaining ids are not mapped.
+#-------------------------------------------------------------------------------
 
-# Check, meta and cleanDat in matching order.
-all(meta$protein == rownames(cleanDat))
+# Build GO database.
+if (!exists("msGO")){ msGO <- godata('org.Mm.eg.db', ont= "MF")}
+out <- list()
+n <- length(module_membership)
 
-# Add meta modules.
-df_NOA$Module <- net$colors
-df_NOA$MetaModule <- meta$metaModule
+# Evaluate GO similarity for all genes.
+build_goSim <- FALSE
 
-# Change meta Module ids to MM#
-df_NOA$MetaModule <- paste0("MM",df_NOA$MetaModule)
+if (build_goSim == TRUE){
+  goSim <- mgeneSim(genes = unlist(module_membership),
+                    semData = msGO, measure="Wang",verbose=FALSE)
+  file <- paste(Rdatadir,"goMFSim.Rds",sep="/")
+  saveRDS(goSim,file)
+}else{
+  # Read from file. 
+  file <- paste(Rdatadir,"goMFSim.Rds",sep="/")
+  goSim <- readRDS(file)
+}
 
-# Add hex colors for modules.
-colors <- unlist(lapply(as.list(df_NOA$Module),function(x) col2hex(x)))
-df_NOA$Module_color <- colors
+# NetRep input:
+# GO Similarity matrix.
+adjm <- goSim
+idx <- match(rownames(adjm),meta$entrez)
+rownames(adjm) <- meta$protein[idx]
+colnames(adjm) <- meta$protein[idx]
 
-# Save to csv.
-dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(dir,"NOA.csv",sep="/")
-write.csv(df_NOA,file, row.names = FALSE)
+# Insure adjm and data have matching dimensions.
+idx <- rownames(cleanDat) %in% rownames(adjm)
+subDat <- cleanDat[idx,]
+
+# Sort subDat so that it matches adjm.
+idx <- match(rownames(adjm),rownames(subDat))
+subDat <- subDat[idx,]
+all(rownames(subDat)==rownames(adjm))
+
+# Correlation matrix.
+r <- bicor(t(subDat)) # Data has already be log-transformed.
+
+# Module labels.
+idx <- match(rownames(subDat),meta$protein)
+colors <- meta$module[idx]
+
+data_list <- list(data = t(subDat))  # The protein expression data. 
+correlation_list <- list(data = r)     # The bicor correlation matrix. 
+network_list <- list(data = adjm)      # The go similarity matrix.   
+module_labels <- colors               # Module labels. 
+names(module_labels) <- rownames(subDat)
+
+# Try self-preservation test.
+preservation <- NetRep::modulePreservation(
+  network = network_list, 
+  data = data_list, 
+  correlation = correlation_list, 
+  moduleAssignments = list(data = module_labels),
+  modules = NULL, 
+  backgroundLabel = "grey", 
+  discovery = "data", 
+  test = "data",
+  selfPreservation = TRUE, 
+  #nThreads-1, 
+  nPerm = 10000, 
+  null = "overlap", 
+  alternative = "greater", 
+  simplify = TRUE,
+  verbose = TRUE)
+
+# Thre preservation results may no be reproducible...
+
+# Collect stats. 
+preservation <- preservation[c("observed","p.values")]
+df <- as.data.frame(cbind(preservation$p.values,preservation$observed))
+goSim_preservation <- df[,grepl("avg.weight",colnames(df))]
+colnames(goSim_preservation) <- c("avg.weight.p.value","avg.weigth.obs")
+goSim_preservation$p.adj <- p.adjust(goSim_preservation$avg.weight.p.value, 
+                                     method = "bonferroni")
+goSim_preservation$FDR <- p.adjust(goSim_preservation$avg.weight.p.value, 
+                                     method = "BH")
 
 #-------------------------------------------------------------------------------
 #' ## Find first degree neighbors with 2+ degree to seed nodes.
@@ -278,21 +386,21 @@ entrez <- as.list(meta$gene)
 genes <- as.list(meta$entrez)
 names(entrez) <- meta$entrez
 names(genes) <- meta$gene
-
-# Create igraph object.
-g <- graph_from_data_frame(sif[,c(1,2,4,5)], directed = FALSE)
+head(entrez,2); head(genes,2)
 
 seeds <- list()
 network_size <- list()
 degree_to_stay <- 2
+send_to_cytoscape = FALSE
 
 # Loop to create networks.
-for (i in 1:length(module_overlap)){
+# Cytoscape should be open before proceeding!
+for (i in 2:length(module_overlap)){
   
   # Get subset of nodes (v) in modules overlap.
   # We will use these to seed a network.
   v <- meta$entrez[meta$module %in% module_overlap[[i]]]
-  
+  length(v)
   # Insure that all nodes are in the network.
   #table(v %in% vertex_attr(g, "name"))
   v <- v[v %in% vertex_attr(g, "name")]
@@ -305,10 +413,6 @@ for (i in 1:length(module_overlap)){
                          nodes = v,
                          mode = "all", 
                          mindist = 0)
-  # Number of nodes in each network.
-  #unlist(lapply(subg,function(x) length(V(x))))
-  #sum(unlist(lapply(subg,function(x) length(V(x)))))
-
   # Combine subgraphs, union. 
   uniong <- do.call(igraph::union,subg)
 
@@ -329,37 +433,23 @@ for (i in 1:length(module_overlap)){
   out <- as.character(genes[grep("Ywha*",names(genes))])
   dist[rownames(dist) %in% out,] <- 0
   
-  # Calculate closeness centrality.
-  cc <- closeness(uniong, 
-                  vids = V(uniong), 
-                  mode = "all",
-                  weights = NULL, 
-                  normalized = TRUE)
-  # Add to dist.
-  dist$closeness <- cc[match(rownames(dist),names(cc))]
-  
   # Calculate degree to seed nodes (sum).
   dist$SeedDegree <- apply(dist[,-ncol(dist)],1,function(x) sum(x))
   
-  # We will keep nodes that have at least 2 degrees with seed nodes.
+  # We will keep nodes that have at least 2 connections with seed nodes.
   keep <- dist$SeedDegree>=degree_to_stay
   dist <- dist[keep,]
-  
-  # Rank by closeness centrality. 
-  dist$ccRank <- rank(dist$closeness)/nrow(dist)
-  
-  # Keep top 25%
-  dist <- dist[order(dist$ccRank,decreasing = TRUE),]
-  n <- round(.25 * nrow(dist))
-  sub <- dist[c(1:n),]
-  keepers <- unique(c(rownames(sub),v))
+  keepers <- unique(c(v,rownames(dist)))
   subg <- induced_subgraph(g,keepers)
   network_size[[i]] <- length(V(subg))
   
   # Send to cytoscape.
-  cytoscapePing()
-  print(paste("Working on subgraph", i,"..."))
-  quiet(RCy3::createNetworkFromIgraph(subg,names(module_overlap)[i]))
+  if (send_to_cytoscape == TRUE){
+    cytoscapePing()
+    print(paste("Working on subgraph", i,"..."))
+    quiet(RCy3::createNetworkFromIgraph(subg,names(module_overlap)[i]))
+  }
+  # Status message. 
   if (i==length(module_overlap)){print("Complete!")}
 }
 
@@ -367,8 +457,9 @@ for (i in 1:length(module_overlap)){
 result <- data.frame(Seed_Number = unlist(lapply(seeds,function(x) length(x))),
                      Network_Size = unlist(network_size))
 
+
 #-------------------------------------------------------------------------------
-#' ## PPI graph of WGCNA meta Module communities.
+#' ## PPI graph of modules...
 #-------------------------------------------------------------------------------
 
 # Build data frame.
