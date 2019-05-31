@@ -191,6 +191,43 @@ sample_info <- sample_info[order(sample_info$Order), ]
 raw_peptide <- cleanPD(data_PD, sample_info)
 
 #-------------------------------------------------------------------------------
+#' ## Examine an example peptide.
+#-------------------------------------------------------------------------------
+
+dat <- subset(raw_peptide,grepl("Dlg4",raw_peptide$Description))
+rownames(dat) <- paste(dat$Accession,dat$Sequence,c(1:nrow(dat)),sep="_")
+idy <- grepl("Shank2",colnames(dat))
+dat <- dat[,idy]
+dat <- na.omit(dat)
+
+# Make bar plot for given peptide.
+colIDs <- gsub(",","",sapply(strsplit(colnames(dat),"\\ "),"[",3))
+
+geno <- gsub(",","",sapply(strsplit(colnames(dat),"\\ "),"[",5))
+
+
+n <- sample(nrow(dat),1)
+df <- melt(dat[n,])
+df$Channel <- colIDs
+title <- strsplit(rownames(dat)[n],"_")[[1]][2]
+
+plot <- ggplot(df, aes(x = Channel, y = value, fill = Channel)) + 
+  geom_bar(stat="identity", width = 0.9, position = position_dodge(width = 1)) + 
+  xlab("TMT Channel") + ylab("Intensity") + 
+  ggtitle(title) + 
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+plot
+
+# Save as tiff.
+file <- paste0(outputfigsdir, "/", outputMatName, "_Example_TMT.tiff")
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
+
+#-------------------------------------------------------------------------------
 #' ## Examine peptide and protein level identification overalap.
 #-------------------------------------------------------------------------------
 #' Approximately 40,000 unique peptides cooresponding to ~3,000 proteins are 

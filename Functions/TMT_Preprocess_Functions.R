@@ -1492,10 +1492,11 @@ ggplotPCA <- function(data_in,traits,colors,title="2D PCA Plot"){
   # Add annotations to PC data frame. 
   PC <- as.data.frame(PC)
   PC$Label <- paste(traits$Model,traits$SampleType,sep="_")[match(rownames(PC),traits$ColumnName)]
+  
   # Generate plot.
   plot <- ggplot(PC, aes(x=PC1, y=PC2)) + 
     geom_text(aes(label = Label), color = colors) +  
-    ggtitle(title) +
+    ggtitle(title) + 
     theme(
       plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
@@ -1556,7 +1557,7 @@ ggplotVolcanoPlot <- function(data_in,title, cutoff = log2(1.25)){
     geom_hline(yintercept = 1.30103, linetype = "dashed", color = "black", size = 0.6) +
     geom_vline(xintercept = cutoff, linetype = "dashed", color = "black", size = 0.6) +
     geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) + 
-    ggtitle(title) + xlab("Log2FC") + ylab("-Log10PValue") + 
+    ggtitle(title) + xlab("Log2FoldChange") + ylab("-Log10PValue") + 
     theme(
       plot.title = element_text(hjust = 0.5, color="black", size=14, face="bold"),
       axis.title.x = element_text(color="black", size=11, face="bold"),
@@ -2200,7 +2201,7 @@ impute_Peptides <- function(data_in, groups, method, qc_threshold=0, bio_thresho
 #-------------------------------------------------------------------------------
 # Function ggplotVerboseBoxplot
 ggplotVerboseBoxplot <- function(x,g,levels,contrasts,color,stats=FALSE, 
-                                 method = "dunnett", posthoc = "none"){
+                                 method = "dunnett"){
   
   # Bind data as data frame for ggplot. 
   df <- as.data.frame(cbind(x,g))
@@ -2251,37 +2252,44 @@ ggplotVerboseBoxplot <- function(x,g,levels,contrasts,color,stats=FALSE,
     # keep only contrasts of interest.
     Dtest <- Dtest[Dtest$Comparison %in% contrasts,]
     # Add p.adj
-    Dtest$P.adj <- p.adjust(Dtest$pval,method = posthoc)
+    Dtest$P.adj <- p.adjust(Dtest$pval,method = "BH")
   }else{
     print('Please specify a post-hoc test (posthoc = dunn or dunnett).')
   }
   
   # Prepare annotation df.
   stats.df <- Dtest
+  stats.df$P.adj <- as.numeric(stats.df$P.unadj)*8 # BH adjustment for 8 comparisons.
   stats.df$symbol <- ""
   stats.df$symbol[stats.df$P.adj<0.05] <- "*"
   stats.df$symbol[stats.df$P.adj<0.01] <- "**"
   stats.df$symbol[stats.df$P.adj<0.001] <- "***"
   stats.df$group1 <- gsub(" ","",sapply(strsplit(stats.df$Comparison,"-"),"[",1))
   stats.df$group2 <- gsub(" ","",sapply(strsplit(stats.df$Comparison,"-"),"[",2))
-  stats.df$ypos <- 1.1*max(as.numeric(df$x))
+  stats.df$ypos <- 1.05*max(as.numeric(df$x))
   
-  # Generate boxplot. 
+    # Generate boxplot. 
   plot <- ggplot(df, aes(x=g, y=as.numeric(x), fill=g)) + 
     geom_boxplot() + 
-    scale_fill_manual(values = rep(color,length(unique(g)))) + geom_point(color = "white", size = 2, pch=21, fill="black") + 
-    ggtitle(paste(color," Kruskal-Wallis P-Value = ",pvalue,sep="")) + xlab(NULL) + 
-    ylab("EigenProtein Expression") +
+    scale_fill_manual(values = rep(color,length(unique(g)))) + geom_point(color = "white", size = 1, pch=21, fill="black") + 
+    ggtitle(paste(color," KW P-Value = ",pvalue,sep="")) + xlab(NULL) + 
+    ylab("Summary Expression") +
     theme(
       legend.position = "none",
       plot.title = element_text(hjust = 0.5, color=sigcolor, size=11, face="bold"),
       axis.title.x = element_text(color="black", size=11, face="bold"),
-      axis.title.y = element_text(color="black", size=11, face="bold"),
+      axis.title.y = element_text(color="black", size=10, face="bold"),
       axis.text.x = element_text(angle = 45, hjust = 1))
   
+  # Extract ggplot build information to adjust y axis.
+  build <- ggplot_build(plot)
+  y_lims <- build$layout$panel_scales_y[[1]]$range$range
+  y_lims[2] <- 1.15*y_lims[2]
+  plot <- plot + ylim(y_lims)
+  
   # Add asterisks indicating significance.
-  plot <- plot + annotate("text", x = stats.df$group2 , y = stats.df$ypos , 
-                          label = stats.df$symbol, size = 8)
+  plot <- plot + annotate("text", x = stats.df$group2 , y = stats.df$ypos, 
+                          label = stats.df$symbol, size = 6)
   
   results <- list(plot,KWtest,stats.df)
   names(results) <- c("plot","Kruskal-Wallis",method)
@@ -2521,7 +2529,7 @@ mixcolors <- function(color1,color2,ratio1=1,ratio2=1,plot=TRUE){
 
 #-------------------------------------------------------------------------------
 # Define function: ggplotProteinScatterPlot
-ggplotProteinScatterPlot <- function(exprDat,prot1,prot2){
+ggplotProteinScatterPlot <- function(exprDat,prot1,prot2, annotate_stats = FALSE){
   
   # Get data for proteins of interest.
   x <- as.numeric(exprDat[rownames(exprDat)==prot1,])
@@ -2541,13 +2549,14 @@ ggplotProteinScatterPlot <- function(exprDat,prot1,prot2){
   slope <- paste("Slope =",round(as.numeric(coef(fit)[2]),3))
   R2 <- paste("R2 =", round(stats$bicor,3))
   mytable <- rbind(R2,pvalue,slope)
+  text <- paste0("R² = ", round(stats$bicor,2),", P = ", formatC(stats$p,format="e",digits=2))
   # Generate plot with best fit line.
   plot <- ggplot(df, aes(x = prot1, y = prot2)) + 
     geom_point(color="white",pch= 21, fill="black", size = 2) + 
     geom_abline(intercept=coef(fit)[1],slope=coef(fit)[2], color = "black", linetype = "dashed") + 
-    ggtitle(NULL) + 
-    xlab(paste("Log2(Expression ",prot1,")",sep="")) + 
-    ylab(paste("Log2(Expression ",prot2,")",sep="")) +  
+    ggtitle(text) + 
+    xlab(paste("Log₂(Expression ",strsplit(prot1,"\\|")[[1]][1],")",sep="")) + 
+    ylab(paste("Log₂(Expression ",strsplit(prot2,"\\|")[[1]][1],")",sep="")) +  
     theme(
       plot.title = element_text(hjust = 0.5, color="black", size=11, face="bold"),
       axis.title.x = element_text(color="black", size=11, face="bold"),
@@ -2566,8 +2575,16 @@ ggplotProteinScatterPlot <- function(exprDat,prot1,prot2){
   tab <- tableGrob(mytable, rows=NULL, theme=tt)
   g <- gtable_add_grob(tab, grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
                        t = 1, b = nrow(tab), l = 1, r = ncol(tab))
-  plot <- plot + annotation_custom(g, xmin = xmin-0.75*xdelta, xmax, 
-                                   ymin = ymin+0.75*ydelta, ymax)
+  if (annotate_stats){
+    plot <- plot + annotation_custom(g, xmin = xmin-0.75*xdelta, xmax, 
+                                     ymin = ymin+0.75*ydelta, ymax)
+  }
+  
+  # Add simple annotation in top left corner.
+  #text <- paste0("R² = ", round(stats$bicor,2),", P = ", formatC(stats$p,format="e",digits=2))
+  #plot <- plot + 
+  #  annotate("text", x = xmin+0.15*xdelta, y = ymax-0.05*ydelta, label = text, size = 4)
+  
   return(plot)
 }
 
@@ -2690,7 +2707,7 @@ annotate_stars <- function(plot,stats){
   label.df$ypos <- 1.01 * max(plot$data$Intensity)
   # Add asterisks indicating significance.
   plot <- plot + annotate("text", x = label.df$Group , y = label.df$ypos, 
-                          label = label.df$symbol, size = 8)
+                          label = label.df$symbol, size = 4)
   return(plot)
 }
 
@@ -2791,8 +2808,8 @@ ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
   log.p.dk = as.numeric(log10(p.dk + 1e-09))
   lm1 = lm(log.p.dk ~ log.dk)
   
-  title = paste(main, " Scale Free R^2=", as.character(round(summary(lm1)$adj.r.squared, 2)), 
-                ", slope=", round(lm1$coefficients[[2]], 2))
+  title = paste0(main, " Scale Free R2 =", as.character(round(summary(lm1)$adj.r.squared, 2)), 
+                ", slope =", round(lm1$coefficients[[2]], 2))
   
   OUTPUT = data.frame(scaleFreeRsquared = round(summary(lm1)$adj.r.squared,2), 
                       slope = round(lm1$coefficients[[2]], 2))

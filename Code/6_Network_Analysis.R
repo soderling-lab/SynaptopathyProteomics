@@ -165,13 +165,16 @@ meta <- data$meta
 meta$gene <- mapIds(org.Mm.eg.db, keys=meta$entrez, column="SYMBOL", 
                     keytype="ENTREZID", multiVals="first")
 
+# Add uniprot.
+meta$uniprot <- sapply(strsplit(meta$protein,"\\|"),"[",2)
+
 # Load TAMPOR statistical results.
 file <- paste(outputtabs,"Final_TAMPOR",
               "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx", sep = "/")
 results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
 names(results) <- excel_sheets(file)
 
-# Load convergent modules. #WHERE HAS THIS FILE GONE?
+# Load convergent modules.
 file <- paste(Rdatadir,"module_overlap.Rds", sep="/")
 module_overlap <- readRDS(file)
 
@@ -207,9 +210,39 @@ is.simple(g)
 length(V(g))
 length(E(g))
 
+# Number of connected components.
+connected_components <- components(g, mode = c("weak", "strong"))
+connected_components$csize
+
+#-------------------------------------------------------------------------------
+#' Significantly dysregulated proteins...
+#-------------------------------------------------------------------------------
+
+# Build a df with statistical results.
+stats <- lapply(results,function(x) 
+  as.data.frame(cbind(Uniprot=x$Uniprot,FDR=x$FDR)))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = "Uniprot")
+colnames(df)[c(2:ncol(df))] <- names(stats)
+idx <- match(df$Uniprot,meta$uniprot)
+df <- add_column(df,Entrez = meta$entrez[idx], .after = 1)
+
+# Proteins with any significant change.
+df$sigProt <- apply(df,1,function(x) any(x[c(3:10)]<0.05))
+
+sum(df$sigProt) # Total
+round(100*sum(df$sigProt)/nrow(df),3) # Percent
+
+# Create table for cytoscape.
+file <- paste(outputtabsdir,"SigProgs.csv",sep = "/")
+write.csv(df,file)
+
 #-------------------------------------------------------------------------------
 #' ## Generate module subgraphs.
 #-------------------------------------------------------------------------------
+
+# Send graphs to cytoscape?
+send_to_cytoscape <- FALSE
 
 # Generate subgraphs for all modules.
 module_membership <- split(meta$entrez,meta$module)
@@ -220,7 +253,6 @@ cc <- list()
 
 # Loop:
 n <- length(module_membership)
-send_to_cytoscape <- FALSE
 
 # Open Cytoscape application.
 #system('"C:/Program Files/Cytoscape_v3.6.1/Cytoscape.exe"', wait = FALSE)
@@ -261,62 +293,132 @@ result <- data.frame(Module = names(module_membership),
 result$EdgeDensity <- unlist(
   lapply(module_subraphs,function(x) length(E(x))/length(V(x))))
 
-
 #-------------------------------------------------------------------------------
-# Evaluate GO Semantic similarity for module subgraphs. 
-
-# Utilize the GOSemSim package to create GO similarity matrixes for module 
-# Subgraphs.
+#' ## Evaluate GO semantic similarity (~biological cohesiveness) for all modules 
+#-------------------------------------------------------------------------------
+# Utilize the GOSemSim package to create GO similarity matrixes for all module 
+# subgraphs.
 
 # Build GO database.
-if (!exists("msGO")){ msGO <- godata('org.Mm.eg.db', ont= "MF") }
+if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
+if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
+if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
 
-# empty list for output of loop.
+msGO <- list(msGOMF,msGOBP,msGOCC)
+names(msGO) <- c("MF","BP","CC")
+
+# Empty list for output of loop.
 out <- list()
 n <- length(module_membership)
 
 # Loop:
 for (i in 1:n){
   print(paste0("Working on subgraph: ", i, "..."))
-  goSim <- mgeneSim(genes = module_membership[[i]],
-                    semData = msGO, measure="Wang",verbose=FALSE)
+  goSim <- lapply(msGO, function(x)
+    mgeneSim(genes = module_membership[[i]], 
+             semData = x, 
+             measure="Wang",
+             verbose=FALSE))
+  
+  # Calculate average edge weight.
+  my_func <- function(x){
+    diag(x) <- NA
+    aew <- mean(x,na.rm=TRUE)
+    return(aew)
+  }
+  foo <- lapply(goSim, function(x) my_func(x))  
+  out[[i]] <- foo
+  
   # Evaluate centrality as mean clustering coefficient in the GO similarity graph. 
-  subg <- graph_from_adjacency_matrix(goSim, mode = "undirected", weighted = TRUE)
-  cc <- mean(transitivity(subg, type = "local", isolates = "zero"))
-  out[[i]] <- list(goSim = goSim, subg = subg, Centrality = cc)
-}
+  #subg <- lapply(goSim, function(x) 
+  #  graph_from_adjacency_matrix(x, mode = "undirected", weighted = TRUE, diag = FALSE))
+  #cc <- lapply(subg, function(x)
+  #  transitivity(x, type = "average", isolates = "zero"))
+  #out[[i]] <- cc
+  }
 
-# Clean up results. 
-names(out) <- names(module_membership)
-goCentrality <- data.frame(Centrality = do.call(rbind, sapply(out,"[",3)))
-rownames(goCentrality) <- gsub(".Centrality","",rownames(goCentrality))
+# Extract the results...
+GO_Similarity <- data.frame(
+  MF = unlist(sapply(out,"[", 1)),
+  BP = unlist(sapply(out,"[", 2)),
+  CC = unlist(sapply(out,"[", 3)))
 
-head(goCentrality)
+rownames(GO_Similarity) <- names(module_membership)
 
-# Add to results...
-result$goCentrality <- goCentrality$Centrality
+GO_Similarity$Module <- names(module_membership)
+GO_Similarity$ModuleCC <- result$MeanClusteringCoefficient
 
+# Examine the relationship between module size and function coherence.
+module_sizes <- as.data.frame(table(net$colors))
+idx <- match(GO_Similarity$Module,module_sizes$Var1)
+
+df <- data.frame(Module = GO_Similarity$Module,
+                 GOCoherence = GO_Similarity$MF,
+                 Size = module_sizes$Freq[idx])
+df <- df[!df$Module=="grey",]
+
+plot(df$GOCoherence,df$Size)
+cor(df$GOCoherence,df$Size,method = "spearman")
 
 #-------------------------------------------------------------------------------
+#' ## Build complete GO semantic similarity graph.
+#-------------------------------------------------------------------------------
+# Build a GO semaintic similarity graph or load it from file.
 
 # Build GO database.
-if (!exists("msGO")){ msGO <- godata('org.Mm.eg.db', ont= "MF")}
-out <- list()
-n <- length(module_membership)
+if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
+if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
+if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
+
+# Choose a GO ontology.
+type <- 1 # MF, BP, CC
+ontology <- c("MF","BP","CC")[type]
+msGO <- list(msGOMF,msGOBP,msGOCC)[[type]]
 
 # Evaluate GO similarity for all genes.
-build_goSim <- FALSE
+build_GO_similarity_network <- FALSE
 
-if (build_goSim == TRUE){
+if (build_GO_similarity_network == TRUE){
   goSim <- mgeneSim(genes = unlist(module_membership),
-                    semData = msGO, measure="Wang",verbose=FALSE)
-  file <- paste(Rdatadir,"goMFSim.Rds",sep="/")
+                    semData = msGO, measure="Wang",verbose=TRUE)
+  file <- paste0(Rdatadir,"/","GO_similarity_network","_",ontology,".Rds")
   saveRDS(goSim,file)
 }else{
   # Read from file. 
-  file <- paste(Rdatadir,"goMFSim.Rds",sep="/")
+  print(paste("Loaded GO",ontology, "network from file!"))
+  file <- paste0(Rdatadir,"/","GO_similarity_network","_",ontology,".Rds")
   goSim <- readRDS(file)
 }
+
+#-------------------------------------------------------------------------------
+#' ## Modularity of the GO similarity graph.
+#-------------------------------------------------------------------------------
+
+# The GO semantic similarity matrix.
+goSim[1:5,1:5]
+
+# Remove grey. 
+out <- subset(meta$entrez,meta$module=="grey")
+idx <- rownames(goSim) %in% out
+dm <- goSim[!idx,!idx]
+
+gs <- graph_from_adjacency_matrix(dm, mode = "undirected", weighted = TRUE)
+
+# Vector v of node module membership.
+nodes <- get.vertex.attribute(gs,"name")
+idx <- match(nodes,meta$entrez)
+v <- as.numeric(as.factor(meta$module[idx]))
+
+# Modularity...
+modularity(gs, membership = v, weights = edge_attr(gs, "weight"))
+
+#-------------------------------------------------------------------------------
+# Test preservation of module biological coherence.
+#-------------------------------------------------------------------------------
+#  Consider a permutation test with 99 permutations, 
+#  5 reaching the statistically significant threshold. 
+#  Assume a two group experiment with 6 in each group.
+#  Input total.nperm=462
 
 # NetRep input:
 # GO Similarity matrix.
@@ -342,12 +444,12 @@ idx <- match(rownames(subDat),meta$protein)
 colors <- meta$module[idx]
 
 data_list <- list(data = t(subDat))  # The protein expression data. 
-correlation_list <- list(data = r)     # The bicor correlation matrix. 
-network_list <- list(data = adjm)      # The go similarity matrix.   
-module_labels <- colors               # Module labels. 
+correlation_list <- list(data = r)   # The bicor correlation matrix. 
+network_list <- list(data = adjm)    # The go similarity matrix.   
+module_labels <- colors              # Module labels. 
 names(module_labels) <- rownames(subDat)
 
-# Try self-preservation test.
+# Calculate module statistics. 
 preservation <- NetRep::modulePreservation(
   network = network_list, 
   data = data_list, 
@@ -359,23 +461,16 @@ preservation <- NetRep::modulePreservation(
   test = "data",
   selfPreservation = TRUE, 
   #nThreads-1, 
-  nPerm = 10000, 
+  #nPerm = 0, 
   null = "overlap", 
   alternative = "greater", 
   simplify = TRUE,
   verbose = TRUE)
 
-# Thre preservation results may no be reproducible...
-
 # Collect stats. 
 preservation <- preservation[c("observed","p.values")]
-df <- as.data.frame(cbind(preservation$p.values,preservation$observed))
-goSim_preservation <- df[,grepl("avg.weight",colnames(df))]
-colnames(goSim_preservation) <- c("avg.weight.p.value","avg.weigth.obs")
-goSim_preservation$p.adj <- p.adjust(goSim_preservation$avg.weight.p.value, 
-                                     method = "bonferroni")
-goSim_preservation$FDR <- p.adjust(goSim_preservation$avg.weight.p.value, 
-                                     method = "BH")
+df <- data.frame(p.value = preservation$p.values[,1])
+df$p.adjust <- p.adjust(df$p.value, method = "bonferroni")
 
 #-------------------------------------------------------------------------------
 #' ## Find first degree neighbors with 2+ degree to seed nodes.
@@ -456,7 +551,6 @@ for (i in 2:length(module_overlap)){
 # Number of seed nodes for each graph.
 result <- data.frame(Seed_Number = unlist(lapply(seeds,function(x) length(x))),
                      Network_Size = unlist(network_size))
-
 
 #-------------------------------------------------------------------------------
 #' ## PPI graph of modules...

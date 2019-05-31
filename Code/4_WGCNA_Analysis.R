@@ -197,15 +197,19 @@ if (estimatePower==TRUE){
   
   # Save table as tiff.
   file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology_Table.tiff")
-  ggsave(file,table)
+  ggsave(file,table, width = 3, height = 2.5, units = "in")
   
   # Figure. ggplotScaleFreeFit() generates three plots.
   plots <- ggplotScaleFreeFit(sft)
   plots$Grid
   
   # Save as tiff.
-  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology.tiff")
-  ggsave(file,plots$Grid)
+  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology_1.tiff")
+  ggsave(file,plots$ScaleFreeFit, width = 3, height = 2.5, units = "in")
+  
+  # Save as tiff.
+  file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeTopology_2.tiff")
+  ggsave(file,plots$MeanConnectivity, width = 3, height = 2.5, units = "in")
   
   # Save plots and table as PDF.
   #plot_list <- list(table,plots$ScaleFreeFit, plots$MeanConnectivity)
@@ -232,7 +236,31 @@ plot <- fit$ggplot
 plot
 
 # Save fig. 
-file = paste0(outputfigsdir,"/",outputMatName,"ScaleFreeFit",".pdf")
+file <- paste0(outputfigsdir,"/",outputMatName,"ScaleFreeFit",".tiff")
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
+
+# Histogram of k.
+plot <- qplot(df$connectivity, geom="histogram",
+              binwidth=5,  
+              main="Connectivity Histogram", 
+              xlab="Connectivity (k)",
+              ylab="Frequency",
+              fill=I("black"), 
+              col=I("black"), 
+              alpha=0.2) + 
+  scale_x_continuous(limits = c(0,50), expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) + 
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, color="black", size=14, face="bold"),
+    axis.title.x = element_text(color="black", size=11, face="bold"),
+    axis.title.y = element_text(color="black", size=11, face="bold"))
+
+plot 
+
+# Save fig. 
+file <- paste0(outputfigsdir,"/",outputMatName,"Histogram_Connectivity",".tiff")
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
 #-------------------------------------------------------------------------------
 #' ## Build the WPCNA Network.
@@ -312,7 +340,10 @@ nModules_original # 124
 #' ## Enforce module preservation.
 #-------------------------------------------------------------------------------
 #' Remove modules that are not preserved (i.e. have insignificant module 
-#' preservation statistics.)
+#' preservation statistics). The number of random permutations used to generate the
+#' null distributions is increased to 100,000 in order to stabilize the result with 
+#' large number of modules. This computation is expensive and will take several 
+#' minutes.
 #' 
 #+ eval = FALSE
 
@@ -372,10 +403,10 @@ params$PercentGrayNodes <- percent_grey
 # Table of key network stats.
 mytable <- data.frame(
   nNodes = sum(net$colors!="grey"),
-  PercentGrey = params$PercentGrayNodes,
-  nModules = params$nModules,
-  MedianCoherence = round(params$medianModCoherence,3),
-  NetworkModularity = round(params$q2,3))
+  PercentGrey = round(params$PercentGrayNodes,2),
+  nModules = nModules,
+  MedianCoherence = round(params$medianModCoherence,3))
+  #NetworkModularity = round(params$q2,3))
 table <- tableGrob(mytable, rows = NULL)
 grid.arrange(table)
 file <- paste0(outputfigsdir,"/",outputMatName,"Key_Network_Stats.tiff")
@@ -440,6 +471,58 @@ moduleColors <- data.frame(protein = rownames(cleanDat),
 nModules_original
 nModules
 nModules_out
+
+#-------------------------------------------------------------------------------
+#' ## Save/Load the workspace to avoid re-running modulePreservation()
+#-------------------------------------------------------------------------------
+
+# For complete reproducibility, load the workspace image.
+save_workspace = FALSE
+load_workspace = TRUE
+
+file <- paste(Rdatadir,"4_WGCNA_Analysis.RData",sep="/")
+
+# Save the workspace image.
+if (save_workspace){ 
+  print("Saving workspace image!")
+  save.image(file)
+}
+
+# Load the workspace image.
+if (load_workspace){
+  print("Loading workspace image!")
+  load(file)
+}
+
+# Check.
+nModules==113
+
+#-------------------------------------------------------------------------------
+#' ## Build a dictionary like object with mapping to Entrez IDs.
+#-------------------------------------------------------------------------------
+
+# Map uniprot to Entrez. 
+symbol <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",1)
+uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
+
+# Map Uniprot IDs to Entrez IDs:
+entrez <- mapIds(org.Mm.eg.db, 
+                 keys = uniprot, 
+                 column = "ENTREZID", 
+                 keytype = "UNIPROT", 
+                 multiVals = "first")
+
+# Map unmapped genes to entrez.
+entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db, 
+                                keys = symbol[is.na(entrez)], 
+                                column = "ENTREZID", 
+                                keytype = "SYMBOL", 
+                                multiVals = "first")
+sum(is.na(entrez))
+
+# Create dictionary. 
+proteins <- as.list(entrez)
+names(proteins) <- rownames(cleanDat)
 
 #-------------------------------------------------------------------------------
 #' ## Visualize the WGCNA adjaceny network.
@@ -555,13 +638,14 @@ plot <- ggplot(df, aes(x = Color, y = Size, fill = Color)) + geom_col() +
         plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
         axis.title.x = element_text(color = "black", size = 11, face = "bold"),
         axis.text.x = element_blank(), axis.ticks.x=element_blank(),
-        axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-        panel.border = element_rect(colour = "black", fill=NA, size=1.5))
+        axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+        #panel.border = element_rect(colour = "black", fill=NA, size=1.5))
 plot
 
 # Build stats annotation.
 stats <- as.matrix(summary(df$Size))
 df <- add_column(as.data.frame(stats),rownames(stats),.before=1)
+df$V1 <- round(df$V1,1)
 tt <- ttheme_default(base_size = 11, core=list(bg_params = list(fill = "white")))
 tab <- tableGrob(df, cols = NULL, rows=NULL, theme=tt)
 g <- gtable_add_grob(tab, grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
@@ -576,13 +660,16 @@ ymax <- pos$ymax
 
 # Add annotation.
 # fixme: Should remove grey bar!
-plot <- plot + annotation_custom(g, xmin = xmin, xmax = xmax, 
-                                 ymin = ymin, ymax = ymax)
-plot
+plot 
+grid.arrange(g)
+
+# Save table.
+file <- paste0(outputfigsdir,"/",outputMatName,"Module_Sizes_table.tiff")
+ggsave(file,g, width = 3, height = 2.5, units = "in")
 
 # Save as tiff.
 file <- paste0(outputfigsdir,"/",outputMatName,"Module_Sizes.tiff")
-ggsave(file,plot)
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
 #-------------------------------------------------------------------------------
 #' ## Examine the pairwise correlation between proteins.
@@ -599,12 +686,16 @@ R <- R[order(R$Bicor,decreasing=TRUE),]
 prots <- as.list(rownames(cleanDat))
 names(prots) <- rownames(cleanDat)
 
-prot1 <- prots$`Erc2|Q6PH08`
-prot2 <- prots$`Rimbp2|Q80U40`
+prot1 <- prots$`Rogdi|Q3TDK6`
+prot2 <- prots$`Dmxl2|Q8BPN8`
 
 # Generate a protein scatter plot.
 plot <- ggplotProteinScatterPlot(cleanDat,prot1,prot2)
 plot
+
+# Save as tiff.
+file <- paste0(outputfigsdir,"/",outputMatName,"Protein_Scatterplot.tiff")
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
 #-------------------------------------------------------------------------------
 #' ## Prepare Numeric metadata for WGCNA analysis. 
@@ -911,6 +1002,7 @@ write.csv(metaModule_df,file)
 #' ## Show that the expression of interacting proteins are highly correlated. 
 #-------------------------------------------------------------------------------
 
+# Should plots be saved?
 saveplots = TRUE
 
 # Load simple interaction file (SIF). An edge list of known PPIs among all 
@@ -983,24 +1075,25 @@ plot <- ggplot(df, aes(x=group, y=bicor, fill=group)) +
 # Annotate with Wilcoxon Rank sum p-value.
 wrs <- wilcox.test(y[,1], x[,1],alternative = "greater")
 pval <- paste("P =", formatC(wrs$p.value,format="e",digits=2))
-plot <- plot + annotate("text",x = 1.5, y = 1, label = "*", size = 12, color="black") + 
+plot <- plot + 
   ggtitle(paste("Wilcox Rank Sum", pval)) + 
   theme(
     plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
     axis.title.y = element_text(color = "black", size = 11, face = "bold")
   )
+#plot <- plot + annotate("text",x = 1.5, y = 1, label = "*", size = 12, color="black") 
 plot  
 
 # Save to file.
-if (saveplots==TRUE){
-  file <- paste0(outputfigsdir,"/",outputMatName,"InteractingProteinBicorBoxplot.pdf")
-  ggsavePDF(plot,file)
-}
+#if (saveplots==TRUE){
+#  file <- paste0(outputfigsdir,"/",outputMatName,"InteractingProteinBicorBoxplot.pdf")
+#  ggsavePDF(plot,file)
+#}
 
 # Save as tiff.
 file <- paste0(outputfigsdir,"/",outputMatName,"Interacting_Protein_Bicor.tiff")
-ggsave(file,plot)
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
 #-------------------------------------------------------------------------------
 #' ## Calculate module membership (kME). 
@@ -1137,7 +1230,7 @@ my_func <- function(color){
   for (i in 1:3){
     plot <- mhplots[[color]][[i]]
     file <- paste0(outputfigsdir,"/",outputMatName,color,"_",i,"_Module_Hub.tiff")
-    ggsave(file,plot)
+    ggsave(file,plot, width = 3, height = 2.5, units = "in")
   }
 }
 
@@ -1237,9 +1330,9 @@ write.excel(MS_list,file)
 # Another way of assessing module importance may be to examine its enrichment 
 # for differentially expressed proteins (DEPs).
 
-# Insure statistical results are loaded.
 # InterBatch statistical comparisons with EdgeR GLM:
-file <- paste0(rootdir,"/","Tables/Combined/v14_TAMPOR/Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx")
+file <- paste(outputtabs,"Final_TAMPOR",
+              "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx", sep = "/")
 results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
 names(results) <- excel_sheets(file)
 
@@ -1386,7 +1479,8 @@ colnames(pve)[2] <- "PVE"
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = FALSE
+saveplots = TRUE
+savegroups = TRUE
 
 # Calculate Module EigenProteins.
 MEs <- tmpMEs <- data.frame()
@@ -1408,14 +1502,14 @@ groups[grepl("Striatum.WT",groups)] <- "WT.Striatum"
 unique(groups)
 
 # Other groupings...
-groups <- paste(numericMeta$SexType,numericMeta$TissueType,numericMeta$Sample.Model,sep=".")
-groups[grepl("F.*.KO.*",groups)] <- "F.ASD"
-groups[grepl("F.*.HET.*",groups)] <- "F.ASD"
-groups[grepl("M.*.KO.*",groups)] <- "M.ASD"
-groups[grepl("M.*.HET.*",groups)] <- "M.ASD"
-groups[grepl("M.*.WT.*",groups)] <- "M.WT"
-groups[grepl("F.*.WT.*",groups)] <- "F.WT"
-unique(groups)
+#groups <- paste(numericMeta$SexType,numericMeta$TissueType,numericMeta$Sample.Model,sep=".")
+#groups[grepl("F.*.KO.*",groups)] <- "F.ASD"
+#groups[grepl("F.*.HET.*",groups)] <- "F.ASD"
+#groups[grepl("M.*.KO.*",groups)] <- "M.ASD"
+#groups[grepl("M.*.HET.*",groups)] <- "M.ASD"
+#groups[grepl("M.*.WT.*",groups)] <- "M.WT"
+#groups[grepl("F.*.WT.*",groups)] <- "F.WT"
+#unique(groups)
 
 # Calculate Kruskal-Wallis pvalues for all modules (columns of MEs df).
 KWtest <- apply(MEs,2,function(x) kruskal.test(x,as.factor(groups)))
@@ -1437,11 +1531,10 @@ KW_results$p.adj <- p.adjust(as.numeric(KW_results$p.value),method = "bonferroni
 # Benjamini-Hochberg FDR correction. 
 KW_results$FDR <- p.adjust(as.numeric(KW_results$p.value), method = "BH")
 KW_results <- KW_results[order(KW_results$p.value),]
+
 # nsig modules. 
-KWsigModules <- KW_results$Module[KW_results$p.adj<0.05]
-print(paste("nModules with p.adj < 0.05 =", length(KWsigModules)))
-print(paste("nModules with p.adj < 0.10 =", length(KW_results$Module[KW_results$p.adj<0.1])))
-print(paste("nModules with FDR < 0.05 =", length(KW_results$Module[KW_results$FDR<0.05])))
+KWsigModules <- KW_results$Module[KW_results$FDR<0.05]
+print(paste("nModules with KW FDR < 0.05 =", length(KWsigModules)))
 
 # Split Module EigenProtein (MEs) dm into a list of column vectors for lapply. 
 ME_list <- split(as.matrix(MEs), rep(1:ncol(MEs), each = nrow(MEs)))
@@ -1458,8 +1551,9 @@ x <- ME_list[[1]]$x
 g <- ME_list[[1]]$groups
 color <- names(ME_list)[1]
 color
+
 # Define levels for order of bars in plot.
-levels <- c("M.WT","M.ASD","F.WT","F.ASD")
+#levels <- c("M.WT","M.ASD","F.WT","F.ASD")
 levels <- c("WT.Cortex","WT.Striatum",
             "Cortex.KO.Shank2","Striatum.KO.Shank2",
             "Cortex.KO.Shank3","Striatum.KO.Shank3",
@@ -1479,7 +1573,6 @@ contrasts
 plot_data <- ggplotVerboseBoxplot(x,g,levels,contrasts,color,stats=TRUE, 
                                   method = "dunn")
 plot_data$plot
-#plot_data$dunnett
 plot_data$dunn
 
 # Loop through ME_list and generate verboseBoxPlot.
@@ -1519,7 +1612,7 @@ for (i in 1:length(Dtest_stats)){
   Dtest_stats[[i]] <- df
 }
 
-# Number of significant tests.
+# Number of significant post-hoc tests.
 nsig <- do.call(rbind,lapply(Dtest_stats,function(x) sum(x$P.adj<0.05)))
 idx <- match(KW_results$Module,rownames(nsig))
 KW_results$DunnettTestNsig <- nsig[idx,]
@@ -1555,8 +1648,9 @@ idx <- match(data$Module,KW_results$Module)
 data <- add_column(data,KW.P.value = KW_results$p.value[idx],.after = 1)
 data <- add_column(data,KW.FDR = KW_results$FDR[idx],.after = 2)
 
-# Subset only sig
+# Subset only sig... 
 data <- subset(data,data$KW.P.value<0.05)
+data <- subset(data,data$KW.FDR<0.05)
 
 # Count instances of significant change.
 idx <- grep("P.value",colnames(data))[-1] # Remove kw p.value
@@ -1574,14 +1668,15 @@ colnames(dm) <- ids
 data$SigTests <- apply(dm,1,function(x) paste(unique(x),collapse=" "))
 KWdf <- data
 
-# Counts (does not take KW FDR into account)
+# Subset kwdata
+KW_sub <- subset(KW_results,KW_results$FDR<0.05 & KW_results$DunnettTestNsig>0)
+
+# Summarize modules with convergance...
 df <- count(KWdf$SigTests)
 df <- df[-1,]
-
 foo <- split(KWdf,KWdf$SigTests)
 man <- lapply(foo,function(x) unique(x$Module))
-
-module_overlap <- man[-1]
+module_overlap <- man
 
 # Save this to file.
 file <- paste(Rdatadir,"module_overlap.Rds", sep="/")
@@ -1592,26 +1687,140 @@ saveRDS(module_overlap,file)
 names(vbplots) <- sapply(strsplit(names(vbplots),"\\."),"[",1)
 
 # Make a directory for storing all vbplots.
-new_dir <- paste(outputfigsdir,"Vbplots",sep="/")
+new_dir <- paste(outputfigsdir,"VBplot_Groups",sep="/")
 dir.create(new_dir)
 
-# Loop over groups of plots, and save them in common directory. 
-for (i in 1:length(module_overlap)){
-  namen <- sub(" ","",names(module_overlap)[i])
-  namen <- sub("\\ ","_",gsub("\\.","",namen))
-  group <- module_overlap[[i]]
-  output_directory <- paste(new_dir,namen,sep="/")
-  dir.create(output_directory)
-  plot_names <- module_overlap[[i]]
-  # Loop to save plots as individual tiffs.
-  for (k in 1:length(plot_names)){
-    plot_name <- plot_names[k]
-    plot <- vbplots[[plot_name]]
-    file <- paste0(output_directory,"/",plot_name,".tiff")
-    ggsave(file,plot,width = 8.17, height = 5.17)
+# Loop over groups of plots, and save them in common directory.
+if (savegroups == TRUE){
+  print("Saving plots!")
+  for (i in 1:length(module_overlap)){
+    namen <- sub(" ","",names(module_overlap)[i])
+    namen <- sub("\\ ","_",gsub("\\.","",namen))
+    group <- module_overlap[[i]]
+    output_directory <- paste(new_dir,namen,sep="/")
+    dir.create(output_directory)
+    plot_names <- module_overlap[[i]]
+    # Loop to save plots as individual tiffs.
+    for (k in 1:length(plot_names)){
+      plot_name <- plot_names[k]
+      plot <- vbplots[[plot_name]]
+      file <- paste0(output_directory,"/",plot_name,".tiff")
+      ggsave(file,plot,width = 8.17, height = 5.17)
+    }
   }
 }
-    
+
+# Summarize number of post-hoc changes in significant modules...
+cols <- c(1,grep(" P.value",colnames(data)))
+df <- melt(data[,cols], id = "Module")
+colnames(df) <- c("Module","Genotype","P.Value")
+sig_counts <- df %>% group_by(Genotype) %>% 
+  dplyr::summarise(Count = sum(P.Value<0.05))
+sig_counts <- as.data.frame(sig_counts)
+sig_counts$Genotype <- as.character(sig_counts$Genotype)
+sig_counts$Genotype <- sapply(strsplit(sig_counts$Genotype," - "),"[",2)
+sig_counts$Genotype <- gsub(" P.value","", sig_counts$Genotype)
+knitr::kable(sig_counts)
+
+# Save top sig plots...
+for (i in 1:dim(KW_sub)[1]){
+  file <- paste0(outputfigsdir,"/",outputMatName, "_", KW_sub$Module[i],"_verboseBoxplot",".tiff")
+  plot <- vbplots[[KW_sub$Module[i]]]
+  ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
+}
+
+#-------------------------------------------------------------------------------
+#' ## Examine ME network of convergent modules.
+#-------------------------------------------------------------------------------
+
+# Export subset of ME network...
+
+# Get Shank3 and Ube3a modules.
+idx <- grepl("Shank3",names(module_overlap)) & grepl("Ube3a",names(module_overlap))
+mods <- unlist(module_overlap[idx])
+
+sub <- MEnet[rownames(MEnet) %in% mods,colnames(MEnet) %in% mods]
+sub[is.na(sub)] <- 0
+
+# Create igraph.
+subg <- graph_from_adjacency_matrix(sub, mode = "undirected", weighted = TRUE)
+
+# Send to Cytoscape!
+cytoscapePing()
+RCy3::createNetworkFromIgraph(subg,"Shank3_Ube3a_Convergence")
+
+# Map node name to hex colors.
+colors <- unlist(lapply(as.list(names(V(subg))),function(x) col2hex(x)))
+df <- data.frame(NodeColor = colors,
+                 row.names = names(V(subg)))
+
+# Load node attribute table in cytoscape.
+loadTableData(df)
+
+# Set default shape.
+setNodeShapeDefault('ELLIPSE')
+lockNodeDimensions(TRUE)
+
+# Apply perfuse force directed layout.
+#getLayoutNames()
+#getLayoutNameMapping()
+#getLayoutPropertyNames(layout.name = "force-directed")
+#layoutNetwork(layout.name = "force-directed")
+
+# Save the cytoscape file!
+saveSession('Shank3_Ube3a_ME_Network') #.cys
+
+# EXamine hclust of network.
+# Generate distance matrix. 
+idx <- grepl("Shank3",names(module_overlap)) & grepl("Ube3a",names(module_overlap))
+mods <- unlist(module_overlap[idx])
+mods <- unlist(module_overlap)
+
+r <- bicor(MEs[names(MEs) %in% mods])
+diss <- 1 - r
+diag(diss) <- 0
+
+# Perform hierarchical clustering
+hc <- hclust(as.dist(diss), method = "average")
+
+# Generate dendrogram.
+p1 <- ggdendrogram(hc, rotate=FALSE)
+p1
+
+# Cut into two groups.
+groups <- cutree(hc, k = 2)
+groups
+
+# Save as tiff.
+#file <- paste0(outputfigsdir,"/",outputMatName,"Meta_Modules.tiff")
+#ggsave(file,fig)
+
+# Entrez ids and matrix of class labels. 
+entrez <- unlist(proteins)
+idx <- lapply(split(groups,groups),function(x) net$colors %in% names(x))
+classLabels <- apply(as.matrix(do.call(cbind,idx)),2,function(x) as.numeric(x))
+
+# Build a GO annotation collection:
+if (!exists(deparse(substitute(musGOcollection)))){
+  musGOcollection <- buildGOcollection(organism = "mouse")}
+
+# Perform GO Enrichment analysis. 
+GOenrichment <- enrichmentAnalysis(
+  classLabels = classLabels,
+  identifiers = entrez,
+  refCollection = musGOcollection,
+  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
+  threshold = 0.05,
+  thresholdType = "Bonferroni",
+  getOverlapEntrez = TRUE,
+  getOverlapSymbols = TRUE,
+  ignoreLabels = 0)
+
+# Extract and examine the results.
+GOresults <- lapply(GOenrichment$setResults,function(x) x[[2]])
+res1 <- GOresults[[1]]
+res2 <- GOresults[[2]]
+
 #-------------------------------------------------------------------------------
 #' ## VerboseScatter plots.
 #-------------------------------------------------------------------------------
@@ -1755,7 +1964,7 @@ ggsave(file,plot)
 #+ eval = FALSE
 
 # Load GO enrichment results from file?
-load_GOenrichment_from_file <- FALSE
+load_GOenrichment_from_file <- TRUE
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis(). 
 geneNames <- rownames(cleanDat)
@@ -2050,6 +2259,10 @@ saveRDS(data,file)
 #' ## Examine metaModule GO enrichment.
 #-------------------------------------------------------------------------------
 
+
+
+
+
 # Module name should be a color for the plot.
 names(results_metaModuleGOenrichment) <- c("topGO", "blue","red","green")
 
@@ -2065,6 +2278,18 @@ ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.25)
 # Singple plot.
 # Specify the top percent of terms to print with topN. 
 ggplotGOscatter(results_GOenrichment, color = "blue")
+
+# NEed to write ggplotGOscatter again...
+ggplotGOscatter <- function(results_GOenrichment, color, topN){
+  data <- results_GOenrichment[[color]]
+  df <- data.frame(x = data$enrichmentRatio,
+                   y = -1*log10(data$pValue),
+                   size = data$nCommonGenes,
+                   color = data$FDR)
+ plot <- ggplot(df,aes(x=x, y=y, size = size, fill = color)) + geom_point() + 
+   xlab("Fold Enrichment") + ylab("-log10(Pvalue)")
+ plot
+}
 
 # All plots. 
 colors <- as.list(net$colors)

@@ -38,8 +38,15 @@ suppressPackageStartupMessages({
   library(AnnotationDbi)
   library(org.Mm.eg.db)
   library(WGCNA)
+  library(gridExtra)
+  library(cowplot)
+  library(tibble)
   library(TBmiscr)
+
 })
+
+# Globally set ggplots theme.
+ggplot2::theme_set(theme_gray())
 
 #-------------------------------------------------------------------------------
 #' ## Load HitPredict interactions.
@@ -282,6 +289,20 @@ length(V(graph)) # number of vertices (nodes).
 graph <- simplify(graph)
 is_simple(graph)
 
+# Summarize basic properties of the graph.
+mytable <- data.frame(Nodes = formatC(length(V(graph)),format="d", big.mark=","),
+                      Edges = formatC(length(E(graph)),format="d", big.mark=","))
+table <- tableGrob(mytable, rows = NULL)
+grid.arrange(table)
+
+# Save
+outputfigsdir <- "D:/Documents/R/Synaptopathy-Proteomics/Figures/Combined/Final_WGCNA_Analysis"
+file <- paste0(outputfigsdir,"/","PPI_Network_properties.tiff")
+ggsave(file,table,width = 2, height = 2)
+
+# Mean path length.
+round(mean_distance(graph, directed = FALSE),2)
+
 # Calculate node connectivity (degree).
 connectivity <- degree(graph, loops = FALSE)
 head(connectivity)
@@ -289,9 +310,17 @@ head(connectivity)
 # Evaluate scale free fit with WGCNA function scaleFreePlot()
 plot <- ggplotScaleFreePlot(connectivity, nBreaks = 10)$ggplot
 plot
+
 # The synaptic proteome exhibits a scale free topology!
 
+# Save as tiff.
+file <- paste0(outputfigsdir,"/","PPI_Network_ScaleFreeFit.tiff")
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
-
-
+# Gen Louvain Communities.
+m <- cluster_louvain(graph, weights = NULL)
+df <- data.frame(Node = m$names,
+                 Community = m$membership)
+length(unique(df$Community))
+table(df$Community)
 

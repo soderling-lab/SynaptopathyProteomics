@@ -588,7 +588,12 @@ data_in[1:5,1:5]
 # Illustrate Oldham's sample connectivity.
 sample_connectivity <- ggplotSampleConnectivityv2(data_in,log=TRUE,colID="b")
 sample_connectivity$table
-sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
+plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
+plot
+
+# Save as figure.
+file <- paste0(outputfigsdir,"/",outputMatName,"TAMPOR_Outliers.tiff")
+ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
@@ -643,6 +648,21 @@ plot2 <- ggplotPCA(log2(cleanDat[,idy]), traits, colors[idy], title = "Striatum"
 # plots
 plot1
 plot2
+
+# Save as figure.
+file <- paste0(outputfigsdir,"/",outputMatName,"Cortex_TAMPOR_PCA.tiff")
+ggsave(file,plot1, width = 3, height = 3, units = "in")
+
+file <- paste0(outputfigsdir,"/",outputMatName,"Striatum_TAMPOR_PCA.tiff")
+ggsave(file,plot2, width = 3, height = 3, units = "in")
+
+# Customize colors.
+#colors <- c("#FFF200", "#FFF200",    #22B14C
+#            "#00A2E8", "#00A2E8",    #A349A4
+#            "#22B14C", "#22B14C",  #FFF200
+#            "#A349A4", "#A349A4")    #00A2E8
+#plot1 + scale_color_manual(values = colors) + theme(legend.position = "none")
+#plot2 + scale_color_manual(values = colors) + theme(legend.position = "none")
 
 # Figure
 fig <- plot_grid(plot1,plot2)
@@ -797,6 +817,72 @@ file <- paste0(Rdatadir,"/",outputMatName,"_TAMPOR_GLM_Results.RDS")
 saveRDS(results,file)
 
 #-------------------------------------------------------------------------------
+#' ## Volcano plots for cortex and striatum.
+#-------------------------------------------------------------------------------
+
+# Add column for genotype and unique ID to results in list.
+for (i in 1:length(results)){
+  Experiment <- names(results)[i]
+  df <- results[[i]]
+  df <- add_column(df,Experiment, .before = 1)
+  #ID <- paste(df$Experiment,df$Uniprot, sep = "_")
+  #df <- add_column(df, ID, .after = 1)
+  results[[i]] <- df
+}
+
+# Merge the results. 
+df <- do.call(rbind,results)
+
+# Add column for genotype specific colors.
+colors <- as.list(c("#FFF200","#00A2E8","#22B14C","#A349A4"))
+#colors <- as.list(c("yellow","blue","green","purple"))
+names(colors) <- c("Shank2","Shank3","Syngap1","Ube3a")
+df$Color <- unlist(colors[sapply(strsplit(df$Experiment,"\\."),"[",3)])
+
+# Split into cortex and striatum datasets.
+idx <- grepl("Cortex",df$Experiment)
+results <- split(df,idx)
+names(results) <- c("Striatum","Cortex")
+
+# Function for producing volcano plots.
+vp <- function(df){
+  df$x <- df[,grep("FC",colnames(df))]
+  df$y <- -log10(df[,grep("PValue",colnames(df))])
+  logic <- df$FDR < 0.05
+  df$Color[!logic] <- "gray"
+  df$Color <- as.factor(df$Color)
+  y_int <- -1*log10(max(df$PValue[df$FDR<0.05]))
+  plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) + 
+    geom_point() + scale_color_manual(values=levels(df$Color)) +
+    geom_hline(yintercept = y_int, linetype = "dashed", color = "black", size = 0.6) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
+    #geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) + 
+    xlab("Log2(Fold Change) ASD vs Control") + ylab("-Log10PValue") + 
+    theme(
+      plot.title = element_text(hjust = 0.5, color="black", size=11, face="bold"),
+      axis.title.x = element_text(color="black", size=11, face="bold"),
+      axis.title.y = element_text(color="black", size=11, face="bold"),
+      legend.position = "none")
+  return(plot)
+}
+
+# Cortex plot.
+plot1 <- vp(results$Cortex) + ggtitle("Cortex") + xlim(-3.5,3.5)
+plot1
+
+# Save
+file <- paste0(outputfigsdir,"/",outputMatName,"Cortex_VolcanoPlot.tiff")
+ggsave(file,plot1, width = 3, height = 2.5, units = "in")
+
+# Striatum plot.
+plot2 <- vp(results$Striatum) + ggtitle("Striatum") + xlim(-3,3)
+plot2
+
+# Save
+file <- paste0(outputfigsdir,"/",outputMatName,"Striatum_VolcanoPlot.tiff")
+ggsave(file,plot2, width = 3, height = 2.5, units = "in")
+
+#-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of DEPs.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -873,9 +959,112 @@ file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_sigGO_Results.xlsx")
 write.excel(sigGO,file)
 
 #-------------------------------------------------------------------------------
+#' ## Condition overlap.
+#-------------------------------------------------------------------------------
+
+# Load statistical results..
+file <- paste0(Rdatadir,"/",outputMatName,"_TAMPOR_GLM_Results.RDS")
+results <- readRDS(file)
+
+# Check.
+lapply(results,function(x) sum(x$FDR<0.05))
+
+# Combine by FDR. 
+stats <- lapply(results,function(x) 
+  data.frame(Uniprot=x$Uniprot, Gene = x$Gene, FDR=x$FDR))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = c("Uniprot","Gene"))
+colnames(df)[c(3:ncol(df))] <- paste("FDR",names(stats),sep=".")
+rownames(df) <- paste(df$Gene,df$Uniprot,sep="|")
+df$Uniprot <- NULL
+df$Gene <- NULL
+
+# Check.
+apply(df,2, function(x) sum(x<0.05))
+
+# Gather sigProts.
+sigProts <- list()
+for (i in 1:ncol(df)){
+  idx <- df[,i]<0.05
+  sigProts[[i]] <- rownames(df)[idx]
+}
+names(sigProts) <- names(stats)
+
+# Build a matrix showing overlap.
+col_names <- names(stats)
+row_names <- names(stats)
+
+# All possible combinations.
+contrasts <- expand.grid(col_names,row_names)
+contrasts$GenoA <- as.vector(contrasts$GenoA)
+contrasts$GenoB <- as.vector(contrasts$GenoB)
+colnames(contrasts) <- c("GenoA","GenoB")
+
+# Loop
+int <- list()
+for (i in 1:dim(contrasts)[1]){
+  a <- unlist(as.vector(sigProts[contrasts$GenoA[i]]))
+  b <- unlist(as.vector(sigProts[contrasts$GenoB[i]]))
+  int[[i]] <- intersect(a,b)
+}
+
+# Add to contrasts.
+contrasts$Intersection <- unlist(lapply(int,function(x) length(x)))
+
+# Make overlap matrix.
+dm <- matrix(contrasts$Intersection,nrow=8,ncol=8)
+rownames(dm) <- colnames(dm) <- row_names
+
+# Remove upper tri and melt.
+dm[lower.tri(dm)] <- NA
+
+# Calculate percent overlap.
+dm2 <- sweep(dm,1,apply(dm, 1, function(x) max(x, na.rm=TRUE)), FUN = "/")
+
+# Melt
+df <- melt(dm,na.rm = TRUE)
+df$percent <- round(melt(dm2, na.rm = TRUE)$value,2)
+
+# Generate plot.
+plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
+  geom_tile(color = "white") + 
+  geom_text(aes(Var2, Var1, label = value), color = "black", size = 2.5) +
+  scale_fill_gradient2(name="Percent Overlap") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.5, 0.7),
+    legend.direction = "horizontal") + 
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                               title.position = "top", title.hjust = 0.5)) +
+  coord_fixed()
+
+# Extract legend and save seperately.
+legend <- get_legend(plot)
+plot <- plot + theme(legend.position = "none")
+
+# Save figure.
+file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap.tiff")
+ggsave(file,plot, width = 3, height = 3, units = "in")
+
+# Save legend.
+file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap_legend.tiff")
+ggsave(file,legend, width = 3, height = 3, units = "in")
+
+#-------------------i------------------------------------------------------------
 #' ## Generate protein boxplots for significantly DE proteins.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
+
+# Load statistical results..
+file <- paste0(Rdatadir,"/",outputMatName,"_TAMPOR_GLM_Results.RDS")
+results <- readRDS(file)
 
 # Expression data. 
 exprDat <- log2(y_DGE$counts)
@@ -899,10 +1088,11 @@ plot_list <- ggplotProteinBoxes(
 
 # Add custom colors.
 colors <- c("gray","gray",
-            "yellow", "yellow",
-            "blue", "blue",
-            "green", "green",
-            "purple","purple")
+            "#FFF200", "#FFF200",
+            "#00A2E8", "#00A2E8",
+            "#22B14C", "#22B14C",
+            "#A349A4","#A349A4")
+
 plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
 # Example plot.
@@ -943,15 +1133,17 @@ p2 <- plot_list$`Shank3|Q4ACU6`
 p3 <- plot_list$`Syngap1|F6SEU4`
 p4 <- plot_list$`Ube3a|O08759`
 plots <- list(p1,p2,p3,p4)
+names(plots) <- c("Shank2","Shank3","Syngap1","Ube3a")
 
 # Save to pdf.
-file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
-ggsavePDF(plots = plot_list, file)
+#file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
+#ggsavePDF(plots = plot_list, file)
 
 # Save as tiff.
-genos <- c("Shank2","Shank3","Syngap1","Ube3a")
-files <- as.list(paste0(outputfigsdir, "/", outputMatName, genos,"_BoxPlot.tiff"))
-mapply(ggsave(files, plots))
+for (i in 1:length(plots)){
+  file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i],"_BoxPlot.tiff")
+  ggsave(file,plots[[i]], width = 3, height = 3, units = "in")
+}
 
 #-------------------------------------------------------------------------------
 #' ## Render report.
