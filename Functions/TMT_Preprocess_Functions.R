@@ -2827,3 +2827,34 @@ ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
   out <- list(ggplot = plot, stats = OUTPUT)
   return(out)
 }
+
+
+#-------------------------------------------------------------------------------
+# Function for visualizing GO terms.
+ggplotGOscatter <- function(results_GOenrichment,color,topN=1.0){
+  # Collect data in df.
+  GOres <- results_GOenrichment[[color]]
+  x <- GOres$enrichmentRatio
+  y <- -log(GOres$pValue)
+  FDR <- as.numeric(GOres$Bonferroni)
+  nGenes <- GOres$nCommonGenes
+  label <- GOres$shortDataSetName
+  df <- data.frame(x,y,FDR,nGenes,label)
+  df <- df[order(df$FDR),]
+  
+  # Hide some of the labels.
+  df$label[seq(round(topN*nrow(df)),nrow(df))] <- ""
+  
+  # Generate plot. 
+  plot <- ggplot(df,aes(x = x,y = y, colour = FDR, size = nGenes, label=label)) + 
+    geom_point() +  geom_text_repel(colour = "black",alpha = 0.85) + 
+    scale_colour_gradient(low = color, high = "white") + 
+    xlab("Fold Enrichment") +
+    ylab("-Log(P-value)") + 
+    ggtitle("Go Enrichment") + 
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"), 
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+  return(plot)
+}

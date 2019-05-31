@@ -2259,37 +2259,31 @@ saveRDS(data,file)
 #' ## Examine metaModule GO enrichment.
 #-------------------------------------------------------------------------------
 
-
-
-
-
 # Module name should be a color for the plot.
 names(results_metaModuleGOenrichment) <- c("topGO", "blue","red","green")
 
 # Specify the top percent of terms to print with topN. 
-ggplotGOscatter(results_metaModuleGOenrichment, color = "blue", topN = 0.25)
-ggplotGOscatter(results_metaModuleGOenrichment, color = "red", topN = 0.25)
-ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.25)
+p1 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "red", topN = 0.1)
+p2 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "blue", topN = 0.1)
+p3 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.1)
+
+p1
+p2
+p3
+
+# Save top modules as tiff.
+plots <- list(p1,p2,p3)
+for (i in 1:length(plots)){
+  file <- paste0(outputfigsdir,"/",outputMatName,"GO_Scatter_",i,".tiff")
+  ggsave(file,plots[[i]], width = 3, height = 2.5, units = "in")
+}
 
 #-------------------------------------------------------------------------------
 #' ## Examine module GO enrichment.
 #-------------------------------------------------------------------------------
 
 # Singple plot.
-# Specify the top percent of terms to print with topN. 
 ggplotGOscatter(results_GOenrichment, color = "blue")
-
-# NEed to write ggplotGOscatter again...
-ggplotGOscatter <- function(results_GOenrichment, color, topN){
-  data <- results_GOenrichment[[color]]
-  df <- data.frame(x = data$enrichmentRatio,
-                   y = -1*log10(data$pValue),
-                   size = data$nCommonGenes,
-                   color = data$FDR)
- plot <- ggplot(df,aes(x=x, y=y, size = size, fill = color)) + geom_point() + 
-   xlab("Fold Enrichment") + ylab("-log10(Pvalue)")
- plot
-}
 
 # All plots. 
 colors <- as.list(net$colors)
@@ -2301,7 +2295,7 @@ goplots <- plot_list
 plot_list$lightyellow
 
 # Save top modules as tiff.
-idx <- module_summary$Module[module_summary$p.adj<0.1]
+idx <- module_summary$Module[module_summary$FDR<0.05]
 for (i in 1:length(idx)){
   color = idx[i]
   file <- paste0(outputfigsdir,"/",outputMatName,"GO_Scatter_",color,".tiff")
