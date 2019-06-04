@@ -207,7 +207,7 @@ g <- simplify(g)
 is.simple(g)
 
 # Number of nodes and edges. 
-length(V(g))
+length(V(g)) # All but three unmapped genes. 
 length(E(g))
 
 # Number of connected components.
@@ -234,7 +234,7 @@ sum(df$sigProt) # Total
 round(100*sum(df$sigProt)/nrow(df),3) # Percent
 
 # Create table for cytoscape.
-file <- paste(outputtabsdir,"SigProgs.csv",sep = "/")
+file <- paste(outputtabsdir,"SigProts.csv",sep = "/")
 write.csv(df,file)
 
 #-------------------------------------------------------------------------------
@@ -553,7 +553,218 @@ result <- data.frame(Seed_Number = unlist(lapply(seeds,function(x) length(x))),
                      Network_Size = unlist(network_size))
 
 #-------------------------------------------------------------------------------
-#' ## PPI graph of modules...
+#' ## PPI graphs of DEP's from each genotype:tissue.
+#-------------------------------------------------------------------------------
+
+# Generate PPIs graphs using DEPs from each genotype as seed nodes.
+# Add nodes with 2+ connections to these seed nodes for context.
+# Do not consider connections to 1433 proteins.
+
+# Create a Dictionary-like object mapping uniprot IDs to Entrez.
+uniprot <- as.list(meta$entrez)
+names(uniprot) <- meta$uniprot
+genes <- as.list(meta$entrez)
+names(genes) <- meta$gene
+
+# Defaults for analysis. 
+degree_to_stay <- 2
+send_to_cytoscape = FALSE
+combine_tissues = FALSE
+
+# Empty list for results.
+results <- list()
+
+# Define significantly DEPs.
+sigProts <- list()
+for (i in 1:length(stats)){
+  df <- stats[[i]]
+  sigProts[[i]] <- df$Uniprot[df$FDR < 0.05]
+}
+names(sigProts) <- names(stats)
+
+# Combine tissues for each genotype.
+if (combine_tissues == TRUE){
+  genos <- c("Shank2","Shank3","Syngap1","Ube3a")
+  u <- list()
+  for (geno in genos){
+    idx <- grep(geno,names(sigProts))
+    u[[geno]] <- union(sigProts[[idx[1]]],sigProts[[idx[2]]])
+    }
+  sigProts <- u
+}
+
+# Map sigProts to Entrez.
+sigEntrez <- lapply(sigProts,function(x) unlist(uniprot[x]))
+
+# Loop to create networks.
+# Cytoscape should be open before proceeding!
+for (i in 1:length(sigEntrez)){
+  
+  print(paste("Working on subgraph", i,"..."))
+  
+  # Get subset of nodes (v) in modules overlap.
+  # We will use these to seed a network.
+  v <- sigEntrez[[i]]
+  length(v)
+  
+  # Insure that all nodes are in the network.
+  #table(v %in% vertex_attr(g, "name"))
+  v <- v[v %in% vertex_attr(g, "name")]
+  print(paste0("Seed Nodes: ", length(v)))
+  seeds <- v
+  
+  # Create list of subgraphs (subg) for every seed node.
+  subg <- make_ego_graph(g, 
+                         order = 1, 
+                         nodes = v,
+                         mode = "all", 
+                         mindist = 0)
+  # Combine subgraphs, union. 
+  uniong <- do.call(igraph::union,subg)
+  
+  # Calculate distances from seed nodes to all else.
+  dist <- as.data.frame(
+    distances(uniong,
+              v = V(uniong), 
+              to = v, 
+              mode = "all",
+              weights = NULL, 
+              algorithm = "unweighted")
+  )
+  
+  # Only consider direct connections to seed nodes (distance == 1).
+  dist[dist!=1] <- 0
+  
+  # Exclude Ywha* genes (14-3-3 proteins).
+  out <- as.character(genes[grep("Ywha*",names(genes))])
+  dist[rownames(dist) %in% out,] <- 0
+  
+  # Calculate degree to seed nodes (sum).
+  dist$SeedDegree <- apply(dist[,-ncol(dist)],1,function(x) sum(x))
+  
+  # We will keep nodes that have at least 2 connections with seed nodes.
+  # degree_to_stay = 2
+  keep <- dist$SeedDegree>=degree_to_stay
+  dist <- dist[keep,]
+  keepers <- unique(c(v,rownames(dist)))
+  subg <- induced_subgraph(g,keepers)
+  
+  # Build df of node attributes. 
+  df <- data.frame(Node = names(V(subg)),
+                   sigProt = names(V(subg)) %in% sigEntrez[[i]])
+  rownames(df) <- names(genes)[match(df$Node,genes)]
+  
+  # Change vertex names to gene symbol. 
+  idx <- match(names(V(subg)),meta$entrez)
+  subg <- set.vertex.attribute(subg,"name",value = meta$gene[idx])
+  
+  # How many nodes. 
+  print(paste0("Total Nodes: ", length(V(subg))))
+  
+  # result
+  results[[i]] <- list(seeds= seeds, 
+                       subg = subg, 
+                       nodes = names(V(subg)))
+
+  # Send to cytoscape.
+  if (send_to_cytoscape == TRUE){
+    cytoscapePing()
+    quiet(RCy3::createNetworkFromIgraph(subg,names(sigEntrez)[i]))
+    # Load node attribute table in cytoscape.
+    loadTableData(df)
+    setNodeShapeDefault('Ellipse')
+    lockNodeDimensions(TRUE)
+    
+  }
+}
+
+# Examine overlap in ppi networks...
+names(results) <- names(sigProts)
+nodes <- sapply(results,"[", 3)
+names(nodes)
+
+# Build a matrix showing overlap.
+col_names <- names(nodes)
+row_names <- names(nodes)
+
+# All possible combinations.
+contrasts <- expand.grid(col_names,row_names)
+colnames(contrasts) <- c("ConditionA","ConditionB")
+contrasts$ConditionA <- as.vector(contrasts$ConditionA)
+contrasts$ConditionB <- as.vector(contrasts$ConditionB)
+
+# Loop to calculate intersection for all contrasts. 
+int <- list()
+for (i in 1:dim(contrasts)[1]){
+  a <- unlist(nodes[contrasts$ConditionA[i]])
+  b <- unlist(nodes[contrasts$ConditionB[i]])
+  int[[i]] <- intersect(a,b)
+}
+
+contrasts$Name <- paste(contrasts$ConditionA,
+                        contrasts$ConditionB,sep="_U_")
+names(int) <- contrasts$Name
+
+# Add intersection to contrasts.
+contrasts$Intersection <- lapply(int,function(x) length(x))
+
+# Calculate percent intersection.
+int <- list()
+for (i in 1:dim(contrasts)[1]){
+  a <- unlist(nodes[contrasts$ConditionA[i]])
+  b <- unlist(nodes[contrasts$ConditionB[i]])
+  int[[i]] <- length(intersect(a,b))/length(unique(c(a,b)))
+}
+
+# Add to dm
+contrasts$Percent <- unlist(int)
+
+# Make overlap matrix.
+dm <- matrix(contrasts$Intersection,nrow=8,ncol=8)
+rownames(dm) <- colnames(dm) <- row_names
+
+# heirarchical clustering of dissimilarity matrix calculated as 1-percent_overlap.
+dm <- matrix(contrasts$Percent,nrow=8,ncol=8)
+rownames(dm) <- colnames(dm) <- row_names
+diss <- 1 - dm
+hc <- hclust(as.dist(diss), method = "average")
+p1 <- ggdendrogram(hc, rotate=FALSE)
+p1
+
+# Remove upper tri and melt.
+dm[lower.tri(dm)] <- NA
+
+# Calculate percent overlap.
+dm2 <- sweep(dm,1,apply(dm, 1, function(x) max(x, na.rm=TRUE)), FUN = "/")
+
+# Melt
+df <- melt(dm,na.rm = TRUE)
+df$percent <- round(melt(dm2, na.rm = TRUE)$value,2)
+
+# Generate plot.
+plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
+  geom_tile(color = "white") + 
+  geom_text(aes(Var2, Var1, label = value), color = "black", size = 2.5) +
+  scale_fill_gradient2(name="Percent Overlap") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.5, 0.7),
+    legend.direction = "horizontal") + 
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                               title.position = "top", title.hjust = 0.5)) +
+  coord_fixed()
+
+plot
+
+#-------------------------------------------------------------------------------
+#' ## PPI graph of WPCNA modules...
 #-------------------------------------------------------------------------------
 
 # Build data frame.

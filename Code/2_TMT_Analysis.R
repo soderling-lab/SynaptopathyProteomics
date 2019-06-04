@@ -870,6 +870,17 @@ vp <- function(df){
 plot1 <- vp(results$Cortex) + ggtitle("Cortex") + xlim(-3.5,3.5)
 plot1
 
+# Summarize up and down-regulated proteins.
+updown <- function(results, tissue){
+  res <- results[[tissue]]
+  up <- sum(res$FDR < 0.05 & res$logFC > 0)
+  down <- sum(res$FDR < 0.05 & res$logFC < 0)
+  return(list(up=up,down=down))
+}
+
+updown(results,"Cortex")
+updown(results,"Striatum")
+
 # Save
 file <- paste0(outputfigsdir,"/",outputMatName,"Cortex_VolcanoPlot.tiff")
 ggsave(file,plot1, width = 3, height = 2.5, units = "in")
@@ -881,6 +892,101 @@ plot2
 # Save
 file <- paste0(outputfigsdir,"/",outputMatName,"Striatum_VolcanoPlot.tiff")
 ggsave(file,plot2, width = 3, height = 2.5, units = "in")
+
+#-------------------------------------------------------------------------------
+#' ## Volcano plots for each genotype.
+#-------------------------------------------------------------------------------
+
+# Add column for genotype and unique ID to results in list.
+for (i in 1:length(results)){
+  Experiment <- names(results)[i]
+  df <- results[[i]]
+  df <- add_column(df,Experiment, .before = 1)
+  #ID <- paste(df$Experiment,df$Uniprot, sep = "_")
+  #df <- add_column(df, ID, .after = 1)
+  results[[i]] <- df
+}
+
+# Merge the results. 
+df <- do.call(rbind,results)
+
+# Add column for genotype specific colors.
+colors <- as.list(c("#FFF200","#00A2E8","#22B14C","#A349A4"))
+names(colors) <- c("Shank2","Shank3","Syngap1","Ube3a")
+df$Color <- unlist(colors[sapply(strsplit(df$Experiment,"\\."),"[",3)])
+
+# Split by genotype (color).
+results <- split(df,df$Color)
+names(results) <- names(colors)[match(names(results),colors)]
+
+df <- results$Shank3
+
+# Function for producing volcano plots.
+ggplotVolcanoPlot2 <- function(df){
+  df$x <- df[,grep("FC",colnames(df))]
+  df$y <- -log10(df[,grep("PValue",colnames(df))])
+  logic <- df$FDR < 0.05
+  df$Color[!logic] <- "gray"
+  df$Color <- as.factor(df$Color)
+  y_int <- -1*log10(max(df$PValue[df$FDR<0.05]))
+  plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) + 
+    geom_point() + scale_color_manual(values=levels(df$Color)) +
+    geom_hline(yintercept = y_int, linetype = "dashed", color = "black", size = 0.6) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
+    #geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) + 
+    xlab("Log2(Fold Change) ASD vs Control") + ylab("-Log10PValue") + 
+    theme(
+      plot.title = element_text(hjust = 0.5, color="black", size=11, face="bold"),
+      axis.title.x = element_text(color="black", size=11, face="bold"),
+      axis.title.y = element_text(color="black", size=11, face="bold"),
+      legend.position = "none")
+  return(plot)
+}
+
+# Generate plots.
+plots <- lapply(as.list(names(colors)),function(x) ggplotVolcanoPlot2(results[[x]]))
+names(plots) <- names(colors)
+
+# Add titles.
+for (i in 1:length(plots)){
+  plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
+}
+
+# Make x-axis symmetrical.
+for (i in 1:length(plots)){
+  plot <- plots[[i]]
+  xlim <- max(abs(layer_scales(plot)$x$range$range))
+  plots[[i]] <- plot + xlim(-xlim,xlim)
+}
+
+plots$Shank2
+plots$Shank3
+plots$Syngap1
+plots$Ube3a
+
+# Save plots.
+for (i in 1:length(plots)){
+  plot <- plots[[i]]
+  file <- paste0(outputfigsdir,"/",outputMatName,names(plots)[i],"_VolcanoPlot.tiff")
+  ggsave(file,plot, width = 3, height = 2.5, units = "in")
+}
+
+# Summarize up and down-regulated proteins.
+updown <- function(results, genotype){
+  res <- results[[genotype]]
+  res$UpDown <- "Up" 
+  res$UpDown[res$logFC<0] <- "Down"
+  res$Experiment <- paste(res$Experiment,res$UpDown)
+  sub <- subset(res,res$FDR<0.05)
+  return(  table(sub$Experiment))
+}
+
+rbind(
+  updown(results,"Shank2"),
+  updown(results,"Shank3"),
+  updown(results,"Syngap1"),
+  updown(results,"Ube3a")
+)
 
 #-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of DEPs.
@@ -957,6 +1063,147 @@ write.excel(GO,file)
 
 file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_sigGO_Results.xlsx")
 write.excel(sigGO,file)
+
+#-------------------------------------------------------------------------------
+#' ## GO enrichment analaysis for DEPs from each genotype.
+#-------------------------------------------------------------------------------
+#+ eval = FALSE
+
+# Load the GLM statistical results.
+file <- paste(outputtabs,"Final_TAMPOR",
+              "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx", sep = "/")
+results <- lapply(as.list(c(1:8)),function(x) read_excel(file,x))
+names(results) <- excel_sheets(file)
+
+# Build a df with statistical results.
+stats <- lapply(results,function(x) 
+  data.frame(Uniprot=x$Uniprot,
+             Gene = x$Gene,
+             FDR=x$FDR))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = c("Uniprot","Gene"))
+colnames(df)[c(3:ncol(df))] <- names(stats)
+
+## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
+labels <- data.frame(
+  Shank2 = df$Cortex.KO.Shank2 < 0.05 | df$Striatum.KO.Shank2 < 0.05,
+  Shank3 = df$Cortex.KO.Shank3 < 0.05 | df$Striatum.KO.Shank3 < 0.05,
+  Syngap1 = df$Cortex.HET.Syngap1 < 0.05 | df$Striatum.HET.Syngap1 < 0.05,
+  Ube3a3 = df$Cortex.KO.Ube3a < 0.05 | df$Striatum.KO.Ube3a < 0.05
+)
+rownames(labels) <- df$Uniprot
+
+# Convert TRUE to column names. 
+logic <- labels == TRUE # 1 will become TRUE, and 0 will become FALSE.
+# Loop through each column to replace 1 with column header (color).
+for (i in 1:ncol(logic)){
+  col_header <- colnames(labels)[i]
+  labels[logic[,i],i] <- col_header
+}
+
+# Map Uniprot IDs to Entrez.
+# Get Uniprot IDs and gene symbols from rownames
+#Uniprot_IDs <- as.character(rownames(colors))
+
+# Go back and get Symbol|Uniprot rownames.
+genes <- as.list(sapply(strsplit(rownames(cleanDat),"\\|"),"[",1))
+names(genes) <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
+
+uniprot <- rownames(labels)
+
+# Map Uniprot IDs to Entrez IDs:
+entrez <- mapIds(org.Mm.eg.db, 
+                 keys = uniprot, 
+                 column = "ENTREZID", 
+                 keytype = "UNIPROT", 
+                 multiVals = "first")
+
+# Map unmapped IDs...
+not_mapped <- unlist(genes[uniprot[is.na(entrez)]])
+entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db, 
+                                keys = not_mapped, 
+                                column = "ENTREZID", 
+                                keytype = "SYMBOL", 
+                                multiVals = "first")
+sum(is.na(entrez))
+
+# Insure that labels is a matrix.
+labels <- as.matrix(labels)
+head(labels)
+
+# look at the number of genes assigned to each cluster. 
+table(labels)
+
+# The labels matrix and vector of cooresponding entrez IDs 
+# will be passed to enrichmentAnalysis().
+
+# Build a GO annotation collection:
+if (!exists(deparse(substitute(musGOcollection)))){
+  musGOcollection <- buildGOcollection(organism = "mouse")}
+  
+# Creates some space by clearing some memory.
+collectGarbage()
+  
+# Perform GO analysis for each module using hypergeometric (Fisher.test) test.
+# As implmented by the WGCNA function enrichmentAnalysis().
+# FDR is the BH adjusted p-value. 
+# Insure that the correct background (used as reference for enrichment)
+# has been selected!
+# useBackgroud = "given" will use all given genes as reference background.
+  
+GOenrichment <- enrichmentAnalysis(
+  classLabels = labels,
+  identifiers = entrez,
+  refCollection = musGOcollection,
+  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
+  threshold = 0.05,
+  thresholdType = "Bonferroni",
+  getOverlapEntrez = TRUE,
+  getOverlapSymbols = TRUE,
+  ignoreLabels = "FALSE")
+
+# Create some space by clearing some memory.
+collectGarbage()
+
+# Collect the results. 
+results_GOenrichment <- list()
+for (i in 1:length(GOenrichment$setResults)){
+  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
+}
+length(results_GOenrichment)
+names(results_GOenrichment) <- colnames(labels)
+
+a <- results_GOenrichment[[1]]
+b <- results_GOenrichment[[2]]
+c <- results_GOenrichment[[3]]
+d <- results_GOenrichment[[4]]
+
+# Write results to file. 
+file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
+write.excel(results_GOenrichment,file)
+
+#-------------------------------------------------------------------------------
+#' ## Generate GO scatter plots for each genotype.
+#-------------------------------------------------------------------------------
+
+# Change names of GOenrichment results to genotype specific colors.
+data <- results_GOenrichment
+names(data) <- c("yellow","blue","green","purple")
+
+plots <- list(
+  Shank2  = ggplotGOscatter(data, color = "yellow", topN = 1),
+  Shank3  = ggplotGOscatter(data, color = "blue", topN = 1),
+  Syngap1 = ggplotGOscatter(data, color = "green", topN = 1),
+  Ube3a   = ggplotGOscatter(data, color = "purple", topN = 1)
+)
+
+# Save plots and legends.
+for (i in 1:length(plots)){
+  plot <- plots[[i]]
+  file <- paste0(outputfigsdir,"/",outputMatName,"_",
+                 names(plots)[[i]],"_GO_ScatterPlot.tiff")
+  ggsave(file, plot, width = 3.0, height = 2.5, units = "in")
+}
 
 #-------------------------------------------------------------------------------
 #' ## Condition overlap.
@@ -1057,6 +1304,121 @@ ggsave(file,plot, width = 3, height = 3, units = "in")
 file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap_legend.tiff")
 ggsave(file,legend, width = 3, height = 3, units = "in")
 
+#-------------------------------------------------------------------------------
+#' ## Condition overlap, combined tissue types. 
+#-------------------------------------------------------------------------------
+
+# Load statistical results..
+file <- paste0(Rdatadir,"/",outputMatName,"_TAMPOR_GLM_Results.RDS")
+results <- readRDS(file)
+
+# Check.
+lapply(results,function(x) sum(x$FDR<0.05))
+
+# Combine by FDR. 
+stats <- lapply(results,function(x) 
+  data.frame(Uniprot=x$Uniprot, Gene = x$Gene, FDR=x$FDR))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = c("Uniprot","Gene"))
+colnames(df)[c(3:ncol(df))] <- paste("FDR",names(stats),sep=".")
+rownames(df) <- paste(df$Gene,df$Uniprot,sep="|")
+df$Uniprot <- NULL
+df$Gene <- NULL
+
+# Check.
+apply(df,2, function(x) sum(x<0.05))
+
+# Gather sigProts.
+sigProts <- list()
+for (i in 1:ncol(df)){
+  idx <- df[,i]<0.05
+  sigProts[[i]] <- rownames(df)[idx]
+}
+names(sigProts) <- names(stats)
+
+# Combine sigprots for each genotype.
+genos <- c("Shank2","Shank3","Syngap1","Ube3a")
+u <- list()
+for (geno in genos){
+  print(geno)
+  idx <- grep(geno,names(sigProts))
+  u[[geno]] <- union(sigProts[[idx[1]]],sigProts[[idx[2]]])
+}
+sigProts <- u
+
+# Build a matrix showing overlap.
+col_names <- names(sigProts)
+row_names <- names(sigProts)
+
+# All possible combinations.
+contrasts <- expand.grid(col_names,row_names)
+colnames(contrasts) <- c("GenoA","GenoB")
+contrasts$GenoA <- as.vector(contrasts$GenoA)
+contrasts$GenoB <- as.vector(contrasts$GenoB)
+
+# Loop
+int <- list()
+for (i in 1:dim(contrasts)[1]){
+  a <- unlist(as.vector(sigProts[contrasts$GenoA[i]]))
+  b <- unlist(as.vector(sigProts[contrasts$GenoB[i]]))
+  int[[i]] <- intersect(a,b)
+}
+
+contrasts$Name <- paste(contrasts$GenoA,contrasts$GenoB,sep="_U_")
+names(int) <- contrasts$Name
+int$Syngap1_U_Ube3a
+
+# Add to contrasts.
+contrasts$Intersection <- unlist(lapply(int,function(x) length(x)))
+
+# Make overlap matrix.
+dm <- matrix(contrasts$Intersection,nrow=4,ncol=4)
+rownames(dm) <- colnames(dm) <- row_names
+
+# Remove upper tri and melt.
+dm[lower.tri(dm)] <- NA
+
+# Calculate percent overlap.
+dm2 <- sweep(dm,1,apply(dm, 1, function(x) max(x, na.rm=TRUE)), FUN = "/")
+
+# Melt
+df <- melt(dm,na.rm = TRUE)
+df$percent <- round(melt(dm2, na.rm = TRUE)$value,2)
+
+# Generate plot.
+plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
+  geom_tile(color = "white") + 
+  geom_text(aes(Var2, Var1, label = value), color = "black", size = 2.5) +
+  scale_fill_gradient2(name="Percent Overlap") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.5, 0.7),
+    legend.direction = "horizontal") + 
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                               title.position = "top", title.hjust = 0.5)) +
+  coord_fixed()
+
+plot
+
+# Extract legend and save seperately.
+legend <- get_legend(plot)
+plot <- plot + theme(legend.position = "none")
+
+# Save figure.
+file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap.tiff")
+ggsave(file,plot, width = 3, height = 3, units = "in")
+
+# Save legend.
+file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap_legend.tiff")
+ggsave(file,legend, width = 3, height = 3, units = "in")
+
 #-------------------i------------------------------------------------------------
 #' ## Generate protein boxplots for significantly DE proteins.
 #-------------------------------------------------------------------------------
@@ -1132,12 +1494,53 @@ p1 <- plot_list$`Shank2|Q80Z38`
 p2 <- plot_list$`Shank3|Q4ACU6`
 p3 <- plot_list$`Syngap1|F6SEU4`
 p4 <- plot_list$`Ube3a|O08759`
+
+# Modify x-axis labels-- significant bar axis labels are in red.
+a <- c("black","black","red","red","black","black","black","black","black","black")
+b <- c("black","black","black","black","red","red","black","black","black","black")
+c <- c("black","black","black","black","black","black","red","red","black","black")
+d <- c("black","black","black","black","black","black","black","red","red","red")
+
+p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
+p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
+p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
+p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
+
 plots <- list(p1,p2,p3,p4)
 names(plots) <- c("Shank2","Shank3","Syngap1","Ube3a")
 
 # Save to pdf.
 #file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
 #ggsavePDF(plots = plot_list, file)
+
+# Save as tiff.
+for (i in 1:length(plots)){
+  file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i],"_BoxPlot.tiff")
+  ggsave(file,plots[[i]], width = 3, height = 3, units = "in")
+}
+
+
+## Inspecting other interesting proteins...
+
+# Make function to change x-axis text to red if significant.
+change_axis_color <- function(plot){
+  build <- ggplot_build(plot)
+  labs <- build$data[[3]]
+  idx <- grep("\\*",labs$label[order(labs$x)]) + 2
+  color_vect <- rep("black",10)
+  color_vect[idx] <- "red"
+  plot <- plot + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = color_vect))
+  return(plot)
+}
+
+
+# Other interesting proteins.
+plots <- plot_list[int$Syngap1_U_Ube3a]
+names(plots) <- sapply(strsplit(names(plots),"\\|"),"[",1)
+
+# Change axis color.
+plots <- lapply(plots,function(x) change_axis_color(x))
 
 # Save as tiff.
 for (i in 1:length(plots)){

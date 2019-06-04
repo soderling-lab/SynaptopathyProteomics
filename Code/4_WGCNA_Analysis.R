@@ -1479,8 +1479,8 @@ colnames(pve)[2] <- "PVE"
 #+ eval = FALSE
 
 # Should plots be saved?
-saveplots = TRUE
-savegroups = TRUE
+saveplots = FALSE
+savegroups = FALSE
 
 # Calculate Module EigenProteins.
 MEs <- tmpMEs <- data.frame()
@@ -1726,6 +1726,21 @@ knitr::kable(sig_counts)
 for (i in 1:dim(KW_sub)[1]){
   file <- paste0(outputfigsdir,"/",outputMatName, "_", KW_sub$Module[i],"_verboseBoxplot",".tiff")
   plot <- vbplots[[KW_sub$Module[i]]]
+  ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
+}
+
+# Edit plots such that x-axis labels are red if post-hoc test is significant.
+for (i in 1:dim(KW_sub)[1]){
+  plot <- vbplots[[KW_sub$Module[i]]]
+  stats <- Dtest_stats[[KW_sub$Module[i]]]
+  b <- ggplot_build(plot)
+  foo <- b$data[[3]]
+  sig <- foo$label[order(foo$x)]
+  a <- rep("black",8)
+  a[grepl("\\*",sig)] <- "red"
+  a <- c(rep("black",2),a)
+  plot <- plot + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
+  file <- paste0(outputfigsdir,"/",outputMatName, "_", KW_sub$Module[i],"_verboseBoxplot",".tiff")
   ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
 }
 
@@ -2263,9 +2278,17 @@ saveRDS(data,file)
 names(results_metaModuleGOenrichment) <- c("topGO", "blue","red","green")
 
 # Specify the top percent of terms to print with topN. 
-p1 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "red", topN = 0.1)
-p2 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "blue", topN = 0.1)
-p3 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.1)
+p1 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "red", topN = 0.025)
+l1 <- get_legend(p1)
+p1 <- p1 + theme(legend.position = "none")
+
+p2 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "blue", topN = 0.025)
+l2 <- get_legend(p2)
+p2 <- p2 + theme(legend.position = "none")
+
+p3 <- ggplotGOscatter(results_metaModuleGOenrichment, color = "green", topN = 0.025)
+l3 <- get_legend(p3)
+p3 <- p3 + theme(legend.position = "none")
 
 p1
 p2
@@ -2276,6 +2299,13 @@ plots <- list(p1,p2,p3)
 for (i in 1:length(plots)){
   file <- paste0(outputfigsdir,"/",outputMatName,"GO_Scatter_",i,".tiff")
   ggsave(file,plots[[i]], width = 3, height = 2.5, units = "in")
+}
+
+# Save legends seperately. 
+legends <- list(l1,l2,l3)
+for (i in 1:length(legends)){
+  file <- paste0(outputfigsdir,"/",outputMatName,"GO_Scatter_Legend_",i,".tiff")
+  ggsave(file, legends[[i]], width = 1.5, height = 3, units = "in")
 }
 
 #-------------------------------------------------------------------------------
