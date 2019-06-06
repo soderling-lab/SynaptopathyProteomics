@@ -2847,15 +2847,15 @@ ggplotGOscatter <- function(results_GOenrichment,color,topN=1.0){
   
   # Generate plot. 
   plot <- ggplot(df,aes(x = x,y = y, colour = FDR, size = nGenes, label=label)) + 
-    geom_point() +  geom_text_repel(colour = "black",alpha = 0.85) + 
+    geom_point() +  geom_text_repel(colour = "black", alpha = 0.85) + 
     scale_colour_gradient(low = color, high = "white") + 
     xlab("Fold Enrichment") +
     ylab("-Log(P-value)") + 
     ggtitle("Go Enrichment") + 
     theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-      axis.title.x = element_text(color = "black", size = 11, face = "bold"), 
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+      plot.title = element_text(hjust = 0.5, color = "black", size = 8, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 8, face = "bold"), 
+      axis.title.y = element_text(color = "black", size = 8, face = "bold"))
   return(plot)
 }
 

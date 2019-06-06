@@ -757,19 +757,35 @@ qlf <- lapply(contrasts, function(x) glmQLFTest(fit,contrast=x))
 summary_table <- lapply(qlf, function(x) summary(decideTests(x)))
 overall <- t(matrix(unlist(summary_table),nrow=3,ncol=8))
 rownames(overall) <- unlist(lapply(contrasts,function(x) colnames(x)))
-colnames(overall) <- c("Down","NotSig","Up")
+colnames(overall) <- c("Down","NS","Up")
 overall <- as.data.frame(overall)
-overall <- add_column(overall,Contrast=rownames(overall),.before=1)
+row_names <- sapply(strsplit(rownames(overall)," - "),"[",1)
+row_names <- gsub(".KO.|.HET."," ", row_names)
+overall <- add_column(overall,Experiment=row_names,.before=1)
 overall <- overall[,c(1,3,2,4)]
-overall$TotalSig <- rowSums(overall[,c(3,4)])
+overall$"Total Sig" <- rowSums(overall[,c(3,4)])
 
 # Table of DE candidates.
-table <- tableGrob(overall, rows = NULL)
+# Modify tables theme to change font size. 
+#Cex is a scaling factor relative to the defaults.
+mytheme <- gridExtra::ttheme_default(
+  core = list(fg_params=list(cex = 0.5)),
+  colhead = list(fg_params=list(cex = 0.5)),
+  rowhead = list(fg_params=list(cex = 0.5)))
+
+# Create table and add borders.
+table <- tableGrob(overall, rows = NULL, theme = mytheme)
+table <- gtable_add_grob(table,
+                     grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+                     t = 2, b = nrow(table), l = 1, r = ncol(table))
+table <- gtable_add_grob(table, 
+                         grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+                         t = 1, l = 1, r = ncol(table))
 grid.arrange(table)
 
 # Save table as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
-ggsave(file,table)
+ggsave(file,table, width = 2.4, height = 2.0, units = "in", dpi = 300)
 
 # Call topTags to add FDR. Gather tablurized results. 
 results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
@@ -800,13 +816,11 @@ results <- lapply(results, function(x) annotateTopTags(x))
 
 # Annotate with Gene names and Entrez IDS.
 results <- lapply(results,function(x) annotate_Entrez(x))
-names(results) <- c(
-  sapply(strsplit(cont1," - "),"[",2),
-  sapply(strsplit(cont2," - "),"[",2))
+
 
 # Sort by pvalue.
 results <- lapply(results,function(x) x[order(x$PValue),])
-names(results) <- sapply(strsplit(overall$Contrast," "),"[",1)
+names(results) <- overall$Experiment
 
 # Write to excel.
 file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_GLM_Results.xlsx")
@@ -819,6 +833,10 @@ saveRDS(results,file)
 #-------------------------------------------------------------------------------
 #' ## Volcano plots for cortex and striatum.
 #-------------------------------------------------------------------------------
+
+################################################################################
+## Skip this chunk if plotting volcano plots for each genotype.               ##
+################################################################################
 
 # Add column for genotype and unique ID to results in list.
 for (i in 1:length(results)){
@@ -913,13 +931,11 @@ df <- do.call(rbind,results)
 # Add column for genotype specific colors.
 colors <- as.list(c("#FFF200","#00A2E8","#22B14C","#A349A4"))
 names(colors) <- c("Shank2","Shank3","Syngap1","Ube3a")
-df$Color <- unlist(colors[sapply(strsplit(df$Experiment,"\\."),"[",3)])
+df$Color <- unlist(colors[sapply(strsplit(df$Experiment,"\\ "),"[",2)])
 
 # Split by genotype (color).
 results <- split(df,df$Color)
 names(results) <- names(colors)[match(names(results),colors)]
-
-df <- results$Shank3
 
 # Function for producing volcano plots.
 ggplotVolcanoPlot2 <- function(df){
@@ -930,16 +946,25 @@ ggplotVolcanoPlot2 <- function(df){
   df$Color <- as.factor(df$Color)
   y_int <- -1*log10(max(df$PValue[df$FDR<0.05]))
   plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) + 
-    geom_point() + scale_color_manual(values=levels(df$Color)) +
+    geom_point(size = 1, alpha = 0.5) + scale_color_manual(values=levels(df$Color)) +
     geom_hline(yintercept = y_int, linetype = "dashed", color = "black", size = 0.6) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
     #geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) + 
-    xlab("Log2(Fold Change) ASD vs Control") + ylab("-Log10PValue") + 
+    xlab(expression(bold(Log[2](Fold~Change)))) + 
+    ylab(expression(bold(-Log[10](Pvalue)))) + 
     theme(
-      plot.title = element_text(hjust = 0.5, color="black", size=11, face="bold"),
-      axis.title.x = element_text(color="black", size=11, face="bold"),
-      axis.title.y = element_text(color="black", size=11, face="bold"),
+      plot.title = element_text(hjust = 0.5, color="black", size = 10, face="bold"),
+      axis.title.y = element_text(color="black", face="bold", size = 8, angle = 90, vjust = 0.5),
+      axis.title.x = element_text(color="black", face="bold", size = 8, angle = 0, hjust = 0.5, vjust = 0.5),
       legend.position = "none")
+  # Add annotation.
+  ypos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][8])
+  xpos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][1])
+    plot <- plot + annotate("text", 
+                            x = xpos[1] + 0.2*(xpos[2]-xpos[1]), 
+                            y = y_int + 0.075*(ypos[2]-ypos[1]), 
+                            label = "FDR < 0.05", size = 2)
+      
   return(plot)
 }
 
@@ -953,40 +978,24 @@ for (i in 1:length(plots)){
 }
 
 # Make x-axis symmetrical.
-for (i in 1:length(plots)){
-  plot <- plots[[i]]
-  xlim <- max(abs(layer_scales(plot)$x$range$range))
-  plots[[i]] <- plot + xlim(-xlim,xlim)
-}
-
-plots$Shank2
-plots$Shank3
-plots$Syngap1
-plots$Ube3a
+#for (i in 1:length(plots)){
+#  plot <- plots[[i]]
+#  xlim <- max(abs(layer_scales(plot)$x$range$range))
+#  plots[[i]] <- plot + xlim(-xlim,xlim)
+#}
+vp1 <- plots$Shank2
+vp2 <- plots$Shank3
+vp3 <- plots$Syngap1
+vp4 <- plots$Ube3a
+#fig <- plot_grid(vp1,vp2,vp3,vp4, nrow = 2, ncol = 2)
+#ggsave("foo.tiff", fig)
 
 # Save plots.
 for (i in 1:length(plots)){
   plot <- plots[[i]]
   file <- paste0(outputfigsdir,"/",outputMatName,names(plots)[i],"_VolcanoPlot.tiff")
-  ggsave(file,plot, width = 3, height = 2.5, units = "in")
+  ggsave(file,plot, width = 1.8, height = 1.5, units = "in", dpi=300)
 }
-
-# Summarize up and down-regulated proteins.
-updown <- function(results, genotype){
-  res <- results[[genotype]]
-  res$UpDown <- "Up" 
-  res$UpDown[res$logFC<0] <- "Down"
-  res$Experiment <- paste(res$Experiment,res$UpDown)
-  sub <- subset(res,res$FDR<0.05)
-  return(  table(sub$Experiment))
-}
-
-rbind(
-  updown(results,"Shank2"),
-  updown(results,"Shank3"),
-  updown(results,"Syngap1"),
-  updown(results,"Ube3a")
-)
 
 #-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of DEPs.
@@ -1387,11 +1396,14 @@ df$percent <- round(melt(dm2, na.rm = TRUE)$value,2)
 
 # Generate plot.
 plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
-  geom_tile(color = "white") + 
+  geom_tile(color = "black", size = 0.5) + 
   geom_text(aes(Var2, Var1, label = value), color = "black", size = 2.5) +
   scale_fill_gradient2(name="Percent Overlap") + 
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
+    #axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+    #axis.title.y = element_text(color = "black", size = 11, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8, face = "bold"),
+    axis.text.y = element_text(angle = 0, hjust = 1, size = 8, face = "bold"),
     axis.title.x = element_blank(),
     axis.title.y = element_blank(),
     panel.grid.major = element_blank(),
@@ -1413,7 +1425,7 @@ plot <- plot + theme(legend.position = "none")
 
 # Save figure.
 file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap.tiff")
-ggsave(file,plot, width = 3, height = 3, units = "in")
+ggsave(file,plot, width = 1.8, height = 1.5, units = "in", dpi = 300)
 
 # Save legend.
 file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap_legend.tiff")
@@ -1533,7 +1545,6 @@ change_axis_color <- function(plot){
     theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = color_vect))
   return(plot)
 }
-
 
 # Other interesting proteins.
 plots <- plot_list[int$Syngap1_U_Ube3a]

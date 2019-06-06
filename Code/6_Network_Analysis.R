@@ -215,30 +215,36 @@ connected_components <- components(g, mode = c("weak", "strong"))
 connected_components$csize
 
 #-------------------------------------------------------------------------------
-#' Significantly dysregulated proteins...
+#' ## Build df of significantly dysregulated proteins.
 #-------------------------------------------------------------------------------
 
 # Build a df with statistical results.
-stats <- lapply(results,function(x) 
-  as.data.frame(cbind(Uniprot=x$Uniprot,FDR=x$FDR)))
+#stats <- lapply(results,function(x) data.frame(Uniprot=x$Uniprot, FDR=x$FDR))
+#names(stats) <- names(results)
+#df <- stats %>% reduce(left_join, by = "Uniprot")
+#colnames(df)[c(2:ncol(df))] <- names(stats)
+#idx <- match(df$Uniprot,meta$uniprot)
+#df <- add_column(df,Entrez = meta$entrez[idx], .after = 1)
+
+stats <- lapply(results, function(x)
+  data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
 names(stats) <- names(results)
 df <- stats %>% reduce(left_join, by = "Uniprot")
 colnames(df)[c(2:ncol(df))] <- names(stats)
-idx <- match(df$Uniprot,meta$uniprot)
-df <- add_column(df,Entrez = meta$entrez[idx], .after = 1)
+head(df)
 
 # Proteins with any significant change.
-df$sigProt <- apply(df,1,function(x) any(x[c(3:10)]<0.05))
+df$sigProt <- apply(df,1,function(x) any(as.numeric(x[c(2:9)])<0.05))
 
 sum(df$sigProt) # Total
 round(100*sum(df$sigProt)/nrow(df),3) # Percent
 
 # Create table for cytoscape.
-file <- paste(outputtabsdir,"SigProts.csv",sep = "/")
-write.csv(df,file)
+#file <- paste(outputtabsdir,"SigProts.csv",sep = "/")
+#write.csv(df,file)
 
 #-------------------------------------------------------------------------------
-#' ## Generate module subgraphs.
+#' ## Generate subgraphs of WPCNA modules. 
 #-------------------------------------------------------------------------------
 
 # Send graphs to cytoscape?
@@ -294,7 +300,7 @@ result$EdgeDensity <- unlist(
   lapply(module_subraphs,function(x) length(E(x))/length(V(x))))
 
 #-------------------------------------------------------------------------------
-#' ## Evaluate GO semantic similarity (~biological cohesiveness) for all modules 
+#' ## Evaluate GO semantic similarity (~biological cohesiveness) of all modules. 
 #-------------------------------------------------------------------------------
 # Utilize the GOSemSim package to create GO similarity matrixes for all module 
 # subgraphs.
@@ -371,12 +377,12 @@ if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
 if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
 
 # Choose a GO ontology.
-type <- 1 # MF, BP, CC
+type <- 2 # MF, BP, CC
 ontology <- c("MF","BP","CC")[type]
 msGO <- list(msGOMF,msGOBP,msGOCC)[[type]]
 
 # Evaluate GO similarity for all genes.
-build_GO_similarity_network <- FALSE
+build_GO_similarity_network <- FALSE # otherwise, load from file. 
 
 if (build_GO_similarity_network == TRUE){
   goSim <- mgeneSim(genes = unlist(module_membership),
@@ -391,7 +397,7 @@ if (build_GO_similarity_network == TRUE){
 }
 
 #-------------------------------------------------------------------------------
-#' ## Modularity of the GO similarity graph.
+#' ## Evaluate modularity of the GO similarity graph.
 #-------------------------------------------------------------------------------
 
 # The GO semantic similarity matrix.
@@ -413,7 +419,7 @@ v <- as.numeric(as.factor(meta$module[idx]))
 modularity(gs, membership = v, weights = edge_attr(gs, "weight"))
 
 #-------------------------------------------------------------------------------
-# Test preservation of module biological coherence.
+#' ## Test preservation of module's biological coherence with NetRep.
 #-------------------------------------------------------------------------------
 #  Consider a permutation test with 99 permutations, 
 #  5 reaching the statistically significant threshold. 
@@ -473,10 +479,13 @@ df <- data.frame(p.value = preservation$p.values[,1])
 df$p.adjust <- p.adjust(df$p.value, method = "bonferroni")
 
 #-------------------------------------------------------------------------------
-#' ## Find first degree neighbors with 2+ degree to seed nodes.
+#' ## Build WGCNA module community sugraphs.
 #-------------------------------------------------------------------------------
 
-# Create a Dictionary-like object of genes and entrez ids.
+# Find nodes with 2+ connections to seed nodes.
+
+# Create a Dictionary-like object of genes and entrez ids for mapping protein 
+# identifiers.
 entrez <- as.list(meta$gene)
 genes <- as.list(meta$entrez)
 names(entrez) <- meta$entrez
@@ -553,26 +562,30 @@ result <- data.frame(Seed_Number = unlist(lapply(seeds,function(x) length(x))),
                      Network_Size = unlist(network_size))
 
 #-------------------------------------------------------------------------------
-#' ## PPI graphs of DEP's from each genotype:tissue.
+#' ## Build subraphs for each community of DEPs (genotype:tissue groupings).
 #-------------------------------------------------------------------------------
 
 # Generate PPIs graphs using DEPs from each genotype as seed nodes.
-# Add nodes with 2+ connections to these seed nodes for context.
-# Do not consider connections to 1433 proteins.
+# Add nodes with 2+ connections to these seed nodes for biological context.
+# Do not consider connections to 1433* chaperone proteins.
 
 # Create a Dictionary-like object mapping uniprot IDs to Entrez.
 uniprot <- as.list(meta$entrez)
 names(uniprot) <- meta$uniprot
 genes <- as.list(meta$entrez)
 names(genes) <- meta$gene
+uniprot2gene <- as.list(meta$gene)
+names(uniprot2gene) <- meta$uniprot
 
 # Defaults for analysis. 
 degree_to_stay <- 2
-send_to_cytoscape = FALSE
+send_to_cytoscape = FALSE # This will only be done for 1 randomly seeded subg. 
 combine_tissues = FALSE
+generate_random = FALSE # 1,000 randomlly seeded subgs will be generated for each DEP community.
 
 # Empty list for results.
 results <- list()
+rand_results <- list()
 
 # Define significantly DEPs.
 sigProts <- list()
@@ -604,7 +617,7 @@ for (i in 1:length(sigEntrez)){
   
   # Get subset of nodes (v) in modules overlap.
   # We will use these to seed a network.
-  v <- sigEntrez[[i]]
+  v <- sigEntrez[[i]] # number of significant proteins for this exp.
   length(v)
   
   # Insure that all nodes are in the network.
@@ -619,6 +632,7 @@ for (i in 1:length(sigEntrez)){
                          nodes = v,
                          mode = "all", 
                          mindist = 0)
+  
   # Combine subgraphs, union. 
   uniong <- do.call(igraph::union,subg)
   
@@ -647,6 +661,7 @@ for (i in 1:length(sigEntrez)){
   keep <- dist$SeedDegree>=degree_to_stay
   dist <- dist[keep,]
   keepers <- unique(c(v,rownames(dist)))
+  print(paste("Additional nodes:", length(keepers) - length(seeds)))
   subg <- induced_subgraph(g,keepers)
   
   # Build df of node attributes. 
@@ -664,7 +679,8 @@ for (i in 1:length(sigEntrez)){
   # result
   results[[i]] <- list(seeds= seeds, 
                        subg = subg, 
-                       nodes = names(V(subg)))
+                       nodes = names(V(subg)),
+                       nodes.entrez = keepers)
 
   # Send to cytoscape.
   if (send_to_cytoscape == TRUE){
@@ -673,10 +689,191 @@ for (i in 1:length(sigEntrez)){
     # Load node attribute table in cytoscape.
     loadTableData(df)
     setNodeShapeDefault('Ellipse')
+    setNodeColorDefault("#BEBEBE")
     lockNodeDimensions(TRUE)
-    
+  }
+  
+  # Repeat with random seeds.
+  if (generate_random==TRUE){
+    print(paste("Working on random subgraph", i,"..."))
+    rand_community_nodes <- list()
+    for (k in 1:1000){
+      if (k==1) print("Generating randomly seeded subgraphs...")
+      rand_seeds <- na.omit(sample(meta$entrez,length(seeds)))
+      #sum(rand_seeds %in% sigEntrez[[i]]) # check, should be small.
+      #length(rand_seeds) == length(seeds) # check, should be TRUE
+      rand_seeds
+      rand_subg <- make_ego_graph(g, 
+                              order = 1, 
+                              nodes = rand_seeds,
+                              mode = "all", 
+                              mindist = 0)
+      rand_uniong <- do.call(igraph::union,rand_subg)
+      rand_dist <- as.data.frame(
+        distances(rand_uniong,
+                v = V(rand_uniong), 
+                to = rand_seeds, 
+                mode = "all",
+                weights = NULL, 
+                algorithm = "unweighted"))
+      rand_dist[rand_dist!=1] <- 0
+      out <- as.character(genes[grep("Ywha*",names(genes))])
+      rand_dist[rownames(rand_dist) %in% out,] <- 0
+      rand_dist$SeedDegree <- apply(rand_dist[,-ncol(rand_dist)],1,function(x) sum(x))
+      keep <- rand_dist$SeedDegree>=degree_to_stay
+      rand_dist <- rand_dist[keep,]
+      keepers <- unique(c(rand_seeds,rownames(rand_dist)))
+      rand_community_nodes[[k]] <- keepers
+    }
+  #####
+  rand_subg <- induced_subgraph(g,keepers)
+  df <- data.frame(Node = names(V(rand_subg)),
+                   sigProt = names(V(rand_subg)) %in% sigEntrez[[i]])
+  rownames(df) <- names(genes)[match(df$Node,genes)]
+  idx <- match(names(V(rand_subg)),meta$entrez)
+  rand_subg <- set.vertex.attribute(rand_subg,"name",value = meta$gene[idx])
+  print(paste0("Total Nodes (random): ", length(V(rand_subg))))
+  rand_results[[i]] <- list(seeds= rand_seeds, 
+                            subg = rand_subg, 
+                            nodes = names(V(rand_subg)))
+  # Send to cytoscape.
+  if (send_to_cytoscape == TRUE){
+    cytoscapePing()
+    quiet(RCy3::createNetworkFromIgraph(rand_subg,paste0("rand","_",names(sigEntrez)[i])))
+    # Load node attribute table in cytoscape.
+    loadTableData(df)
+    setNodeShapeDefault('Ellipse')
+    setNodeColorDefault ('#BEBEBE')
+    lockNodeDimensions(TRUE)
+  }
   }
 }
+
+#-------------------------------------------------------------------------------
+#' ## Examine overlap between DEP communities and randomly seeded graphs.
+#-------------------------------------------------------------------------------
+
+# Examine overlap between subgraphs and random subgraphs. 
+names(results) <- names(sigEntrez)
+if (length(rand_results>0)){ names(rand_results) <- names(sigEntrez)}
+
+# collect nodes of graphs. 
+nodes <- sapply(results,"[",3)
+rand_nodes <- sapply(rand_results,"[",3)
+
+# Function to calculate length, union, and intersection.
+func <- function(x,y){
+  len_x <- length(x)
+  len_y <- length(y)
+  u <- sum(x %in% y)
+  i <- length(unique(c(x,y)))
+  return(list(length_x = len_x, length_y = len_y, 
+              union = u, intersection = i))
+}
+res <- mapply(func,nodes,rand_nodes)
+
+# Collect every four... elements of list, and combine as dm. 
+b <- split(res, rep(seq(from=1, to = 8, by = 1),each = 4))
+dm <- do.call(rbind,lapply(b,function(x) unlist(x)))
+rownames(dm) <- names(sigEntrez)
+colnames(dm) <- c("len(V(subg))","len(V(rand))", "intersection","union")
+df <- as.data.frame(dm)
+df$percent <- round(100*(df$intersection/df$union),2)
+df$seeds <- unlist(lapply(results,function(x) length(x[[1]])))
+
+#-------------------------------------------------------------------------------
+#' ## Write DEP communities to file.
+#-------------------------------------------------------------------------------
+
+x <- sapply(results,"[",4)
+names(x) <- gsub(".nodes.entrez","", names(x))
+file <- "DEP_Communities.xlsx"
+write.excel(x,file)
+
+writeClipboard(as.matrix(meta$entrez))
+
+#-------------------------------------------------------------------------------
+#' ## Evaluate GO semantic similarity for DEP communities. 
+#-------------------------------------------------------------------------------
+
+# gene to entrez dictionary.
+gene2entrez <- as.list(meta$entrez)
+names(gene2entrez) <- meta$gene
+
+# goSim is the GO semantic similarity matrix for all genes. 
+
+# Empty list for output of loop.
+out <- list()
+
+# List of genes to pass to loop. 
+#gene_list <- rand_community_nodes
+gene_list <- sapply(results,"[",3)
+class(gene_list)
+length(gene_list)
+#class(gene_list[[1]])
+n <- length(gene_list)
+
+# Loop through gene list, calculate GOSemSim:
+for (i in 1:n){
+  print(paste0("Working on subgraph: ", i, "..."))
+  genes <- gene_list[[i]]
+  #entrez <- genes
+  entrez <- unlist(gene2entrez[genes])
+  
+  # Subset adjacency matrix. 
+  idx <- colnames(goSim) %in% entrez
+  subdm <- goSim[idx,idx]
+  diag(subdm) <- NA
+  
+  # heirarchical clustering
+  #diss <- 1 - subdm
+  #hc <- hclust(as.dist(diss), method = "average")
+  #dendro <- ggdendrogram(hc, rotate=FALSE, labels = FALSE)
+  #dendro
+  
+  #mean(subdm,na.rm=TRUE)
+  # Calculate average edge weight. 
+  out[[i]] <- mean(subdm, na.rm = TRUE)
+}
+  
+res <- do.call(rbind,out)
+hist(res)
+
+
+# Evaluate centrality as mean clustering coefficient in the GO similarity graph. 
+  #subg <- lapply(goSim, function(x) 
+  #  graph_from_adjacency_matrix(x, mode = "undirected", weighted = TRUE, diag = FALSE))
+  #cc <- lapply(subg, function(x)
+  #  transitivity(x, type = "average", isolates = "zero"))
+  #out[[i]] <- cc
+
+
+# Extract the results...
+GO_Similarity <- data.frame(
+  MF = unlist(sapply(out,"[", 1)),
+  BP = unlist(sapply(out,"[", 2)),
+  CC = unlist(sapply(out,"[", 3)))
+
+rownames(GO_Similarity) <- names(module_membership)
+
+GO_Similarity$Module <- names(module_membership)
+GO_Similarity$ModuleCC <- result$MeanClusteringCoefficient
+
+# Examine the relationship between module size and function coherence.
+module_sizes <- as.data.frame(table(net$colors))
+idx <- match(GO_Similarity$Module,module_sizes$Var1)
+
+df <- data.frame(Module = GO_Similarity$Module,
+                 GOCoherence = GO_Similarity$MF,
+                 Size = module_sizes$Freq[idx])
+df <- df[!df$Module=="grey",]
+
+plot(df$GOCoherence,df$Size)
+cor(df$GOCoherence,df$Size,method = "spearman")
+
+#-------------------------------------------------------------------------------
+#' ## Examine pairwise overlap in DEP communities.
+#-------------------------------------------------------------------------------
 
 # Examine overlap in ppi networks...
 names(results) <- names(sigProts)
@@ -695,9 +892,13 @@ contrasts$ConditionB <- as.vector(contrasts$ConditionB)
 
 # Loop to calculate intersection for all contrasts. 
 int <- list()
+A <- list()
+B <- list()
 for (i in 1:dim(contrasts)[1]){
   a <- unlist(nodes[contrasts$ConditionA[i]])
   b <- unlist(nodes[contrasts$ConditionB[i]])
+  A[[i]] <- length(a)
+  B[[i]] <- length(b)
   int[[i]] <- intersect(a,b)
 }
 
@@ -707,6 +908,9 @@ names(int) <- contrasts$Name
 
 # Add intersection to contrasts.
 contrasts$Intersection <- lapply(int,function(x) length(x))
+contrasts$A <- unlist(A)
+contrasts$B <- unlist(B)
+contrasts$C <- contrasts$A + contrasts$B
 
 # Calculate percent intersection.
 int <- list()
@@ -716,7 +920,7 @@ for (i in 1:dim(contrasts)[1]){
   int[[i]] <- length(intersect(a,b))/length(unique(c(a,b)))
 }
 
-# Add to dm
+# Add to contrasts dm
 contrasts$Percent <- unlist(int)
 
 # Make overlap matrix.
@@ -728,23 +932,30 @@ dm <- matrix(contrasts$Percent,nrow=8,ncol=8)
 rownames(dm) <- colnames(dm) <- row_names
 diss <- 1 - dm
 hc <- hclust(as.dist(diss), method = "average")
-p1 <- ggdendrogram(hc, rotate=FALSE)
-p1
+dendro <- ggdendrogram(hc, rotate=TRUE, labels = FALSE)
+# Strip labels. 
+dendro <- dendro +  theme(axis.text.x = element_blank(), axis.text.y = element_blank())
 
 # Remove upper tri and melt.
 dm[lower.tri(dm)] <- NA
-
-# Calculate percent overlap.
-dm2 <- sweep(dm,1,apply(dm, 1, function(x) max(x, na.rm=TRUE)), FUN = "/")
-
-# Melt
 df <- melt(dm,na.rm = TRUE)
-df$percent <- round(melt(dm2, na.rm = TRUE)$value,2)
+
+# Add intersection.
+idx <- match(paste(df$Var1,df$Var2), paste(contrasts$ConditionA,contrasts$ConditionB))
+df$intersection <- unlist(contrasts$Intersection[idx])
 
 # Generate plot.
-plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
-  geom_tile(color = "white") + 
-  geom_text(aes(Var2, Var1, label = value), color = "black", size = 2.5) +
+# Fix colors. 
+# Fix rounding of percent overlap.
+# Make theme consistent with other plot. 
+
+# Order df based on dendrogram. 
+levels(df$Var1) <- hc$labels[hc$order]
+levels(df$Var2) <- hc$labels[hc$order]
+
+plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
+  geom_tile(color = "black") + 
+  geom_text(aes(Var2, Var1, label = round(value,1)), color = "black", size = 1.0) +
   scale_fill_gradient2(name="Percent Overlap") + 
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
@@ -761,7 +972,216 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
                                title.position = "top", title.hjust = 0.5)) +
   coord_fixed()
 
+plot <- plot + theme(legend.position = "none")
 plot
+
+# Save heatmap and dendrogram. 
+file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_matirx.tiff")
+ggsave(file,plot, width = 3, height = 3, units = "in", dpi = 300)
+
+file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.tiff")
+ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
+
+#-------------------------------------------------------------------------------
+#' ## Examine GO enrichment for each DEP community.
+#-------------------------------------------------------------------------------
+
+## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
+communityNodes <- lapply(results,function(x) x$nodes)
+
+logic <- list()
+for (i in 1:length(communityNodes)){
+  logic[[i]] <- meta$gene %in% communityNodes[[i]]
+}
+
+labels <- do.call(cbind, logic)
+rownames(labels) <- meta$entrez
+colnames(labels) <- names(communityNodes)
+
+# Convert TRUE to column names. 
+logic <- labels == TRUE # 1 will become TRUE, and 0 will become FALSE.
+# Loop through each column to replace 1 with column header.
+for (i in 1:ncol(logic)){
+  col_header <- colnames(labels)[i]
+  labels[logic[,i],i] <- col_header
+}
+
+# Insure that labels is a matrix.
+labels <- as.matrix(labels)
+head(labels)
+
+# look at the number of genes assigned to each cluster. 
+table(labels)
+
+# The labels matrix and vector of cooresponding entrez IDs 
+# will be passed to enrichmentAnalysis().
+
+# Build a GO annotation collection:
+if (!exists(deparse(substitute(musGOcollection)))){
+  musGOcollection <- buildGOcollection(organism = "mouse")}
+
+# Creates some space by clearing some memory.
+collectGarbage()
+
+# Perform GO analysis for each module using hypergeometric (Fisher.test) test.
+# As implmented by the WGCNA function enrichmentAnalysis().
+# FDR is the BH adjusted p-value. 
+# Insure that the correct background (used as reference for enrichment)
+# has been selected!
+# useBackgroud = "given" will use all given genes as reference background.
+
+GOenrichment <- enrichmentAnalysis(
+  classLabels = labels,
+  identifiers = rownames(labels), # entrez ids
+  refCollection = musGOcollection,
+  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
+  threshold = 0.05,
+  thresholdType = "Bonferroni",
+  getOverlapEntrez = TRUE,
+  getOverlapSymbols = TRUE,
+  ignoreLabels = "FALSE")
+
+# Create some space by clearing some memory.
+collectGarbage()
+
+# Collect the results. 
+results_GOenrichment <- list()
+for (i in 1:length(GOenrichment$setResults)){
+  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
+}
+length(results_GOenrichment)
+names(results_GOenrichment) <- colnames(labels)
+
+# Write results to file. 
+file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_DEP_Community_GOenrichment_Results.xlsx")
+write.excel(results_GOenrichment,file)
+
+## Visualize GO terms with GOscatter plots. 
+# Module name should be a color for the plot.
+colorvec <- c("green1","yellow1","blue1","purple1",
+              "green2","yellow2","blue2","purple2")
+godata <- results_GOenrichment
+names(godata) <- colorvec
+
+# Specify the top percent of terms to print with topN.
+plots <- list()
+for (i in 1:length(godata)){
+  color <- colorvec[i]
+  plots[[i]] <- ggplotGOscatter(godata, color = color, topN = 0.05)
+}
+names(plots) <- names(results_GOenrichment)
+
+#fixme: add specific colors, change dot alpha may improve appearance. 
+# ugg shank2...
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+plots[[5]]
+plots[[6]]
+plots[[7]]
+plots[[8]]
+
+# Loop to save plots.
+for (i in 1:length(plots)){
+  plot <- plots[[i]] + theme(legend.position = "none")
+  namen <- gsub("\\.","_",names(plots)[i])
+  file <- paste0(outputfigsdir,"/",outputMatName,namen,"DEP_Community_GO_scatter.tiff")
+  ggsave(file, plot, width = 3, height = 3, units = "in", dpi = 300)
+}
+
+#-------------------------------------------------------------------------------
+#' ## Evaluate go term similarity of DEP communities.
+#-------------------------------------------------------------------------------
+
+# Entrez genes for each DEP community (cluster).
+clusters <- sapply(results,"[",4)
+names(clusters) <- gsub(".nodes.entrez","",names(clusters))
+
+# Evaluate GO semanitic similarity between DEP communities (clusters).
+gosim <- mclusterSim(clusters, semData=msGOBP, measure="Wang", combine="BMA")
+
+# hclustering
+diag(gosim) <- NA
+diss <- 1 - gosim
+hc <- hclust(as.dist(diss), method = "average")
+dendro <- ggdendrogram(hc)
+dendro
+
+
+#-------------------------------------------------------------------------------
+#' ## Cluster GO terms for each DEP community by semantic similarity. 
+#-------------------------------------------------------------------------------
+
+# Build GO database.
+if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
+if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
+if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
+
+msGO <- list(msGOMF,msGOBP,msGOCC)
+names(msGO) <- c("MF","BP","CC")
+
+# Collect genes associated with each DEP community.
+#genes <- unlist(sapply(results,"[",3))
+#clusters <- list()
+
+#for (i in 1:length(results)){
+#  genes <- unlist(results[[i]][3])
+#  entrez <- unlist(gene2entrez[genes])
+#  clusters[[i]] <- entrez
+#}
+#names(clusters) <- names(results)
+
+# Build collection of GO terms. 
+#x <- org.Mm.egGO
+#mapped_genes <- mappedkeys(x)
+#musGO <- as.list(x[mapped_genes])
+
+# Loop through clusters and get GO terms associated with this group of proteins.
+#out <- list()
+#for (i in 1:length(clusters)){
+#  idx <- clusters[[i]]
+#  out[[i]] <- unlist(lapply(musGO[idx],function(x) names(x)))
+#}
+
+goIDs <- lapply(results_GOenrichment,function(x) x$dataSetID)
+namen <- lapply(results_GOenrichment,function(x) x$inGroups)
+
+for (i in 1:length(goIDs)){
+  govec <- goIDs[[i]]
+  names(govec) <- gsub("GO|GO.","",namen[[i]])
+  goIDs[[i]] <- govec
+}
+
+# For each group of go terms, evaluate similarity.
+out <- list()
+for (i in c(1,2,3,4,5,7,8)){
+  go1 <- goIDs[[i]]
+  go1 <- subset(go1, names(go1) == "BP")
+  gosim <- mgoSim(go1, go1, semData=msGO$BP, measure="Wang", combine=NULL)
+  
+  # hclustering.
+  diss <- 1 - gosim
+  hc <- hclust(as.dist(diss), method = "average")
+  dendro <- ggdendrogram(hc, rotate=FALSE, labels = TRUE)
+  out[[i]] <- list(dendrogram = dendro, hclust = hc, goSimilarity = gosim)
+}
+
+names(out) <- names(goIDs)
+lapply(out,function(x) x$dendrogram)
+
+out$Cortex.HET.Syngap1$dendrogram
+hc <- out$Cortex.HET.Syngap1$hclust
+v <- cutree(hc,k=4)
+length(unique(v))
+results_GOenrichment$Cortex.HET.Syngap1$dataSetID %in% names(v)
+out$Cortex.HET.Syngap1$dendrogram
+
+
+# Get GO terms associated with DEP community.
+# Evaluate semantic similarity amongst these terms.
+# Cluster and display on PPI graph. 
+#mgoSim(go1, go2, semData=hsGO, measure="Wang", combine=NULL)
 
 #-------------------------------------------------------------------------------
 #' ## PPI graph of WPCNA modules...
@@ -1137,3 +1557,4 @@ subg_list <- lapply(v,function(x) induced.subgraph(PPIgraph,x$Protein))
 deg_list <- lapply(subg_list,function(x) sum(degree(x)))
 
 do.call(rbind,deg_list)
+``
