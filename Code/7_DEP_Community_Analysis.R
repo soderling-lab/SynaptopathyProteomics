@@ -141,7 +141,6 @@ ggplot2::theme_set(theme_gray())
 #' ## Load the WGNCA and TMT data.
 #-------------------------------------------------------------------------------
 
-# Data is...
 # Load TAMPOR cleanDat from file:
 datafile <- paste(Rdatadir,tissue,"TAMPOR_data_outliersRemoved.Rds",sep="/")
 cleanDat <- readRDS(datafile)
@@ -190,6 +189,66 @@ file <- paste0(Rdatadir,"/","DEP_Communities.Rds")
 DEP_communities <- readRDS(file)
 
 #-------------------------------------------------------------------------------
+#' ## Adding KNN to DEP communities.
+#-------------------------------------------------------------------------------
+
+# Create a dictionary like object for mapping entrez to gene|uniprot.
+entrez2protein <- as.list(meta$protein)
+names(entrez2protein) <- meta$entrez
+
+# Calculate protein co-expression (correlation) matrix. 
+r <- bicor(t(cleanDat))
+diag(r) <- NA
+r[lower.tri(r)] <- NA
+
+# Loop to get K(3)NN for each seed node. 
+out <- list()
+for (i in 1:length(DEP_communities)){
+  
+  # Collect the data
+  community <- names(DEP_communities)[i]
+  community_data <- DEP_communities[[community]]
+
+  s <- community_data$seeds
+  m <- community_data$nodes.entrez
+  nodes <- unlist(entrez2protein[s])
+  c_nodes <- unlist(entrez2protein[m])
+  subg <- community_data$subg
+
+  # Define a function to get KNN neighbors.
+  fx <- function(x, n = 3){ 
+    x.sorted <- sort(x, decreasing = TRUE)
+    x.knn <- x.sorted[c(1:n)]
+    return(as.list(x.knn))
+    }
+  
+  # Get KNN for all seed proteins.  
+  data_knn <- apply(r,2,fx)
+  data_knn <- data_knn[nodes]
+  df <- melt(do.call(rbind, lapply(data_knn,function(x) unlist(x))))
+  colnames(df) <- c("NodeA","NodeB","Bicor")
+  
+  # Define proteins of interest as seeds + community nodes + knn.
+  prots <- unique(c(df$NodeA,df$NodeB,nodes,c_nodes))
+  
+  df.summary <- data.frame(
+    seeds = length(s),
+    community = length(m),
+    combined = length(prots))
+  out[[i]] <- list(proteins = prots, summary = df.summary)
+  }
+
+names(out) <- names(DEP_communities)
+
+# Check numbers.
+x <- sapply(out,"[",2)
+do.call(rbind,x)
+
+# Write to file.
+file <- paste0(Rdatadir,"/","DEP_KNN_Communities.Rds")
+saveRDS(out,file)
+
+#-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -204,14 +263,10 @@ cleanDat <- log2(cleanDat)
 cleanDat[1:5,1:5]
 dim(cleanDat) # 1 outlier removed.
 
-# Subset cleanDat.
-nodes <- DEP_communities$Cortex.HET.Syngap1$nodes.entrez
-subg <- DEP_communities$Cortex.HET.Syngap1$subg
-subg_name <- names(DEP_communities)[1]
-
-idx <- match(nodes,meta$entrez)
-proteins <- meta$protein[idx]
-subDat <- subset(cleanDat, rownames(cleanDat) %in% proteins)
+# Subset cleanDat based on prots of interest. 
+prots <- out$Cortex.HET.Syngap1$proteins
+subg_name <- "Cortex.HET.Syngap1"
+subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
 dim(subDat)
 
 # Strip module, metamodule and modulColor attributes from subg.
@@ -274,7 +329,7 @@ if (estimatePower==TRUE){
 }
 
 # Choose a scale free power.
-power = 7
+power <- 7 # Why does the plot look weird? What does this mean? 
   
 # Calculate node connectivity in the Weighted co-expression network.  
 connectivity <- softConnectivity(
@@ -305,7 +360,6 @@ plot
 
 # Load blockwiseModules Parameters.
 files <- list.files(Rdatadir,pattern = "Stats")
-files
 file <- paste0(Rdatadir,"/",files[1])
 sampled_params <- do.call(rbind,sapply(readRDS(file),"[",1))
 rownames(sampled_params) <- paste0("params_",(1:nrow(sampled_params)))
@@ -449,66 +503,6 @@ grid.arrange(table)
 #ggsave(file,table,width = 6, height = 1)
 
 #-------------------------------------------------------------------------------
-#' Send DEP Community with Co-expression modules to Cytoscape.
-#-------------------------------------------------------------------------------
-
-# Send graph to cytoscape?
-send_to_cytoscape = TRUE
-
-# Dictionary like object for mapping entrez to gene|uniprot.
-entrez2protein <- as.list(meta$protein)
-names(entrez2protein) <- meta$entrez
-
-# Build df of node attributes. 
-idx <- match(entrez2protein[names(V(subg))], rownames(subDat))
-hex <- lapply(as.list(net$colors[idx]), function(x) col2hex(x))
-df <- data.frame(Protein = unlist(entrez2protein[names(V(subg))]),
-                 Entrez = names(V(subg)),
-                 Color = net$colors[idx],
-                 HexColor = unlist(hex))
-rownames(df) <- df$Entrez
-
-# Send to cytoscape with RCy3!
-if (send_to_cytoscape == TRUE){
-  cytoscapePing()
-  quiet(RCy3::createNetworkFromIgraph(subg,subg_name))
-  
-  # Load node attribute table in cytoscape.
-  loadTableData(df)
-  
-  # Create custom syle to customize appearance. 
-  geno <- strsplit(subg_name, "\\.")[[1]][3]
-  style.name <- subg_name
-  colvec <- df$HexColor
-  
-  defaults <- list(NODE_FILL = col2hex("grey"),
-                   NODE_SHAPE="Ellipse",
-                   NODE_SIZE=55,
-                   EDGE_WIDTH = 2.0,
-                   EDGE_TRANSPARENCY=120)
-  
-  nodeLabels <- mapVisualProperty('node label','Symbol','p')
-  nodeFills <- mapVisualProperty('node fill color','HexColor','p', colvec)
-  
-  #edgeWidth <- mapVisualProperty('edge width','weight','p')
-  createVisualStyle(style.name, defaults, list(nodeLabels,nodeFills))
-  lockNodeDimensions(TRUE, style.name)
-  setVisualStyle(style.name)
-  
-  # Apply perfuse force directed layout. 
-  layoutNetwork(layout.name = "force-directed")
-  setNodeColorDefault(col2hex("grey"), style.name)
-  
-  # Apply node color mapping to score. (this will overwrite other mapping)                    
-  #column <- paste("score",names(sigProts)[i])
-  #control.points <- c(min(df[column]), 0.0, max(df[column]))
-  #cols <- c(col2hex("blue"), col2hex("white"), col2hex("red"))
-  #setNodeColorMapping(column, control.points, cols, style.name = style.name)
-}
-
- #need to rebuild graph with ppi graph. Dont add WGCNA traits!!!
-
-#-------------------------------------------------------------------------------
 #' ## Enforce min module size. Recalculate MEs.
 #-------------------------------------------------------------------------------
 
@@ -568,6 +562,60 @@ nModules_original
 nModules
 nModules_out
 
+#-------------------------------------------------------------------------------
+#' Send DEP Community with Co-expression modules to Cytoscape.
+#-------------------------------------------------------------------------------
+
+# Send graph to cytoscape?
+send_to_cytoscape = TRUE
+
+# Build df of node attributes. 
+# FIX THIS!!! 
+idx <- match(unlist(entrez2protein[names(V(subg))]), rownames(subDat))
+hex <- lapply(as.list(net$colors[idx]), function(x) col2hex(x))
+df <- data.frame(Protein = unlist(entrez2protein[names(V(subg))]),
+                 Entrez = (V(subg)),
+                 Color = net$colors[idx],
+                 HexColor = unlist(hex))
+rownames(df) <- df$Entrez
+
+# Send to cytoscape with RCy3!
+if (send_to_cytoscape == TRUE){
+  cytoscapePing()
+  quiet(RCy3::createNetworkFromIgraph(subg,subg_name))
+  
+  # Load node attribute table in cytoscape.
+  loadTableData(df)
+  
+  # Create custom syle to customize appearance. 
+  geno <- strsplit(subg_name, "\\.")[[1]][3]
+  style.name <- subg_name
+  colvec <- df$HexColor
+  
+  defaults <- list(NODE_FILL = col2hex("grey"),
+                   NODE_SHAPE="Ellipse",
+                   NODE_SIZE=55,
+                   EDGE_WIDTH = 2.0,
+                   EDGE_TRANSPARENCY=120)
+  
+  nodeLabels <- mapVisualProperty('node label','Symbol','p')
+  nodeFills <- mapVisualProperty('node fill color','HexColor','p', colvec)
+  
+  #edgeWidth <- mapVisualProperty('edge width','weight','p')
+  createVisualStyle(style.name, defaults, list(nodeLabels,nodeFills))
+  lockNodeDimensions(TRUE, style.name)
+  setVisualStyle(style.name)
+  
+  # Apply perfuse force directed layout. 
+  layoutNetwork(layout.name = "force-directed")
+  setNodeColorDefault(col2hex("grey"), style.name)
+  
+  # Apply node color mapping to score. (this will overwrite other mapping)                    
+  #column <- paste("score",names(sigProts)[i])
+  #control.points <- c(min(df[column]), 0.0, max(df[column]))
+  #cols <- c(col2hex("blue"), col2hex("white"), col2hex("red"))
+  #setNodeColorMapping(column, control.points, cols, style.name = style.name)
+}
 
 #-------------------------------------------------------------------------------
 #' ## Prepare Numeric metadata for WGCNA analysis. 
@@ -736,16 +784,6 @@ groups[grepl("Cortex.WT",groups)] <- "WT.Cortex"
 groups[grepl("Striatum.WT",groups)] <- "WT.Striatum"
 unique(groups)
 
-# Other groupings...
-#groups <- paste(numericMeta$SexType,numericMeta$TissueType,numericMeta$Sample.Model,sep=".")
-#groups[grepl("F.*.KO.*",groups)] <- "F.ASD"
-#groups[grepl("F.*.HET.*",groups)] <- "F.ASD"
-#groups[grepl("M.*.KO.*",groups)] <- "M.ASD"
-#groups[grepl("M.*.HET.*",groups)] <- "M.ASD"
-#groups[grepl("M.*.WT.*",groups)] <- "M.WT"
-#groups[grepl("F.*.WT.*",groups)] <- "F.WT"
-#unique(groups)
-
 # Calculate Kruskal-Wallis pvalues for all modules (columns of MEs df).
 KWtest <- apply(MEs,2,function(x) kruskal.test(x,as.factor(groups)))
 
@@ -778,15 +816,6 @@ names(ME_list) <- colnames(MEs)
 # Add vector of groups
 ME_list <- lapply(ME_list,function(x) data.frame(x = x, groups = groups))
 
-# Example plot. Specify stats=TRUE to return the KW and Dunn test results.
-# If overall p-value (unadjusted KW) is significant , then title is red.
-# Signicance of Dunn's post-hoc test comparisons to pooled WT group 
-# are indicated with astricks.
-x <- ME_list[[1]]$x
-g <- ME_list[[1]]$groups
-color <- names(ME_list)[1]
-color
-
 # Define levels for order of bars in plot.
 #levels <- c("M.WT","M.ASD","F.WT","F.ASD")
 levels <- c("WT.Cortex","WT.Striatum",
@@ -802,13 +831,6 @@ g2 <- list(
   c("Cortex.KO.Shank2","Cortex.KO.Shank3","Cortex.HET.Syngap1","Cortex.KO.Ube3a"),
   c("Striatum.KO.Shank2","Striatum.KO.Shank3","Striatum.HET.Syngap1","Striatum.KO.Ube3a"))
 contrasts <- makePairwiseContrasts(g1,g2)
-contrasts
-
-# Generate plot.
-plot_data <- ggplotVerboseBoxplot(x,g,levels,contrasts,color,stats=TRUE, 
-                                  method = "dunn")
-plot_data$plot
-plot_data$dunn
 
 # Loop through ME_list and generate verboseBoxPlot.
 # lapply wont work here because the name is not preserved when you call lapply()...
@@ -818,7 +840,13 @@ for (i in 1:dim(MEs)[2]){
   x <- ME_list[[i]]$x
   g <- ME_list[[i]]$groups
   color <- names(ME_list)[[i]]
-  plot <- ggplotVerboseBoxplot(x,g,levels,contrasts,color,stats=TRUE,method="dunn")
+  plot <- ggplotVerboseBoxplot(x,g,
+                               levels,
+                               contrasts,
+                               color,
+                               stats=TRUE,
+                               method="dunn", 
+                               correction_factor = 1)
   plot_data[[i]] <- plot
   names(plot_data)[[i]] <- color
 }
@@ -828,12 +856,6 @@ plot_list <- sapply(plot_data,"[",1)
 
 # Store as VBplots
 vbplots <- plot_list
-
-# Save all plots.
-#if (saveplots==TRUE){
-#  file <- paste0(outputfigsdir,"/",tissue,"_WGCNA_Analysis_MF_VerboseBoxPlots.pdf")
-#  ggsavePDF(plot_list,file)
-#}
 
 # Extract post-hoc test stats.
 Dtest_stats <- sapply(plot_data,"[",3)
@@ -851,14 +873,6 @@ for (i in 1:length(Dtest_stats)){
 nsig <- do.call(rbind,lapply(Dtest_stats,function(x) sum(x$P.adj<0.05)))
 idx <- match(KW_results$Module,rownames(nsig))
 KW_results$DunnettTestNsig <- nsig[idx,]
-
-# Save tiffs of top plots.
-#idx <- subset(KW_results,p.adj<0.1)$Module
-#for (i in 1:length(idx)){
-#  color <- idx[i]
-#  file <- paste0(outputfigsdir,"/",outputMatName,"Verbose_boxplot_",color,".tiff")
-#  ggsave(file,vbplots[[paste(color,"plot",sep=".")]])
-#}
 
 # Convert Dtest stats into data frame. By casting long data into wide.
 # dcast should work for multiple value.var, but it isnt...
@@ -922,28 +936,28 @@ module_overlap <- man
 names(vbplots) <- sapply(strsplit(names(vbplots),"\\."),"[",1)
 
 # Make a directory for storing all vbplots.
-new_dir <- paste(outputfigsdir,"VBplot_Groups",sep="/")
-dir.create(new_dir)
+#new_dir <- paste(outputfigsdir,"VBplot_Groups",sep="/")
+#dir.create(new_dir)
 
 # Loop over groups of plots, and save them in common directory.
-if (savegroups == TRUE){
-  print("Saving plots!")
-  for (i in 1:length(module_overlap)){
-    namen <- sub(" ","",names(module_overlap)[i])
-    namen <- sub("\\ ","_",gsub("\\.","",namen))
-    group <- module_overlap[[i]]
-    output_directory <- paste(new_dir,namen,sep="/")
-    dir.create(output_directory)
-    plot_names <- module_overlap[[i]]
-    # Loop to save plots as individual tiffs.
-    for (k in 1:length(plot_names)){
-      plot_name <- plot_names[k]
-      plot <- vbplots[[plot_name]]
-      file <- paste0(output_directory,"/",plot_name,".tiff")
-      ggsave(file,plot,width = 8.17, height = 5.17)
-    }
-  }
-}
+#if (savegroups == TRUE){
+#  print("Saving plots!")
+#  for (i in 1:length(module_overlap)){
+#    namen <- sub(" ","",names(module_overlap)[i])
+#    namen <- sub("\\ ","_",gsub("\\.","",namen))
+#    group <- module_overlap[[i]]
+#    output_directory <- paste(new_dir,namen,sep="/")
+#    dir.create(output_directory)
+#    plot_names <- module_overlap[[i]]
+#    # Loop to save plots as individual tiffs.
+#    for (k in 1:length(plot_names)){
+#      plot_name <- plot_names[k]
+#      plot <- vbplots[[plot_name]]
+#      file <- paste0(output_directory,"/",plot_name,".tiff")
+#      ggsave(file,plot,width = 8.17, height = 5.17)
+#    }
+#  }
+#}
 
 # Summarize number of post-hoc changes in significant modules...
 cols <- c(1,grep(" P.value",colnames(data)))
@@ -958,11 +972,11 @@ sig_counts$Genotype <- gsub(" P.value","", sig_counts$Genotype)
 knitr::kable(sig_counts)
 
 # Save top sig plots...
-for (i in 1:dim(KW_sub)[1]){
-  file <- paste0(outputfigsdir,"/",outputMatName, "_", KW_sub$Module[i],"_verboseBoxplot",".tiff")
-  plot <- vbplots[[KW_sub$Module[i]]]
-  ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
-}
+#for (i in 1:dim(KW_sub)[1]){
+#  file <- paste0(outputfigsdir,"/",outputMatName, "_", KW_sub$Module[i],"_verboseBoxplot",".tiff")
+#  plot <- vbplots[[KW_sub$Module[i]]]
+#  ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
+#}
 
 # Edit plots such that x-axis labels are red if post-hoc test is significant.
 for (i in 1:dim(KW_sub)[1]){

@@ -2201,7 +2201,7 @@ impute_Peptides <- function(data_in, groups, method, qc_threshold=0, bio_thresho
 #-------------------------------------------------------------------------------
 # Function ggplotVerboseBoxplot
 ggplotVerboseBoxplot <- function(x,g,levels,contrasts,color,stats=FALSE, 
-                                 method = "dunnett"){
+                                 method = "dunnett", correction_factor = 8){
   
   # Bind data as data frame for ggplot. 
   df <- as.data.frame(cbind(x,g))
@@ -2259,7 +2259,7 @@ ggplotVerboseBoxplot <- function(x,g,levels,contrasts,color,stats=FALSE,
   
   # Prepare annotation df.
   stats.df <- Dtest
-  stats.df$P.adj <- as.numeric(stats.df$P.unadj)*8 # BH adjustment for 8 comparisons.
+  stats.df$P.adj <- as.numeric(stats.df$P.unadj)*correction_factor # BH adjustment for 8 comparisons.
   stats.df$symbol <- ""
   stats.df$symbol[stats.df$P.adj<0.05] <- "*"
   stats.df$symbol[stats.df$P.adj<0.01] <- "**"

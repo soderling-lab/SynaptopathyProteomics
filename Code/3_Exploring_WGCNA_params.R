@@ -121,6 +121,16 @@ cleanDat <- log2(cleanDat)
 cleanDat[1:5,1:5] # Data should be log transformed. 
 dim(cleanDat)
 
+################################################################################
+# If subsetting the data based on DEP communities.
+file <- paste0(Rdatadir,"/","DEP_KNN_Communities.Rds")
+prots <- readRDS(file)
+prots <- prots[[1]]
+subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
+dim(subDat)
+cleanDat <- subDat
+################################################################################
+
 # Load combined sample info.
 traitsfile <- paste(Rdatadir,tissue,"Combined_Cortex_Striatum_traits.Rds",sep="/")
 sample_info <- readRDS(traitsfile)
