@@ -161,6 +161,18 @@ data <- readRDS(file)
 net <- data$net
 meta <- data$meta
 
+# Map 3 un-mapped entrez IDs by hand.
+meta[is.na(meta$entrez),]
+not_mapped = list("Ndufb1|P0DN34" = 102631912,
+                  "F8a1|Q00558"   = 14070,
+                  "Pc|Q05920"     = 18563)
+for (i in 1:length(not_mapped)){
+  idx <- meta$protein == names(not_mapped)[i]
+  meta$entrez[idx] <- not_mapped[[i]]
+}
+# Check. 
+sum(is.na(meta$entrez))
+
 # Add gene names.
 meta$gene <- mapIds(org.Mm.eg.db, keys=meta$entrez, column="SYMBOL", 
                     keytype="ENTREZID", multiVals="first")
@@ -187,17 +199,50 @@ dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
 file <- paste(dir,"SIF.xlsx",sep="/")
 sif <- read_excel(file,sheet = 1)
 
-# Node attributes. 
+# Create a data frame with all node attributes. 
 nodes <- data.frame(Entrez = unlist(meta$entrez[!is.na(meta$entrez)]),
+                    Uniprot = unlist(meta$uniprot[!is.na(meta$entrez)]),
                     Symbol = unlist(meta$gene[!is.na(meta$entrez)]),
                     Module = unlist(meta$module[!is.na(meta$entrez)]),
                     MetaModule = unlist(meta$metaModule[!is.na(meta$entrez)]))
 nodes$MetaModule <- paste0("MM",nodes$MetaModule)
-
-# Add hex colors for modules.
 colors <- unlist(lapply(as.list(meta$module),function(x) col2hex(x)))
 colors <- colors[!is.na(meta$entrez)]
 nodes$ModulColor <- colors
+
+# keep only nodes in sif
+#nodes <- subset(nodes, nodes$Entrez %in% unique(c(sif$musEntrezA,sif$musEntrezB)))
+#dim(nodes)
+
+# Compile EdgeR GLM stats. Build a df with logfc and p-values.
+stats <- lapply(results, function(x)
+  data.frame(Uniprot = x$Uniprot, 
+             Entrez = x$Entrez, 
+             logFC = x$logFC,
+             PValue = x$PValue,
+             FDR = x$FDR))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = c("Uniprot","Entrez"))
+namen <- sapply(strsplit(colnames(df)[c(3:ncol(df))],"\\."),"[",1)
+colnames(df)[c(3:ncol(df))] <- paste(namen,rep(names(stats),each=3))
+
+# Calculate single metric for node color/size.
+# Score = log2( PC * -log10(pvalue))
+fc <- as.matrix(df[,seq(3,ncol(df),by=3)])
+pval <- as.matrix(df[seq(4,ncol(df),by=3)])
+score <- fc*(1-pval)
+colnames(score) <- gsub("logFC","score",colnames(score))
+df <- cbind(df,score)
+
+# Combine with node attributes. 
+# use uniprot to combine as this is the MOST stable identifier for all proteins.
+nodes <- merge(nodes, df, by = c("Uniprot"))
+
+# Clean-up the df.
+nodes$Entrez.y <- NULL
+names(nodes)[2] <- "Entrez"
+nodes <- nodes[,c(2,1,3:ncol(nodes))] # reorder so that entrez is first col
+dim(nodes)
 
 # Make igraph object. 
 g <- graph_from_data_frame(d=sif, vertices=nodes, directed=FALSE)
@@ -212,7 +257,372 @@ length(E(g))
 
 # Number of connected components.
 connected_components <- components(g, mode = c("weak", "strong"))
-connected_components$csize
+connected_components$csize[1] # The largest connected component. 
+
+#-------------------------------------------------------------------------------
+#' ## Build subraphs for DEPs and their communities. 
+#-------------------------------------------------------------------------------
+
+# Generate PPIs graphs using DEPs from each tissue:genotype contrast as seed 
+# nodes. Add nodes with 2+ connections to these seed nodes for biological 
+# context. Do not consider connections to 1433* chaperone proteins.
+
+# Create a Dictionary-like object mapping uniprot IDs to Entrez.
+uniprot <- as.list(meta$entrez)
+names(uniprot) <- meta$uniprot
+genes <- as.list(meta$entrez)
+names(genes) <- meta$gene
+uniprot2gene <- as.list(meta$gene)
+names(uniprot2gene) <- meta$uniprot
+
+# Defaults for analysis. 
+degree_to_stay = 2
+send_to_cytoscape = FALSE # This will only be done for 1 randomly seeded subg. 
+combine_tissues   = FALSE
+generate_random   = FALSE # 1,000 randomlly seeded subgs will be generated for each DEP community.
+
+# Custom colors:
+colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
+names(colors) <- c("Shank2","Shank3","Syngap1","Ube3a")
+
+# Empty list for results.
+community_results <- list()
+rand_results <- list()
+
+# Define significantly DEPs.
+sigProts <- list()
+for (i in 1:length(stats)){
+  df <- stats[[i]]
+  sigProts[[i]] <- df$Uniprot[df$FDR < 0.05]
+}
+names(sigProts) <- names(stats)
+
+# Add Combined.KO.Shank2
+sigProts$Combined.KO.Shank2 <- unique(c(sigProts$Cortex.KO.Shank2,
+                                        sigProts$Striatum.KO.Shank2))
+
+# Combine tissues for each genotype.
+if (combine_tissues == TRUE){
+  genos <- c("Shank2","Shank3","Syngap1","Ube3a")
+  u <- list()
+  for (geno in genos){
+    idx <- grep(geno,names(sigProts))
+    u[[geno]] <- union(sigProts[[idx[1]]],sigProts[[idx[2]]])
+  }
+  sigProts <- u
+}
+
+# Map sigProts to Entrez.
+sigEntrez <- lapply(sigProts,function(x) unlist(uniprot[x]))
+
+# Reorder
+#sigEntrez <- sigEntrez[c(2,6,3,7,1,5,4,8)]
+#names(sigEntrez)
+
+# Loop to create networks.
+# Cytoscape should be open before proceeding!
+for (i in 1:length(sigEntrez)){
+  
+  print(paste("Working on subgraph", i,"..."))
+  
+  # Get subset of nodes (v) in modules overlap.
+  # We will use these to seed a network.
+  v <- sigEntrez[[i]] # number of significant proteins for this exp.
+  length(v)
+  
+  # Insure that all nodes are in the network.
+  #table(v %in% vertex_attr(g, "name"))
+  v <- v[v %in% vertex_attr(g, "name")]
+  print(paste0("Seed Nodes: ", length(v)))
+  seeds <- v
+  
+  # Create list of subgraphs (subg) for every seed node.
+  subg <- make_ego_graph(g, 
+                         order = 1, 
+                         nodes = v,
+                         mode = "all", 
+                         mindist = 0)
+  
+  # Combine subgraphs, union. 
+  uniong <- do.call(igraph::union,subg)
+  
+  # Calculate distances from seed nodes to all else.
+  dist <- as.data.frame(
+    distances(uniong,
+              v = V(uniong), 
+              to = v, 
+              mode = "all",
+              weights = NULL, 
+              algorithm = "unweighted")
+  )
+  
+  # Only consider direct connections to seed nodes (distance == 1).
+  dist[dist!=1] <- 0
+  
+  # Exclude Ywha* genes (14-3-3 proteins).
+  out <- as.character(genes[grep("Ywha*",names(genes))])
+  dist[rownames(dist) %in% out,] <- 0
+  
+  # Calculate degree to seed nodes (sum).
+  dist$SeedDegree <- apply(dist[,-ncol(dist)],1,function(x) sum(x))
+  
+  # We will keep nodes that have at least 2 connections with seed nodes.
+  # degree_to_stay = 2
+  keep <- dist$SeedDegree>=degree_to_stay
+  dist <- dist[keep,]
+  keepers <- unique(c(v,rownames(dist)))
+  print(paste("Additional nodes:", length(keepers) - length(seeds)))
+  subg <- induced_subgraph(g,keepers)
+  
+  # Build df of node attributes. 
+  idx <- nodes$Entrez %in% names(V(subg))
+  df <- nodes[idx,]
+  rownames(df) <- df$Entrez
+  idy <- grepl(names(sigProts)[i],colnames(df)) & grepl("FDR",colnames(df))
+  df$sigProt <- df[,idy] < 0.05
+  
+  # How many nodes. 
+  print(paste0("Total Nodes: ", length(V(subg))))
+  
+  # result
+  community_results[[i]] <- list(seeds= seeds, 
+                                 subg = subg, 
+                                 nodes = names(V(subg)),
+                                 nodes.entrez = keepers)
+  
+  # Send to cytoscape with RCy3!
+  if (send_to_cytoscape == TRUE){
+    cytoscapePing()
+    quiet(RCy3::createNetworkFromIgraph(subg,names(sigEntrez)[i]))
+    
+    # Load node attribute table in cytoscape.
+    loadTableData(df)
+
+    # Create custom syle to customize appearance. 
+    geno <- strsplit(names(sigEntrez)[i], "\\.")[[1]][3]
+    style.name <- names(sigEntrez)[i]
+    colvec <- c(col2hex("gray"), unlist(colors[geno]))
+    
+    defaults <- list(NODE_FILL = col2hex("grey"),
+                     NODE_SHAPE="Ellipse",
+                     NODE_SIZE=55,
+                     EDGE_WIDTH = 2.0,
+                     EDGE_TRANSPARENCY=120)
+     
+    nodeLabels <- mapVisualProperty('node label','Symbol','p')
+    nodeFills <- mapVisualProperty('node fill color','sigProt','d',c(FALSE,TRUE), colvec)
+    
+    #edgeWidth <- mapVisualProperty('edge width','weight','p')
+    createVisualStyle(style.name, defaults, list(nodeLabels,nodeFills))
+    lockNodeDimensions(TRUE, style.name)
+    setVisualStyle(style.name)
+    
+    # Apply perfuse force directed layout. 
+    layoutNetwork(layout.name = "force-directed")
+    setNodeColorDefault(col2hex("grey"), style.name)
+    
+    # Apply node color mapping to score. (this will overwrite other mapping)                    
+    column <- paste("score",names(sigProts)[i])
+    control.points <- c(min(df[column]), 0.0, max(df[column]))
+    cols <- c(col2hex("blue"), col2hex("white"), col2hex("red"))
+    setNodeColorMapping(column, control.points, cols, style.name = style.name)
+  }
+}
+
+# Name the results.  
+names(community_results) <- names(sigEntrez)
+
+# Save network images...
+#full.path=paste(getwd(),'vignette_image',sep='/')
+#exportImage(full.path, 'PDF') #.pdf
+
+# Convert pdf to tiff...
+#pdf <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Combined/Network_Analysis/Cortex.HET.Syngap1.pdf"
+#library(pdftools)
+#tiff <- pdf_render_page(pdf, dpi = 600, numeric = TRUE)
+
+# save to bitmap formats
+#library(tiff)
+#writeTIFF(tiff, "test.tiff", compression = "none")
+#-------------------------------------------------------------------------------
+
+# Try breaking down modules by functional groups...
+
+
+#-------------------------------------------------------------------------------
+#' ## Examine overlap between DEP communities and randomly seeded graphs.
+#-------------------------------------------------------------------------------
+
+# Examine overlap between subgraphs and random subgraphs. 
+names(results) <- names(sigEntrez)
+if (length(rand_results>0)){ names(rand_results) <- names(sigEntrez)}
+
+# collect nodes of graphs. 
+nodes <- sapply(results,"[",3)
+rand_nodes <- sapply(rand_results,"[",3)
+
+# Function to calculate length, union, and intersection.
+func <- function(x,y){
+  len_x <- length(x)
+  len_y <- length(y)
+  u <- sum(x %in% y)
+  i <- length(unique(c(x,y)))
+  return(list(length_x = len_x, length_y = len_y, 
+              union = u, intersection = i))
+}
+res <- mapply(func,nodes,rand_nodes)
+
+# Collect every four... elements of list, and combine as dm. 
+b <- split(res, rep(seq(from=1, to = 8, by = 1),each = 4))
+dm <- do.call(rbind,lapply(b,function(x) unlist(x)))
+rownames(dm) <- names(sigEntrez)
+colnames(dm) <- c("len(V(subg))","len(V(rand))", "intersection","union")
+df <- as.data.frame(dm)
+df$percent <- round(100*(df$intersection/df$union),2)
+df$seeds <- unlist(lapply(results,function(x) length(x[[1]])))
+
+#-------------------------------------------------------------------------------
+#' ## Examine pairwise overlap in DEP communities.
+#-------------------------------------------------------------------------------
+
+# Examine overlap in ppi networks...
+names(results) <- names(sigProts)
+nodes <- sapply(results,"[", 3)
+names(nodes)
+
+# Build a matrix showing overlap.
+col_names <- names(nodes)
+row_names <- names(nodes)
+
+# All possible combinations.
+contrasts <- expand.grid(col_names,row_names)
+colnames(contrasts) <- c("ConditionA","ConditionB")
+contrasts$ConditionA <- as.vector(contrasts$ConditionA)
+contrasts$ConditionB <- as.vector(contrasts$ConditionB)
+
+# Loop to calculate intersection for all contrasts. 
+int <- list()
+A <- list()
+B <- list()
+for (i in 1:dim(contrasts)[1]){
+  a <- unlist(nodes[contrasts$ConditionA[i]])
+  b <- unlist(nodes[contrasts$ConditionB[i]])
+  A[[i]] <- length(a)
+  B[[i]] <- length(b)
+  int[[i]] <- intersect(a,b)
+}
+
+contrasts$Name <- paste(contrasts$ConditionA,
+                        contrasts$ConditionB,sep="_U_")
+names(int) <- contrasts$Name
+
+# Add intersection to contrasts.
+contrasts$Intersection <- lapply(int,function(x) length(x))
+contrasts$A <- unlist(A)
+contrasts$B <- unlist(B)
+contrasts$C <- contrasts$A + contrasts$B
+
+# Calculate percent intersection.
+int <- list()
+for (i in 1:dim(contrasts)[1]){
+  a <- unlist(nodes[contrasts$ConditionA[i]])
+  b <- unlist(nodes[contrasts$ConditionB[i]])
+  int[[i]] <- length(intersect(a,b))/length(unique(c(a,b)))
+}
+
+# Add to contrasts dm
+contrasts$Percent <- unlist(int)
+
+# Make overlap matrix.
+dm <- matrix(contrasts$Intersection,nrow=8,ncol=8)
+rownames(dm) <- colnames(dm) <- row_names
+
+# heirarchical clustering of dissimilarity matrix calculated as 1-percent_overlap.
+dm <- matrix(contrasts$Percent,nrow=8,ncol=8)
+rownames(dm) <- colnames(dm) <- row_names
+diss <- 1 - dm
+hc <- hclust(as.dist(diss), method = "average")
+dendro <- ggdendrogram(hc, rotate=TRUE, labels = FALSE)
+# Strip labels. 
+dendro <- dendro +  theme(axis.text.x = element_blank(), axis.text.y = element_blank())
+dendro
+
+# Remove upper tri and melt.
+dm[lower.tri(dm)] <- NA
+df <- melt(dm,na.rm = TRUE)
+
+# Add intersection.
+idx <- match(paste(df$Var1,df$Var2), paste(contrasts$ConditionA,contrasts$ConditionB))
+df$intersection <- unlist(contrasts$Intersection[idx])
+
+# Generate plot.
+# Fix colors. 
+# Fix rounding of percent overlap.
+# Make theme consistent with other plot. 
+
+# Order df based on dendrogram. 
+levels(df$Var1) <- hc$labels[hc$order]
+levels(df$Var2) <- hc$labels[hc$order]
+
+plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
+  geom_tile(color = "black") + 
+  geom_text(aes(Var2, Var1, label = round(value,1)), color = "black", size = 1.0) +
+  scale_fill_gradient2(name="Percent Overlap") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.5, 0.7),
+    legend.direction = "horizontal") + 
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                               title.position = "top", title.hjust = 0.5)) +
+  coord_fixed()
+
+plot <- plot + theme(legend.position = "none")
+plot
+
+# Save heatmap and dendrogram. 
+file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_matirx.tiff")
+ggsave(file,plot, width = 3, height = 3, units = "in", dpi = 300)
+
+file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.tiff")
+ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
+
+#-------------------------------------------------------------------------------
+#' ## Generate custom gene lists.
+#-------------------------------------------------------------------------------
+
+file <- paste(datadir,"PPI Network" ,"MGIBatchReport_060619.xlsx", sep = "/")
+mgi_go <- if(!exists("mgi_go")) read_excel(file,sheet=1)
+
+# Keep Entrez genes.
+mgi_go <- subset(mgi_go, mgi_go$`Input Type`=="Entrez Gene")
+
+# Search for "ribosome" terms.
+idx <- unlist(lapply(mgi_go$Term,function(x) grepl("ribosome|ribosomal",x)))
+ribosome <- mgi_go[idx,]
+length(unique(ribosome$Input))
+
+# Search for proteasome.
+idx <- unlist(lapply(mgi_go$Term,function(x) grepl("proteasome|proteolysis",x)))
+proteasome <- mgi_go[idx,]
+length(unique(proteasome$Input))
+
+# Search for 
+sum(community_results$Cortex.KO.Ube3a$nodes.entrez %in% proteasome$Input)
+
+# Load node attribute table in cytoscape.
+foo <- unique(proteasome$Input)
+man <- as.data.frame(foo)
+row.names(man) <- man$foo
+man$category <- rep("proteasome",nrow(man))
+
+loadTableData(man)
 
 #-------------------------------------------------------------------------------
 #' ## Build df of significantly dysregulated proteins.
@@ -396,6 +806,41 @@ if (build_GO_similarity_network == TRUE){
   goSim <- readRDS(file)
 }
 
+
+#-------------------------------------------------------------------------------
+#' ## Break down DEP communities into functional subclusters....
+#-------------------------------------------------------------------------------
+
+# Create go similarity graph. 
+gs <- graph_from_adjacency_matrix(goSim, mode = "undirected", weighted = TRUE)
+
+
+subg <- community_results$Cortex.HET.Syngap1$subg
+
+
+nodes <- community_results$Cortex.HET.Syngap1$nodes.entrez
+n <- V(gs)[names(V(gs)) %in% nodes]
+
+subg <- induced_subgraph(gs,n)
+
+
+gl <- cluster_louvain(subg, E(gs))
+gl$membership
+
+
+man <- as.matrix(as_adjacency_matrix(gs, attr = "weight"))
+foo <- as.matrix(as_adjacency_matrix(subg, attr = "weight"))
+
+connectivity <- colSums(goSim)
+# Examine fit. 
+fit <- ggplotScaleFreePlot(connectivity)
+fit
+
+dim(foo)
+foo[1:5,1:5]
+max(foo)
+
+
 #-------------------------------------------------------------------------------
 #' ## Evaluate modularity of the GO similarity graph.
 #-------------------------------------------------------------------------------
@@ -561,225 +1006,6 @@ for (i in 2:length(module_overlap)){
 result <- data.frame(Seed_Number = unlist(lapply(seeds,function(x) length(x))),
                      Network_Size = unlist(network_size))
 
-#-------------------------------------------------------------------------------
-#' ## Build subraphs for each community of DEPs (genotype:tissue groupings).
-#-------------------------------------------------------------------------------
-
-# Generate PPIs graphs using DEPs from each genotype as seed nodes.
-# Add nodes with 2+ connections to these seed nodes for biological context.
-# Do not consider connections to 1433* chaperone proteins.
-
-# Create a Dictionary-like object mapping uniprot IDs to Entrez.
-uniprot <- as.list(meta$entrez)
-names(uniprot) <- meta$uniprot
-genes <- as.list(meta$entrez)
-names(genes) <- meta$gene
-uniprot2gene <- as.list(meta$gene)
-names(uniprot2gene) <- meta$uniprot
-
-# Defaults for analysis. 
-degree_to_stay <- 2
-send_to_cytoscape = FALSE # This will only be done for 1 randomly seeded subg. 
-combine_tissues = FALSE
-generate_random = FALSE # 1,000 randomlly seeded subgs will be generated for each DEP community.
-
-# Empty list for results.
-results <- list()
-rand_results <- list()
-
-# Define significantly DEPs.
-sigProts <- list()
-for (i in 1:length(stats)){
-  df <- stats[[i]]
-  sigProts[[i]] <- df$Uniprot[df$FDR < 0.05]
-}
-names(sigProts) <- names(stats)
-
-# Combine tissues for each genotype.
-if (combine_tissues == TRUE){
-  genos <- c("Shank2","Shank3","Syngap1","Ube3a")
-  u <- list()
-  for (geno in genos){
-    idx <- grep(geno,names(sigProts))
-    u[[geno]] <- union(sigProts[[idx[1]]],sigProts[[idx[2]]])
-    }
-  sigProts <- u
-}
-
-# Map sigProts to Entrez.
-sigEntrez <- lapply(sigProts,function(x) unlist(uniprot[x]))
-
-# Loop to create networks.
-# Cytoscape should be open before proceeding!
-for (i in 1:length(sigEntrez)){
-  
-  print(paste("Working on subgraph", i,"..."))
-  
-  # Get subset of nodes (v) in modules overlap.
-  # We will use these to seed a network.
-  v <- sigEntrez[[i]] # number of significant proteins for this exp.
-  length(v)
-  
-  # Insure that all nodes are in the network.
-  #table(v %in% vertex_attr(g, "name"))
-  v <- v[v %in% vertex_attr(g, "name")]
-  print(paste0("Seed Nodes: ", length(v)))
-  seeds <- v
-  
-  # Create list of subgraphs (subg) for every seed node.
-  subg <- make_ego_graph(g, 
-                         order = 1, 
-                         nodes = v,
-                         mode = "all", 
-                         mindist = 0)
-  
-  # Combine subgraphs, union. 
-  uniong <- do.call(igraph::union,subg)
-  
-  # Calculate distances from seed nodes to all else.
-  dist <- as.data.frame(
-    distances(uniong,
-              v = V(uniong), 
-              to = v, 
-              mode = "all",
-              weights = NULL, 
-              algorithm = "unweighted")
-  )
-  
-  # Only consider direct connections to seed nodes (distance == 1).
-  dist[dist!=1] <- 0
-  
-  # Exclude Ywha* genes (14-3-3 proteins).
-  out <- as.character(genes[grep("Ywha*",names(genes))])
-  dist[rownames(dist) %in% out,] <- 0
-  
-  # Calculate degree to seed nodes (sum).
-  dist$SeedDegree <- apply(dist[,-ncol(dist)],1,function(x) sum(x))
-  
-  # We will keep nodes that have at least 2 connections with seed nodes.
-  # degree_to_stay = 2
-  keep <- dist$SeedDegree>=degree_to_stay
-  dist <- dist[keep,]
-  keepers <- unique(c(v,rownames(dist)))
-  print(paste("Additional nodes:", length(keepers) - length(seeds)))
-  subg <- induced_subgraph(g,keepers)
-  
-  # Build df of node attributes. 
-  df <- data.frame(Node = names(V(subg)),
-                   sigProt = names(V(subg)) %in% sigEntrez[[i]])
-  rownames(df) <- names(genes)[match(df$Node,genes)]
-  
-  # Change vertex names to gene symbol. 
-  idx <- match(names(V(subg)),meta$entrez)
-  subg <- set.vertex.attribute(subg,"name",value = meta$gene[idx])
-  
-  # How many nodes. 
-  print(paste0("Total Nodes: ", length(V(subg))))
-  
-  # result
-  results[[i]] <- list(seeds= seeds, 
-                       subg = subg, 
-                       nodes = names(V(subg)),
-                       nodes.entrez = keepers)
-
-  # Send to cytoscape.
-  if (send_to_cytoscape == TRUE){
-    cytoscapePing()
-    quiet(RCy3::createNetworkFromIgraph(subg,names(sigEntrez)[i]))
-    # Load node attribute table in cytoscape.
-    loadTableData(df)
-    setNodeShapeDefault('Ellipse')
-    setNodeColorDefault("#BEBEBE")
-    lockNodeDimensions(TRUE)
-  }
-  
-  # Repeat with random seeds.
-  if (generate_random==TRUE){
-    print(paste("Working on random subgraph", i,"..."))
-    rand_community_nodes <- list()
-    for (k in 1:1000){
-      if (k==1) print("Generating randomly seeded subgraphs...")
-      rand_seeds <- na.omit(sample(meta$entrez,length(seeds)))
-      #sum(rand_seeds %in% sigEntrez[[i]]) # check, should be small.
-      #length(rand_seeds) == length(seeds) # check, should be TRUE
-      rand_seeds
-      rand_subg <- make_ego_graph(g, 
-                              order = 1, 
-                              nodes = rand_seeds,
-                              mode = "all", 
-                              mindist = 0)
-      rand_uniong <- do.call(igraph::union,rand_subg)
-      rand_dist <- as.data.frame(
-        distances(rand_uniong,
-                v = V(rand_uniong), 
-                to = rand_seeds, 
-                mode = "all",
-                weights = NULL, 
-                algorithm = "unweighted"))
-      rand_dist[rand_dist!=1] <- 0
-      out <- as.character(genes[grep("Ywha*",names(genes))])
-      rand_dist[rownames(rand_dist) %in% out,] <- 0
-      rand_dist$SeedDegree <- apply(rand_dist[,-ncol(rand_dist)],1,function(x) sum(x))
-      keep <- rand_dist$SeedDegree>=degree_to_stay
-      rand_dist <- rand_dist[keep,]
-      keepers <- unique(c(rand_seeds,rownames(rand_dist)))
-      rand_community_nodes[[k]] <- keepers
-    }
-  #####
-  rand_subg <- induced_subgraph(g,keepers)
-  df <- data.frame(Node = names(V(rand_subg)),
-                   sigProt = names(V(rand_subg)) %in% sigEntrez[[i]])
-  rownames(df) <- names(genes)[match(df$Node,genes)]
-  idx <- match(names(V(rand_subg)),meta$entrez)
-  rand_subg <- set.vertex.attribute(rand_subg,"name",value = meta$gene[idx])
-  print(paste0("Total Nodes (random): ", length(V(rand_subg))))
-  rand_results[[i]] <- list(seeds= rand_seeds, 
-                            subg = rand_subg, 
-                            nodes = names(V(rand_subg)))
-  # Send to cytoscape.
-  if (send_to_cytoscape == TRUE){
-    cytoscapePing()
-    quiet(RCy3::createNetworkFromIgraph(rand_subg,paste0("rand","_",names(sigEntrez)[i])))
-    # Load node attribute table in cytoscape.
-    loadTableData(df)
-    setNodeShapeDefault('Ellipse')
-    setNodeColorDefault ('#BEBEBE')
-    lockNodeDimensions(TRUE)
-  }
-  }
-}
-
-#-------------------------------------------------------------------------------
-#' ## Examine overlap between DEP communities and randomly seeded graphs.
-#-------------------------------------------------------------------------------
-
-# Examine overlap between subgraphs and random subgraphs. 
-names(results) <- names(sigEntrez)
-if (length(rand_results>0)){ names(rand_results) <- names(sigEntrez)}
-
-# collect nodes of graphs. 
-nodes <- sapply(results,"[",3)
-rand_nodes <- sapply(rand_results,"[",3)
-
-# Function to calculate length, union, and intersection.
-func <- function(x,y){
-  len_x <- length(x)
-  len_y <- length(y)
-  u <- sum(x %in% y)
-  i <- length(unique(c(x,y)))
-  return(list(length_x = len_x, length_y = len_y, 
-              union = u, intersection = i))
-}
-res <- mapply(func,nodes,rand_nodes)
-
-# Collect every four... elements of list, and combine as dm. 
-b <- split(res, rep(seq(from=1, to = 8, by = 1),each = 4))
-dm <- do.call(rbind,lapply(b,function(x) unlist(x)))
-rownames(dm) <- names(sigEntrez)
-colnames(dm) <- c("len(V(subg))","len(V(rand))", "intersection","union")
-df <- as.data.frame(dm)
-df$percent <- round(100*(df$intersection/df$union),2)
-df$seeds <- unlist(lapply(results,function(x) length(x[[1]])))
 
 #-------------------------------------------------------------------------------
 #' ## Write DEP communities to file.
@@ -870,117 +1096,6 @@ df <- df[!df$Module=="grey",]
 
 plot(df$GOCoherence,df$Size)
 cor(df$GOCoherence,df$Size,method = "spearman")
-
-#-------------------------------------------------------------------------------
-#' ## Examine pairwise overlap in DEP communities.
-#-------------------------------------------------------------------------------
-
-# Examine overlap in ppi networks...
-names(results) <- names(sigProts)
-nodes <- sapply(results,"[", 3)
-names(nodes)
-
-# Build a matrix showing overlap.
-col_names <- names(nodes)
-row_names <- names(nodes)
-
-# All possible combinations.
-contrasts <- expand.grid(col_names,row_names)
-colnames(contrasts) <- c("ConditionA","ConditionB")
-contrasts$ConditionA <- as.vector(contrasts$ConditionA)
-contrasts$ConditionB <- as.vector(contrasts$ConditionB)
-
-# Loop to calculate intersection for all contrasts. 
-int <- list()
-A <- list()
-B <- list()
-for (i in 1:dim(contrasts)[1]){
-  a <- unlist(nodes[contrasts$ConditionA[i]])
-  b <- unlist(nodes[contrasts$ConditionB[i]])
-  A[[i]] <- length(a)
-  B[[i]] <- length(b)
-  int[[i]] <- intersect(a,b)
-}
-
-contrasts$Name <- paste(contrasts$ConditionA,
-                        contrasts$ConditionB,sep="_U_")
-names(int) <- contrasts$Name
-
-# Add intersection to contrasts.
-contrasts$Intersection <- lapply(int,function(x) length(x))
-contrasts$A <- unlist(A)
-contrasts$B <- unlist(B)
-contrasts$C <- contrasts$A + contrasts$B
-
-# Calculate percent intersection.
-int <- list()
-for (i in 1:dim(contrasts)[1]){
-  a <- unlist(nodes[contrasts$ConditionA[i]])
-  b <- unlist(nodes[contrasts$ConditionB[i]])
-  int[[i]] <- length(intersect(a,b))/length(unique(c(a,b)))
-}
-
-# Add to contrasts dm
-contrasts$Percent <- unlist(int)
-
-# Make overlap matrix.
-dm <- matrix(contrasts$Intersection,nrow=8,ncol=8)
-rownames(dm) <- colnames(dm) <- row_names
-
-# heirarchical clustering of dissimilarity matrix calculated as 1-percent_overlap.
-dm <- matrix(contrasts$Percent,nrow=8,ncol=8)
-rownames(dm) <- colnames(dm) <- row_names
-diss <- 1 - dm
-hc <- hclust(as.dist(diss), method = "average")
-dendro <- ggdendrogram(hc, rotate=TRUE, labels = FALSE)
-# Strip labels. 
-dendro <- dendro +  theme(axis.text.x = element_blank(), axis.text.y = element_blank())
-
-# Remove upper tri and melt.
-dm[lower.tri(dm)] <- NA
-df <- melt(dm,na.rm = TRUE)
-
-# Add intersection.
-idx <- match(paste(df$Var1,df$Var2), paste(contrasts$ConditionA,contrasts$ConditionB))
-df$intersection <- unlist(contrasts$Intersection[idx])
-
-# Generate plot.
-# Fix colors. 
-# Fix rounding of percent overlap.
-# Make theme consistent with other plot. 
-
-# Order df based on dendrogram. 
-levels(df$Var1) <- hc$labels[hc$order]
-levels(df$Var2) <- hc$labels[hc$order]
-
-plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
-  geom_tile(color = "black") + 
-  geom_text(aes(Var2, Var1, label = round(value,1)), color = "black", size = 1.0) +
-  scale_fill_gradient2(name="Percent Overlap") + 
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    panel.grid.major = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_blank(),
-    axis.ticks = element_blank(),
-    legend.justification = c(1, 0),
-    legend.position = c(0.5, 0.7),
-    legend.direction = "horizontal") + 
-  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
-                               title.position = "top", title.hjust = 0.5)) +
-  coord_fixed()
-
-plot <- plot + theme(legend.position = "none")
-plot
-
-# Save heatmap and dendrogram. 
-file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_matirx.tiff")
-ggsave(file,plot, width = 3, height = 3, units = "in", dpi = 300)
-
-file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.tiff")
-ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
 
 #-------------------------------------------------------------------------------
 #' ## Examine GO enrichment for each DEP community.

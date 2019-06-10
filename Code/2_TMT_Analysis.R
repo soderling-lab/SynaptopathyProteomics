@@ -769,9 +769,9 @@ overall$"Total Sig" <- rowSums(overall[,c(3,4)])
 # Modify tables theme to change font size. 
 #Cex is a scaling factor relative to the defaults.
 mytheme <- gridExtra::ttheme_default(
-  core = list(fg_params=list(cex = 0.5)),
-  colhead = list(fg_params=list(cex = 0.5)),
-  rowhead = list(fg_params=list(cex = 0.5)))
+  core = list(fg_params=list(cex = 0.75)),
+  colhead = list(fg_params=list(cex = 0.75)),
+  rowhead = list(fg_params=list(cex = 0.75)))
 
 # Create table and add borders.
 table <- tableGrob(overall, rows = NULL, theme = mytheme)
@@ -817,10 +817,28 @@ results <- lapply(results, function(x) annotateTopTags(x))
 # Annotate with Gene names and Entrez IDS.
 results <- lapply(results,function(x) annotate_Entrez(x))
 
-
 # Sort by pvalue.
 results <- lapply(results,function(x) x[order(x$PValue),])
 names(results) <- overall$Experiment
+
+# Attempt to map any remaining unmapped ids.
+not_mapped <- lapply(results,function(x) sum(is.na(x$Entrez)))
+symbols <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",1)
+uniprot <- sapply(strsplit(rownames(cleanDat),"\\|"),"[",2)
+# Loop to map unmapped IDs.
+for (i in 1:length(results)){
+  df <- results[[i]]
+  not_mapped <- symbols[match(df$Uniprot[is.na(df$Entrez)],uniprot)]
+  df$Entrez[is.na(df$Entrez)] <- mapIds(org.Mm.eg.db, 
+                                        keys = not_mapped, 
+                                        column = "ENTREZID", 
+                                        keytype = "SYMBOL", 
+                                        multiVals = "first")
+  results[[i]] <- df
+}
+# Check.
+not_mapped <- lapply(results,function(x) sum(is.na(x$Entrez)))
+head(not_mapped) # good.
 
 # Write to excel.
 file <- paste0(outputtabsdir,"/",outputMatName,"_TAMPOR_GLM_Results.xlsx")
@@ -946,24 +964,25 @@ ggplotVolcanoPlot2 <- function(df){
   df$Color <- as.factor(df$Color)
   y_int <- -1*log10(max(df$PValue[df$FDR<0.05]))
   plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) + 
-    geom_point(size = 1, alpha = 0.5) + scale_color_manual(values=levels(df$Color)) +
+    geom_point(size = 3, alpha = 0.5) + scale_color_manual(values=levels(df$Color)) +
     geom_hline(yintercept = y_int, linetype = "dashed", color = "black", size = 0.6) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
     #geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) + 
     xlab(expression(bold(Log[2](Fold~Change)))) + 
     ylab(expression(bold(-Log[10](Pvalue)))) + 
     theme(
-      plot.title = element_text(hjust = 0.5, color="black", size = 10, face="bold"),
-      axis.title.y = element_text(color="black", face="bold", size = 8, angle = 90, vjust = 0.5),
-      axis.title.x = element_text(color="black", face="bold", size = 8, angle = 0, hjust = 0.5, vjust = 0.5),
+      plot.title = element_text(hjust = 0.5, color="black", size = 12, face="bold"),
+      axis.title.y = element_text(color="black", face="bold", size = 11, angle = 90, vjust = 0.5),
+      axis.title.x = element_text(color="black", face="bold", size = 11, angle = 0, hjust = 0.5, vjust = 0.5),
+      panel.border = element_rect(colour = "black", fill=NA, size=1),
       legend.position = "none")
   # Add annotation.
   ypos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][8])
   xpos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][1])
     plot <- plot + annotate("text", 
-                            x = xpos[1] + 0.2*(xpos[2]-xpos[1]), 
-                            y = y_int + 0.075*(ypos[2]-ypos[1]), 
-                            label = "FDR < 0.05", size = 2)
+                            x = xpos[1] + 0.3*(xpos[2]-xpos[1]), 
+                            y = y_int + 0.04*(ypos[2]-ypos[1]), 
+                            label = "FDR < 0.05", size = 4)
       
   return(plot)
 }
@@ -987,8 +1006,9 @@ vp1 <- plots$Shank2
 vp2 <- plots$Shank3
 vp3 <- plots$Syngap1
 vp4 <- plots$Ube3a
-#fig <- plot_grid(vp1,vp2,vp3,vp4, nrow = 2, ncol = 2)
-#ggsave("foo.tiff", fig)
+
+#fig <- plot_grid(vp1,vp2,vp3,vp4, nrow = 2, ncol = 2, labels = "auto")
+#ggsave("foo.tiff", fig, width = 7.5, units = "in", dpi = 300)
 
 # Save plots.
 for (i in 1:length(plots)){
@@ -1312,6 +1332,36 @@ ggsave(file,plot, width = 3, height = 3, units = "in")
 # Save legend.
 file <- paste0(outputfigsdir,"/",outputMatName,"Condition_Overlap_legend.tiff")
 ggsave(file,legend, width = 3, height = 3, units = "in")
+
+
+#-------------------------------------------------------------------------------
+#' ## Figure 2.
+#-------------------------------------------------------------------------------
+
+# Fiddle with figure.
+p1 <- vp1 + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+p2 <- vp2 + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+p3 <- vp3 + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+p4 <- vp4 + theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+
+# New labels.
+y_label <- textGrob("-Log10 P-Value", gp=gpar(fontface="bold"), rot = 90)
+x_label <- textGrob("Log2 Fold Change", gp=gpar(fontface="bold"))
+
+# Build figure. 
+c1 <- grid.arrange(p1,p2,p3,p4, ncol=2, nrow = 2, left = y_label, bottom = x_label)
+c2 <- grid.arrange(table, plot, ncol = 1)
+fig <- grid.arrange(c1,c2, ncol = 2, nrow = 1)
+fig
+
+# Save. 
+file <- paste0("D:/Documents/R/Synaptopathy-Proteomics/Figures/Final/","Figure_2.tiff")
+ggsave(file, fig, width = 7.5, units = "in", dpi = 300)
+
+## Add sig prot overlap. use four genotypes...
+## Change color for readability.
+## Add legend.
+## Remove NS column to save space. Consider adding percent sig..
 
 #-------------------------------------------------------------------------------
 #' ## Condition overlap, combined tissue types. 
