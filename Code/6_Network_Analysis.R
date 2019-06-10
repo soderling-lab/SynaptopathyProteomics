@@ -97,7 +97,7 @@ rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
-functiondir <- paste(rootdir, "Functions", sep = "/")
+functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir,"RData", sep = "/")
 
@@ -128,8 +128,7 @@ if (!file.exists(outputrepsdir)) {
 }
 
 # Load required custom functions.
-functiondir <- paste(rootdir, "Functions", sep = "/")
-my_functions <- paste(functiondir, "TMT_Preprocess_Functions.R", sep = "/")
+my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
@@ -149,11 +148,6 @@ cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
 cleanDat[1:5,1:5]
 dim(cleanDat)
-
-# Load PPI data
-dir <- paste(datadir,"PPI Network", sep="/")
-file <- paste(dir,"Cortex_SIF_031019.txt", sep="/")
-sif <- read.table(file,header=TRUE, sep=",")
 
 # Load WGCNA network and meta Modules.
 file <- paste(Rdatadir,"Network_and_metaModules.Rds",sep="/")
@@ -194,6 +188,9 @@ module_overlap <- readRDS(file)
 #' ## Load compiled PPI network
 #-------------------------------------------------------------------------------
 
+# Should WGCNA attributes be loaded into igraph?
+#keep_WGCNA_attributes = FALSE
+
 # Load the data.
 dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
 file <- paste(dir,"SIF.xlsx",sep="/")
@@ -209,10 +206,6 @@ nodes$MetaModule <- paste0("MM",nodes$MetaModule)
 colors <- unlist(lapply(as.list(meta$module),function(x) col2hex(x)))
 colors <- colors[!is.na(meta$entrez)]
 nodes$ModulColor <- colors
-
-# keep only nodes in sif
-#nodes <- subset(nodes, nodes$Entrez %in% unique(c(sif$musEntrezA,sif$musEntrezB)))
-#dim(nodes)
 
 # Compile EdgeR GLM stats. Build a df with logfc and p-values.
 stats <- lapply(results, function(x)
@@ -244,6 +237,13 @@ names(nodes)[2] <- "Entrez"
 nodes <- nodes[,c(2,1,3:ncol(nodes))] # reorder so that entrez is first col
 dim(nodes)
 
+# Keep WGCNA attributes?
+#if (keep_WGCNA_attributes == TRUE){
+#  nodes <- nodes
+#}else{
+#  nodes <- nodes[,c(1,2,3)]
+#}
+
 # Make igraph object. 
 g <- graph_from_data_frame(d=sif, vertices=nodes, directed=FALSE)
 
@@ -256,7 +256,7 @@ length(V(g)) # All but three unmapped genes.
 length(E(g))
 
 # Number of connected components.
-connected_components <- components(g, mode = c("weak", "strong"))
+connected_components <- components(g)
 connected_components$csize[1] # The largest connected component. 
 
 #-------------------------------------------------------------------------------
@@ -328,7 +328,6 @@ for (i in 1:length(sigEntrez)){
   # Get subset of nodes (v) in modules overlap.
   # We will use these to seed a network.
   v <- sigEntrez[[i]] # number of significant proteins for this exp.
-  length(v)
   
   # Insure that all nodes are in the network.
   #table(v %in% vertex_attr(g, "name"))
@@ -444,9 +443,37 @@ names(community_results) <- names(sigEntrez)
 # save to bitmap formats
 #library(tiff)
 #writeTIFF(tiff, "test.tiff", compression = "none")
-#-------------------------------------------------------------------------------
 
-# Try breaking down modules by functional groups...
+# Save results to file.
+file <- paste0(Rdatadir,"/","DEP_Communities.Rds")
+saveRDS(community_results,file)
+
+#-------------------------------------------------------------------------------
+#' ## Evaluate topology of the DEP communities. 
+
+# Extract subgraphs.
+subg <- sapply(community_results,"[",2)
+
+# Insure that duplicate edges and self-loops have been removed. 
+graph <- lapply(subg,function(x) simplify(x))
+lapply(graph, function(x) is_simple(x))
+
+# Calculate mean path length.
+unlist(lapply(graph,function(x) round(mean_distance(x, directed = FALSE),2)))
+
+# Calculate node connectivity (degree).
+connectivity <- lapply(graph, function(x) degree(x, loops = FALSE))
+
+# Evaluate scale free fit with WGCNA function scaleFreePlot()
+plot_data <- lapply(connectivity, function(x) ggplotScaleFreePlot(x, nBreaks = 10))
+
+# Extract plots. 
+plots <- sapply(plot_data,"[",1) 
+plots
+
+# Save as tiff.
+#file <- paste0(outputfigsdir,"/","PPI_Network_ScaleFreeFit.tiff")
+#ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
 
 #-------------------------------------------------------------------------------

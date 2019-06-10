@@ -28,8 +28,8 @@ dir <- "D:/Documents/R/Synaptopathy-Proteomics"
 setwd(dir)
 
 # Load required custom functions.
-functiondir <- paste(dir, "Functions", sep = "/")
-my_functions <- paste(functiondir, "TMT_Preprocess_Functions.R", sep = "/")
+functiondir <- paste(dir, "Code", sep = "/")
+my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
 source(my_functions)
 
 # Load required libraries:

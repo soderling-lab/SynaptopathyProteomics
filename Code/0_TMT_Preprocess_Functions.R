@@ -2807,6 +2807,8 @@ ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
   }
   log.p.dk = as.numeric(log10(p.dk + 1e-09))
   lm1 = lm(log.p.dk ~ log.dk)
+  pvalue = lmp(lm1)
+  print(pvalue)
   
   title = paste0(main, " Scale Free R2 =", as.character(round(summary(lm1)$adj.r.squared, 2)), 
                 ", slope =", round(lm1$coefficients[[2]], 2))
@@ -2882,4 +2884,16 @@ ggplotVolcanoPlot2 <- function(df){
       axis.title.y = element_text(color="black", size=11, face="bold"),
       legend.position = "none")
   return(plot)
+}
+
+#-----------------------------------------------------------------------------
+# Function to get pvalue from a linear model object. 
+# Source: https://www.gettinggeneticsdone.com/2011/01/rstats-function-for-extracting-f-test-p.html
+
+lmp <- function (modelobject) {
+  if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
+  f <- summary(modelobject)$fstatistic
+  p <- pf(f[1],f[2],f[3],lower.tail=F)
+  attributes(p) <- NULL
+  return(p)
 }
