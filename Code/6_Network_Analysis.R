@@ -278,7 +278,7 @@ names(uniprot2gene) <- meta$uniprot
 # Defaults for analysis. 
 degree_to_stay = 2
 send_to_cytoscape = FALSE # This will only be done for 1 randomly seeded subg. 
-combine_tissues   = FALSE
+combine_tissues   = TRUE
 generate_random   = FALSE # 1,000 randomlly seeded subgs will be generated for each DEP community.
 
 # Custom colors:

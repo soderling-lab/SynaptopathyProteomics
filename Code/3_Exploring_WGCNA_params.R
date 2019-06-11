@@ -124,8 +124,9 @@ dim(cleanDat)
 ################################################################################
 # If subsetting the data based on DEP communities.
 file <- paste0(Rdatadir,"/","DEP_KNN_Communities.Rds")
-prots <- readRDS(file)
-prots <- prots[[1]]
+DEP_KNN_Communities <- readRDS(file)
+prots <- DEP_KNN_Communities$Shank3$proteins
+length(prots)
 subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
 dim(subDat)
 cleanDat <- subDat
@@ -177,18 +178,22 @@ if (estimatePower==TRUE){
   #ggsavePDF(plot_list,file)
 }
 
+# Choose minimum power to achieve scale free fit > 0.8.
+power <- sft$fitIndices$Power[sft$fitIndices$SFT.R.sq>0.8][1]
+power
+
 #-------------------------------------------------------------------------------
 #' ## Prepare to sample WGCNA parameters.
 #-------------------------------------------------------------------------------
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-parallelThreads <- 11
+parallelThreads <- 8
 clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
 # Main network building parameters. 
-power <- 12
+power <- power
 corType <- "bicor"
 networkType <- "signed"
 
@@ -223,9 +228,18 @@ names(params_list) <- c("minModSize","deepSplit","mergeCutHeight","reassignThres
 params_grid <- expand.grid(params_list)
 
 # Sample parameters, nboot iterations.
-nboot <- 1000
+nboot <- 2 #1000
 rand_params <- sample(1:nrow(params_grid),nboot)
 out <- list()
+
+# File for saving output. 
+file <- paste0(Rdatadir,"/","Sample_blockwiseModules_DEPcommunities_Stats.RDS")
+
+# Should progress be pushed to git?
+git_push = FALSE
+
+# Clean up.
+collectGarbage()
 
 #-------------------------------------------------------------------------------
 #' ## Loop to sample parameters.
@@ -326,18 +340,18 @@ for (i in 1:nboot){
   params$nSigModules <- nModules
   
   # Rogdi with Wdr7?
-  params$Rogdi.Wdr7 <- net$colors[rownames(cleanDat) == "Rogdi|Q3TDK6"]==net$colors[rownames(cleanDat) == "Wdr7|Q920I9"]
+  #params$Rogdi.Wdr7 <- net$colors[rownames(cleanDat) == "Rogdi|Q3TDK6"]==net$colors[rownames(cleanDat) == "Wdr7|Q920I9"]
   
   # PSMD Complex
-  idx <- match(rownames(cleanDat)[grepl("Psm",rownames(cleanDat))],rownames(cleanDat))
-  tab <- as.data.frame(table(net$colors[idx]))
-  row <- grepl("grey",tab$Var1)
-  tab <- tab[!row,]
-  if (dim(tab)[1] ==0){
-    params$MaxPSMD <- 0
-  }else{
-    params$MaxPSMD <- max(tab$Freq)
-  }
+  #idx <- match(rownames(cleanDat)[grepl("Psm",rownames(cleanDat))],rownames(cleanDat))
+  #tab <- as.data.frame(table(net$colors[idx]))
+  #row <- grepl("grey",tab$Var1)
+  #tab <- tab[!row,]
+  #if (dim(tab)[1] ==0){
+  # params$MaxPSMD <- 0
+  #}else{
+  #  params$MaxPSMD <- max(tab$Freq)
+  #}
   
   # Calculate modularity, q.
   membership <- as.numeric(as.factor(net$colors))
@@ -571,7 +585,7 @@ for (i in 1:nboot){
   params$KWsigModules <- sum(KW_results$p.adj<0.05)
   sigModules <- rownames(KW_results)[KW_results$p.adj<0.05]
   
-  # Post-hoc comparisons with DunnettTest (comparison to control)
+  # Post-hoc comparisons with Dunn's tests (all comparisons).
   
   #x = as.numeric(MEs[[1]])
   g <- as.factor(groups)
@@ -616,10 +630,9 @@ for (i in 1:nboot){
     collectGarbage()
     print(paste("Saving progress at:",Sys.time()))
     # Save results to file.
-    file <- paste0(Rdatadir,"/","Sample_blockwiseModules_Stats.RDS")
     saveRDS(out,file)
-    # Push to GitHub every 100.
-    if (any((i==seq(1,nboot,100)))){
+    # Push to GitHub every 100 iterations. 
+    if (git_push == TRUE & any((i==seq(1,nboot,100)))){
       print("Updating GitHub with progress.")
       gitstatus()
       gitadd()

@@ -227,6 +227,8 @@ for (i in 1:length(DEP_communities)){
   data_knn <- data_knn[nodes]
   df <- melt(do.call(rbind, lapply(data_knn,function(x) unlist(x))))
   colnames(df) <- c("NodeA","NodeB","Bicor")
+  df$NodeA <- as.character(df$NodeA)
+  df$NodeB <- as.character(df$NodeB)
   
   # Define proteins of interest as seeds + community nodes + knn.
   prots <- unique(c(df$NodeA,df$NodeB,nodes,c_nodes))
@@ -249,6 +251,11 @@ file <- paste0(Rdatadir,"/","DEP_KNN_Communities.Rds")
 saveRDS(out,file)
 
 #-------------------------------------------------------------------------------
+#' Evaluate topology of the protein subgraphs. 
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -264,8 +271,8 @@ cleanDat[1:5,1:5]
 dim(cleanDat) # 1 outlier removed.
 
 # Subset cleanDat based on prots of interest. 
-prots <- out$Cortex.HET.Syngap1$proteins
-subg_name <- "Cortex.HET.Syngap1"
+prots <- out$Ube3a$proteins
+subg_name <- "Ube3a"
 subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
 dim(subDat)
 
@@ -329,8 +336,10 @@ if (estimatePower==TRUE){
 }
 
 # Choose a scale free power.
-power <- 7 # Why does the plot look weird? What does this mean? 
-  
+power <- sft$fitIndices$Power[sft$fitIndices$SFT.R.sq>0.8][1]
+#power <- 13 
+
+# Examine scale free fit...  
 # Calculate node connectivity in the Weighted co-expression network.  
 connectivity <- softConnectivity(
   datExpr=t(subDat), 
@@ -563,6 +572,93 @@ nModules
 nModules_out
 
 #-------------------------------------------------------------------------------
+#' ## Examine WPCNA network.
+#-------------------------------------------------------------------------------
+
+# Generate dissimilarity matrix (1-TOM(adj)).
+# Exclude grey proteins.
+idx <- net$colors != "grey"
+diss <- 1 - TOMsimilarityFromExpr(
+  datExpr = t(subDat[idx,]), 
+  corType = "bicor",
+  networkType = "signed",
+  power = power,
+  TOMType = "signed",
+  TOMDenom = "mean",
+  verbose = 0)
+
+# Perform hierarchical clustering.   
+GeneNames <- rownames(subDat)
+colnames(diss) <- rownames(diss) <- GeneNames[idx]
+hier <- hclust(as.dist(diss), method = "average")
+
+# Generate dendrogram with module color labels.
+#file <- paste0(outputfigsdir,"/",outputMatName,"Network_Dendrogram.tiff")
+#tiff(file)
+plotDendroAndColors(hier, 
+                    net$colors[idx], 
+                    "Dynamic Tree Cut", 
+                    dendroLabels = FALSE, 
+                    hang = 0.03, 
+                    addGuide = TRUE, 
+                    guideHang = 0.05, 
+                    main = "Gene dendrogram and module colors")
+
+#dev.off()
+
+#Visualize the TOM plot.
+#diag(diss) <- NA
+#diss[lower.tri(diss)] <- NA
+#sizeGrWindow(7,7)
+#TOMplot(diss, hier, as.character(net$colors[idx]))
+
+# Visualize clustering by MDS.
+#cmdMDS <- cmdscale(as.dist(diss))
+#df <- data.frame(x     = cmdMDS[,1],
+#                 y     = cmdMDS[,2])
+#df$color = net$colors[match(rownames(df),rownames(cleanDat))]
+
+# Examine MDS WGNA dissimilarity matrix.  
+#plot <- ggplot(df,aes(x=x,y=y)) + geom_point(aes(colour = color),size = 1.5) + 
+#  scale_color_manual(values = df$color) + theme(legend.position = "none") + 
+#  ggtitle("Module MDS Plot") + xlab("Leading LogFC dim 1") + ylab("Leading LogFC dim 2") +
+#  theme(
+#    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+#   axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+#    axis.title.y = element_text(color = "black", size = 11, face = "bold")
+#  )
+
+#plot
+
+#-------------------------------------------------------------------------------
+#' ## Calculate Modularity of the WPCNA partition.
+#-------------------------------------------------------------------------------
+
+# Calculate the adjacency network.
+r <- bicor(t(subDat))
+adjm <- ((1+r)/2)^power #signed.
+
+# Create igraph object. 
+graph <- graph_from_adjacency_matrix(
+  adjmatrix = adjm, 
+  mode = c("undirected"), 
+  weighted = TRUE, 
+  diag = FALSE)
+
+# Calculate modularity, q.
+membership <- as.numeric(as.factor(net$colors))
+q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
+q1
+
+# Without "grey" nodes.
+v <- rownames(subDat)[!net$colors=="grey"]
+subg <- induced_subgraph(graph,v)
+membership <- as.numeric(as.factor(net$colors))
+membership <- membership[!net$colors=="grey"]
+q2 <- modularity(subg, membership, weights = edge_attr(subg, "weight"))
+q2
+
+#-------------------------------------------------------------------------------
 #' Send DEP Community with Co-expression modules to Cytoscape.
 #-------------------------------------------------------------------------------
 
@@ -570,19 +666,24 @@ nModules_out
 send_to_cytoscape = TRUE
 
 # Build df of node attributes. 
-# FIX THIS!!! 
 idx <- match(unlist(entrez2protein[names(V(subg))]), rownames(subDat))
 hex <- lapply(as.list(net$colors[idx]), function(x) col2hex(x))
 df <- data.frame(Protein = unlist(entrez2protein[names(V(subg))]),
-                 Entrez = (V(subg)),
+                 Entrez = names(V(subg)),
                  Color = net$colors[idx],
                  HexColor = unlist(hex))
 rownames(df) <- df$Entrez
 
-# Send to cytoscape with RCy3!
+# Send to cytoscape with RCy3
+#while (cytoscapePing() =! "You are connected to Cytoscape!"){
+#  print("foobar")
+#}
+
 if (send_to_cytoscape == TRUE){
   cytoscapePing()
   quiet(RCy3::createNetworkFromIgraph(subg,subg_name))
+  
+ 
   
   # Load node attribute table in cytoscape.
   loadTableData(df)
@@ -761,6 +862,11 @@ numericIndices <- unique(c(which(!is.na(apply(numericMeta, 2, function(x) sum(as
 #-------------------------------------------------------------------------------
 #' ## VerboseBoxplots - vizualize module expression across traits.
 #-------------------------------------------------------------------------------
+
+prot2color <- as.list(net$colors)
+names(prot2color) <- rownames(subDat)
+
+color2prots <- split(rownames(subDat), net$colors)
 
 # Should plots be saved?
 saveplots = FALSE
