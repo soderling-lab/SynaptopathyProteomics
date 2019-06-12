@@ -125,7 +125,7 @@ dim(cleanDat)
 # If subsetting the data based on DEP communities.
 file <- paste0(Rdatadir,"/","DEP_KNN_Communities.Rds")
 DEP_KNN_Communities <- readRDS(file)
-prots <- DEP_KNN_Communities$Shank3$proteins
+prots <- DEP_KNN_Communities$Shank3$proteins # Pick a single group of protiens!
 length(prots)
 subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
 dim(subDat)
@@ -140,7 +140,7 @@ dim(sample_info)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-parallelThreads <- 11
+parallelThreads <- 8
 clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
@@ -650,7 +650,8 @@ for (i in 1:nboot){
 
 # Load Parameters and network stats.
 files <- list.files(Rdatadir, pattern = "Stats")
-file <- paste0(Rdatadir,"/",files)
+files
+file <- paste0(Rdatadir,"/",files[2])
 file
 out <- readRDS(file)
 length(out)
@@ -682,7 +683,7 @@ result$modRank <- rank(result$q2)/nrow(result)
 result$nModRank <- rank(result$nSigModules)/nrow(result)
 result$nSigModRank <- rank(result$KWsigModules)/nrow(result)
 result$maxPSMDRank <- rank(result$MaxPSMD)/nrow(result)
-result$score <- (result$coherenceRank + result$modRank)/2 - result$costRank
+result$score <- result$modRank - result$costRank
 #result$score <- (result$coherenceRank + result$nSigModRank + result$modRank)/3 - result$costRank
 #result$score2 <- result$maxPSMDRank + result$nSigModRank - result$costRank
 

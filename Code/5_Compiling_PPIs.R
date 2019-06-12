@@ -48,6 +48,7 @@ suppressPackageStartupMessages({
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
 
+
 #-------------------------------------------------------------------------------
 #' ## Load HitPredict interactions.
 #-------------------------------------------------------------------------------
@@ -214,7 +215,26 @@ network_data <- readRDS(file)
 net <- network_data$net
 meta <- network_data$meta
 
-# PPIs
+# Map 3 un-mapped entrez IDs by hand.
+meta[is.na(meta$entrez),]
+not_mapped = list("Ndufb1|P0DN34" = 102631912,
+                  "F8a1|Q00558"   = 14070,
+                  "Pc|Q05920"     = 18563)
+for (i in 1:length(not_mapped)){
+  idx <- meta$protein == names(not_mapped)[i]
+  meta$entrez[idx] <- not_mapped[[i]]
+}
+# Check. 
+sum(is.na(meta$entrez))
+
+# Add gene names.
+meta$gene <- mapIds(org.Mm.eg.db, keys=meta$entrez, column="SYMBOL", 
+                    keytype="ENTREZID", multiVals="first")
+
+# Add uniprot.
+meta$uniprot <- sapply(strsplit(meta$protein,"\\|"),"[",2)
+
+# Get PPIs
 idx <- data$musEntrezA %in% meta$entrez & data$musEntrezB %in% meta$entrez
 sif <- data[idx,c(18,19,14)]
 head(sif)
@@ -246,48 +266,65 @@ file <- paste(outdir,"SIF.xlsx",sep="/")
 write.excel(sif,file)
 
 # Create a simple node attributes file for mapping node name to gene symbol.
-foo <- data.frame("EntrezID" = sif$musEntrezA,
-                  "Symbol" = sif$geneA)
+#foo <- data.frame("EntrezID" = sif$musEntrezA,
+#                  "Symbol" = sif$geneA)
 
-man <- data.frame("EntrezID" = sif$musEntrezB,
-                  "Symbol" = sif$geneB)
+#man <- data.frame("EntrezID" = sif$musEntrezB,
+#                  "Symbol" = sif$geneB)
 
-noa <- unique(rbind(foo,man))
+#noa <- unique(rbind(foo,man))
 
 # Add module id and meta module id
-map1 <- as.list(meta$module)
-names(map1) <- meta$entrez
+#map1 <- as.list(meta$module)
+#names(map1) <- meta$entrez
 
-map2 <- as.list(meta$metaModule)
-names(map2) <- meta$entrez
+#map2 <- as.list(meta$metaModule)
+#names(map2) <- meta$entrez
 
 # add module and meta module annotations. 
-noa$Module <- map1[noa$EntrezID]
-noa$MetaModule <- map2[noa$EntrezID]
-noa$MetaModule <- paste0("MM",noa$MetaModule)
+#noa$Module <- map1[noa$EntrezID]
+#noa$MetaModule <- map2[noa$EntrezID]
+#noa$MetaModule <- paste0("MM",noa$MetaModule)
 
 # Convert module color to hex
-noa$ModuleColor <- lapply(as.list(noa$Module),function(x) col2hex(x))
+#noa$ModuleColor <- lapply(as.list(noa$Module),function(x) col2hex(x))
 
 # Insure that noa is a df.
-noa <- as.data.frame(apply(noa,2,function(x) unlist(x)))
+#noa <- as.data.frame(apply(noa,2,function(x) unlist(x)))
 
 # Write to file.
-outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(outdir,"NOA.xlsx",sep="/")
-write.excel(noa,file)
+#outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+#file <- paste(outdir,"NOA.xlsx",sep="/")
+#write.excel(noa,file)
 
 #-------------------------------------------------------------------------------
 #' ## Evaluate topology of the network.
 #-------------------------------------------------------------------------------
 
-# Create igraph object.
-graph <- graph_from_data_frame(sif, directed=FALSE)
-length(V(graph)) # number of vertices (nodes).
+# Load the data.
+dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+file <- paste(dir,"SIF.xlsx",sep="/")
+sif <- read_excel(file,sheet = 1)
 
-# Remove duplicate edges and self-loops.
-graph <- simplify(graph)
-is_simple(graph)
+# Create a data frame with all node attributes. 
+nodes <- data.frame(Entrez = unlist(meta$entrez),
+                    Uniprot = unlist(meta$uniprot),
+                    Symbol = unlist(meta$gene))
+
+# Make igraph object. 
+g <- graph_from_data_frame(d=sif, vertices=nodes, directed=FALSE)
+
+# Coerce to simple graph--remove duplicate edges and self-loops.
+g <- simplify(g)
+is.simple(g)
+
+# Number of nodes and edges. 
+length(V(g)) # All but three unmapped genes. 
+length(E(g))
+
+# Number of connected components.
+connected_components <- components(g)
+connected_components$csize[1] # The largest connected component.
 
 # Summarize basic properties of the graph.
 mytable <- data.frame(Nodes = formatC(length(V(graph)),format="d", big.mark=","),
@@ -297,8 +334,8 @@ grid.arrange(table)
 
 # Save
 outputfigsdir <- "D:/Documents/R/Synaptopathy-Proteomics/Figures/Combined/Final_WGCNA_Analysis"
-file <- paste0(outputfigsdir,"/","PPI_Network_properties.tiff")
-ggsave(file,table,width = 2, height = 2)
+file <- paste0(outputfigsdir,"/","PPI_Network_properties.pdf")
+ggsave(file,table, width = 2, height = 2, units = "in")
 
 # Mean path length.
 round(mean_distance(graph, directed = FALSE),2)
@@ -317,10 +354,21 @@ plot
 file <- paste0(outputfigsdir,"/","PPI_Network_ScaleFreeFit.tiff")
 ggsave(file,plot, width = 3, height = 2.5, units = "in")
 
+
+# Loop to save plot in all formats.
+ext <- c(".tiff",".pdf",".eps", ".ps", ".jpg", ".bmp", ".svg", ".wmf", ".png")
+files <- paste0("PPI_Network_ScaleFreeFit", ext)
+for (i in 1:length(files)){
+  ggsave(files[i], plot, width = 3, height = 2.5, units = "in")
+}
+
+# ggsave formats: ps/ps, tex (pictex), pdf, jpeg, tiff, png, bmp, svg and wmf (windows only).
 # Gen Louvain Communities.
 m <- cluster_louvain(graph, weights = NULL)
 df <- data.frame(Node = m$names,
                  Community = m$membership)
 length(unique(df$Community))
 table(df$Community)
+
+
 
