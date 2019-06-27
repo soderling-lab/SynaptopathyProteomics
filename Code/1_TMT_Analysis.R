@@ -12,23 +12,23 @@
 #'      number_sections: false
 #'      highlight: tango
 #' ---
-#' 
+#'
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#' Prepare the R workspace for the analysis. Load all required packages and 
-#' custom functions. Set-up directories for saving output files. 
+#' Prepare the R workspace for the analysis. Load all required packages and
+#' custom functions. Set-up directories for saving output files.
 #'
 #+ eval = TRUE, echo = FALSE, error = FALSE, results = 'hide'
- 
+
 
 # Use ctl+alt+T to execute an entire code chunk.
-   
+
 # Run this chunk before doing anything!
 rm(list = ls())
-if(!is.null(dev.list())) {
+if (!is.null(dev.list())) {
   dev.off()
-  }
+}
 cat("\014") # alternative is cat("\f")
 options(stringsAsFactors = FALSE)
 
@@ -89,8 +89,8 @@ suppressWarnings({
 })
 
 # To install TBmiscr:
-#library(devtools)
-#devtools::install_github("twesleyb/TBmiscr")
+# library(devtools)
+# devtools::install_github("twesleyb/TBmiscr")
 
 # Define version of the code.
 CodeVersion <- "Final_TMT_Analysis_part1"
@@ -108,7 +108,7 @@ functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
-# Create code-version specific figure and table folders if they do not already 
+# Create code-version specific figure and table folders if they do not already
 # exist.
 # Creat otuput directory for figures.
 outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
@@ -116,8 +116,10 @@ outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
 if (!file.exists(outputfigsdir)) {
   dir.create(file.path(outputfigsdir))
 } else {
-  msg <- c("This directory already exists.",
-           "Warning: Some files may be overwritten when running this script.")
+  msg <- c(
+    "This directory already exists.",
+    "Warning: Some files may be overwritten when running this script."
+  )
   print(msg)
 }
 
@@ -154,10 +156,10 @@ ggplot2::theme_set(theme_gray())
 #-------------------------------------------------------------------------------
 #' ## Load the raw data and sample info (traits) from excel.
 #-------------------------------------------------------------------------------
-#' The raw peptide intensity data were exported from ProteomeDiscover (PD) 
+#' The raw peptide intensity data were exported from ProteomeDiscover (PD)
 #' version 2.2. Note that the default export from PD2.x is a unitless signal to
-#' noise ratio, and it is not recommended to use ths for quantification. 
-#' 
+#' noise ratio, and it is not recommended to use ths for quantification.
+#'
 #+ eval = TRUE, message = FALSE
 
 # Load the data from excel using readxl::read_excel
@@ -183,7 +185,7 @@ sample_info <- sample_info[order(sample_info$Order), ]
 #' ## Cleanup and reorganize the data from PD.
 #-------------------------------------------------------------------------------
 #' The raw data are cleaned up with the custom function __cleanPD__.
-#' 
+#'
 #+ eval = TRUE
 
 # Load the data from PD.
@@ -193,50 +195,51 @@ raw_peptide <- cleanPD(data_PD, sample_info)
 #' ## Examine an example peptide.
 #-------------------------------------------------------------------------------
 
-dat <- subset(raw_peptide,grepl("Dlg4",raw_peptide$Description))
-rownames(dat) <- paste(dat$Accession,dat$Sequence,c(1:nrow(dat)),sep="_")
-idy <- grepl("Shank2",colnames(dat))
-dat <- dat[,idy]
+dat <- subset(raw_peptide, grepl("Dlg4", raw_peptide$Description))
+rownames(dat) <- paste(dat$Accession, dat$Sequence, c(1:nrow(dat)), sep = "_")
+idy <- grepl("Shank2", colnames(dat))
+dat <- dat[, idy]
 dat <- na.omit(dat)
 
 # Make bar plot for given peptide.
-colIDs <- gsub(",","",sapply(strsplit(colnames(dat),"\\ "),"[",3))
+colIDs <- gsub(",", "", sapply(strsplit(colnames(dat), "\\ "), "[", 3))
 
-geno <- gsub(",","",sapply(strsplit(colnames(dat),"\\ "),"[",5))
+geno <- gsub(",", "", sapply(strsplit(colnames(dat), "\\ "), "[", 5))
 
 
-n <- sample(nrow(dat),1)
-df <- melt(dat[n,])
+n <- sample(nrow(dat), 1)
+df <- melt(dat[n, ])
 df$Channel <- colIDs
-title <- strsplit(rownames(dat)[n],"_")[[1]][2]
+title <- strsplit(rownames(dat)[n], "_")[[1]][2]
 
-plot <- ggplot(df, aes(x = Channel, y = value, fill = Channel)) + 
-  geom_bar(stat="identity", width = 0.9, position = position_dodge(width = 1)) + 
-  xlab("TMT Channel") + ylab("Intensity") + 
-  ggtitle(title) + 
+plot <- ggplot(df, aes(x = Channel, y = value, fill = Channel)) +
+  geom_bar(stat = "identity", width = 0.9, position = position_dodge(width = 1)) +
+  xlab("TMT Channel") + ylab("Intensity") +
+  ggtitle(title) +
   theme(
     legend.position = "none",
     plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+    axis.title.y = element_text(color = "black", size = 11, face = "bold")
+  )
 plot
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Example_TMT.tiff")
-ggsave(file,plot, width = 3, height = 2.5, units = "in")
+ggsave(file, plot, width = 3, height = 2.5, units = "in")
 
 #-------------------------------------------------------------------------------
 #' ## Examine peptide and protein level identification overalap.
 #-------------------------------------------------------------------------------
-#' Approximately 40,000 unique peptides cooresponding to ~3,000 proteins are 
-#' quantified across all four experiments. When comparing the peptides 
+#' Approximately 40,000 unique peptides cooresponding to ~3,000 proteins are
+#' quantified across all four experiments. When comparing the peptides
 #' identified in each experiment, the overlap is only ~25%. ~20$ of peptides are
 #' identified in all four experiments. This means that in different experiments,
-#' the same protein will likely be quantified by different peptides. 
-#' This is a major reason the internal reference scaling (IRS) normalizaiton 
+#' the same protein will likely be quantified by different peptides.
+#' This is a major reason the internal reference scaling (IRS) normalizaiton
 #' approach is employed below.
-#' 
+#'
 #+ eval = TRUE
 
 # Total number of unique peptides:
@@ -245,17 +248,19 @@ print(paste(nPeptides, " unique peptides identified.", sep = ""))
 
 # Total number of unique proteins
 nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
-print(paste(nProteins, " unique proteins identified.",sep = ""))
+print(paste(nProteins, " unique proteins identified.", sep = ""))
 
 # Table
-mytable <- data.frame(nPeptides = nPeptides,
-                         nProteins = nProteins)
+mytable <- data.frame(
+  nPeptides = nPeptides,
+  nProteins = nProteins
+)
 table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 grid.arrange(table)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Raw_nPeptides_nProteins.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 # Examine the number of peptides per protein.
 nPep <- subset(raw_peptide) %>%
@@ -289,13 +294,13 @@ plot <- plot + annotation_custom(g, p$xmin, p$xmax, p$ymin, p$ymax)
 plot
 
 # Save figures.
-#plots <- list(plot)
-#file <- paste0(outputfigsdir, "/", outputMatName, "_nPeptide_per_Protein.pdf")
-#ggsavePDF(plots, file)
+# plots <- list(plot)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_nPeptide_per_Protein.pdf")
+# ggsavePDF(plots, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_nPeptide_per_Protein.tiff")
-ggsave(file,plot)
+ggsave(file, plot)
 
 # Peptide identification overlap per pairwise comparisons of experiments.
 contrasts <- combn(c("Shank2", "Shank3", "Syngap1", "Ube3a"), 2)
@@ -329,23 +334,23 @@ plot <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) + ggtitle("Peptide I
 plot
 
 # Save figures.
-#plots <- list(plot, table)
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_identification_overlap.pdf")
-#ggsavePDF(plots, file)
+# plots <- list(plot, table)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_identification_overlap.pdf")
+# ggsavePDF(plots, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_identification_overlap_Barplot.tiff")
-ggsave(file,plot)
+ggsave(file, plot)
 
 file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_identification_overlap_Table.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 #-------------------------------------------------------------------------------
 #' ## Examine the raw data.
 #-------------------------------------------------------------------------------
 #' The need for normalization is evident in the raw data. Note that in the MDS
 #' plot, samples cluster by experiment--evidence of a batch effect.
-#'   
+#'
 #+ eval = TRUE
 
 data_in <- raw_peptide
@@ -375,27 +380,27 @@ caption <- strwrap("Raw peptide data. A. Boxplot B. Density plot.
                    C. Mean SD plot. D. MDS plot.", width = Inf, simplify = TRUE)
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = caption
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig 
+fig
 
 # Save plots.
-#plot_list <- list(p1, p2, p3, p4)
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Raw_peptide_plots.pdf")
-#ggsavePDF(plot_list, file)
+# plot_list <- list(p1, p2, p3, p4)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_Raw_peptide_plots.pdf")
+# ggsavePDF(plot_list, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Raw_Peptide.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## Sample loading normalization within experiments.
 #-------------------------------------------------------------------------------
 #' The function __normalize_SL__ performs sample loading (SL) normalization to
-#' equalize the run level intensity (column) sums. The data in each column are 
+#' equalize the run level intensity (column) sums. The data in each column are
 #' multiplied by a factor such that the mean of the column sums are are equal.
-#' Sample loading normalization is performed within an experiment under the 
+#' Sample loading normalization is performed within an experiment under the
 #' assumption that equal amounts of protein were used for each of the 11 TMT
 #' channels.
-#' 
+#'
 #+ eval = TRUE
 
 # Define data columns for SL within experiments:
@@ -408,9 +413,9 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 #-------------------------------------------------------------------------------
 #' ## Examine the SL Data.
 #-------------------------------------------------------------------------------
-#' Sample loading normalization equalizes the run-level sums within 
-#' an 11-plex TMT experiment. 
-#' 
+#' Sample loading normalization equalizes the run-level sums within
+#' an 11-plex TMT experiment.
+#'
 #+ eval = TRUE
 
 data_in <- SL_peptide
@@ -438,32 +443,32 @@ caption <- strwrap("Sample loading normalized peptide data. A. Boxplot B. Densit
                    C. Mean SD plot. D. MDS plot.", width = Inf, simplify = TRUE)
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = caption
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig 
+fig
 
 # Save plots.
-#plot_list <- list(p1, p2, p3, p4)
-#file <- paste0(outputfigsdir, "/", outputMatName, "_SL_Normalized_Peptide.pdf")
-#ggsavePDF(plot_list, file)
+# plot_list <- list(p1, p2, p3, p4)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_SL_Normalized_Peptide.pdf")
+# ggsavePDF(plot_list, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_SL_Peptide.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## Examine the nature of missing values.
 #-------------------------------------------------------------------------------
-#' Missing values are inherent in high throughput experiments. There are two 
+#' Missing values are inherent in high throughput experiments. There are two
 #' main classes of missing values, missing at random (MAR) and missing not at
-#' random (MNAR). The appropriate imputing algorithm should be chosen based on 
-#' the nature of missing values. The distribution of peptides with missing 
-#' values is examined by density plots. The left-shifted distribution of 
-#' peptides with missing values indicates that peptides that have missing 
+#' random (MNAR). The appropriate imputing algorithm should be chosen based on
+#' the nature of missing values. The distribution of peptides with missing
+#' values is examined by density plots. The left-shifted distribution of
+#' peptides with missing values indicates that peptides that have missing
 #' values are generally lower in abundance. Missing values are likely then to be
-#' missing not at random (MNAR), but missing because they are low-abundance 
-#' and at or near the limit of detection. MNAR data can be imputed with the 
+#' missing not at random (MNAR), but missing because they are low-abundance
+#' and at or near the limit of detection. MNAR data can be imputed with the
 #' k-nearest neighbors (knn) algorithm in the next chunk. The __impute.knn__
 #' from the package `impute` is used to impute MNAR data.
-#' 
+#'
 #+ eval = TRUE
 
 # Define groups for subseting the data.
@@ -483,25 +488,25 @@ fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
 # Save plots.
-#plot_list <- list(p1, p2, p3, p4)
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_Missing_Value_Density_plots.pdf")
-#ggsavePDF(plot_list, file)
+# plot_list <- list(p1, p2, p3, p4)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_Missing_Value_Density_plots.pdf")
+# ggsavePDF(plot_list, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_Missing_Values.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## Impute missing peptide values within an experiment.
 #-------------------------------------------------------------------------------
-#' The function __impute_Peptides__ supports imputing missing values with the 
-#' maximum likelyhood estimation (MLE) or KNN algorithms for missing not at 
-#' random (MNAR) and missing at random data, respectively. Impution is performed 
-#' with an experiment, and rows with more than 50% missing values are censored 
-#' and will not be imputed. Peptides with more than 2 missing biological 
-#' replicates or any missing quality control (QC) replicates will be 
-#' censored and are not imputed. 
-#' 
+#' The function __impute_Peptides__ supports imputing missing values with the
+#' maximum likelyhood estimation (MLE) or KNN algorithms for missing not at
+#' random (MNAR) and missing at random data, respectively. Impution is performed
+#' with an experiment, and rows with more than 50% missing values are censored
+#' and will not be imputed. Peptides with more than 2 missing biological
+#' replicates or any missing quality control (QC) replicates will be
+#' censored and are not imputed.
+#'
 #+ eval = TRUE
 
 # Define experimental groups for checking QC variability:
@@ -509,7 +514,7 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Impute missing values using KNN algorithm for MNAR data.
 # Rows with missing QC replicates are ingored (qc_threshold=0).
-# Rows with more than 2 (50%) missing biological replicates are 
+# Rows with more than 2 (50%) missing biological replicates are
 # ignored (bio_threshold=2).
 data_impute <- impute_Peptides(SL_peptide, groups, method = "knn")
 impute_peptide <- data_impute$data_imputed
@@ -526,23 +531,23 @@ table <- tableGrob(table, rows = NULL, theme = ttheme_default())
 grid.arrange(table)
 
 # Save figures.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_N_Imputed_Peptides.pdf")
-#ggsavePDF(table, file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_N_Imputed_Peptides.pdf")
+# ggsavePDF(table, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_N_Imputed_Peptides.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 #-------------------------------------------------------------------------------
 #' ## Illustrate the mean variance relationship of QC peptides.
 #-------------------------------------------------------------------------------
 #' Quality control samples can be used to asses intra-experimental variability.
 #' Peptides that have highly variable QC measurements will increase protein
-#' level variability and should be removed. The peptide-level QC data are 
+#' level variability and should be removed. The peptide-level QC data are
 #' binned by intensity, and peptides whose mean ratio are more than four
 #' standard deviations away from the mean are considered outliers and
-#' removed. 
-#' 
+#' removed.
+#'
 #+ eval = TRUE, warning = FALSE
 
 # Generate QC correlation scatter plots for all experimental groups.
@@ -557,7 +562,7 @@ hist_list[["Syngap1"]] <- ggplotQCHist(impute_peptide, "Syngap1", nbins = 5, thr
 hist_list[["Ube3a"]] <- ggplotQCHist(impute_peptide, "Ube3a", nbins = 5, threshold = 4)
 
 # Figure.
-#fixme: should optimize size of figure for faster render on pdf. also, annotation layers are not scaled correctly. 
+# fixme: should optimize size of figure for faster render on pdf. also, annotation layers are not scaled correctly.
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = "Shank2."
 p1 <- plots$Shank2 + theme(legend.position = "none")
 p1
@@ -565,24 +570,27 @@ p2 <- hist_list$shank2[[1]]
 p2
 
 # Save all scatter plots.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_QC_ScatterPlots.pdf")
-#ggsavePDF(plots, file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_QC_ScatterPlots.pdf")
+# ggsavePDF(plots, file)
 
 # Save histograms.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_QC_Ratio_Histograms.pdf")
-#ggsavePDF(hist_list, file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_QC_Ratio_Histograms.pdf")
+# ggsavePDF(hist_list, file)
 
-# Save tiffs. 
-genos <- c("Shank2","Shank3","Syngap1","Ube3a")
+# Save tiffs.
+genos <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 file <- as.list(
-  paste0(outputfigsdir, "/", outputMatName, 
-               "_",genos,"_QC_ScatterPlot.tiff"))
+  paste0(
+    outputfigsdir, "/", outputMatName,
+    "_", genos, "_QC_ScatterPlot.tiff"
+  )
+)
 # Use mapply to save plots.
 quiet(mapply(ggsave, file, plots))
 
 # Histograms.
 x <- c(1:5)
-file <- paste0(outputfigsdir, "/", outputMatName, "_Shank2","_QC_hist",x,".tiff")
+file <- paste0(outputfigsdir, "/", outputMatName, "_Shank2", "_QC_hist", x, ".tiff")
 quiet(mapply(ggsave, file, hist_list$Shank2))
 
 #-------------------------------------------------------------------------------
@@ -601,21 +609,21 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 filter_peptide <- filterQCv2(impute_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
-out <- list(c(94,77,133,59),c(182,67,73,75))[[type]] # Cox and Str peps removed.
-mytable <- data.frame(cbind(groups,out))
+out <- list(c(94, 77, 133, 59), c(182, 67, 73, 75))[[type]] # Cox and Str peps removed.
+mytable <- data.frame(cbind(groups, out))
 table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 grid.arrange(table)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_nProteins_Filtered.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 #-------------------------------------------------------------------------------
 #' ##  Protein level summarization and normalization across all batches.
 #-------------------------------------------------------------------------------
 #' Summarize to protein level by summing peptide intensities. Note that the
 #' peptide column in the returned data frame reflects the total number of
-#' peptides identified for a given protein across all experiments. 
+#' peptides identified for a given protein across all experiments.
 #'
 #+ eval = TRUE
 
@@ -630,11 +638,11 @@ SL_protein <- normalize_SL(SL_protein, "Abundance", "Abundance")
 #-------------------------------------------------------------------------------
 #' Each experimental cohort of 8 was prepared in two batches. This was necessary
 #' because the ultra-centrifuge rotor used to prepare purified synaptosomes
-#' holds a maximum of 6 samples. This intra-batch batch effect was recorded for 
-#' 6/8 experiments. Here I will utilize the __ComBat()__ function from the `sva` 
-#' package to remove this batch effect before correcting for inter-batch batch 
-#' effects between batches with IRS normalization and regression. Note that in 
-#' the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1), 
+#' holds a maximum of 6 samples. This intra-batch batch effect was recorded for
+#' 6/8 experiments. Here I will utilize the __ComBat()__ function from the `sva`
+#' package to remove this batch effect before correcting for inter-batch batch
+#' effects between batches with IRS normalization and regression. Note that in
+#' the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1),
 #' ComBat is not applied.
 #'
 #+ eval = TRUE, message = FALSE
@@ -700,8 +708,10 @@ for (i in 1:length(groups)) {
   }
 
   # Check MDS plot prior to ComBat.
-  traits_sub$Sample.Model <- paste("b", 
-                                   as.numeric(as.factor(traits_sub$PrepDate)), sep = ".")
+  traits_sub$Sample.Model <- paste("b",
+    as.numeric(as.factor(traits_sub$PrepDate)),
+    sep = "."
+  )
   title <- paste(gsub(" ", "", unique(traits_sub$Model)), "pre-ComBat", sep = " ")
   plot1 <- ggplotMDSv2(log2(data),
     colID = "b",
@@ -713,8 +723,9 @@ for (i in 1:length(groups)) {
   cat(paste("Performing", groups[i], "ComBat...", "\n"))
   if (length(unique(CombatInfo$PrepDate)) > 1 & abs(r1) > 0.1) {
     # Create ComBat model.
-    model <- model.matrix(~ as.factor(CombatInfo$SampleType), 
-                          data = as.data.frame(log2(data)))
+    model <- model.matrix(~ as.factor(CombatInfo$SampleType),
+      data = as.data.frame(log2(data))
+    )
     data_ComBat <- ComBat(
       dat = log2(data),
       batch = as.vector(CombatInfo$PrepDate), mod = model, mean.only = FALSE
@@ -792,7 +803,7 @@ grid.arrange(table)
 
 # Save fig.
 file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatchEffect_Quantificaiton.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 # Plots to check MDS:
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = "Shank2 ComBat."
@@ -805,18 +816,18 @@ ggpubr::ggarrange(plotlist = plot_list[[3]])
 ggpubr::ggarrange(plotlist = plot_list[[4]])
 
 # Save Plots.
-#plot_list <- c(list(table), unlist(plot_list, recursive = FALSE))
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Protein_level_ComBat_PCA.pdf")
-#ggsavePDF(plot_list, file)
+# plot_list <- c(list(table), unlist(plot_list, recursive = FALSE))
+# file <- paste0(outputfigsdir, "/", outputMatName, "_Protein_level_ComBat_PCA.pdf")
+# ggsavePDF(plot_list, file)
 
 # Write over SL_protein with regressed data.
-#SL_protein <- data_return
+# SL_protein <- data_return
 
 #-------------------------------------------------------------------------------
 #' ##  Examine protein identification overlap.
 #-------------------------------------------------------------------------------
-#' Approximately 80-90% of all proteins are identified in all experiments. 
-#' 
+#' Approximately 80-90% of all proteins are identified in all experiments.
+#'
 #+ eval = TRUE
 
 # Inspect the overlap in protein identifcation.
@@ -827,12 +838,12 @@ plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +
 plot
 
 # Save plot.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_Protein_identification_overlap.pdf")
-#ggsavePDF(plot, file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_Protein_identification_overlap.pdf")
+# ggsavePDF(plot, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Protein_identification_overlap.tiff")
-ggsave(file,plot)
+ggsave(file, plot)
 
 #-------------------------------------------------------------------------------
 #' ## Examine the Normalized protein level data.
@@ -864,24 +875,24 @@ caption <- strwrap("Normalized protein level data. A. Boxplot. B. Density plot.
                    C. Mean SD plot. D. MDS plot.", width = Inf, simplify = TRUE)
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = caption
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig 
+fig
 
 # Save plots.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_SL_Normalized_Protein.pdf")
-#ggsavePDF(plots = list(p1, p2, p3, p4), file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_SL_Normalized_Protein.pdf")
+# ggsavePDF(plots = list(p1, p2, p3, p4), file)
 
 # Save tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Normalized_Protein.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## IRS Normalization.
 #-------------------------------------------------------------------------------
-#' Internal reference sclaing (IRS) normalization equalizes the protein-wise means 
-#' of reference (QC) samples across all batches. Thus, IRS normalization accounts 
-#' for the random sampling of peptides at the MS2 level which results in the 
-#' identification/quantificaiton of proteins by different peptides in each 
-#' experiment. IRS normalization was first described by __Plubell et al., 2017__. 
+#' Internal reference sclaing (IRS) normalization equalizes the protein-wise means
+#' of reference (QC) samples across all batches. Thus, IRS normalization accounts
+#' for the random sampling of peptides at the MS2 level which results in the
+#' identification/quantificaiton of proteins by different peptides in each
+#' experiment. IRS normalization was first described by __Plubell et al., 2017__.
 #'
 #+ eval = TRUE
 
@@ -892,25 +903,27 @@ IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
 #-------------------------------------------------------------------------------
 #' ## Identify and remove QC outliers.
 #-------------------------------------------------------------------------------
-#' IRS normalization utilizes QC samples as reference samples. Outlier QC 
-#' measurements (caused by interference or other artifact) would influence the 
-#' create unwanted variability. Thus, outlier QC samples are removed, if 
-#' identified. The method used by __Oldham et al., 2016__ is used to identify 
-#' QC sample outliers. A threshold of -2.5 is used. 
-#' 
+#' IRS normalization utilizes QC samples as reference samples. Outlier QC
+#' measurements (caused by interference or other artifact) would influence the
+#' create unwanted variability. Thus, outlier QC samples are removed, if
+#' identified. The method used by __Oldham et al., 2016__ is used to identify
+#' QC sample outliers. A threshold of -2.5 is used.
+#'
 #+ eval = TRUE
 
 # Data is...
 data_in <- IRS_protein
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(IRS_protein, colID = "QC", 
-                                                  threshold = -2.5)
+sample_connectivity <- ggplotSampleConnectivityv2(IRS_protein,
+  colID = "QC",
+  threshold = -2.5
+)
 tab <- sample_connectivity$table
-df <- add_column(tab,SampleName = rownames(tab),.before = 1)
+df <- add_column(tab, SampleName = rownames(tab), .before = 1)
 rownames(df) <- NULL
 knitr::kable(df)
-plot <- sample_connectivity$connectivityplot + 
+plot <- sample_connectivity$connectivityplot +
   ggtitle("QC Sample Connectivity")
 
 # Figure.
@@ -920,9 +933,9 @@ caption <- strwrap("QC Sample Connectivity. Examination of QC samples Z-Score
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = caption
 plot
 
-# Save as tiff. 
+# Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_QC_Sample_Outlier.pdf")
-ggsave(file,plot)
+ggsave(file, plot)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
@@ -939,8 +952,9 @@ for (i in 1:n_iter) {
     ggtitle(paste("Sample Connectivity (Iteration = ", i, ")", sep = ""))
   bad_samples <- rownames(oldham$table)[oldham$table$Z.Ki < threshold]
   print(paste(
-    length(bad_samples), " outlier sample(s) identified in iteration ", i, ".", sep = "")
-    )
+    length(bad_samples), " outlier sample(s) identified in iteration ", i, ".",
+    sep = ""
+  ))
   if (length(bad_samples) == 0) bad_samples <- "none"
   out_samples[[i]] <- bad_samples
   out <- grepl(paste(unlist(out_samples), collapse = "|"), colnames(data_in))
@@ -968,8 +982,8 @@ caption <- c("QC Sample Connectivity after outlier removal.")
 plot
 
 # Save plots
-#file <- paste0(outputfigsdir, "/", outputMatName, "_QC_Sample_Connectivity.pdf")
-#ggsavePDF(plots, file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_QC_Sample_Connectivity.pdf")
+# ggsavePDF(plots, file)
 
 # Write over IRS_data
 IRS_protein <- IRS_OutRemoved_protein
@@ -983,15 +997,19 @@ data_in <- IRS_protein
 title <- "IRS Normalized protein"
 
 # Generate boxplot.
-colors <- c(rep("green", 11), rep("purple", 11), 
-            rep("yellow", 11), rep("blue", 11))
+colors <- c(
+  rep("green", 11), rep("purple", 11),
+  rep("yellow", 11), rep("blue", 11)
+)
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
 # Generate density plot.
-p2 <- ggplotDensity(data_in, colID = "Abundance", title) + 
+p2 <- ggplotDensity(data_in, colID = "Abundance", title) +
   theme(legend.position = "none")
-colors <- c(rep("yellow", 11), rep("blue", 11), 
-            rep("green", 11), rep("purple", 11))
+colors <- c(
+  rep("yellow", 11), rep("blue", 11),
+  rep("green", 11), rep("purple", 11)
+)
 p2 <- p2 + scale_color_manual(values = colors)
 
 # Generate meanSd plot.
@@ -1007,25 +1025,25 @@ caption <- strwrap("IRS normalized protein. A. Boxplot. B. Density plot.
                    C. Mean SD plot. D. MDS plot", width = Inf, simplify = TRUE)
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = caption
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig 
+fig
 
 # Save plots.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_IRS_Normalized_Protein.pdf")
-#ggsavePDF(plots = list(p1, p2, p3, p4), file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_IRS_Normalized_Protein.pdf")
+# ggsavePDF(plots = list(p1, p2, p3, p4), file)
 
-# Save tiff. 
+# Save tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_IRS_Normalized_Protein.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## Protein level filtering, imputing, and final TMM normalization.
 #-------------------------------------------------------------------------------
-#' Proteins that are identified by only a single peptide are removed. Proteins 
-#' that are identified in less than 50% of all samples are also removed. The 
-#' nature of the remaining missng values are examined by density plot and 
+#' Proteins that are identified by only a single peptide are removed. Proteins
+#' that are identified in less than 50% of all samples are also removed. The
+#' nature of the remaining missng values are examined by density plot and
 #' imputed with the KNN algorithm for MNAR data. Finally, TMM normalization is
-#' applied to correct for any biases introduced by these previous steps. 
-#' 
+#' applied to correct for any biases introduced by these previous steps.
+#'
 #+ eval = TRUE
 
 # Remove proteins that are identified by only 1 peptide.
@@ -1049,13 +1067,13 @@ TMM_protein <- normalize_TMM(imp_protein, "Abundance")
 dim(TMM_protein)
 
 # Save plot.
-#file <- paste0(outputfigsdir, "/", outputMatName, 
+# file <- paste0(outputfigsdir, "/", outputMatName,
 #               "_Protein_Missing_Value_Density_plots.pdf")
-#ggsavePDF(plot, file)
+# ggsavePDF(plot, file)
 
-# Save as tiff. 
+# Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_Missing_Protein_Values.pdf")
-ggsave(file,plot)
+ggsave(file, plot)
 
 #-------------------------------------------------------------------------------
 #' ## Examine the TMM Normalized protein level data.
@@ -1089,15 +1107,15 @@ caption <- strwrap("TMM normalized protein. A. Boxplot. B. Density plot.
                    C. Mean SD plot. D. MDS plot", width = Inf, simplify = TRUE)
 #+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = caption
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig 
+fig
 
 # Save plots.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_TMM_Normalized_Protein.pdf")
-#ggsavePDF(plots = list(p1, p2, p3, p4), file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_TMM_Normalized_Protein.pdf")
+# ggsavePDF(plots = list(p1, p2, p3, p4), file)
 
 # Save tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_TMM_Normalized_Protein.pdf")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## IntraBatch statistical testing: EdgeR GLM.
@@ -1105,7 +1123,7 @@ ggsave(file,fig)
 #' Differential protein expression is evaluated using a generalized linear model
 #' (GLM) implemented by `EdgeR's` __glmQLFit()__ and __glmQLFTest()__ functions.
 #' Comparisons are made within a batch (WT vs KO or HET).
-#' 
+#'
 #+ eval = TRUE
 
 # data is...
@@ -1179,7 +1197,7 @@ grid.arrange(table)
 
 # Save table.
 file <- paste0(outputfigsdir, "/", outputMatName, "_InraBatch_GLM_Table.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 # Call topTags to add FDR. Gather tablurized results.
 results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
@@ -1213,7 +1231,7 @@ fig
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatch_GLM_PvalueHist.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 # Add summary table to results.
 overall <- list(overall)
@@ -1226,8 +1244,8 @@ file <- paste0(outputtabsdir, "/", outputMatName, "_IntraBatch_GLM_results.xlsx"
 write.excel(results, file)
 
 # Save figures.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatch_GLM_DE_Summary.pdf")
-#ggsavePDF(plots = list(table, p1, p2, p3, p4), file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatch_GLM_DE_Summary.pdf")
+# ggsavePDF(plots = list(table, p1, p2, p3, p4), file)
 
 # Save to RDS.
 file <- paste0(Rdatadir, "/", outputMatName, "_IntraBatch_Results.RDS")
@@ -1236,9 +1254,9 @@ saveRDS(results_intraBatch, file)
 #-------------------------------------------------------------------------------
 #' ## IntraBatch GO and KEGG enrichment testing with EdgeR.
 #-------------------------------------------------------------------------------
-#' GO and KEGG enrichment analyis are performed using `EdgeR's`` __goana()__ 
+#' GO and KEGG enrichment analyis are performed using `EdgeR's`` __goana()__
 #' and __kegga()__ functions.
-#' 
+#'
 #+ eval = FALSE
 
 ## Perform GO and KEGG testing.
@@ -1261,10 +1279,10 @@ write.excel(GSE_results, file)
 #-------------------------------------------------------------------------------
 #' ## Perform moderated EB regression of genetic strain as a covariate.
 #-------------------------------------------------------------------------------
-#' Moderated Empirical Bayes (EB) regression as implemented by the `WGCNA` 
+#' Moderated Empirical Bayes (EB) regression as implemented by the `WGCNA`
 #' function is __empiricalBayesLM()__ is performed to remove the affect of
 #' genetic background.
-#' 
+#'
 #+ eval = FALSE
 
 # Data is...
@@ -1317,29 +1335,29 @@ colors <- traits$Color
 plot1 <- ggplotPCA(t(data), traits, colors, title = "2D PCA Plot (Pre-Regression)")
 plot2 <- ggplotPCA(t(data.fit), traits, colors, title = "2D PCA Plot (Post-Regression)")
 fig <- plot_grid(plot1, plot2)
-fig 
+fig
 
 # Just post-regression:
 plot2
 
 # Save plots.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_eBLM_Regression_PCA.pdf")
-#ggsavePDF(plots = list(plot1, plot2), file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_eBLM_Regression_PCA.pdf")
+# ggsavePDF(plots = list(plot1, plot2), file)
 
-# Save tiffs. 
-files <- paste0(outputfigsdir, "/", outputMatName, c("pre","post"),"_InterBatch_eBLM_Regression_PCA.tiff")
-quiet(mapply(ggsave,files,list(plot1,plot2)))
+# Save tiffs.
+files <- paste0(outputfigsdir, "/", outputMatName, c("pre", "post"), "_InterBatch_eBLM_Regression_PCA.tiff")
+quiet(mapply(ggsave, files, list(plot1, plot2)))
 
 #-------------------------------------------------------------------------------
 #' ## Reformat final normalized, regressed data for TAMPOR processing.
 #-------------------------------------------------------------------------------
 #' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
-#' 
+#'
 #+ eval = FALSE 
 
 # Data is...
 data_in <- 2^t(data.fit)
-data_in[1:5, 1:5]  # un-log
+data_in[1:5, 1:5] # un-log
 dim(data_in)
 
 # Extract Gene descriptions and uniprot accesssions for renaming rows.
@@ -1389,9 +1407,9 @@ saveRDS(cleanDat, file)
 #-------------------------------------------------------------------------------
 #' ## InterBatch Statistical comparisons with EdgeR GLM.
 #-------------------------------------------------------------------------------
-#' After regression of genetic strain, differential protein expression is 
-#' evaluated across batches, using all WT samples. 
-#' 
+#' After regression of genetic strain, differential protein expression is
+#' evaluated across batches, using all WT samples.
+#'
 #+ eval = FALSE
 
 # Create DGEList object with EB adjusted data.
@@ -1483,7 +1501,7 @@ grid.arrange(table)
 
 # Save table.
 file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_eBLM_Table.tiff")
-ggsave(file,table)
+ggsave(file, table)
 
 # Call topTags to add FDR. Gather tablurized results.
 results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
@@ -1551,12 +1569,12 @@ fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
 # Save plots.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_GLM_PvalHist.pdf")
-#ggsavePDF(plots = list(table, p1, p2, p3, p4), file)
+# file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_GLM_PvalHist.pdf")
+# ggsavePDF(plots = list(table, p1, p2, p3, p4), file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_GLM_PvalHist.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 ## Write results to file.
 # Add summary table to results.
@@ -1682,16 +1700,16 @@ p1 <- plot_list$`Shank2|Q80Z38`
 p2 <- plot_list$`Shank3|Q4ACU6`
 p3 <- plot_list$`Syngap1|F6SEU4`
 p4 <- plot_list$`Ube3a|O08759`
-fig <- plot_grid(p1,p2,p3,p4)
+fig <- plot_grid(p1, p2, p3, p4)
 fig
 
 # Save to pdf.
-#file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
-#ggsavePDF(plots = plot_list, file)
+# file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
+# ggsavePDF(plots = plot_list, file)
 
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "TopProteins_BoxPlots.tiff")
-ggsave(file,fig)
+ggsave(file, fig)
 
 #-------------------------------------------------------------------------------
 #' ## Render RMarkdown report.
@@ -1700,9 +1718,9 @@ ggsave(file,fig)
 #'
 #+ eval = FALSE
 
-# Code directory. 
-dir <- paste(rootdir,"Code",sep="/")
-file <- paste(dir,"1_TMT_Analysis.R",sep="/")
+# Code directory.
+dir <- paste(rootdir, "Code", sep = "/")
+file <- paste(dir, "1_TMT_Analysis.R", sep = "/")
 
 # Save and render.
 rstudioapi::documentSave()

@@ -185,7 +185,7 @@ file <- paste(Rdatadir,"module_overlap.Rds", sep="/")
 module_overlap <- readRDS(file)
 
 #-------------------------------------------------------------------------------
-#' ## Load compiled PPI network
+#' ## Load compiled PPI network, send to Cytoscape. 
 #-------------------------------------------------------------------------------
 
 # Should WGCNA attributes be loaded into igraph?
@@ -194,7 +194,10 @@ module_overlap <- readRDS(file)
 # Load the data.
 dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
 file <- paste(dir,"SIF.xlsx",sep="/")
-sif <- read_excel(file,sheet = 1)
+sif <- read_excel(file, sheet = 1)
+
+# Send network to cytoscape?
+send_to_cytoscape = FALSE 
 
 # Create a data frame with all node attributes. 
 nodes <- data.frame(Entrez = unlist(meta$entrez[!is.na(meta$entrez)]),
@@ -221,11 +224,11 @@ colnames(df)[c(3:ncol(df))] <- paste(namen,rep(names(stats),each=3))
 
 # Calculate single metric for node color/size.
 # Score = log2( PC * -log10(pvalue))
-fc <- as.matrix(df[,seq(3,ncol(df),by=3)])
-pval <- as.matrix(df[seq(4,ncol(df),by=3)])
-score <- fc*(1-pval)
-colnames(score) <- gsub("logFC","score",colnames(score))
-df <- cbind(df,score)
+#fc <- as.matrix(df[,seq(3,ncol(df),by=3)])
+#pval <- as.matrix(df[seq(4,ncol(df),by=3)])
+#score <- fc*(1-pval)
+#colnames(score) <- gsub("logFC","score",colnames(score))
+#df <- cbind(df,score)
 
 # Combine with node attributes. 
 # use uniprot to combine as this is the MOST stable identifier for all proteins.
@@ -237,12 +240,43 @@ names(nodes)[2] <- "Entrez"
 nodes <- nodes[,c(2,1,3:ncol(nodes))] # reorder so that entrez is first col
 dim(nodes)
 
-# Keep WGCNA attributes?
-#if (keep_WGCNA_attributes == TRUE){
-#  nodes <- nodes
-#}else{
-#  nodes <- nodes[,c(1,2,3)]
-#}
+# Add labels for Shank2, Shank3, Syngap1, and Ube3a sigProts.
+groups <- paste(c("Shank2","Shank3","Syngap1","Ube3a"), collapse="|")
+cols <- grepl(groups,colnames(nodes)) & grepl("FDR",colnames(nodes))
+dat <- nodes[,cols]
+genos <- c("Shank2","Shank3","Syngap1","Ube3a")
+out <- list()
+for (i in seq_along(genos)){
+  geno <- genos[i]
+  idy <- grep(geno,colnames(dat))
+  sub <- dat[,idy]
+  out[[geno]] <- apply(sub,1,function(x) any(x<0.05))
+}
+dm <- do.call(cbind,out)
+colnames(dm) <- paste(colnames(dm),"sigProt", sep="_")
+
+# Any significant change.
+nodes$sigProt <- apply(dat, 1, function(x) any(x<0.05))
+
+# Determine node color by mixing genotype colors. 
+# Custom colors:
+colvec <- c("#FFF200", "#00A2E8", "#22B14C", "#A349A4")
+#colvec <- c("yellow", "blue", "green", "purple")
+node_colors <- list()
+for (i in 1:nrow(dm)){
+  x <- dm[i,]
+  if (sum(x)>1) {
+    node_colors[[i]] <- do.call(mixcolors, as.list(colvec[x]))
+  } else if (sum(x)==1) { 
+    node_colors[[i]] <- col2hex(colvec[x])
+  } else if (sum(x)==0) {
+    node_colors[[i]] <- col2hex("gray")
+  }
+}
+nodes$NodeColor <- as.character(do.call(rbind, node_colors))
+
+# Rownames need to be same and node names for loading into cytoscape. 
+rownames(nodes) <- nodes$Entrez
 
 # Make igraph object. 
 g <- graph_from_data_frame(d=sif, vertices=nodes, directed=FALSE)
@@ -259,8 +293,35 @@ length(E(g))
 connected_components <- components(g)
 connected_components$csize[1] # The largest connected component. 
 
+# Send graph to cytoscape.
+if (send_to_cytoscape == TRUE) { 
+  cytoscapePing()
+  print("Sending to Cytoscape with RCy3, this will take a couple of minutes...")
+  quiet(RCy3::createNetworkFromIgraph(g,"SynProt"))
+  # Load node attributes. 
+  loadTableData(nodes)
+
+  # Customize appearance by applying a custom style. 
+  style <- "SynProt"
+  defaults <- list(NODE_FILL = col2hex("grey"),
+                   NODE_SHAPE="Ellipse",
+                   NODE_SIZE=55,
+                   EDGE_WIDTH = 2.0,
+                   EDGE_TRANSPARENCY=120)
+  nodeLabels <- mapVisualProperty('node label','Symbol','p')
+  nodeFills <- mapVisualProperty('node fill color','NodeColor','p')
+  #edgeWidth <- mapVisualProperty('edge width','weight','p')
+  createVisualStyle(style, defaults, list(nodeLabels, nodeFills))
+  lockNodeDimensions(TRUE, style)
+  setVisualStyle(style)
+
+  # Apply perfuse force directed layout. 
+  layoutNetwork(layout.name = "force-directed")
+  setNodeColorDefault(col2hex("grey"), style)
+}
+
 #-------------------------------------------------------------------------------
-#' ## Build subraphs for DEPs and their communities. 
+#' ## Build subraphs for DEPs communities. 
 #-------------------------------------------------------------------------------
 
 # Generate PPIs graphs using DEPs from each tissue:genotype contrast as seed 
@@ -276,10 +337,10 @@ uniprot2gene <- as.list(meta$gene)
 names(uniprot2gene) <- meta$uniprot
 
 # Defaults for analysis. 
-degree_to_stay = 2
+degree_to_stay = 2       # 2 degrees to seed nodes.
 send_to_cytoscape = FALSE # This will only be done for 1 randomly seeded subg. 
 combine_tissues   = TRUE
-generate_random   = FALSE # 1,000 randomlly seeded subgs will be generated for each DEP community.
+generate_random   = FALSE # 1,000 randomly seeded subgs will be generated for each DEP community.
 
 # Custom colors:
 colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
@@ -298,8 +359,8 @@ for (i in 1:length(stats)){
 names(sigProts) <- names(stats)
 
 # Add Combined.KO.Shank2
-sigProts$Combined.KO.Shank2 <- unique(c(sigProts$Cortex.KO.Shank2,
-                                        sigProts$Striatum.KO.Shank2))
+#sigProts$Combined.KO.Shank2 <- unique(c(sigProts$Cortex.KO.Shank2,
+#                                        sigProts$Striatum.KO.Shank2))
 
 # Combine tissues for each genotype.
 if (combine_tissues == TRUE){
@@ -319,11 +380,14 @@ sigEntrez <- lapply(sigProts,function(x) unlist(uniprot[x]))
 #sigEntrez <- sigEntrez[c(2,6,3,7,1,5,4,8)]
 #names(sigEntrez)
 
-# Loop to create networks.
+################################################################################
+## Loop to create networks.
 # Cytoscape should be open before proceeding!
+################################################################################
 for (i in 1:length(sigEntrez)){
   
-  print(paste("Working on subgraph", i,"..."))
+  geno <- names(sigEntrez)[i]
+  print(paste0("Working on ", geno, " subgraph", " (i=",i,")", "..."))
   
   # Get subset of nodes (v) in modules overlap.
   # We will use these to seed a network.
@@ -371,14 +435,12 @@ for (i in 1:length(sigEntrez)){
   dist <- dist[keep,]
   keepers <- unique(c(v,rownames(dist)))
   print(paste("Additional nodes:", length(keepers) - length(seeds)))
-  subg <- induced_subgraph(g,keepers)
+  subg <- induced_subgraph(g, keepers)
   
   # Build df of node attributes. 
-  idx <- nodes$Entrez %in% names(V(subg))
-  df <- nodes[idx,]
-  rownames(df) <- df$Entrez
-  idy <- grepl(names(sigProts)[i],colnames(df)) & grepl("FDR",colnames(df))
-  df$sigProt <- df[,idy] < 0.05
+  df <- data.frame(sigProt = names(V(subg)) %in% sigEntrez[[geno]])
+  rownames(df) <- names(V(subg))
+  df$sigProt <- as.factor(df$sigProt)
   
   # How many nodes. 
   print(paste0("Total Nodes: ", length(V(subg))))
@@ -398,34 +460,25 @@ for (i in 1:length(sigEntrez)){
     loadTableData(df)
 
     # Create custom syle to customize appearance. 
-    geno <- strsplit(names(sigEntrez)[i], "\\.")[[1]][3]
-    style.name <- names(sigEntrez)[i]
-    colvec <- c(col2hex("gray"), unlist(colors[geno]))
-    
-    defaults <- list(NODE_FILL = col2hex("grey"),
-                     NODE_SHAPE="Ellipse",
-                     NODE_SIZE=55,
-                     EDGE_WIDTH = 2.0,
-                     EDGE_TRANSPARENCY=120)
-     
+    #geno <- strsplit(names(sigEntrez)[i], "\\.")[[1]][3]
+    #colvec <- as.character(c(col2hex("gray"), unlist(colors[geno])))
+    defaults <- list(NODE_SHAPE        = "Ellipse",
+                     NODE_SIZE         = 55,
+                     EDGE_WIDTH        = 2.0,
+                     EDGE_TRANSPARENCY = 120)
     nodeLabels <- mapVisualProperty('node label','Symbol','p')
-    nodeFills <- mapVisualProperty('node fill color','sigProt','d',c(FALSE,TRUE), colvec)
-    
+    #nodeFills <- mapVisualProperty('node fill color','sigProt','d',c(FALSE,TRUE), colvec) # why does this not work???
+    #setNodeColorMapping("NodeColor", mapping.type = 'p')
+    setNodeColorBypass(sigEntrez[[geno]], colors[[geno]], network = getNetworkSuid(geno))
+    setNodeSizeBypass(sigEntrez[[geno]], new.sizes = 75, network = getNetworkSuid(geno))
     #edgeWidth <- mapVisualProperty('edge width','weight','p')
-    createVisualStyle(style.name, defaults, list(nodeLabels,nodeFills))
-    lockNodeDimensions(TRUE, style.name)
-    setVisualStyle(style.name)
-    
-    # Apply perfuse force directed layout. 
-    layoutNetwork(layout.name = "force-directed")
-    setNodeColorDefault(col2hex("grey"), style.name)
-    
-    # Apply node color mapping to score. (this will overwrite other mapping)                    
-    column <- paste("score",names(sigProts)[i])
-    control.points <- c(min(df[column]), 0.0, max(df[column]))
-    cols <- c(col2hex("blue"), col2hex("white"), col2hex("red"))
-    setNodeColorMapping(column, control.points, cols, style.name = style.name)
-  }
+     createVisualStyle(style.name = geno, defaults, list(nodeLabels))
+     lockNodeDimensions(TRUE, style.name = geno)
+     setVisualStyle(style.name = geno)
+     # Apply perfuse force directed layout. 
+     layoutNetwork(layout.name = "force-directed")
+     setNodeColorDefault(col2hex("grey"), style.name = geno)
+     }
 }
 
 # Name the results.  
@@ -448,15 +501,112 @@ names(community_results) <- names(sigEntrez)
 file <- paste0(Rdatadir,"/","DEP_Communities.Rds")
 saveRDS(community_results,file)
 
+
+#-------------------------------------------------------------------------------
+# Pie plot showing overlap and colors. 
+#-------------------------------------------------------------------------------
+
+# Collect statistical results. 
+stats <- lapply(results, function(x)
+  data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR))
+names(stats) <- names(results)
+df <- stats %>% reduce(left_join, by = c("Uniprot", "Gene"))
+colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
+rownames(df) <- paste(df$Gene, df$Uniprot, sep = "|")
+df$Uniprot <- NULL
+df$Gene <- NULL
+
+# Gather sigProts.
+sigProts <- list()
+for (i in 1:ncol(df)) {
+  idx <- df[, i] < 0.05
+  sigProts[[i]] <- rownames(df)[idx]
+}
+names(sigProts) <- names(stats)
+
+# Combine sigprots for each genotype.
+genos <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
+u <- list()
+for (geno in genos) {
+  print(geno)
+  idx <- grep(geno, names(sigProts))
+  u[[geno]] <- union(sigProts[[idx[1]]], sigProts[[idx[2]]])
+}
+sigProts <- u
+
+# Build a matrix showing overlap.
+col_names <- names(sigProts)
+row_names <- names(sigProts)
+
+# All possible combinations.
+contrasts <- expand.grid(col_names, row_names)
+colnames(contrasts) <- c("GenoA", "GenoB")
+contrasts$GenoA <- as.vector(contrasts$GenoA)
+contrasts$GenoB <- as.vector(contrasts$GenoB)
+
+# Loop
+int <- list()
+for (i in 1:dim(contrasts)[1]) {
+  a <- unlist(as.vector(sigProts[contrasts$GenoA[i]]))
+  b <- unlist(as.vector(sigProts[contrasts$GenoB[i]]))
+  int[[i]] <- intersect(a, b)
+}
+
+contrasts$Name <- paste(contrasts$GenoA, contrasts$GenoB, sep = "_U_")
+names(int) <- contrasts$Name
+
+# Add to contrasts.
+contrasts$Intersection <- unlist(lapply(int, function(x) length(x)))
+
+# Make overlap matrix.
+dm <- matrix(contrasts$Intersection, nrow = 4, ncol = 4)
+rownames(dm) <- colnames(dm) <- row_names
+
+# Remove upper tri and melt.
+dm[lower.tri(dm)] <- NA
+df <- melt(dm, na.rm = TRUE)
+
+# Group by genotype
+df$Contrast <- ""
+df$Contrast[!df$Var1==df$Var2] <- paste(df$Var1,df$Var2,sep=" & ")[!df$Var1==df$Var2]
+df$Contrast[df$Var1==df$Var2] <- as.character(df$Var1[df$Var1==df$Var2])
+
+# Generate pie chart.
+bp <- ggplot(df, aes(x="", y=value, fill=Contrast))+
+  geom_bar(width = 1, stat = "identity")
+
+pie <- bp + coord_polar("y", start=0) + blank_theme
+pie
+
+# Use custom color palettes
+colvec <- c("#FFF200", "#00A2E8", "#22B14C", "#A349A4")
+names(colvec) <- c("Shank2","Shank3","Syngap1","Ube3a")
+
+colmix <- vector()
+for (i in 1:nrow(df)){
+  col1 <- colvec[df$Var1[i]]
+  col2 <- colvec[df$Var2[i]]
+  colmix[i] <- mixcolors(col1,col2)
+}
+
+df$color <- colmix  
+pie <- pie + scale_fill_manual(values=df$color)
+pie
+
+# Save to file.
+file <- paste(outputfigsdir, "DEP_Overlap_Pie.tiff", sep = "/")
+ggsave(file, pie, width = 3, height = 3, units = "in", dpi = 300)
+
 #-------------------------------------------------------------------------------
 #' ## Evaluate topology of the DEP communities. 
+#-------------------------------------------------------------------------------
 
 # Extract subgraphs.
 subg <- sapply(community_results,"[",2)
 
 # Insure that duplicate edges and self-loops have been removed. 
 graph <- lapply(subg,function(x) simplify(x))
-lapply(graph, function(x) is_simple(x))
+all(unlist(lapply(graph, function(x) is_simple(x))))
 
 # Calculate mean path length.
 unlist(lapply(graph,function(x) round(mean_distance(x, directed = FALSE),2)))
@@ -471,51 +621,47 @@ plot_data <- lapply(connectivity, function(x) ggplotScaleFreePlot(x, nBreaks = 1
 plots <- sapply(plot_data,"[",1) 
 plots
 
-# Save as tiff.
-#file <- paste0(outputfigsdir,"/","PPI_Network_ScaleFreeFit.tiff")
-#ggsave(file,plot, width = 3, height = 2.5, units = "in")
-
-
-#-------------------------------------------------------------------------------
-#' ## Examine overlap between DEP communities and randomly seeded graphs.
-#-------------------------------------------------------------------------------
-
-# Examine overlap between subgraphs and random subgraphs. 
-names(results) <- names(sigEntrez)
-if (length(rand_results>0)){ names(rand_results) <- names(sigEntrez)}
-
-# collect nodes of graphs. 
-nodes <- sapply(results,"[",3)
-rand_nodes <- sapply(rand_results,"[",3)
-
-# Function to calculate length, union, and intersection.
-func <- function(x,y){
-  len_x <- length(x)
-  len_y <- length(y)
-  u <- sum(x %in% y)
-  i <- length(unique(c(x,y)))
-  return(list(length_x = len_x, length_y = len_y, 
-              union = u, intersection = i))
+# Save plots as tiff.
+for (i in 1:length(plots)){
+  plot <- plots[[i]]
+  namen <- strsplit(names(plots)[i],"\\.")[[1]][1]
+  file <- paste0(outputfigsdir,"/",namen,"_Community_Network_ScaleFreeFit.tiff")
+  ggsave(file,plot, width = 3, height = 2.5, units = "in", dpi = 300)
 }
-res <- mapply(func,nodes,rand_nodes)
 
-# Collect every four... elements of list, and combine as dm. 
-b <- split(res, rep(seq(from=1, to = 8, by = 1),each = 4))
-dm <- do.call(rbind,lapply(b,function(x) unlist(x)))
-rownames(dm) <- names(sigEntrez)
-colnames(dm) <- c("len(V(subg))","len(V(rand))", "intersection","union")
-df <- as.data.frame(dm)
-df$percent <- round(100*(df$intersection/df$union),2)
-df$seeds <- unlist(lapply(results,function(x) length(x[[1]])))
+
+# Summarize basic properties of the graph.
+table_summary <- function(subg){
+  mydata <- data.frame(
+    Nodes = formatC(length(V(subg)), format = "d", big.mark = ","),
+    Edges = formatC(length(E(subg)), format = "d", big.mark = ",")
+  )
+  mytable <- tableGrob(mydata, rows = NULL)
+  return(mytable)
+}
+
+mytables <- lapply(subg,function(x) table_summary(x))
+names(mytables) <- sapply(strsplit(names(mytables),"\\."),"[",1)
+
+# Save
+for (i in 1:length(mytables)){
+  outputfigsdir <- "D:/Documents/R/Synaptopathy-Proteomics/Figures/Combined/Final_WGCNA_Analysis"
+  table <- mytables[[i]]
+  namen <- names(mytables)[i]
+  file <- paste0(outputfigsdir, "/", namen, "_Community_Network_properties.tiff")
+  ggsave(file, table, width = 2, height = 2, units = "in", dpi = 300)
+}
 
 #-------------------------------------------------------------------------------
 #' ## Examine pairwise overlap in DEP communities.
 #-------------------------------------------------------------------------------
 
+# Not working!
+
+
 # Examine overlap in ppi networks...
-names(results) <- names(sigProts)
-nodes <- sapply(results,"[", 3)
-names(nodes)
+nodes <- sapply(community_results,"[", 3)
+names(nodes) <- names(sigEntrez)
 
 # Build a matrix showing overlap.
 col_names <- names(nodes)
@@ -529,43 +675,44 @@ contrasts$ConditionB <- as.vector(contrasts$ConditionB)
 
 # Loop to calculate intersection for all contrasts. 
 int <- list()
-A <- list()
-B <- list()
+GroupA <- list()
+GroupB <- list()
 for (i in 1:dim(contrasts)[1]){
   a <- unlist(nodes[contrasts$ConditionA[i]])
   b <- unlist(nodes[contrasts$ConditionB[i]])
-  A[[i]] <- length(a)
-  B[[i]] <- length(b)
+  GroupA[[i]] <- length(a)
+  GroupB[[i]] <- length(b)
   int[[i]] <- intersect(a,b)
 }
 
-contrasts$Name <- paste(contrasts$ConditionA,
+contrasts$Comparison <- paste(contrasts$ConditionA,
                         contrasts$ConditionB,sep="_U_")
-names(int) <- contrasts$Name
+names(int) <- contrasts$Comparison
 
 # Add intersection to contrasts.
 contrasts$Intersection <- lapply(int,function(x) length(x))
-contrasts$A <- unlist(A)
-contrasts$B <- unlist(B)
-contrasts$C <- contrasts$A + contrasts$B
+contrasts$GroupA <- unlist(A)
+contrasts$GroupB <- unlist(B)
+contrasts$Total <- contrasts$GroupA + contrasts$GroupB
 
 # Calculate percent intersection.
-int <- list()
+percent_int <- list()
 for (i in 1:dim(contrasts)[1]){
   a <- unlist(nodes[contrasts$ConditionA[i]])
   b <- unlist(nodes[contrasts$ConditionB[i]])
-  int[[i]] <- length(intersect(a,b))/length(unique(c(a,b)))
+  percent_int[[i]] <- length(intersect(a,b))/length(unique(c(a,b)))
 }
 
 # Add to contrasts dm
-contrasts$Percent <- unlist(int)
+contrasts$Percent_Intersection <- 100*unlist(percent_int)
 
 # Make overlap matrix.
-dm <- matrix(contrasts$Intersection,nrow=8,ncol=8)
+x <- y <- length(col_names)
+dm <- matrix(contrasts$Intersection,nrow=x,ncol=y)
 rownames(dm) <- colnames(dm) <- row_names
 
 # heirarchical clustering of dissimilarity matrix calculated as 1-percent_overlap.
-dm <- matrix(contrasts$Percent,nrow=8,ncol=8)
+dm <- matrix(contrasts$Percent_Intersection,nrow=x,ncol=y)
 rownames(dm) <- colnames(dm) <- row_names
 diss <- 1 - dm
 hc <- hclust(as.dist(diss), method = "average")
@@ -593,8 +740,8 @@ levels(df$Var2) <- hc$labels[hc$order]
 
 plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
   geom_tile(color = "black") + 
-  geom_text(aes(Var2, Var1, label = round(value,1)), color = "black", size = 1.0) +
-  scale_fill_gradient2(name="Percent Overlap") + 
+  geom_text(aes(Var2, Var1, label = round(value,1)), color = "black", size = 4.0) +
+  scale_fill_gradient2(name="Percent Overlap", low = "#132B43", high = "#56B1F7") + 
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.title.x = element_blank(),
@@ -604,21 +751,126 @@ plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
     panel.background = element_blank(),
     axis.ticks = element_blank(),
     legend.justification = c(1, 0),
-    legend.position = c(0.5, 0.7),
+    legend.position = c(0.4, 0.7),
     legend.direction = "horizontal") + 
   guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
                                title.position = "top", title.hjust = 0.5)) +
   coord_fixed()
 
-plot <- plot + theme(legend.position = "none")
 plot
 
 # Save heatmap and dendrogram. 
 file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_matirx.tiff")
 ggsave(file,plot, width = 3, height = 3, units = "in", dpi = 300)
 
-file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.tiff")
-ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
+#file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.tiff")
+#ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
+
+#-------------------------------------------------------------------------------
+#' ## Calculate GO enrichment for each DEP community.
+#-------------------------------------------------------------------------------
+
+## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
+nodes <- lapply(community_results, function(x) x$nodes)
+
+logic <- list()
+for (i in 1:length(nodes)){
+  logic[[i]] <- meta$entrez %in% nodes[[i]]
+}
+
+labels <- do.call(cbind, logic)
+rownames(labels) <- meta$entrez
+colnames(labels) <- names(nodes)
+
+# Convert TRUE to column names. 
+logic <- labels == TRUE # 1 will become TRUE, and 0 will become FALSE.
+# Loop through each column to replace 1 with column header.
+for (i in 1:ncol(logic)){
+  col_header <- colnames(labels)[i]
+  labels[logic[,i],i] <- col_header
+}
+
+# Insure that labels is a matrix.
+labels <- as.matrix(labels)
+head(labels)
+
+# look at the number of genes assigned to each cluster. 
+table(labels)
+
+# The labels matrix and vector of cooresponding entrez IDs 
+# will be passed to enrichmentAnalysis().
+
+# Build a GO annotation collection:
+if (!exists(deparse(substitute(musGOcollection)))){
+  musGOcollection <- buildGOcollection(organism = "mouse")}
+
+# Creates some space by clearing some memory.
+collectGarbage()
+
+# Perform GO analysis for each module using hypergeometric (Fisher.test) test.
+# As implmented by the WGCNA function enrichmentAnalysis().
+# FDR is the BH adjusted p-value. 
+# Insure that the correct background (used as reference for enrichment)
+# has been selected!
+# useBackgroud = "given" will use all given genes as reference background.
+
+GOenrichment <- enrichmentAnalysis(
+  classLabels = labels,
+  identifiers = rownames(labels), # entrez ids
+  refCollection = musGOcollection,
+  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
+  threshold = 0.05,
+  thresholdType = "Bonferroni",
+  getOverlapEntrez = TRUE,
+  getOverlapSymbols = TRUE,
+  ignoreLabels = "FALSE")
+
+# Create some space by clearing some memory.
+collectGarbage()
+
+# Collect the results. 
+results_GOenrichment <- list()
+for (i in 1:length(GOenrichment$setResults)){
+  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
+}
+length(results_GOenrichment)
+names(results_GOenrichment) <- colnames(labels)
+
+# Write results to file. 
+file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_DEP_Community_GOenrichment_Results.xlsx")
+write.excel(results_GOenrichment,file)
+
+#-------------------------------------------------------------------------------
+#' ## Visualize GO enrichment for each DEP community.
+#-------------------------------------------------------------------------------
+
+## Visualize GO terms with GOscatter plots. 
+# Module name should be a color for the plot.
+colorvec <- unlist(colors)
+godata <- results_GOenrichment
+names(godata) <- colorvec
+
+# Specify the top percent of terms to print with topN.
+plots <- list()
+for (i in 1:length(godata)){
+  color <- colorvec[i]
+  plots[[i]] <- ggplotGOscatter(godata, color = color, topN = 0.5)
+}
+names(plots) <- names(results_GOenrichment)
+
+plots$Shank2
+plots$Shank3
+plots$Syngap1
+plots$Ube3a
+
+# Loop to save plots.
+for (i in 1:length(plots)){
+  plot <- plots[[i]] + theme(legend.position = "none")
+  namen <- gsub("\\.","_",names(plots)[i])
+  file <- paste0(outputfigsdir,"/",outputMatName,namen,"DEP_Community_GO_scatter.tiff")
+  ggsave(file, plot, width = 3, height = 3, units = "in", dpi = 300)
+}
+
 
 #-------------------------------------------------------------------------------
 #' ## Generate custom gene lists.
@@ -1124,113 +1376,6 @@ df <- df[!df$Module=="grey",]
 plot(df$GOCoherence,df$Size)
 cor(df$GOCoherence,df$Size,method = "spearman")
 
-#-------------------------------------------------------------------------------
-#' ## Examine GO enrichment for each DEP community.
-#-------------------------------------------------------------------------------
-
-## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
-communityNodes <- lapply(results,function(x) x$nodes)
-
-logic <- list()
-for (i in 1:length(communityNodes)){
-  logic[[i]] <- meta$gene %in% communityNodes[[i]]
-}
-
-labels <- do.call(cbind, logic)
-rownames(labels) <- meta$entrez
-colnames(labels) <- names(communityNodes)
-
-# Convert TRUE to column names. 
-logic <- labels == TRUE # 1 will become TRUE, and 0 will become FALSE.
-# Loop through each column to replace 1 with column header.
-for (i in 1:ncol(logic)){
-  col_header <- colnames(labels)[i]
-  labels[logic[,i],i] <- col_header
-}
-
-# Insure that labels is a matrix.
-labels <- as.matrix(labels)
-head(labels)
-
-# look at the number of genes assigned to each cluster. 
-table(labels)
-
-# The labels matrix and vector of cooresponding entrez IDs 
-# will be passed to enrichmentAnalysis().
-
-# Build a GO annotation collection:
-if (!exists(deparse(substitute(musGOcollection)))){
-  musGOcollection <- buildGOcollection(organism = "mouse")}
-
-# Creates some space by clearing some memory.
-collectGarbage()
-
-# Perform GO analysis for each module using hypergeometric (Fisher.test) test.
-# As implmented by the WGCNA function enrichmentAnalysis().
-# FDR is the BH adjusted p-value. 
-# Insure that the correct background (used as reference for enrichment)
-# has been selected!
-# useBackgroud = "given" will use all given genes as reference background.
-
-GOenrichment <- enrichmentAnalysis(
-  classLabels = labels,
-  identifiers = rownames(labels), # entrez ids
-  refCollection = musGOcollection,
-  useBackground = "given", # options are: given, reference (all), intersection, and provided. 
-  threshold = 0.05,
-  thresholdType = "Bonferroni",
-  getOverlapEntrez = TRUE,
-  getOverlapSymbols = TRUE,
-  ignoreLabels = "FALSE")
-
-# Create some space by clearing some memory.
-collectGarbage()
-
-# Collect the results. 
-results_GOenrichment <- list()
-for (i in 1:length(GOenrichment$setResults)){
-  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
-}
-length(results_GOenrichment)
-names(results_GOenrichment) <- colnames(labels)
-
-# Write results to file. 
-file <- paste0(outputtabsdir,"/",tissue,"_WGCNA_Analysis_DEP_Community_GOenrichment_Results.xlsx")
-write.excel(results_GOenrichment,file)
-
-## Visualize GO terms with GOscatter plots. 
-# Module name should be a color for the plot.
-colorvec <- c("green1","yellow1","blue1","purple1",
-              "green2","yellow2","blue2","purple2")
-godata <- results_GOenrichment
-names(godata) <- colorvec
-
-# Specify the top percent of terms to print with topN.
-plots <- list()
-for (i in 1:length(godata)){
-  color <- colorvec[i]
-  plots[[i]] <- ggplotGOscatter(godata, color = color, topN = 0.05)
-}
-names(plots) <- names(results_GOenrichment)
-
-#fixme: add specific colors, change dot alpha may improve appearance. 
-# ugg shank2...
-plots[[1]]
-plots[[2]]
-plots[[3]]
-plots[[4]]
-plots[[5]]
-plots[[6]]
-plots[[7]]
-plots[[8]]
-
-# Loop to save plots.
-for (i in 1:length(plots)){
-  plot <- plots[[i]] + theme(legend.position = "none")
-  namen <- gsub("\\.","_",names(plots)[i])
-  file <- paste0(outputfigsdir,"/",outputMatName,namen,"DEP_Community_GO_scatter.tiff")
-  ggsave(file, plot, width = 3, height = 3, units = "in", dpi = 300)
-}
 
 #-------------------------------------------------------------------------------
 #' ## Evaluate go term similarity of DEP communities.
