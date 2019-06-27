@@ -546,7 +546,7 @@ for (i in 1:length(sigEntrez)){
 #' ## Generate randomly seeded subgraphs...
 #-------------------------------------------------------------------------------
 
-n_iter <- 1000
+n_iter <- 5
 n_seeds <- lapply(DEP_communities, function(x) length(x$seeds))
 output <- list()
 
@@ -586,27 +586,16 @@ for (i in 1:n_iter){
               "community_nodes" = community_nodes,
               "knn_nodes" = knn_nodes, 
               "combined_nodes" = combined_nodes)
-  output[[i]] <- out
-  names(output) <- paste("iter",i,sep="_")
+  output[[paste("iter",i,sep="_")]] <- out
+
   # Save result.
-  if (i == c(1,seq(0,n_iter,50))){
+  if (i %in% c(1,seq(0,n_iter,50))) {
     print("Saving progress to .RDS!")
     
-    file <- paste(Rdatadir,"/","Random_Communities.RDS")
+    file <- paste0(Rdatadir,"/","Random_Communities.RDS")
     saveRDS(output, file)
   }
-  
 }
-
-
-
-###################################################
-# Check...
-unlist(lapply(output$iter_1$seed_nodes,function(x) length(x)))
-unlist(lapply(output$iter_1$community_nodes,function(x) length(x)))
-unlist(lapply(output$iter_1$knn_nodes,function(x) length(x)))
-unlist(lapply(output$iter_1$combined_nodes,function(x) length(x)))
-###################################################
 
 #-------------------------------------------------------------------------------
 #' ## Examine protein overlap between communities.
