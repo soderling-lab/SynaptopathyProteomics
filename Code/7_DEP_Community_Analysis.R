@@ -230,8 +230,16 @@ stats_df$Entrez <- unlist(uniprot2entrez[stats_df$Uniprot])
 sum(is.na(stats_df$Entrez)) == 0
 
 #-------------------------------------------------------------------------------
-#' ## Combine sigprots from cortex and striatum.
+#' ## Combine sigProts from cortex and striatum tissues.
 #-------------------------------------------------------------------------------
+
+# Define significantly DEPs.
+sigProts <- list()
+for (i in 1:length(stats)){
+  df <- stats[[i]]
+  sigProts[[i]] <- df$Uniprot[df$FDR < 0.05]
+}
+names(sigProts) <- names(stats)
 
 # Combine tissues for each genotype.
 genos <- c("Shank2","Shank3","Syngap1","Ube3a")
@@ -246,7 +254,7 @@ sigProts <- u
 sigEntrez <- lapply(sigProts,function(x) unlist(uniprot2entrez[x]))
 
 #-------------------------------------------------------------------------------
-#' Load the PPI graph.
+#' ## Load the PPI graph.
 #-------------------------------------------------------------------------------
 
 # Load the data.
@@ -340,7 +348,7 @@ length(V(g)) # All but three unmapped genes.
 length(E(g))
 
 #-------------------------------------------------------------------------------
-#' ## Find KNN in co-expression space.
+#' ## Find KNN in protein co-expression space.
 #-------------------------------------------------------------------------------
 
 # Calculate protein co-expression (correlation) matrix.
@@ -372,7 +380,7 @@ knn_list <- apply(r, 1, function(x) get_knn(x, k=3))
 # seed nearest neighbors in co-expression space (k=3).
 
 # Defaults for analysis. 
-degree_to_stay    = 2     # 2 degrees to seed nodes.
+degree_to_stay = 2     # 2 degrees to seed nodes.
 
 # Get DEP seeds neighborhoods. 
 subg <- lapply(sigEntrez, function(x) make_ego_graph(g, nodes = x, mode = "all"))
@@ -546,56 +554,56 @@ for (i in 1:length(sigEntrez)){
 #' ## Generate randomly seeded subgraphs...
 #-------------------------------------------------------------------------------
 
-n_iter <- 5
+# The number of seeds it the number of DEP for each genotype. 
 n_seeds <- lapply(DEP_communities, function(x) length(x$seeds))
+
+# Generate n_iter random graphs for each genotype. 
+n_iter <- 1000
 output <- list()
+collectGarbage()
 
 # Loop to generate randomly seeded graphs. 
 for (i in 1:n_iter){
-  print(paste("Generating randomly seeded communities, iteration",i,"..."))
-  # Randomly Sample nodes.
+  # Progress report.
+  if (i == 1) {
+    print("Generating randomly seeded graphs...")
+    pb <- txtProgressBar(min=0, max = n_iter, style = 3)
+  } else {
+    setTxtProgressBar(pb, i)
+  }
+  # Generate randomlly seeded graphs...
   rand_seeds <- lapply(n_seeds, function(x) sample(meta$entrez,x, replace = FALSE))
-  # Get random seeds' neighborhoods. 
   subg <- lapply(rand_seeds, function(x) make_ego_graph(g, nodes = x, mode = "all"))
-  # Combine subgraphs, union. 
   uniong <- lapply(subg, function(x) do.call(igraph::union,x))
-  # Calculate distances to all nodes. 
   dist <- lapply(uniong, function(x) distances(x, mode = "all", algorithm = "unweighted"))
-  # Keep distances to seed nodes. 
   f <- function(x,y) { x <- x[,colnames(x) %in% y]; return(x) }
   dist <- mapply(f,dist,rand_seeds)
-  # Only consider direct connections (distance == 1).
   f <- function(x) { x[x!=1] <- 0; return(x) }
   dist <- lapply(dist, function(x) f(x))
-  # Exclude Ywha* genes (14-3-3 proteins).
   out <- as.character(meta$entrez[grep("Ywha*", meta$gene)])
   f <- function(x) { x[rownames(x) %in% out,] <- 0; return(x)}
   dist <- lapply(dist, function(x) f(x))
-  # Calculate degree to seed nodes (row sum).
   deg <- lapply(dist, function(x) apply(x,1,function(y) sum(y)))
-  # We will keep nodes that have at least 2 connections with seed nodes.
   keep <- lapply(deg, function(x) names(x)[x >= 2])
-  # Combine with seed nodes.
   community_nodes <- mapply(c,keep,rand_seeds)
-  # Add KNN.
   knn_nodes <- lapply(rand_seeds, function(x) as.character(unlist(knn_list[x])))
-  # Combine.
   combined_nodes <- lapply(mapply(c,community_nodes,knn_nodes), function(x) unique(x))
-  # Return output. 
   out <- list("seed_nodes" = rand_seeds,
               "community_nodes" = community_nodes,
               "knn_nodes" = knn_nodes, 
               "combined_nodes" = combined_nodes)
   output[[paste("iter",i,sep="_")]] <- out
 
-  # Save result.
-  if (i %in% c(1,seq(0,n_iter,50))) {
-    print("Saving progress to .RDS!")
-    
+  # Save result periodically.
+  if (i %in% seq(0, n_iter, 0.1*n_iter)) {
+    #print("Saving progress to .RDS!")
+    collectGarbage()
     file <- paste0(Rdatadir,"/","Random_Communities.RDS")
     saveRDS(output, file)
   }
 }
+
+close(pb)
 
 #-------------------------------------------------------------------------------
 #' ## Examine protein overlap between communities.
