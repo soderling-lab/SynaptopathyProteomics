@@ -13,6 +13,12 @@
 #'      highlight: tango
 #' ---
 
+#' Identified a glaring problem which may have been staring us in the face.
+#' If we aregue that there should be any convergance at all, then there should
+#' be convergence at phenotypically!!!! Need to drill this down...
+#' The answer why we picked cortex and striatum are because they are large brain 
+#' areas is not sufficient. WHY did we choose these tissues????
+
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
@@ -254,7 +260,7 @@ sigProts <- u
 sigEntrez <- lapply(sigProts,function(x) unlist(uniprot2entrez[x]))
 
 #-------------------------------------------------------------------------------
-#' ## Load the PPI graph.
+#' ## Load the PPI into into an igraph graph.
 #-------------------------------------------------------------------------------
 
 # Load the data.
@@ -348,7 +354,7 @@ length(V(g)) # All but three unmapped genes.
 length(E(g))
 
 #-------------------------------------------------------------------------------
-#' ## Find KNN in protein co-expression space.
+#' ## Find KNN in proteins co-expression space.
 #-------------------------------------------------------------------------------
 
 # Calculate protein co-expression (correlation) matrix.
@@ -443,13 +449,12 @@ unlist(lapply(community_results$Ube3a, function(x) length(x)))
 #' ## Send DEP communities to Cytoscape!
 #-------------------------------------------------------------------------------
 
+# Should network be sent to Cytoscape? 
 send_to_cytoscape = FALSE
 
-################################################################################
-# Cytoscape should be open before proceeding!
-################################################################################
+if (send_to_cytoscape) { print("Cytoscape should be open before proceeding!")}
 
-# Custom colors:
+# Custom colors for nodes. 
 colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
 names(colors) <- c("Shank2","Shank3","Syngap1","Ube3a")
 
@@ -554,64 +559,154 @@ for (i in 1:length(sigEntrez)){
 #' ## Generate randomly seeded subgraphs...
 #-------------------------------------------------------------------------------
 
-# The number of seeds it the number of DEP for each genotype. 
-n_seeds <- lapply(DEP_communities, function(x) length(x$seeds))
+# Should random graphs be generated? 
+# If FALSE, results will be loaded from file.
+generate_random_graphs = FALSE
 
-# Generate n_iter random graphs for each genotype. 
-n_iter <- 1000
-output <- list()
-collectGarbage()
+# Load randomly seeded communities from file. 
+if (generate_random_graphs == FALSE) {
+  print("Loading previously generated random communities!")
+  file <- paste0(Rdatadir,"/","Random_Communities.RDS")
+  random_communities <- readRDS(file)
+}
+
 
 # Loop to generate randomly seeded graphs. 
-for (i in 1:n_iter){
-  # Progress report.
-  if (i == 1) {
-    print("Generating randomly seeded graphs...")
-    pb <- txtProgressBar(min=0, max = n_iter, style = 3)
-  } else {
-    setTxtProgressBar(pb, i)
-  }
-  # Generate randomlly seeded graphs...
-  rand_seeds <- lapply(n_seeds, function(x) sample(meta$entrez,x, replace = FALSE))
-  subg <- lapply(rand_seeds, function(x) make_ego_graph(g, nodes = x, mode = "all"))
-  uniong <- lapply(subg, function(x) do.call(igraph::union,x))
-  dist <- lapply(uniong, function(x) distances(x, mode = "all", algorithm = "unweighted"))
-  f <- function(x,y) { x <- x[,colnames(x) %in% y]; return(x) }
-  dist <- mapply(f,dist,rand_seeds)
-  f <- function(x) { x[x!=1] <- 0; return(x) }
-  dist <- lapply(dist, function(x) f(x))
-  out <- as.character(meta$entrez[grep("Ywha*", meta$gene)])
-  f <- function(x) { x[rownames(x) %in% out,] <- 0; return(x)}
-  dist <- lapply(dist, function(x) f(x))
-  deg <- lapply(dist, function(x) apply(x,1,function(y) sum(y)))
-  keep <- lapply(deg, function(x) names(x)[x >= 2])
-  community_nodes <- mapply(c,keep,rand_seeds)
-  knn_nodes <- lapply(rand_seeds, function(x) as.character(unlist(knn_list[x])))
-  combined_nodes <- lapply(mapply(c,community_nodes,knn_nodes), function(x) unique(x))
-  out <- list("seed_nodes" = rand_seeds,
-              "community_nodes" = community_nodes,
-              "knn_nodes" = knn_nodes, 
-              "combined_nodes" = combined_nodes)
-  output[[paste("iter",i,sep="_")]] <- out
+if (generate_random_graphs == TRUE) {
+  
+  # The number of seeds it the number of DEP for each genotype. 
+  n_seeds <- lapply(DEP_communities, function(x) length(x$seeds))
+  
+  # Generate n_iter random graphs for each genotype. 
+  n_iter <- 1000
+  output <- list()
+  
+  for (i in 1:n_iter) {
+    
+    # Initialize progress bar.
+    if (i == 1) { 
+      print("Generating randomly seeded graphs...")
+      print("This may take several hours...")
+      pb <- txtProgressBar(min=0, max = n_iter, style = 3) 
+      } else if (i != 1) {
+      setTxtProgressBar(pb, i) }
 
-  # Save result periodically.
-  if (i %in% seq(0, n_iter, 0.1*n_iter)) {
-    #print("Saving progress to .RDS!")
-    collectGarbage()
-    file <- paste0(Rdatadir,"/","Random_Communities.RDS")
-    saveRDS(output, file)
+    # Generate randomlly seeded graphs...
+    rand_seeds <- lapply(n_seeds, function(x) sample(meta$entrez,x, replace = FALSE))
+    subg <- lapply(rand_seeds, function(x) make_ego_graph(g, nodes = x, mode = "all"))
+    uniong <- lapply(subg, function(x) do.call(igraph::union,x))
+    dist <- lapply(uniong, function(x) distances(x, mode = "all", algorithm = "unweighted"))
+    f <- function(x,y) { x <- x[,colnames(x) %in% y]; return(x) }
+    dist <- mapply(f,dist,rand_seeds)
+    f <- function(x) { x[x!=1] <- 0; return(x) }
+    dist <- lapply(dist, function(x) f(x))
+    out <- as.character(meta$entrez[grep("Ywha*", meta$gene)])
+    f <- function(x) { x[rownames(x) %in% out,] <- 0; return(x)}
+    dist <- lapply(dist, function(x) f(x))
+    deg <- lapply(dist, function(x) apply(x,1,function(y) sum(y)))
+    keep <- lapply(deg, function(x) names(x)[x >= 2])
+    community_nodes <- mapply(c,keep,rand_seeds)
+    knn_nodes <- lapply(rand_seeds, function(x) as.character(unlist(knn_list[x])))
+    combined_nodes <- lapply(mapply(c,community_nodes,knn_nodes), function(x) unique(x))
+    out <- list("seed_nodes" = rand_seeds,
+                "community_nodes" = community_nodes,
+                "knn_nodes" = knn_nodes, 
+                "combined_nodes" = combined_nodes)
+    output[[paste("iter",i,sep="_")]] <- out
+
+    # Save result periodically.
+    if (i %in% seq(0, n_iter, 0.1*n_iter)) {
+      collectGarbage()
+      file <- paste0(Rdatadir,"/","Random_Communities.RDS")
+      saveRDS(output, file)
+    }
+    
+    # When done, shut down progress bar.
+    if (i == n_iter) { close(pb) }
   }
 }
 
-close(pb)
-
 #-------------------------------------------------------------------------------
-#' ## Examine protein overlap between communities.
+# Examine overlap in randomized communities.
 #-------------------------------------------------------------------------------
 
-# Fixme: change color of plot. 
+# We just need to run through the list of 1000 random communities and compare each 
+# genotype to each other.
 
-# Examine overlap in ppi networks...
+n_iter <- length(random_communities)
+out <- list()
+
+for (i in 1:n_iter) {
+  
+  # Initialize progress bar.
+  if (i == 1) { 
+    print("Calculating percent overlap between randomly seeded graphs...")
+    pb <- txtProgressBar(min=0, max = n_iter, style = 3) 
+    } else if (i != 1) {
+    setTxtProgressBar(pb, i) }
+  
+  # Get a subset of the data. All nodes of the seeded graphs for a given iteration.
+  subdat <- list(
+    Shank2 = random_communities[[i]]$combined_nodes$Shank2,
+    Shank3 = random_communities[[i]]$combined_nodes$Shank3,
+    Syngap1 = random_communities[[i]]$combined_nodes$Syngap1,
+    Ube3a = random_communities[[i]]$combined_nodes$Ube3a)
+  
+  # A Function to calculate percent intersection given two groups of subdat.
+  percent_intersection <- function(group_A, group_B){
+    x = subdat[[group_A]]
+    y = subdat[[group_B]]
+    p_intersection <- 100*( length(intersect(x,y)) / length(union(x,y)) )
+    return(p_intersection)
+  }
+  
+  # All possible contrasts as a list of vectors. 
+  contrasts <- combn(c("Shank2","Shank3","Syngap1","Ube3a"),2)
+  contrasts <- split(contrasts, rep(1:ncol(contrasts), each = nrow(contrasts)))
+
+  # Use lapply and do.call to calculate percent intersection for every contrast.
+  p_intersection <- lapply(contrasts, function(x) do.call(percent_intersection, as.list(x)))
+  names(p_intersection) <- unlist(lapply(contrasts, function(x) paste(x, collapse = " U ")))
+  
+  # Return named list of calculated percent intersection. 
+  out[[i]] <- unlist(p_intersection)
+  
+  # When done, shut down progress bar.
+  if (i == n_iter) { close(pb) }
+}
+
+# Collect the data into a matrix. Each row is percent intersection for each contrast.
+df <- as.data.frame(do.call(rbind, out))
+
+# Split data into a list of column vectors.
+data <- unlist(split(df, as.list(colnames(df))), recursive = FALSE)
+names(data) <- colnames(df)
+
+# Mean of each contrast.
+lapply(data,function(x) mean(x))
+
+# Now calculate permutation statistic. 
+# Need to generate histograms with ggplot for each column of df. 
+x <- 0:5
+# Both calls give same results
+library(statmod)
+permp(x=x, nperm=99, n1=6, n2=6)
+permp(x=x, nperm=99, total.nperm=462)
+
+
+# Sample with replacement from distribution. 
+sample(data)
+
+# Calculate number of required permutations!
+
+permutationTest(nulls, observed, nVarsPresent, totalSize,
+                alternative = "greater")
+
+#-------------------------------------------------------------------------------
+#' ## Examine protein overlap between DEP communities.
+#-------------------------------------------------------------------------------
+
+# Get 
 nodes <- sapply(DEP_communities, "[", 3)
 names(nodes) <- sapply(strsplit(names(nodes), "\\."), "[", 1)
 
