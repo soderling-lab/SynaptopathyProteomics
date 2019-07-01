@@ -386,7 +386,7 @@ knn_list <- apply(r, 1, function(x) get_knn(x, k=3))
 # seed nearest neighbors in co-expression space (k=3).
 
 # Defaults for analysis. 
-degree_to_stay = 2     # 2 degrees to seed nodes.
+degree_to_stay = 2     # keep nodes with 2 degrees to seed nodes.
 
 # Get DEP seeds neighborhoods. 
 subg <- lapply(sigEntrez, function(x) make_ego_graph(g, nodes = x, mode = "all"))
@@ -683,7 +683,7 @@ data <- unlist(split(df, as.list(colnames(df))), recursive = FALSE)
 names(data) <- colnames(df)
 
 # Mean of each contrast.
-lapply(data,function(x) mean(x))
+unlist(lapply(data,function(x) mean(x)))
 
 # Now calculate permutation statistic. 
 # Need to generate histograms with ggplot for each column of df. 
@@ -695,18 +695,21 @@ permp(x=x, nperm=99, total.nperm=462)
 
 
 # Sample with replacement from distribution. 
-sample(data)
+#sample(data)
 
 # Calculate number of required permutations!
 
-permutationTest(nulls, observed, nVarsPresent, totalSize,
-                alternative = "greater")
+#permutationTest(nulls, observed, nVarsPresent, totalSize,
+#                alternative = "greater")
 
 #-------------------------------------------------------------------------------
 #' ## Examine protein overlap between DEP communities.
 #-------------------------------------------------------------------------------
 
-# Get 
+# change to percentage.
+# Change plots color.
+
+# Get community nodes.
 nodes <- sapply(DEP_communities, "[", 3)
 names(nodes) <- sapply(strsplit(names(nodes), "\\."), "[", 1)
 
@@ -734,7 +737,7 @@ for (i in 1:dim(contrasts)[1]) {
 
 contrasts$Name <- paste(contrasts$ConditionA,
   contrasts$ConditionB,
-  sep = "_U_"
+  sep = " U "
 )
 names(int) <- contrasts$Name
 
@@ -808,13 +811,75 @@ plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
 #plot <- plot + theme(legend.position = "none")
 plot
 
-# Save heatmap and dendrogram.
-file <- paste0(outputfigsdir, "/", outputMatName, "DEP_Community_Overlap_matirx.eps")
-ggsave(file, plot, width = 3, height = 3, units = "in", dpi = 300)
+# Save as tiffs.
+#file <- paste0(outputfigsdir, "/", outputMatName, "DEP_Community_Overlap_matirx.eps")
+#ggsave(file, plot, width = 3, height = 3, units = "in", dpi = 300)
 
-file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.eps")
-ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
+#file <- paste0(outputfigsdir,"/",outputMatName,"DEP_Community_Overlap_dendro.eps")
+#ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
 
+#-------------------------------------------------------------------------------
+#' ## Compare randomly generated communities to observerd overlap.
+#-------------------------------------------------------------------------------
+
+# Dataframe of observed percent overlap. 
+obs_data <- rbind(df, 
+                  data.frame(Var1 = df$Var2,
+                             Var2 = df$Var1,
+                             value = df$value,
+                             intersection = df$intersection))
+obs_data$id <- paste(obs_data$Var1,obs_data$Var2, sep = " U ")
+
+randp_data <- data
+names(randp_data)
+
+# Generate some simple plots...
+for (i in 1:length(randp_data)){
+  idx <- match(names(randp_data)[i], obs_data$id)
+  randp <- randp_data[[i]]
+  obs <- 100*obs_data$value[idx]
+  # pvalue is number of greater than or equal to observed divided by the total.
+  print(paste(names(randp_data)[i], "p-value:", sum(randp >= obs)/length(randp)))
+  # Generate simple plot.
+  hist(randp)
+  abline(v = obs, col = "red")
+  }
+
+#-------------------------------------------------------------------------------
+#' ## Examine functional similarity!
+#-------------------------------------------------------------------------------
+
+# Build GO database.
+if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
+if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
+if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
+
+msGO <- list(msGOMF,msGOBP,msGOCC)
+names(msGO) <- c("MF","BP","CC")
+
+# Loop through all iterations, calculate GO semantic similarity between 
+# Shank2, Shank3, Syngap1, and Ube3a communties. 
+for (i in 1:length(random_communities)){
+  
+  # Initialize progress bar.
+  if (i == 1) { 
+    print("Calculating GO semantic similarity between DEP communities...")
+    print("This may take several hours...")
+    pb <- txtProgressBar(min=0, max = n_iter, style = 3) 
+  } else if (i != 1) {
+    setTxtProgressBar(pb, i) }
+  
+  # Collect the data from random_communities list. 
+  clusters <- random_communities[[i]]$combined_node
+  
+  # Evaluate GO semanitic similarity between DEP communities (clusters).
+  system.time({
+    gosim <- mclusterSim(clusters, semData=msGO$BP, measure="Wang", combine="BMA")
+  })
+  
+  # When done, shut down progress bar.
+  if (i == n_iter) { close(pb) }
+}
 
 #-------------------------------------------------------------------------------
 #' Evaluate topology of the protein subgraphs.
