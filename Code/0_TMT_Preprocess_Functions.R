@@ -2269,10 +2269,10 @@ ggplotVerboseBoxplot <- function(x, g, levels, contrasts, color, stats = FALSE,
 
   # Calculate Kruskal Wallis pvalue.
   KWtest <- kruskal.test(as.numeric(x), as.factor(g))
-  pvalue <- formatC(KWtest$p.value, format = "e", digits = 2)
+  pvalue <- round(KWtest$p.value, 3)
 
   # If p-value is significant, print the title in red.
-  if (as.numeric(pvalue) < 0.05) {
+  if (as.numeric(KWtest$p.value) < 0.05) {
     sigcolor <- "red"
   } else {
     sigcolor <- "black"
@@ -3034,3 +3034,29 @@ blank_theme <- theme_minimal() +
     axis.ticks   = element_blank(),
     plot.title   = element_text(size=14, face="bold")
   )
+
+
+#-----------------------------------------------------------------------------
+#' Network connectivity histogram.
+
+ggplotHistK <- function(connectivity){
+  plot <- qplot(connectivity,
+                geom = "histogram",
+                binwidth = 5,
+                main = "Connectivity Histogram",
+                xlab = "Connectivity (k)",
+                ylab = "Frequency",
+                fill = I("black"),
+                col = I("black"),
+                alpha = 0.2) +
+    scale_x_continuous(limits = c(0, 50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0, 0)) +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+  return(plot)
+}
+
+#-----------------------------------------------------------------------------

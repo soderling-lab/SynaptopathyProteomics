@@ -373,7 +373,7 @@ get_knn <- function(x, k) {
   return(out)
 }
 
-# Get KNN for all nodes.
+# Get KNN for all nodes (top three values in co-expression matrix column).
 knn_list <- apply(r, 1, function(x) get_knn(x, k=3))
 
 #-------------------------------------------------------------------------------
@@ -445,85 +445,42 @@ unlist(lapply(community_results$Shank3, function(x) length(x)))
 unlist(lapply(community_results$Syngap1, function(x) length(x)))
 unlist(lapply(community_results$Ube3a, function(x) length(x)))
 
+# Save DEP community results.
+file <- paste0(Rdatadir,"/","DEP_Communities.RDS")
+saveRDS(community_results,file)
+
 #-------------------------------------------------------------------------------
 #' ## Send DEP communities to Cytoscape!
 #-------------------------------------------------------------------------------
 
 # Should network be sent to Cytoscape? 
-send_to_cytoscape = FALSE
-
+send_to_cytoscape = TRUE
 if (send_to_cytoscape) { print("Cytoscape should be open before proceeding!")}
 
 # Custom colors for nodes. 
 colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
 names(colors) <- c("Shank2","Shank3","Syngap1","Ube3a")
 
-for (i in 1:length(sigEntrez)){
+for (i in 1:length(community_results)){
   
-  geno <- names(sigEntrez)[i]
-  print(paste0("Working on ", geno, " subgraph", " (i=",i,")", "..."))
+  geno <- names(community_results)[i]
+  print(paste0("Working on ", geno, " community subgraph","..."))
   
   # Get subset of nodes (v) in modules overlap.
   # We will use these to seed a network.
-  v <- sigEntrez[[i]] # number of significant proteins for this exp.
+  v <- community_results[[geno]][[4]]
   
   # Insure that all nodes are in the network.
-  #table(v %in% vertex_attr(g, "name"))
   v <- v[v %in% vertex_attr(g, "name")]
-  print(paste0("Seed Nodes: ", length(v)))
-  seeds <- v
+  print(paste0("Community Nodes: ", length(v)))
   
-  # Create list of subgraphs (subg) for every seed node.
-  subg <- make_ego_graph(g, 
-                         order = 1, 
-                         nodes = v,
-                         mode = "all", 
-                         mindist = 0)
-  
-  # Combine subgraphs, union. 
-  uniong <- do.call(igraph::union,subg)
-  
-  # Calculate distances from seed nodes to all else.
-  dist <- as.data.frame(
-    distances(uniong,
-              v = V(uniong), 
-              to = v, 
-              mode = "all",
-              weights = NULL, 
-              algorithm = "unweighted")
-  )
-  
-  # Only consider direct connections to seed nodes (distance == 1).
-  dist[dist!=1] <- 0
-  
-  # Exclude Ywha* genes (14-3-3 proteins).
-  out <- as.character(unlist(gene2entrez[grep("Ywha*",names(gene2entrez))]))
-  dist[rownames(dist) %in% out,] <- 0
-  
-  # Calculate degree to seed nodes (sum).
-  dist$SeedDegree <- apply(dist[,-ncol(dist)],1,function(x) sum(x))
-  
-  # We will keep nodes that have at least 2 connections with seed nodes.
-  # degree_to_stay = 2
-  keep <- dist$SeedDegree>=degree_to_stay
-  dist <- dist[keep,]
-  keepers <- unique(c(v,rownames(dist)))
-  print(paste("Additional nodes:", length(keepers) - length(seeds)))
-  subg <- induced_subgraph(g, keepers)
+  # Create subgraph.
+  subg <- induced_subgraph(g, v)
   
   # Build df of node attributes. 
   df <- data.frame(sigProt = names(V(subg)) %in% sigEntrez[[geno]])
   rownames(df) <- names(V(subg))
   df$sigProt <- as.factor(df$sigProt)
-  
-  # How many nodes. 
-  print(paste0("Total Nodes: ", length(V(subg))))
-  
-  # result
-  community_results[[i]] <- list(seeds= seeds, 
-                                 subg = subg, 
-                                 nodes = names(V(subg)),
-                                 nodes.entrez = keepers)
   
   # Send to cytoscape with RCy3!
   if (send_to_cytoscape == TRUE){
@@ -533,7 +490,7 @@ for (i in 1:length(sigEntrez)){
     # Load node attribute table in cytoscape.
     loadTableData(df)
     
-    # Create custom syle to customize appearance. 
+    # Create custom syle.
     #geno <- strsplit(names(sigEntrez)[i], "\\.")[[1]][3]
     #colvec <- as.character(c(col2hex("gray"), unlist(colors[geno])))
     defaults <- list(NODE_SHAPE        = "Ellipse",
@@ -541,7 +498,7 @@ for (i in 1:length(sigEntrez)){
                      EDGE_WIDTH        = 2.0,
                      EDGE_TRANSPARENCY = 120)
     nodeLabels <- mapVisualProperty('node label','Symbol','p')
-    #nodeFills <- mapVisualProperty('node fill color','sigProt','d',c(FALSE,TRUE), colvec) # why does this not work???
+    nodeFills <- mapVisualProperty('node fill color','sigProt','d',c(FALSE,TRUE), colvec) # why does this not work???
     #setNodeColorMapping("NodeColor", mapping.type = 'p')
     setNodeColorBypass(sigEntrez[[geno]], colors[[geno]], network = getNetworkSuid(geno))
     setNodeSizeBypass(sigEntrez[[geno]], new.sizes = 75, network = getNetworkSuid(geno))
@@ -569,7 +526,6 @@ if (generate_random_graphs == FALSE) {
   file <- paste0(Rdatadir,"/","Random_Communities.RDS")
   random_communities <- readRDS(file)
 }
-
 
 # Loop to generate randomly seeded graphs. 
 if (generate_random_graphs == TRUE) {
@@ -685,32 +641,15 @@ names(data) <- colnames(df)
 # Mean of each contrast.
 unlist(lapply(data,function(x) mean(x)))
 
-# Now calculate permutation statistic. 
-# Need to generate histograms with ggplot for each column of df. 
-x <- 0:5
-# Both calls give same results
-library(statmod)
-permp(x=x, nperm=99, n1=6, n2=6)
-permp(x=x, nperm=99, total.nperm=462)
-
-
-# Sample with replacement from distribution. 
-#sample(data)
-
-# Calculate number of required permutations!
-
-#permutationTest(nulls, observed, nVarsPresent, totalSize,
-#                alternative = "greater")
-
 #-------------------------------------------------------------------------------
-#' ## Examine protein overlap between DEP communities.
+#' ## Examine observed protein overlap between DEP communities.
 #-------------------------------------------------------------------------------
 
 # change to percentage.
 # Change plots color.
 
-# Get community nodes.
-nodes <- sapply(DEP_communities, "[", 3)
+# Get DEP community nodes.
+nodes <- sapply(community_results, "[", 4)
 names(nodes) <- sapply(strsplit(names(nodes), "\\."), "[", 1)
 
 # Build a matrix showing overlap.
@@ -819,7 +758,7 @@ plot
 #ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
 
 #-------------------------------------------------------------------------------
-#' ## Compare randomly generated communities to observerd overlap.
+#' ## Compare randomly seeded communities to observed DEP community overlap.
 #-------------------------------------------------------------------------------
 
 # Dataframe of observed percent overlap. 
@@ -845,10 +784,19 @@ for (i in 1:length(randp_data)){
   abline(v = obs, col = "red")
   }
 
+# No strong evidence supporting convergance as there is no strongly significant 
+# increase in overlap compared to random. 
+
 #-------------------------------------------------------------------------------
 #' ## Examine functional similarity!
 #-------------------------------------------------------------------------------
 
+################################################################################
+## DONT RUN!
+################################################################################
+run = FALSE
+
+if (run == TRUE){
 # Build GO database.
 if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
 if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
@@ -881,29 +829,36 @@ for (i in 1:length(random_communities)){
   if (i == n_iter) { close(pb) }
 }
 
+}
+
 #-------------------------------------------------------------------------------
 #' Evaluate topology of the protein subgraphs.
 #-------------------------------------------------------------------------------
 
+#fixme: calculate other stats! (characteristic path length, clustering coeff.)
+#fixme: plot connectivity histogram, may be helpful for shank2.
+#fixme: fix code... do not need to generate igraph again!
+#fixme: add p value to plot title. use red for sig relationship.
+
 # Do DEP communities exhibit a scale free topology?
 
 # Load the data.
-dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(dir, "SIF.xlsx", sep = "/")
-sif <- read_excel(file, sheet = 1)
+# dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
+# file <- paste(dir, "SIF.xlsx", sep = "/")
+# sif <- read_excel(file, sheet = 1)
 
 # Create a data frame with all node attributes.
-nodes <- data.frame(
-  Entrez = unlist(meta$entrez[!is.na(meta$entrez)]),
-  Uniprot = unlist(meta$uniprot[!is.na(meta$entrez)]),
-  Symbol = unlist(meta$gene[!is.na(meta$entrez)])
-)
+#nodes <- data.frame(
+#  Entrez = unlist(meta$entrez[!is.na(meta$entrez)]),
+#  Uniprot = unlist(meta$uniprot[!is.na(meta$entrez)]),
+#  Symbol = unlist(meta$gene[!is.na(meta$entrez)])
+#)
 # Make igraph object.
-g <- graph_from_data_frame(d = sif, vertices = nodes, directed = FALSE)
+#g <- graph_from_data_frame(d = sif, vertices = nodes, directed = FALSE)
 
 # Coerce to simple graph--remove duplicate edges and self-loops.
-g <- simplify(g)
-is.simple(g)
+# g <- simplify(g)
+# is.simple(g)
 
 # Number of nodes and edges.
 length(V(g)) # All but three unmapped genes.
@@ -914,17 +869,28 @@ connected_components <- components(g)
 connected_components$csize[1] # The largest connected component.
 
 # Subset the graph.
-prots <- sapply(DEP_communities, "[", 3)
+prots <- sapply(community_results, "[", 4)
 subgraphs <- lapply(prots, function(x) induced_subgraph(g, x))
+names(subgraphs) <- c("Shank2","Shank3", "Syngap1", "Ube3a")
 
 # Calculate node connectivity (degree).
 connectivity <- lapply(subgraphs, function(x) degree(x, loops = FALSE))
+
+# Network stats:
+num_seeds <- lapply(DEP_communities, function(x) length(x$seeds))
+num_nodes <- lapply(subgraphs, function(x) length(V(x)))
+num_edges <- lapply(subgraphs, function(x) length(E(x)))
+path_length <- lapply(subgraphs, 
+                      function(x) mean_distance(x, directed = FALSE, unconnected = TRUE))
+clust_coef <- lapply(subgraphs, function(x) transitivity(x, type = c("global")))
 
 # Evaluate scale free fit with WGCNA function scaleFreePlot()
 plot_data <- lapply(connectivity, function(x)
   ggplotScaleFreePlot(x, nBreaks = 10))
 plots <- sapply(plot_data, "[", 1)
 names(plots) <- sapply(strsplit(names(plots), "\\."), "[", 1)
+
+sf_fit <- lapply(plot_data, function(x) x$stats$scaleFreeRsquared)
 
 # Check the fit.
 # Shank2 does not exhibit scale free fit!
@@ -937,6 +903,35 @@ for (i in 1:length(plots)) {
   ggsave(file, plot, width = 3, height = 2.5, units = "in")
 }
 
+# Connectivity histograms.
+kplots <- lapply(connectivity, function(x) ggplotHistK(x))
+
+# Create a table. (nodes, edges, sf fit, path length, clustering coeff)
+#num_seeds
+#num_nodes
+#num_edges
+#path_length
+
+#-------------------------------------------------------------------------------
+#' ## Generate combined community.
+#-------------------------------------------------------------------------------
+
+v <- unique(as.vector(unlist(sapply(community_results, "[", 4))))
+ug <- induced_subgraph(g,v)
+
+length(V(ug))
+length(E(ug))
+
+length(v)
+
+connected_components <- components(ug)
+connected_components$csize[1]
+
+
+connectivity <- degree(ug, loops = FALSE)
+ggplotScaleFreePlot(connectivity, nBreaks = 10)
+
+
 #-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
 #-------------------------------------------------------------------------------
@@ -946,9 +941,12 @@ for (i in 1:length(plots)) {
 # Pick a community!
 ##############################################################################
 # Subset cleanDat based on prots of interest.
-n <- 2
-group <- c("Shank2", "Shank3", "Syngap1", "Ube3a")[n]
-prots <- out[[n]]$proteins
+
+group <- "combined"
+#n <- 2
+#group <- c("Shank2", "Shank3", "Syngap1", "Ube3a")[n]
+prots <- unlist(entrez2protein[v])
+#prots <- unlist(entrez2protein[community_results[[group]][[4]]])
 subg_name <- group
 subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
 dim(subDat)
@@ -958,23 +956,7 @@ dim(subDat)
 # Estimate powers?
 estimatePower <- TRUE
 
-# Load TAMPOR cleanDat from file: #3022 rows.
-datafile <- paste(Rdatadir, tissue, "TAMPOR_data_outliersRemoved.Rds", sep = "/")
-cleanDat <- readRDS(datafile)
-cleanDat <- log2(cleanDat)
-cleanDat[1:5, 1:5]
-dim(cleanDat) # 1 outlier removed.
-
-# Strip module, metamodule and modulColor attributes from subg.
-attr <- names(vertex_attr(subg, index = V(subg)))[c(4, 5, 6)]
-for (i in 1:length(attr)) {
-  subg <- delete_vertex_attr(subg, attr[i])
-}
-
-# Check.
-length(names(vertex_attr(subg, index = V(subg)))) == 35
-
-# Load combined sample info.
+# Load combined sample info for downstream WGCNA.
 traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
 sample_info <- readRDS(traitsfile)
 sample_info[1:5, 1:5]
@@ -982,7 +964,7 @@ dim(sample_info)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
-nThreads <- 9
+nThreads <- 8
 clusterLocal <- makeCluster(c(rep("localhost", nThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
@@ -1016,12 +998,20 @@ if (estimatePower == TRUE) {
   # ggsave(file,plots$ScaleFreeFit, width = 3, height = 2.5, units = "in")
 }
 
-# Choose a scale free power (beta).
-beta <- sft$fitIndices$Power[sft$fitIndices$SFT.R.sq > 0.8][1]
+# Choose a scale free power (beta) as the power which exceeds the observed
+# scale free fit (R2) of PPI graph or is > 0.8.
+if (sf_fit[[group]] > 0.8) {
+  sf_threshold <- 0.8
+}else{
+  sf_threshold <- sf_fit[[group]]
+}
+
+idx <- c(1:nrow(sft$fitIndices))[sft$fitIndices$SFT.R.sq >= sf_threshold][1]
+r_squared <- sft$fitIndices$SFT.R.sq[idx]
+beta <- sft$fitIndices$Power[idx]
 cat(paste(
-  "Power (beta): ",
-  beta, "\nScale Free fit: ", fit$stats$scaleFreeRsquared, "\n"
-))
+  "Power (beta): ", beta, 
+  "\nScale Free fit: ", round(r_squared,2), "\n"))
 
 # Examine scale free fit...
 # Calculate node connectivity in the Weighted co-expression network.
@@ -1044,8 +1034,8 @@ plot <- fit$ggplot
 plot
 
 # Save fig.
-file <- paste0(outputfigsdir, "/", outputMatName, group, "_WGCNA_ScaleFreeFit.eps")
-ggsave(file, plot, width = 3, height = 2.5, units = "in")
+#file <- paste0(outputfigsdir, "/", outputMatName, group, "_WGCNA_ScaleFreeFit.eps")
+#ggsave(file, plot, width = 3, height = 2.5, units = "in")
 
 collectGarbage()
 
@@ -1214,6 +1204,10 @@ grid.arrange(table)
 # Save.
 file <- paste0(outputfigsdir, "/", outputMatName, group, "_Key_Network_Stats.eps")
 ggsave(file, table, width = 6, height = 1)
+
+#-------------------------------------------------------------------------------
+#' ## Illustrate module preservation.
+#-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 #' ## Enforce min module size. Recalculate MEs.
@@ -1583,7 +1577,7 @@ kw <- kruskal.test(x, g)
 kw
 dunnTest(x, g)
 
-##########################  Test ###########################
+###########################################################
 
 # Extract pvalues from the list of KW tests.
 # The pvalue is the 3rd element of each list.
@@ -1713,6 +1707,7 @@ kw_data <- data
 names(vbplots) <- sapply(strsplit(names(vbplots),"\\."),"[", 1)
 
 # Edit plots such that x-axis labels are red if post-hoc test is significant.
+plots <- list()
 for (i in 1:dim(KW_results)[1]) {
   plot <- vbplots[[KW_results$Module[i]]]
   stats <- Dtest_stats[[KW_results$Module[i]]]
@@ -1722,10 +1717,15 @@ for (i in 1:dim(KW_results)[1]) {
   a <- rep("black", 8)
   a[grepl("\\*", sig)] <- "red"
   a <- c(rep("black", 2), a)
-  plot <- plot + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
-  file <- paste0(outputfigsdir, "/", outputMatName, "_", group, "_", KW_results$Module[i], "_verboseBoxplot", ".tiff")
-  ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
+  if (KW_results$p.value[i] < 0.05) { title_color <- "red" } else { title_color <- "black"}
+  plots[[i]] <- plot + 
+    theme(plot.title = element_text(color=title_color),
+          axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
+  #file <- paste0(outputfigsdir, "/", outputMatName, "_", group, "_", KW_results$Module[i], "_verboseBoxplot", ".tiff")
+  #ggsave(file, plot, width = 3.25, height = 2.5, units = "in")
 }
+
+plots
 
 #-------------------------------------------------------------------------------
 #' ## Identify top module Hub proteins.
@@ -1862,17 +1862,21 @@ for (i in 1:length(mhplots)) {
 #' Send DEP Community with Co-expression modules to Cytoscape.
 #-------------------------------------------------------------------------------
 
+# Send graph to cytoscape?
+send_to_cytoscape <- TRUE
+
 ######################### INSURE YOU HAVE SELECTED THE CORRECT GENOTYPE ########
 # Which subgraph?
-N <- 2
+
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-geno <- groups[N]
+geno <- group
 file <- paste0(Rdatadir, "/", "DEP_KNN_Communities.Rds")
 KNN_communities <- readRDS(file)
 prots <- sapply(KNN_communities, "[", 1)
 names(prots) <- groups
 prots <- prots[[geno]]
 length(prots)
+
 ################################################################################
 
 # Load TAMPOR cleanDat from file: #3022 rows.
@@ -1924,9 +1928,6 @@ v <- unlist(lapply(prots, function(x) unlist(protein2entrez[x])))
 # Subset the graph.
 subg <- induced_subgraph(g, v)
 
-# Send graph to cytoscape?
-send_to_cytoscape <- TRUE
-
 # Build df of node attributes.
 idx <- match(unlist(entrez2protein[names(V(subg))]), rownames(subDat))
 hex <- lapply(as.list(net$colors[idx]), function(x) col2hex(x))
@@ -1975,6 +1976,8 @@ if (send_to_cytoscape == TRUE) {
 #' ## GO Enrichment analysis of Modules (colors).
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
+
+#Fixme: not working!
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
 geneNames <- rownames(subDat)

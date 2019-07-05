@@ -158,7 +158,7 @@ names(results) <- excel_sheets(file)
 #+ eval = FALSE
 
 # Estimate powers?
-estimatePower <- FALSE
+estimatePower <- TRUE
 
 # Data is...
 # Load TAMPOR cleanDat from file: #3022 rows.
@@ -284,9 +284,11 @@ dim(sampled_params)[1]
 
 # Optimal params
 sampled_params$score <- sampled_params$q2/sampled_params$PercentGrayNodes
+rownames(sampled_params)[sampled_params$score == max(sampled_params$score)]
+idx <- sampled_params$iter[sampled_params$score == max(sampled_params$score)]
 
 # Choose network building parameters.
-params_iter <- 738 # 573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
+params_iter <- idx #738 # 573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
 params <- sampled_params[params_iter, ]
 params[, c(1:7)]
 
@@ -387,7 +389,7 @@ preservation <- NetRep::modulePreservation(
 )
 
 # Collect stats.
-preservation <- preservation[c("observed", "p.values")]
+#preservation <- preservation[c("observed", "p.values")]
 
 # Get the maximum permutation test p-value.
 maxPval <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))
@@ -423,6 +425,21 @@ table <- tableGrob(mytable, rows = NULL)
 grid.arrange(table)
 file <- paste0(outputfigsdir, "/", outputMatName, "Key_Network_Stats.tiff")
 ggsave(file, table, width = 6, height = 1)
+
+#-------------------------------------------------------------------------------
+#' ## Visualize Module preservation.
+#-------------------------------------------------------------------------------
+
+preservation$observed
+
+x <- preservation$nulls
+dim(x)
+y <- x[1,1,]
+hist(y, xlim = c(0.002, 0.02))
+abline(v = preservation$observed[1,1], col = "red")
+
+dev.off()
+
 
 #-------------------------------------------------------------------------------
 #' ## Enforce min module size. Recalculate MEs.
@@ -627,7 +644,7 @@ dev.off()
 # Calculate network modularity.
 # Calculate module cohesiveness (percent variance explained).
 
-# Calculate the adjacency network.
+# Calculate the weighted, signed adjacency network.
 r <- bicor(t(cleanDat))
 adjm <- ((1 + r) / 2)^power # signed.
 # adjm <- abs(r)^power     #un-signed.

@@ -106,6 +106,20 @@ outputMatName <- paste(tissue, "_WGCNA_Analysis_", sep = "")
 ggplot2::theme_set(theme_gray())
 
 #-------------------------------------------------------------------------------
+#' ## Build a  dictionary-like object for mapping gene identifiers.
+#-------------------------------------------------------------------------------
+
+# Load WGCNA network and meta data.
+file <- paste(Rdatadir, "Network_and_metaModules.Rds", sep = "/")
+data <- readRDS(file)
+net <- data$net
+meta <- data$meta
+
+# Create a dictionary like object for mapping entrez to gene|uniprot.
+entrez2protein <- as.list(meta$protein)
+names(entrez2protein) <- meta$entrez
+
+#-------------------------------------------------------------------------------
 #' ## Start WGCNA. Choosing a soft thresholding power, Beta.
 #-------------------------------------------------------------------------------
 #+ eval = FALSE
@@ -122,15 +136,32 @@ cleanDat[1:5, 1:5] # Data should be log transformed.
 dim(cleanDat)
 
 ################################################################################
-# If subsetting the data based on DEP communities.
-file <- paste0(Rdatadir, "/", "DEP_KNN_Communities.Rds")
-DEP_KNN_Communities <- readRDS(file)
-prots <- DEP_KNN_Communities$Shank3$proteins # Pick a single group of protiens!
-length(prots)
+## Run this chunk if subsetting the data based on DEP communities.
+
+# Load the DEP protein communities. 
+file <- paste0(Rdatadir,"/","DEP_Communities.RDS")
+community_results <- readRDS(file)
+
+# Pick a group/genotype.
+n <- 5
+group <- c("Shank2", "Shank3", "Syngap1", "Ube3a", "All")[n]
+
+# Define proteins of interst.
+if (group == "All"){
+  v <- unique(as.vector(unlist(sapply(community_results,"[",4))))
+  prots <- unlist(entrez2protein[v])
+}else{
+  prots <- unlist(entrez2protein[community_results[[group]][[4]]])
+}
+subg_name <- group
 subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
-dim(subDat)
+
+# Write over cleanDat.
 cleanDat <- subDat
+dim(cleanDat)
+
 ################################################################################
+## Estimate scale free fit.
 
 # Load combined sample info.
 traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
@@ -146,7 +177,7 @@ registerDoParallel(clusterLocal)
 
 ## Determine soft power, beta.
 # Vector of powers to test:
-powers <- seq(4, 20, by = 1.0)
+powers <- seq(4, 20, by = 0.5)
 
 # Soft Power selection
 if (estimatePower == TRUE) {
@@ -181,7 +212,7 @@ if (estimatePower == TRUE) {
 
 # Choose minimum power to achieve scale free fit > 0.8.
 power <- sft$fitIndices$Power[sft$fitIndices$SFT.R.sq > 0.8][1]
-power
+print(paste("Power (beta):",power))
 
 #-------------------------------------------------------------------------------
 #' ## Prepare to sample WGCNA parameters.
@@ -230,12 +261,12 @@ names(params_list) <- c("minModSize", "deepSplit", "mergeCutHeight", "reassignTh
 params_grid <- expand.grid(params_list)
 
 # Sample parameters, nboot iterations.
-nboot <- 2 # 1000
+nboot <- 1000
 rand_params <- sample(1:nrow(params_grid), nboot)
 out <- list()
 
 # File for saving output.
-file <- paste0(Rdatadir, "/", "Sample_blockwiseModules_DEPcommunities_Stats.RDS")
+file <- paste0(Rdatadir, "/", "Sample_blockwiseModules_Combined_DEPcommunities_Stats.RDS")
 
 # Should progress be pushed to git?
 git_push <- FALSE
