@@ -277,8 +277,9 @@ collectGarbage()
 #-------------------------------------------------------------------------------
 #' ## Loop to sample parameters.
 #-------------------------------------------------------------------------------
+i = 560
 
-for (i in 1:nboot) {
+for (i in 362:nboot) {
   print(paste("Sampling network building parameters, iteration", i))
 
   # Random sampling of params.
