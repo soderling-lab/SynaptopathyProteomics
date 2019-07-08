@@ -39,57 +39,6 @@ library(magrittr)
 library(JGmisc)
 detachAllPackages(keep = NULL)
 
-#  Load required packages.
-suppressPackageStartupMessages({
-  library(JGmisc)
-  library(readxl)
-  library(knitr)
-  library(readr)
-  library(dplyr)
-  library(reshape2)
-  library(DEP)
-  library(tibble)
-  library(SummarizedExperiment)
-  library(ggplot2)
-  library(hexbin)
-  library(vsn)
-  library(BurStMisc)
-  library(dplyr)
-  library(AnnotationDbi)
-  library(org.Mm.eg.db)
-  library(edgeR)
-  library(openxlsx)
-  library(stringr)
-  library(imp4p)
-  library(Cairo)
-  library(pryr)
-  library(qvalue)
-  library(gridExtra)
-  library(cowplot)
-  library(WGCNA)
-  library(impute)
-  library(ggrepel)
-  library(sva)
-  library(anRichment)
-  library(ggdendro)
-  library(flashClust)
-  library(purrr)
-  library(ggpubr)
-  library(doParallel)
-  library(NMF)
-  library(FSA)
-  library(plyr)
-  library(RColorBrewer)
-  library(gtable)
-  library(grid)
-  library(ggplotify)
-  library(igraph)
-  library(RCy3)
-  library(DescTools)
-  library(TBmiscr)
-  library(GOSemSim)
-})
-
 # Define version of the code.
 CodeVersion <- "DEP_Community_Analysis"
 
@@ -98,7 +47,7 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
+rootdir <- "D:/projects/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -139,7 +88,8 @@ source(my_functions)
 # Define prefix for output figures and tables.
 outputMatName <- paste(tissue, "_Network_Analysis_", sep = "")
 
-# Globally set ggplots theme.
+# Globally set ggplot theme.
+library(ggplot2)
 ggplot2::theme_set(theme_gray())
 
 #-------------------------------------------------------------------------------
@@ -231,7 +181,7 @@ stats_df <- df
 
 # Insure that all Uniprot have been mapped to entrez.
 stats_df$Entrez <- unlist(uniprot2entrez[stats_df$Uniprot])
-
+Examine
 # Check.
 sum(is.na(stats_df$Entrez)) == 0
 
@@ -583,7 +533,7 @@ if (generate_random_graphs == TRUE) {
 }
 
 #-------------------------------------------------------------------------------
-# Examine overlap in randomized communities.
+# Examine protein overlap in randomized communities.
 #-------------------------------------------------------------------------------
 
 # We just need to run through the list of 1000 random communities and compare each 
@@ -747,7 +697,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
   )) +
   coord_fixed()
 
-#plot <- plot + theme(legend.position = "none")
+#plot <- plot + theme(legend.position = "none")Examine
 plot
 
 # Save as tiffs.
@@ -758,7 +708,7 @@ plot
 #ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
 
 #-------------------------------------------------------------------------------
-#' ## Compare randomly seeded communities to observed DEP community overlap.
+#' ## Compare protein overlap between randomly seeded and observed communities. 
 #-------------------------------------------------------------------------------
 
 # Dataframe of observed percent overlap. 
@@ -788,48 +738,32 @@ for (i in 1:length(randp_data)){
 # increase in overlap compared to random. 
 
 #-------------------------------------------------------------------------------
-#' ## Examine functional similarity!
+#' ## Calculate functional similarity between observed DEP communities!
 #-------------------------------------------------------------------------------
 
-################################################################################
-## DONT RUN!
-################################################################################
-run = FALSE
-
-if (run == TRUE){
 # Build GO database.
-if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
+#if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
 if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
-if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
+#if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
+#msGO <- list(msGOMF,msGOBP,msGOCC)
+#names(msGO) <- c("MF","BP","CC")
 
-msGO <- list(msGOMF,msGOBP,msGOCC)
-names(msGO) <- c("MF","BP","CC")
+# Collect the data from random_communities list. 
+clusters <- random_communities[[i]]$combined_node
+  
+# Evaluate GO semanitic similarity between DEP communities (clusters).
+gosim <- mclusterSim(clusters, semData=msGOBP, measure="Resnik", combine="avg")
 
-# Loop through all iterations, calculate GO semantic similarity between 
-# Shank2, Shank3, Syngap1, and Ube3a communties. 
-for (i in 1:length(random_communities)){
-  
-  # Initialize progress bar.
-  if (i == 1) { 
-    print("Calculating GO semantic similarity between DEP communities...")
-    print("This may take several hours...")
-    pb <- txtProgressBar(min=0, max = n_iter, style = 3) 
-  } else if (i != 1) {
-    setTxtProgressBar(pb, i) }
-  
-  # Collect the data from random_communities list. 
-  clusters <- random_communities[[i]]$combined_node
-  
-  # Evaluate GO semanitic similarity between DEP communities (clusters).
-  system.time({
-    gosim <- mclusterSim(clusters, semData=msGO$BP, measure="Wang", combine="BMA")
-  })
-  
-  # When done, shut down progress bar.
-  if (i == n_iter) { close(pb) }
-}
 
-}
+#-------------------------------------------------------------------------------
+#' ## Examine observed functional similarity versus null distribution!
+#-------------------------------------------------------------------------------
+
+file <- paste(Rdatadir, "goSim.RDS", sep = "/")
+
+gosim_data <- readRDS(file)
+
+x <- gosim_data[[1]]
 
 #-------------------------------------------------------------------------------
 #' Evaluate topology of the protein subgraphs.
