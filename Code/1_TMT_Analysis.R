@@ -92,7 +92,7 @@ suppressWarnings({
 # Define version of the code.
 CodeVersion <- "1_TMT_Analysis"
 
-# Define tisue type: cortex = 1; striatum = 2.
+# Define tisue type for analysis: Cortex = 1; Striatum = 2.
 type <- 1
 tissue <- c("Cortex", "Striatum")[type]
 
@@ -105,8 +105,6 @@ functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
-# Create code-version specific figure and table folders if they do not already
-# exist.
 # Creat otuput directory for figures.
 outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
 outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
@@ -160,7 +158,6 @@ samplefile <- c(
 )
 
 # Load the data from PD and sample info.
-library(readxl)
 data_PD <- read_excel(paste(datadir, "/", datafile[type], sep = ""), 1)
 sample_info <- read.csv(paste(datadir, "/", samplefile[type], sep = ""))
 
@@ -178,9 +175,6 @@ raw_peptide <- cleanPD(data_PD, sample_info)
 #-------------------------------------------------------------------------------
 #' ## Examine an example peptide.
 #-------------------------------------------------------------------------------
-
-# Utilize reshape2's melt function to reshape the data. 
-library(reshape2)
 
 # Should plots be saved?
 save_plots = FALSE
@@ -232,13 +226,6 @@ if (save_plots==TRUE){
 
 # Should plots be saved?
 save_plots = FALSE
-
-# Load dependencies.
-library(tibble)
-library(gtable)
-library(gridExtra)
-library(dplyr)
-library(grid)
 
 # Determine the total number of unique peptides:
 nPeptides <- format(length(unique(raw_peptide$Sequence)), big.mark = ",")
@@ -334,11 +321,6 @@ if (save_plots == TRUE){
 #' The need for normalization is evident in the raw data. Note that in the MDS
 #' plot, samples cluster by experiment--evidence of a batch effect.
 
-# We need the plotMDS function from the limma package.
-library(limma)
-library(hexbin)
-library(cowplot)
-
 # Should plots be saved?
 save_plots = FALSE
 
@@ -394,10 +376,9 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 #' Sample loading normalization equalizes the run-level sums within
 #' an 11-plex TMT experiment.
 
-data_in <- SL_peptide
-title <- NULL
-
 # Generate boxplot.
+title <- "SL Peptide"
+data_in <- SL_peptide
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
@@ -442,6 +423,9 @@ if (save_plots == TRUE){
 #' k-nearest neighbors (knn) algorithm in the next chunk. The __impute.knn__
 #' from the package `impute` is used to impute MNAR data.
 
+# Should plots be saved?
+save_plots <- TRUE
+
 # Define groups for subseting the data.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
@@ -455,12 +439,7 @@ p4 <- ggplotDetect(SL_peptide, groups[4]) + ggtitle(NULL)
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
-# Save plots.
-# plot_list <- list(p1, p2, p3, p4)
-# file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_Missing_Value_Density_plots.pdf")
-# ggsavePDF(plot_list, file)
-
-# Save as tiff.
+# Save plots as tiffs.
 if (save_plots == TRUE){
   file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_Missing_Values.tiff")
   ggsave(file, fig)
@@ -477,6 +456,9 @@ if (save_plots == TRUE){
 #' replicates or any missing quality control (QC) replicates will be
 #' censored and are not imputed.
 
+# Should plots be saved?
+save_plots <- FALSE
+
 # Define experimental groups for checking QC variability:
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
@@ -484,7 +466,6 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 # Rows with missing QC replicates are ingored (qc_threshold=0).
 # Rows with more than 2 (50%) missing biological replicates are
 # ignored (bio_threshold=2).
-library(impute)
 data_impute <- impute_Peptides(SL_peptide, groups, method = "knn")
 impute_peptide <- data_impute$data_imputed
 
@@ -519,7 +500,8 @@ if (save_plots == TRUE){
 #' standard deviations away from the mean are considered outliers and
 #' removed.
 
-library(BurStMisc)
+# Should plots be saved?
+save_plots <- FALSE
 
 # Generate QC correlation scatter plots for all experimental groups.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -533,12 +515,10 @@ hist_list[["Syngap1"]] <- ggplotQCHist(impute_peptide, "Syngap1", nbins = 5, thr
 hist_list[["Ube3a"]] <- ggplotQCHist(impute_peptide, "Ube3a", nbins = 5, threshold = 4)
 
 # Figure.
-#+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = "Shank2."
 p1 <- plots$Shank2 + theme(legend.position = "none")
 p1
 p2 <- hist_list$shank2[[1]]
 p2
-
 
 # Save figures.
 if (save_plots == TRUE){
@@ -561,6 +541,9 @@ if (save_plots == TRUE){
 #' Peptides that were not quantified in all three qc replicates are removed.
 #' The data are binned by intensity, and measruments that are 4xSD from the mean
 #' ratio of the intensity bin are considered outliers and removed.
+
+# Should plots be saved?
+save_plots <- FALSE
 
 # Define experimental groups for checking QC variability:
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -604,13 +587,6 @@ SL_protein <- normalize_SL(SL_protein, "Abundance", "Abundance")
 #' effects between batches with IRS normalization and regression. Note that in
 #' the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1),
 #' ComBat is not applied.
-
-library(WGCNA)
-library(ggpubr)
-library(flashClust)
-library(ggdendro)
-library(sva)
-library(purrr)
 
 # Define experimental groups and column ID for expression data.
 groups
@@ -762,13 +738,8 @@ colnames(df) <- c("Experiment", "preComBat", "postComBat")
 table <- tableGrob(df, rows = NULL)
 
 # Table and figures.
-#+ warning = FALSE, echo = FALSE, fig.align = 'center', fig.cap = "Quantification of the intra-batch batch effect."
 grid.newpage()
 grid.arrange(table)
-
-# Save fig.
-#file <- paste0(outputfigsdir, "/", outputMatName, "_IntraBatchEffect_Quantificaiton.tiff")
-#ggsave(file, table)
 
 # Plots to check MDS:
 ggpubr::ggarrange(plotlist = plot_list[[1]])
@@ -780,6 +751,9 @@ ggpubr::ggarrange(plotlist = plot_list[[4]])
 #' ##  Examine protein identification overlap.
 #-------------------------------------------------------------------------------
 #' Approximately 80-90% of all proteins are identified in all experiments.
+
+# Should plots be saved?
+save_plots <- FALSE
 
 # Inspect the overlap in protein identifcation.
 plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +
@@ -796,10 +770,12 @@ if (save_plots == TRUE){
 #' ## Examine the Normalized protein level data.
 #-------------------------------------------------------------------------------
 
-data_in <- SL_protein
-title <- "Normalized protein"
+# Should plots be saved?
+save_plots <- FALSE
 
 # Generate boxplot.
+data_in <- SL_protein
+title <- "Normalized protein"
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
@@ -847,6 +823,9 @@ IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
 #' create unwanted variability. Thus, outlier QC samples are removed, if
 #' identified. The method used by __Oldham et al., 2016__ is used to identify
 #' QC sample outliers. A threshold of -2.5 is used.
+
+# Should plots be saved?
+save_plots <- FALSE
 
 # Data is...
 data_in <- IRS_protein
@@ -921,10 +900,12 @@ IRS_protein <- IRS_OutRemoved_protein
 #' ## Examine the IRS Normalized protein level data.
 #-------------------------------------------------------------------------------
 
-data_in <- IRS_protein
-title <- "IRS Normalized protein"
+# Should plots be saved?
+save_plots <- FALSE
 
 # Generate boxplot.
+data_in <- IRS_protein
+title <- "IRS Normalized protein"
 colors <- c(
   rep("green", 11), rep("purple", 11),
   rep("yellow", 11), rep("blue", 11)
@@ -966,6 +947,9 @@ if (save_plots == TRUE){
 #' imputed with the KNN algorithm for MNAR data. Finally, TMM normalization is
 #' applied to correct for any biases introduced by these previous steps.
 
+# Should plots be saved?
+save_plots <- FALSE
+
 # Remove proteins that are identified by only 1 peptide.
 # Remove proteins identified in less than 50% of samples.
 filt_protein <- filter_proteins(IRS_protein, "Abundance")
@@ -993,12 +977,14 @@ if (save_plots == TRUE){
 #' ## Examine the TMM Normalized protein level data.
 #-------------------------------------------------------------------------------
 
-data_in <- TMM_protein
-title <- "TMM Normalized protein"
+# Should plots be saved?
+save_plots <- FALSE
 
 # Generate boxplot.
 # Adjust color vector if samples were removed.
 # Cortex outliers = 1x Ube3a, and 1x Syngap1
+data_in <- TMM_protein
+title <- "TMM Normalized protein"
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
@@ -1183,8 +1169,13 @@ write.excel(GSE_results, file)
 #' Moderated Empirical Bayes (EB) regression as implemented by the `WGCNA`
 #' function is __empiricalBayesLM()__ is performed to remove the affect of
 #' genetic background.
-#'
-#+ eval = FALSE
+
+# Should plots be saved?
+save_plots <- FALSE
+
+# Prepare the data. 
+data_in <- TMM_protein
+title <- "TMM Normalized protein"
 
 # Data is...
 # Check, there should be no missing values.
@@ -1241,20 +1232,16 @@ fig
 # Just post-regression:
 plot2
 
-# Save plots.
-# file <- paste0(outputfigsdir, "/", outputMatName, "_InterBatch_eBLM_Regression_PCA.pdf")
-# ggsavePDF(plots = list(plot1, plot2), file)
-
 # Save tiffs.
-files <- paste0(outputfigsdir, "/", outputMatName, c("pre", "post"), "_InterBatch_eBLM_Regression_PCA.tiff")
-quiet(mapply(ggsave, files, list(plot1, plot2)))
+if (save_plots == TRUE){
+  files <- paste0(outputfigsdir, "/", outputMatName, c("pre", "post"), "_InterBatch_eBLM_Regression_PCA.tiff")
+  quiet(mapply(ggsave, files, list(plot1, plot2)))
+}
 
 #-------------------------------------------------------------------------------
 #' ## Reformat final normalized, regressed data for TAMPOR processing.
 #-------------------------------------------------------------------------------
 #' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
-#'
-#+ eval = FALSE 
 
 # Data is...
 data_in <- 2^t(data.fit)
@@ -1299,11 +1286,6 @@ dim(cleanDat)
 # Save to Rdata
 file <- paste(Rdatadir, tissue, "CleanDat_IRS_eBLM_TAMPOR_format.Rds", sep = "/")
 saveRDS(cleanDat, file)
-# cleanDat <- readRDS(file)
-
-# The cortex and striatum data from this chunk will be combined for TAMPOR
-# normalization and statistical testing in the
-# TMT_Analysis_EBD_v14_Combined_Cortex_Striatum.R script.
 
 #-------------------------------------------------------------------------------
 #' ## InterBatch Statistical comparisons with EdgeR GLM.

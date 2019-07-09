@@ -904,6 +904,22 @@ numericIndices <- unique(c(
 ))
 
 #-------------------------------------------------------------------------------
+#' Download gene-phenotype information...
+#-------------------------------------------------------------------------------
+
+phenotype_ontology = list(
+  vocabulary_url = "http://www.informatics.jax.org/downloads/reports/VOC_MammalianPhenotype.rpt",
+  data_url = "http://www.informatics.jax.org/downloads/reports/HMD_HumanPhenotype.rpt"
+)
+
+library(RCurl)
+myfile <- getURL('https://sakai.unc.edu/access/content/group/3d1eb92e-7848-4f55-90c3-7c72a54e7e43/public/data/bycatch.csv', ssl.verifyhost=FALSE, ssl.verifypeer=FALSE)
+
+mydat <- read.csv(textConnection(myfile), header=T)
+head(mydat)
+
+
+#-------------------------------------------------------------------------------
 #' ## Calculate Module EigenProteins.
 #-------------------------------------------------------------------------------
 #'

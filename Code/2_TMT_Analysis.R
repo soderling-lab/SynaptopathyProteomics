@@ -80,10 +80,6 @@ suppressPackageStartupMessages({
   library(TBmiscr)
 })
 
-# To install TBmiscr:
-# library(devtools)
-# devtools::install_github("twesleyb/TBmiscr")
-
 # Define version of the code.
 CodeVersion <- "TMT_Analysis_part2"
 
@@ -92,7 +88,7 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
+rootdir <- "D:/Projects/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -536,12 +532,14 @@ for (repeats in 1:iterations) {
     cat("...Reached convergence criterion (Frobenius Norm Difference)<1e-8!\n")
     break
   }
-} # closes "for (repeats in 1:iterations)"
-## END NORMALIZATION
+} ## ENDS TAMPOR NORMALIZATION.
 
 #-------------------------------------------------------------------------------
 #' ## Plots to check the normalization progress.
 #-------------------------------------------------------------------------------
+
+# Should plots be saved?
+save_plots = FALSE
 
 iterations.intended <- iterations
 iterations <- repeats
@@ -575,12 +573,17 @@ fig
 # ggsavePDF(plots=list(plot1,plot2),file)
 
 # Save as tiff.
-file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking.tiff")
-ggsave(file, fig)
+if (save_plots == TRUE){
+  file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking.tiff")
+  ggsave(file, fig)
+}
 
 #-------------------------------------------------------------------------------
 #' ## Remove any sample outliers.
 #-------------------------------------------------------------------------------
+
+# Should plots be saved?
+save_plots = FALSE
 
 # Data is...
 data_in <- relAbundanceNorm2
@@ -593,8 +596,10 @@ plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post
 plot
 
 # Save as figure.
-file <- paste0(outputfigsdir, "/", outputMatName, "TAMPOR_Outliers.tiff")
-ggsave(file, plot, width = 3, height = 2.5, units = "in")
+if (save_plots == TRUE){
+  file <- paste0(outputfigsdir, "/", outputMatName, "TAMPOR_Outliers.tiff")
+  ggsave(file, plot, width = 3, height = 2.5, units = "in")
+}
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
@@ -627,7 +632,7 @@ saveRDS(cleanDat, datafile)
 #' ## Examine sample clustering with MDS and PCA post-TAMPOR Normalization.
 #-------------------------------------------------------------------------------
 
-# Split into cortex and striatum plots.
+save_plots = FALSE
 
 # Insure that any outlier samples have been removed.
 traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
@@ -647,15 +652,17 @@ plot1 <- ggplotPCA(log2(cleanDat[, idx]), traits, colors[idx], title = "Cortex")
 plot2 <- ggplotPCA(log2(cleanDat[, idy]), traits, colors[idy], title = "Striatum")
 
 # plots
-plot1
-plot2
+plot1 # cortex
+plot2 # striatum
 
 # Save as figure.
-file <- paste0(outputfigsdir, "/", outputMatName, "Cortex_TAMPOR_PCA.tiff")
-ggsave(file, plot1, width = 3, height = 3, units = "in")
+if (save_plots == TRUE){
+  file <- paste0(outputfigsdir, "/", outputMatName, "Cortex_TAMPOR_PCA.tiff")
+  ggsave(file, plot1, width = 3, height = 3, units = "in")
 
-file <- paste0(outputfigsdir, "/", outputMatName, "Striatum_TAMPOR_PCA.tiff")
-ggsave(file, plot2, width = 3, height = 3, units = "in")
+  file <- paste0(outputfigsdir, "/", outputMatName, "Striatum_TAMPOR_PCA.tiff")
+  ggsave(file, plot2, width = 3, height = 3, units = "in")
+}
 
 # Customize colors.
 # colors <- c("#FFF200", "#FFF200",    #22B14C
@@ -677,9 +684,10 @@ fig
 # plot1
 
 # Save as tiff.
-file <- paste0(outputfigsdir, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
-ggsave(file, fig)
-
+if (save_plots == TRUE){
+  file <- paste0(outputfigsdir, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
+  ggsave(file, fig)
+}
 
 #-------------------------------------------------------------------------------
 #' ## Statistical comparisons post-TAMPOR.
@@ -694,7 +702,7 @@ traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep
 sample_info <- readRDS(traitsfile)
 
 # Create DGEList object...
-data <- cleanDat
+data <- cleanDat # Data should not be log transformed!
 data[1:5, 1:5]
 y_DGE <- DGEList(counts = data)
 
@@ -795,8 +803,10 @@ table <- gtable_add_grob(table,
 grid.arrange(table)
 
 # Save table as tiff.
-file <- paste0(outputfigsdir, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
-ggsave(file, table, height = 2.75, width = 3.75, units = "in", dpi = 300)
+if (save_plots == TRUE){
+  file <- paste0(outputfigsdir, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
+  ggsave(file, table, height = 2.75, width = 3.75, units = "in", dpi = 300)
+}
 
 # Call topTags to add FDR. Gather tablurized results.
 results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
@@ -835,7 +845,6 @@ results <- lapply(results, function(x) x[order(x$PValue), ])
 not_mapped <- lapply(results, function(x) sum(is.na(x$Entrez)))
 symbols <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 1)
 uniprot <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 2)
-# Loop to map unmapped IDs.
 for (i in 1:length(results)) {
   df <- results[[i]]
   not_mapped <- symbols[match(df$Uniprot[is.na(df$Entrez)], uniprot)]
@@ -852,7 +861,7 @@ not_mapped <- lapply(results, function(x) sum(is.na(x$Entrez)))
 head(not_mapped) # good.
 
 # Write to excel.
-file <- paste0(outputtabsdir, "/", outputMatName, "_TAMPOR_GLM_Results.xlsx")
+file <- paste0(outputtabs, "/", "_TAMPOR_GLM_Results.xlsx")
 write.excel(results, file)
 
 # Write to RDS.
@@ -961,7 +970,7 @@ df <- do.call(rbind, results)
 # Add column for genotype specific colors.
 colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
 names(colors) <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-df$Color <- unlist(colors[sapply(strsplit(df$Experiment, "\\ "), "[", 2)])
+df$Color <- unlist(colors[sapply(strsplit(df$Experiment, "\\."), "[", 3)])
 
 # Split by genotype (color).
 results <- split(df, df$Color)
@@ -1025,10 +1034,12 @@ vp4 <- plots$Ube3a
 # ggsave("foo.tiff", fig, width = 7.5, units = "in", dpi = 300)
 
 # Save plots.
-for (i in 1:length(plots)) {
-  plot <- plots[[i]]
-  file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_VolcanoPlot.eps")
-  ggsave(file, plot, width = 1.8, height = 1.5, units = "in", dpi = 300)
+if (save_plots == TRUE){
+  for (i in 1:length(plots)) {
+    plot <- plots[[i]]
+    file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_VolcanoPlot.eps")
+    ggsave(file, plot, width = 1.8, height = 1.5, units = "in", dpi = 300)
+  }
 }
 
 #-------------------------------------------------------------------------------
@@ -1103,10 +1114,10 @@ rownames(GO_result) <- NULL
 sigGO <- lapply(GO, function(x) subset(x, FDR.Up < 0.1 | x$FDR.Down < 0.1))
 
 # Write to excel.
-file <- paste0(outputtabsdir, "/", outputMatName, "_TAMPOR_GO_Results.xlsx")
+file <- paste0(outputtabs, "/", "_TAMPOR_GO_Results.xlsx")
 write.excel(GO, file)
 
-file <- paste0(outputtabsdir, "/", outputMatName, "_TAMPOR_sigGO_Results.xlsx")
+file <- paste0(outputtabs, "/", "_TAMPOR_sigGO_Results.xlsx")
 write.excel(sigGO, file)
 
 #-------------------------------------------------------------------------------
@@ -1115,8 +1126,7 @@ write.excel(sigGO, file)
 #+ eval = FALSE
 
 # Load the GLM statistical results.
-file <- paste(outputtabs, "Final_TAMPOR",
-  "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx",
+file <- paste(outputtabs,"_TAMPOR_GLM_Results.xlsx",
   sep = "/"
 )
 results <- lapply(as.list(c(1:8)), function(x) read_excel(file, x))
@@ -1232,7 +1242,7 @@ c <- results_GOenrichment[[3]]
 d <- results_GOenrichment[[4]]
 
 # Write results to file.
-file <- paste0(outputtabsdir, "/", tissue, "_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
+file <- paste0(outputtabs, "_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
 write.excel(results_GOenrichment, file)
 
 #-------------------------------------------------------------------------------
@@ -1516,7 +1526,6 @@ ggsave(file, legend, width = 3, height = 3, units = "in")
 #--------------------------------------------------------------------------------
 #' ## Generate protein boxplots for significantly DE proteins.
 #-------------------------------------------------------------------------------
-#+ eval = FALSE
 
 # Load statistical results..
 file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
@@ -1652,18 +1661,3 @@ for (i in 1:length(plots)) {
   file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_BoxPlot.tiff")
   ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
 }
-
-#-------------------------------------------------------------------------------
-#' ## Render report.
-#-------------------------------------------------------------------------------
-#' This script is formatted for automated rendering of an RMarkdown report.
-#'
-#+ eval = FALSE
-
-# Code directory.
-dir <- "D:/Documents/R/TMT-Analysis/Synaptosome-TMT-Analysis/Code/Bradshaw"
-file <- paste(dir, "TMT_Analysis_v14.R", sep = "/")
-
-# Save and render.
-rstudioapi::documentSave()
-rmarkdown::render(file)

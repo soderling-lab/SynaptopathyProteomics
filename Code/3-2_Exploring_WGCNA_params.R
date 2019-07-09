@@ -266,7 +266,7 @@ print(paste("Power (beta):",power))
 ################################################################################
 ## Parameter optimization will be performed with the WT network.
 print("Using the WT data for WGCNA parameter optimization!")
-power <- power_beta$wt
+power_beta <- power_beta$wt
 cleanDat <- subdat$wt
 dim(cleanDat)
 cleanDat[1:5,1:5]
@@ -280,7 +280,7 @@ clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
 registerDoParallel(clusterLocal)
 
 # Main network building parameters.
-power <- power
+power_beta <- power_beta
 corType <- "bicor"
 networkType <- "signed"
 
@@ -297,8 +297,7 @@ detectCutHeight <- 0.995
 
 # Calculate the adjacency network.
 r <- bicor(t(cleanDat))
-adjm <- ((1 + r) / 2)^power # signed network.
-# adjm <- abs(r)^power     #un-signed.
+adjm <- ((1 + r) / 2)^power_beta # signed network.
 
 # Create igraph object.
 graph <- graph_from_adjacency_matrix(
@@ -321,7 +320,7 @@ rand_params <- sample(1:nrow(params_grid), nboot)
 out <- list()
 
 # File for saving output.
-file <- paste0(Rdatadir, "/", "Sample_blockwiseModules_Combined_DEPcommunities_Stats.RDS")
+file <- paste0(Rdatadir, "/", "Sample_blockwiseModules_WT_Only_Stats.RDS")
 
 # Should progress be pushed to git?
 git_push <- FALSE
@@ -332,9 +331,7 @@ collectGarbage()
 #-------------------------------------------------------------------------------
 #' ## Loop to sample parameters.
 #-------------------------------------------------------------------------------
-i = 560
-
-for (i in 362:nboot) {
+for (i in 1:nboot) {
   print(paste("Sampling network building parameters, iteration", i))
 
   # Random sampling of params.
@@ -345,7 +342,7 @@ for (i in 362:nboot) {
   # Call blockwiseModules to build WGCNA network.
   # Setting saveTOM = FALSE will really slow thing down.
   net <- blockwiseModules(t(cleanDat),
-    power = power,
+    power = power_beta,
     deepSplit = params$deepSplit,
     minModuleSize = params$minModSize,
     mergeCutHeight = params$mergeCutHeight,
@@ -431,20 +428,6 @@ for (i in 362:nboot) {
   params$PercentGrayNodes <- 100 * table(net$colors)["grey"] / length(net$goodGenes)
   params$nSigModules <- nModules
 
-  # Rogdi with Wdr7?
-  # params$Rogdi.Wdr7 <- net$colors[rownames(cleanDat) == "Rogdi|Q3TDK6"]==net$colors[rownames(cleanDat) == "Wdr7|Q920I9"]
-
-  # PSMD Complex
-  # idx <- match(rownames(cleanDat)[grepl("Psm",rownames(cleanDat))],rownames(cleanDat))
-  # tab <- as.data.frame(table(net$colors[idx]))
-  # row <- grepl("grey",tab$Var1)
-  # tab <- tab[!row,]
-  # if (dim(tab)[1] ==0){
-  # params$MaxPSMD <- 0
-  # }else{
-  #  params$MaxPSMD <- max(tab$Freq)
-  # }
-
   # Calculate modularity, q.
   membership <- as.numeric(as.factor(net$colors))
   q1 <- modularity(graph, membership, weights = edge_attr(graph, "weight"))
@@ -463,265 +446,6 @@ for (i in 362:nboot) {
     propVarExplained(datExpr = t(cleanDat), colors = net$colors, MEs = net$MEs)
   )
   modc <- modc[!(rownames(modc) == "PVEgrey"), ]
-
-  # Insure numericMeta rows and cleanDat columns match
-  numericMeta <- sample_info
-  numericMeta <- numericMeta[match(colnames(cleanDat), rownames(numericMeta)), ]
-
-  # Add column for SexType
-  numericMeta$SexType <- numericMeta$Sex
-
-  # Add column for TissueType
-  numericMeta$TissueType <- numericMeta$Tissue
-
-  # Add column for Tissue.Sample.Model
-  numericMeta$Tissue.Sample.Model <- paste(numericMeta$TissueType, numericMeta$Sample.Model, sep = ".")
-
-  # Pool WT within a tissue.
-  numericMeta$Tissue.Sample.Model[grepl("Cortex.WT", numericMeta$Tissue.Sample.Model)] <- "Cortex.WT"
-  numericMeta$Tissue.Sample.Model[grepl("Striatum.WT", numericMeta$Tissue.Sample.Model)] <- "Striatum.WT"
-  unique(numericMeta$Tissue.Sample.Model)
-
-  # Pull out as many numeric traits for correlation later as we can.
-  numericMeta$Group <- tempVec <- as.vector(as.data.frame(do.call(
-    rbind,
-    strsplit(colnames(cleanDat), "\\.")
-  ))[, 1])
-  numericMeta$Group <- as.numeric(as.factor(numericMeta$Group))
-
-  # Tissue
-  numericMeta$Tissue <- as.numeric(as.factor(numericMeta$Tissue)) - 1
-
-  # Genotype groupings (genetic background).
-  numericMeta$Model <- gsub(" ", "", numericMeta$Model)
-  numericMeta$Syngap1 <- as.numeric(numericMeta$Model == "Syngap1")
-  numericMeta$Ube3a <- as.numeric(numericMeta$Model == "Ube3a")
-  numericMeta$Shank2 <- as.numeric(numericMeta$Model == "Shank2")
-  numericMeta$Shank3 <- as.numeric(numericMeta$Model == "Shank3")
-
-  # Sex
-  numericMeta$Sex <- as.numeric(as.factor(numericMeta$Sex)) - 1
-
-  # Make Syngap1 WT v KO column.
-  temp_df <- as.data.frame(do.call(rbind, strsplit(numericMeta$Sample.Model, "\\.")))
-  numericMeta$Syngap1_KO <- NA
-  numericMeta$Syngap1_KO[which(temp_df$V1 == "WT")] <- 0
-  numericMeta$Syngap1_KO[which(temp_df$V1 == "HET" & temp_df$V2 == "Syngap1")] <- 1
-
-  # Make Ube3a WT v HET column.
-  temp_df <- as.data.frame(do.call(rbind, strsplit(numericMeta$Sample.Model, "\\.")))
-  numericMeta$Ube3a_KO <- NA
-  numericMeta$Ube3a_KO[which(temp_df$V1 == "WT")] <- 0
-  numericMeta$Ube3a_KO[which(temp_df$V1 == "KO" & temp_df$V2 == "Ube3a")] <- 1
-
-  # Make Shank2 WT v KO column.
-  temp_df <- as.data.frame(do.call(rbind, strsplit(numericMeta$Sample.Model, "\\.")))
-  numericMeta$Shank2_KO <- NA
-  numericMeta$Shank2_KO[which(temp_df$V1 == "WT")] <- 0
-  numericMeta$Shank2_KO[which(temp_df$V1 == "KO" & temp_df$V2 == "Shank2")] <- 1
-
-  # Make Shank3 WT v KO column.
-  temp_df <- as.data.frame(do.call(rbind, strsplit(numericMeta$Sample.Model, "\\.")))
-  numericMeta$Shank3_KO <- NA
-  numericMeta$Shank3_KO[which(temp_df$V1 == "WT")] <- 0
-  numericMeta$Shank3_KO[which(temp_df$V1 == "KO" & temp_df$V2 == "Shank3")] <- 1
-
-  # Control vs. disease.
-  numericMeta$SampleType <- gsub(" ", "", numericMeta$SampleType)
-  numericMeta$ASD <- NA
-  numericMeta$ASD[numericMeta$SampleType == "WT"] <- 0
-  numericMeta$ASD[numericMeta$SampleType == "KO"] <- 1
-  numericMeta$ASD[numericMeta$SampleType == "HET"] <- 1
-
-  # Tissue:Genotype groupings (genetic background).
-  f1 <- as.factor(numericMeta$TissueType)
-  f2 <- as.factor(numericMeta$Model)
-  mod <- model.matrix(~ 0 + f1:f2)
-  colnames(mod) <- apply(expand.grid(levels(f1), levels(f2)), 1, paste, collapse = ".")
-  numericMeta <- cbind(numericMeta, mod)
-
-  # Tissue:Sex
-  f1 <- as.factor(numericMeta$TissueType)
-  f2 <- as.factor(numericMeta$SexType)
-  mod <- model.matrix(~ 0 + f1:f2)
-  colnames(mod) <- apply(expand.grid(levels(f1), levels(f2)), 1, paste, collapse = ".")
-  numericMeta <- cbind(numericMeta, mod)
-
-  # Generate Tissue Specific Sample.Model contrasts
-  g <- paste(numericMeta$TissueType, numericMeta$Sample.Model, sep = ".")
-  allContrasts <- combn(unique(g), 2)
-  # Keep if tissue and model are equal.
-  keepers <- function(x) {
-    y <- do.call(rbind, strsplit(x, "\\."))
-    logic <- y[1, 1] == y[2, 1] & y[1, 3] == y[2, 3]
-    return(logic)
-  }
-  keep <- apply(allContrasts, 2, function(x) keepers(x))
-  contrasts <- allContrasts[, keep]
-  # Pool WT within a tissue.
-  contrasts[grepl("Cortex.WT", contrasts)] <- "Cortex.WT"
-  contrasts[grepl("Striatum.WT", contrasts)] <- "Striatum.WT"
-  # Coerce to list.
-  contrasts_list <- apply(contrasts, 2, as.list)
-  # lapply through contrasts list and generate model vector.
-  mod_list <- lapply(contrasts_list, function(x) match(numericMeta$Tissue.Sample.Model, x) - 1)
-  mod <- do.call(cbind, mod_list)
-  # Add names
-  colnames(mod) <- sapply(contrasts_list, "[", 1)
-  # Fix Cortex.KO.Shank3 column name.
-  colnames(mod)[grep("Cortex.WT", colnames(mod))] <- "Cortex.KO.Shank3"
-
-  # Add to numericMeta
-  numericMeta <- cbind(numericMeta, mod)
-
-  # Tissue specific disease status (Control v ASD).
-  g <- numericMeta$SampleType
-  g[grepl("KO|HET", g)] <- "ASD"
-  g[grepl("WT", g)] <- "Control"
-  f1 <- paste(numericMeta$TissueType, g, sep = ".")
-  allContrasts <- list(
-    c("Cortex.ASD", "Cortex.Control"),
-    c("Striatum.ASD", "Striatum.Control")
-  )
-  mod_list <- lapply(allContrasts, function(x) match(f1, x) - 1)
-  mod <- do.call(cbind, mod_list)
-  colnames(mod) <- colnames(mod) <- sapply(allContrasts, "[", 1)
-  numericMeta <- cbind(numericMeta, mod)
-
-  # Determine numerical indices. The columns of numericMeta with numerical data.
-  # Warnings OK; This determines which traits are numeric and if forced to numeric values,
-  # non-NA values do not sum to 0.
-  numericIndices <- unique(c(
-    which(!is.na(apply(numericMeta, 2, function(x) sum(as.numeric(x))))),
-    which(!(apply(numericMeta, 2, function(x) sum(as.numeric(x), na.rm = T))) == 0)
-  ))
-  ## Calc MEs
-  # Calculate Module EigenProteins (MEs)
-  MEs <- tmpMEs <- data.frame()
-  MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
-  MEs <- orderMEs(MEList$eigengenes)
-
-  # Remove prefix.
-  colnames(MEs) <- gsub("ME", "", colnames(MEs))
-  rownames(MEs) <- rownames(numericMeta)
-
-  ## Determine the cost of removing grey nodes.
-  geneSignificance <- abs(
-    cor(sapply(numericMeta[, numericIndices], as.numeric),
-      t(cleanDat),
-      use = "pairwise.complete.obs"
-    )
-  )
-  # sum(geneSignificance)
-
-  # Add rownames.
-  rownames(geneSignificance) <- colnames(numericMeta)[numericIndices]
-  idx <- colnames(geneSignificance) %in% rownames(cleanDat)[net$colors == "grey"]
-  GSsub <- geneSignificance[, idx]
-  costGrey <- sum(GSsub) / sum(geneSignificance)
-
-  ## Calc ME cor Traits.
-
-  # Warnings are okay.
-  MEcorTraits <- bicorAndPvalue(MEs, numericMeta[, numericIndices])
-
-  # Convergence... a module that is highly correlated with several traits.
-  # Also, the degree of a module node in the module-trait network.
-  MSdm <- MEcorTraits$bicor
-
-  # Get comparisons of interest.
-  cols <- c(
-    "Cortex.KO.Shank2", "Striatum.KO.Shank2",
-    "Cortex.KO.Shank3", "Striatum.KO.Shank3",
-    "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
-    "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
-  )
-  idx <- match(cols, colnames(MSdm))
-  dm <- MSdm[, idx]
-
-  MSdm <- as.data.frame(dm)
-  MSdm$Degree <- rowSums(abs(MSdm))
-
-  params$MSmax <- max(MSdm$Degree)
-  params$MStotal <- sum(MSdm$Degree)
-  params$MSmean <- mean(MSdm$Degree)
-  params$MSmedian <- median(MSdm$Degree)
-  params$MSgray <- MSdm$Degree[rownames(MSdm) == "grey"]
-  params$costGrey <- costGrey
-  params$medianModCoherence <- median(modc)
-
-  ## KW stats.
-  # Insure that ME data is correct format.
-  traits <- numericMeta
-  MEs <- tmpMEs <- data.frame()
-  MEList <- moduleEigengenes(t(cleanDat), colors = net$colors)
-  MEs <- orderMEs(MEList$eigengenes)
-  # let's be consistent in case prefix was added, remove it.
-  colnames(MEs) <- gsub("ME", "", colnames(MEs))
-  rownames(MEs) <- rownames(numericMeta)
-
-  # Insure traits are in matching order.
-  idx <- match(rownames(MEs), rownames(traits))
-  traits <- traits[idx, ]
-  all(rownames(traits) == rownames(MEs))
-
-  # Pool WT.Cortex and WT.Striatum.
-  groups <- paste(numericMeta$TissueType, numericMeta$Sample.Model, sep = ".")
-  groups[grepl("Cortex.WT", groups)] <- "WT.Cortex"
-  groups[grepl("Striatum.WT", groups)] <- "WT.Striatum"
-
-  # Perform KW test.
-  KWtest <- apply(MEs, 2, function(x) kruskal.test(x, as.factor(groups)))
-
-  # Extract pvalues from the list of KW tests.
-  # The pvalue is the 3rd element of each list.
-  KW_results <- as.data.frame(do.call(rbind, sapply(KWtest, "[", 3)))
-
-  # Clean up the result. Drop Grey!
-  colnames(KW_results) <- "p.value"
-  rownames(KW_results) <- gsub(".p.value", "", rownames(KW_results))
-  KW_results$p.adj <- NA
-  KW_results <- KW_results[!rownames(KW_results) == "grey", ]
-  KW_results$p.adj <- p.adjust(KW_results$p.value, method = "bonferroni")
-
-  # Number of significant modules.
-  params$KWsigModules <- sum(KW_results$p.adj < 0.05)
-  sigModules <- rownames(KW_results)[KW_results$p.adj < 0.05]
-
-  # Post-hoc comparisons with Dunn's tests (all comparisons).
-
-  # x = as.numeric(MEs[[1]])
-  g <- as.factor(groups)
-  cox_subset <- grepl("Cortex", g)
-  str_subset <- grepl("Striatum", g)
-  # DunnettTest(x[cox_subset],g[cox_subset],control="WT.Cortex")
-  # DunnettTest(x[str_subset],g[str_subset],control="WT.Striatum")
-
-  list1 <- lapply(MEs, function(x)
-    DunnettTest(as.numeric(x)[cox_subset], as.factor(groups)[cox_subset], control = "WT.Cortex"))
-  list1 <- sapply(list1, "[", 1)
-
-  list2 <- lapply(MEs, function(x)
-    DunnettTest(as.numeric(x)[str_subset], as.factor(groups)[str_subset], control = "WT.Striatum"))
-  list2 <- sapply(list2, "[", 1)
-
-  new_list <- list()
-  for (k in 1:length(list1)) {
-    new_list[[k]] <- rbind(list1[[k]], list2[[k]])
-  }
-  names(new_list) <- names(MEs)
-  new_list <- lapply(new_list, function(x) as.data.frame(x))
-  nsig <- sum(unlist(lapply(new_list, function(x) sum(x$pval < 0.05))))
-  params$DTsigTests <- nsig
-
-  # Add p.adj.
-  new_list <- lapply(new_list, function(x) add_column(x, p.adj = p.adjust(x$pval, method = "bonferroni")))
-
-  # Dunnett sig tests for KW sig modules.
-  dm <- do.call(rbind, lapply(new_list, function(x) sum(x$p.adj < 0.05)))
-  idx <- match(rownames(KW_results), rownames(dm))
-  KW_results$nSigDunnett <- dm[idx, ]
-  params$nModConvergence <- sum(KW_results$nSigDunnett > 1)
 
   # Store in list.
   out[[i]] <- list(
@@ -745,9 +469,7 @@ for (i in 362:nboot) {
       gitpush()
     }
   }
-}
-
-## END LOOP.
+} ## END LOOP.
 
 #-------------------------------------------------------------------------------
 # Load the results.

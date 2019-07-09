@@ -22,15 +22,14 @@
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#+ eval = TRUE, echo = FALSE, error = FALSE
 
 # Use ctl+alt+T to execute a code chunk.
 # Use ctl+shift+W to close all tabs.
 
 # Run this chunk before doing anything!
 rm(list = ls())
-dev.off()
-cat("\014") # alternative is cat("\f")
+if (.Device != "null device" ) dev.off()
+cat("\f")
 options(stringsAsFactors = FALSE)
 
 # If you have not cleared the workspace of all loaded packages, you may
@@ -38,6 +37,14 @@ options(stringsAsFactors = FALSE)
 library(magrittr)
 library(JGmisc)
 detachAllPackages(keep = NULL)
+
+# Load other dependencies.
+suppressPackageStartupMessages({
+  library(AnnotationDbi)
+  library(readxl)
+  library(org.Mm.eg.db)
+  library(GOSemSim)
+})
 
 # Define version of the code.
 CodeVersion <- "DEP_Community_Analysis"
@@ -55,31 +62,9 @@ functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
-# Create code-version specific directories for figures and tables.
-# Creat otuput direcotry for figures.
+# Directories for figures and tables.
 outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
-outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
-if (!file.exists(outputfigsdir)) {
-  dir.create(file.path(outputfigsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
-# Create output directory for tables.
 outputtabs <- paste(rootdir, "Tables", tissue, sep = "/")
-outputtabsdir <- paste(outputtabs, CodeVersion, sep = "/")
-if (!file.exists(outputtabsdir)) {
-  dir.create(file.path(outputtabsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
-# Create output directory for reports.
-outputreports <- paste(rootdir, "Reports", tissue, sep = "/")
-outputrepsdir <- paste(outputreports, CodeVersion, sep = "/")
-if (!file.exists(outputrepsdir)) {
-  dir.create(file.path(outputrepsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
 
 # Load required custom functions.
 my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
@@ -742,28 +727,43 @@ for (i in 1:length(randp_data)){
 #-------------------------------------------------------------------------------
 
 # Build GO database.
-#if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
+if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
 if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
-#if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
-#msGO <- list(msGOMF,msGOBP,msGOCC)
-#names(msGO) <- c("MF","BP","CC")
+if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
+msGO <- list(msGOMF,msGOBP,msGOCC)
+names(msGO) <- c("MF","BP","CC")
 
-# Collect the data from random_communities list. 
-clusters <- random_communities[[i]]$combined_node
-  
+# Collect the DEP community nodes. 
+clusters <- sapply(DEP_communities,"[",4)
+names(clusters) <- c("Shank2","Shank3","Syngap1","Ube3a")  
+
 # Evaluate GO semanitic similarity between DEP communities (clusters).
-gosim <- mclusterSim(clusters, semData=msGOBP, measure="Resnik", combine="avg")
+gosim <- mclusterSim(clusters, semData=msGO$MF, measure="Resnik", combine="avg")
+gosim
 
+# Try each type of GO ontology. Which makes the most sense?
+#combine_methods = c("avg","BMA","rcmax","max")
+#measure_methods = c("Resnik", "Lin", "Rel", "Jiang", "Wang") # Wang is graph based. 
+
+lapply(msGO, function(x) mclusterSim(clusters, semData=x, measure="Wang", combine="BMA"))
 
 #-------------------------------------------------------------------------------
 #' ## Examine observed functional similarity versus null distribution!
 #-------------------------------------------------------------------------------
 
 file <- paste(Rdatadir, "goSim.RDS", sep = "/")
-
 gosim_data <- readRDS(file)
 
-x <- gosim_data[[1]]
+
+dm <- array(0,dim=c(4,4,1000))
+for (i in 1:1000){
+  dm[,,i] <- gosim_data[[i]]
+}
+
+rowMeans(dm, dims = 2)
+
+
+hist(dm[1,,])
 
 #-------------------------------------------------------------------------------
 #' Evaluate topology of the protein subgraphs.
