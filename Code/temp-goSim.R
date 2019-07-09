@@ -101,9 +101,9 @@ for (i in start:n_iter){
   gosim[[i]] <- mclusterSim(clusters, semData=msGO$BP, measure="Resnik", combine="avg")
 
   # Save progress every iteration...
-  file <- "C:/Users/User/Documents/Tyler/Synaptopathy-Proteomics/RData/goSim.RDS"
-  saveRDS(goSim, file)
-  
+  file <- "C:/Users/User/Documents/Tyler/Synaptopathy-Proteomics/RData/goSim.rds"
+  saveRDS(gosim, file)
+
   # When done, shut down progress bar.
   if (i == n_iter) { print("Complete!"); close(pb) }
 }
