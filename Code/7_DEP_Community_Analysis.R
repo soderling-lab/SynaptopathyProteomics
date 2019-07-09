@@ -22,15 +22,14 @@
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#+ eval = TRUE, echo = FALSE, error = FALSE
 
 # Use ctl+alt+T to execute a code chunk.
 # Use ctl+shift+W to close all tabs.
 
 # Run this chunk before doing anything!
 rm(list = ls())
-dev.off()
-cat("\014") # alternative is cat("\f")
+if (.Device != "null device" ) dev.off()
+cat("\f")
 options(stringsAsFactors = FALSE)
 
 # If you have not cleared the workspace of all loaded packages, you may
@@ -39,54 +38,11 @@ library(magrittr)
 library(JGmisc)
 detachAllPackages(keep = NULL)
 
-#  Load required packages.
+# Load other dependencies.
 suppressPackageStartupMessages({
-  library(JGmisc)
-  library(readxl)
-  library(knitr)
-  library(readr)
-  library(dplyr)
-  library(reshape2)
-  library(DEP)
-  library(tibble)
-  library(SummarizedExperiment)
-  library(ggplot2)
-  library(hexbin)
-  library(vsn)
-  library(BurStMisc)
-  library(dplyr)
   library(AnnotationDbi)
+  library(readxl)
   library(org.Mm.eg.db)
-  library(edgeR)
-  library(openxlsx)
-  library(stringr)
-  library(imp4p)
-  library(Cairo)
-  library(pryr)
-  library(qvalue)
-  library(gridExtra)
-  library(cowplot)
-  library(WGCNA)
-  library(impute)
-  library(ggrepel)
-  library(sva)
-  library(anRichment)
-  library(ggdendro)
-  library(flashClust)
-  library(purrr)
-  library(ggpubr)
-  library(doParallel)
-  library(NMF)
-  library(FSA)
-  library(plyr)
-  library(RColorBrewer)
-  library(gtable)
-  library(grid)
-  library(ggplotify)
-  library(igraph)
-  library(RCy3)
-  library(DescTools)
-  library(TBmiscr)
   library(GOSemSim)
 })
 
@@ -98,7 +54,7 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
+rootdir <- "D:/projects/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -106,31 +62,9 @@ functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
-# Create code-version specific directories for figures and tables.
-# Creat otuput direcotry for figures.
+# Directories for figures and tables.
 outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
-outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
-if (!file.exists(outputfigsdir)) {
-  dir.create(file.path(outputfigsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
-# Create output directory for tables.
 outputtabs <- paste(rootdir, "Tables", tissue, sep = "/")
-outputtabsdir <- paste(outputtabs, CodeVersion, sep = "/")
-if (!file.exists(outputtabsdir)) {
-  dir.create(file.path(outputtabsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
-# Create output directory for reports.
-outputreports <- paste(rootdir, "Reports", tissue, sep = "/")
-outputrepsdir <- paste(outputreports, CodeVersion, sep = "/")
-if (!file.exists(outputrepsdir)) {
-  dir.create(file.path(outputrepsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
 
 # Load required custom functions.
 my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
@@ -139,7 +73,8 @@ source(my_functions)
 # Define prefix for output figures and tables.
 outputMatName <- paste(tissue, "_Network_Analysis_", sep = "")
 
-# Globally set ggplots theme.
+# Globally set ggplot theme.
+library(ggplot2)
 ggplot2::theme_set(theme_gray())
 
 #-------------------------------------------------------------------------------
@@ -231,7 +166,7 @@ stats_df <- df
 
 # Insure that all Uniprot have been mapped to entrez.
 stats_df$Entrez <- unlist(uniprot2entrez[stats_df$Uniprot])
-
+Examine
 # Check.
 sum(is.na(stats_df$Entrez)) == 0
 
@@ -583,7 +518,7 @@ if (generate_random_graphs == TRUE) {
 }
 
 #-------------------------------------------------------------------------------
-# Examine overlap in randomized communities.
+# Examine protein overlap in randomized communities.
 #-------------------------------------------------------------------------------
 
 # We just need to run through the list of 1000 random communities and compare each 
@@ -747,7 +682,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = value)) +
   )) +
   coord_fixed()
 
-#plot <- plot + theme(legend.position = "none")
+#plot <- plot + theme(legend.position = "none")Examine
 plot
 
 # Save as tiffs.
@@ -758,7 +693,7 @@ plot
 #ggsave(file,dendro, width = 3, height = 3, units = "in", dpi = 300)
 
 #-------------------------------------------------------------------------------
-#' ## Compare randomly seeded communities to observed DEP community overlap.
+#' ## Compare protein overlap between randomly seeded and observed communities. 
 #-------------------------------------------------------------------------------
 
 # Dataframe of observed percent overlap. 
@@ -788,48 +723,47 @@ for (i in 1:length(randp_data)){
 # increase in overlap compared to random. 
 
 #-------------------------------------------------------------------------------
-#' ## Examine functional similarity!
+#' ## Calculate functional similarity between observed DEP communities!
 #-------------------------------------------------------------------------------
 
-################################################################################
-## DONT RUN!
-################################################################################
-run = FALSE
-
-if (run == TRUE){
 # Build GO database.
 if (!exists("msGOMF")){ msGOMF <- godata('org.Mm.eg.db', ont= "MF")}
 if (!exists("msGOBP")){ msGOBP <- godata('org.Mm.eg.db', ont= "BP")}
 if (!exists("msGOCC")){ msGOCC <- godata('org.Mm.eg.db', ont= "CC")}
-
 msGO <- list(msGOMF,msGOBP,msGOCC)
 names(msGO) <- c("MF","BP","CC")
 
-# Loop through all iterations, calculate GO semantic similarity between 
-# Shank2, Shank3, Syngap1, and Ube3a communties. 
-for (i in 1:length(random_communities)){
-  
-  # Initialize progress bar.
-  if (i == 1) { 
-    print("Calculating GO semantic similarity between DEP communities...")
-    print("This may take several hours...")
-    pb <- txtProgressBar(min=0, max = n_iter, style = 3) 
-  } else if (i != 1) {
-    setTxtProgressBar(pb, i) }
-  
-  # Collect the data from random_communities list. 
-  clusters <- random_communities[[i]]$combined_node
-  
-  # Evaluate GO semanitic similarity between DEP communities (clusters).
-  system.time({
-    gosim <- mclusterSim(clusters, semData=msGO$BP, measure="Wang", combine="BMA")
-  })
-  
-  # When done, shut down progress bar.
-  if (i == n_iter) { close(pb) }
+# Collect the DEP community nodes. 
+clusters <- sapply(DEP_communities,"[",4)
+names(clusters) <- c("Shank2","Shank3","Syngap1","Ube3a")  
+
+# Evaluate GO semanitic similarity between DEP communities (clusters).
+gosim <- mclusterSim(clusters, semData=msGO$MF, measure="Resnik", combine="avg")
+gosim
+
+# Try each type of GO ontology. Which makes the most sense?
+#combine_methods = c("avg","BMA","rcmax","max")
+#measure_methods = c("Resnik", "Lin", "Rel", "Jiang", "Wang") # Wang is graph based. 
+
+lapply(msGO, function(x) mclusterSim(clusters, semData=x, measure="Wang", combine="BMA"))
+
+#-------------------------------------------------------------------------------
+#' ## Examine observed functional similarity versus null distribution!
+#-------------------------------------------------------------------------------
+
+file <- paste(Rdatadir, "goSim.RDS", sep = "/")
+gosim_data <- readRDS(file)
+
+
+dm <- array(0,dim=c(4,4,1000))
+for (i in 1:1000){
+  dm[,,i] <- gosim_data[[i]]
 }
 
-}
+rowMeans(dm, dims = 2)
+
+
+hist(dm[1,,])
 
 #-------------------------------------------------------------------------------
 #' Evaluate topology of the protein subgraphs.

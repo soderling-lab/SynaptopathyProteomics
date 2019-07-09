@@ -16,14 +16,13 @@
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#+ eval = TRUE, echo = FALSE, error = FALSE
 
 # Use ctl+alt+T to execute a code chunk.
 
 # Run this chunk before doing anything!
 rm(list = ls())
-dev.off()
-cat("\014") # alternative is cat("\f")
+if (.Device != "null device" ) dev.off()
+cat("\f")
 options(stringsAsFactors = FALSE)
 
 #  Load required packages.
@@ -86,7 +85,7 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Documents/R/Synaptopathy-Proteomics"
+rootdir <- "D:/projects/Synaptopathy-Proteomics"
 # rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptopathy-Proteomics"
 setwd(rootdir)
 
@@ -161,6 +160,52 @@ cleanDat <- subDat
 dim(cleanDat)
 
 ################################################################################
+## Run this chunk if splitting data into WT and KO!
+
+# Load combined sample info.
+traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
+sample_info <- readRDS(traitsfile)
+sample_info[1:5, 1:5]
+dim(sample_info)
+
+wt_samples <- subset(sample_info$SampleID, sample_info$SampleType == "WT")
+ko_samples <- subset(sample_info$SampleID, 
+                     sample_info$SampleType == "HET" | sample_info$SampleType == "KO")
+
+wt_dat <- cleanDat[,colnames(cleanDat) %in% wt_samples]
+ko_dat <- cleanDat[,colnames(cleanDat) %in% ko_samples]
+dim(wt_dat)
+dim(ko_dat)
+subdat <- list(wt = wt_dat,
+               ko = ko_dat)
+
+# Allow parallel WGCNA calculations:
+allowWGCNAThreads()
+parallelThreads <- 8
+clusterLocal <- makeCluster(c(rep("localhost", parallelThreads)), type = "SOCK")
+registerDoParallel(clusterLocal)
+
+## Determine soft power, beta.
+# Vector of powers to test:
+powers <- seq(4, 20, by = 1.0)
+
+# Soft Power selection
+sft <- lapply(subdat, function(x) {
+  pickSoftThreshold(t(x), 
+  powerVector = powers, 
+  corFnc = "bicor",
+  blockSize = 15000, 
+  verbose = 3, 
+  networkType = "signed")})
+
+# Figure. ggplotScaleFreeFit() generates three plots.
+plots <- lapply(sft, function(x) ggplotScaleFreeFit(x))
+
+# Choose minimum power to achieve scale free fit > 0.8.
+power_beta <- lapply(sft, function(x) x$fitIndices$Power[x$fitIndices$SFT.R.sq > 0.8][1])
+power_beta
+
+################################################################################
 ## Estimate scale free fit.
 
 # Load combined sample info.
@@ -217,6 +262,16 @@ print(paste("Power (beta):",power))
 #-------------------------------------------------------------------------------
 #' ## Prepare to sample WGCNA parameters.
 #-------------------------------------------------------------------------------
+
+################################################################################
+## Parameter optimization will be performed with the WT network.
+print("Using the WT data for WGCNA parameter optimization!")
+power <- power_beta$wt
+cleanDat <- subdat$wt
+dim(cleanDat)
+cleanDat[1:5,1:5]
+
+################################################################################
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()

@@ -9,7 +9,7 @@
 #'
 #' Fill in a dataframe with missing values.
 #'   Missing values are replaced with the value above them.
-#'   From overflow user [nacnudus](https://stackoverflow.com/users/937932/nacnudus).
+#'   From StackOverflow user [nacnudus](https://stackoverflow.com/users/937932/nacnudus).
 #'
 #' @param x column vector with blank values.
 #' @param blank logic vector specifying blank values.
@@ -973,17 +973,36 @@ store_ggplot <- function(plot_list, plot, name) {
 }
 
 #-------------------------------------------------------------------------------
-#' ## ggplotMDS(data_in,colors,title)
+#' ggplotMDS
+#'
+#' This function utilizes limma::plotMDS to generate a MDS plot which is then plotted with ggplot2. 
+#' The column names of the input data (an expression data frame) are used as geom_point() labels.
+#' To supress plot output which results from calling limma::plotMDS, a temporary file 
+#' is created (see references).
+#' 
+#' @param data_in the expression data frame.
+#' @param colors colors for geom_point().
+#' @param title a title for the plot. 
+#'
+#' @return None
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#' @references \url{https://stackoverflow.com/questions/20363266/how-can-i-suppress-the-creation-of-a-plot-while-calling-a-function-in-r}
+#' @keywords fill down blank missing values
+#'
+#' @examples
+#' ggplotMDS(data_in,colors,title)
+#' 
+#' @export
+#' @importFrom limma
+#'
 
-# Note that ggplot reordered condition alphabetically, so colors must be assigned alphabetically.
-# This function utilizes limma::plotMDS to generate a MDS plot. The X and Y coordinans are then
-# plotted using ggplot.The column names of the input data (an expression data frame) are used
-# to generate the geom_point() labels.
-# To supress plot output which results from calling plotMDS, a temporary file is created.
-# This solution was found here:
-# https://stackoverflow.com/questions/20363266/how-can-i-suppress-the-creation-of-a-plot-while-calling-a-function-in-r.
-
-ggplotMDS <- function(data_in, colID, colors, title, sample_info = sample_info, labels = FALSE) {
+ggplotMDS <- function(data_in, 
+                      colID, 
+                      colors, 
+                      title, 
+                      sample_info, 
+                      labels = FALSE) {
   # get the data
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
@@ -1025,10 +1044,7 @@ ggplotMDS <- function(data_in, colID, colors, title, sample_info = sample_info, 
         legend.position = "right",
         plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
         axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-        axis.title.y = element_text(color = "black", size = 11, face = "bold")
-      )
-  } else {
-
+        axis.title.y = element_text(color = "black", size = 11, face = "bold"))
   }
   return(plot)
 }
@@ -1390,7 +1406,7 @@ ggplotQCHist <- function(data_in, group, nbins, threshold) {
 
   # Calculate bins based on mean intensity of QC replicates.
   rows_ignore <- is.nan(data_work$avgQC)
-  data_work$bins[!rows_ignore] <- ntile(data_work$avgQC[!rows_ignore], nbins,
+  data_work$bins[!rows_ignore] <- BurStMisc::ntile(data_work$avgQC[!rows_ignore], nbins,
     na.rm = TRUE,
     checkBleed = FALSE, result = "numeric"
   )
@@ -3019,22 +3035,6 @@ lmp <- function(modelobject) {
   attributes(p) <- NULL
   return(p)
 }
-
-#-----------------------------------------------------------------------------
-#' ## Blank ggplot theme.
-#-----------------------------------------------------------------------------
-# Apply blank theme
-blank_theme <- theme_minimal() +
-  theme(
-    axis.text.x  = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    panel.border = element_blank(),
-    panel.grid   = element_blank(),
-    axis.ticks   = element_blank(),
-    plot.title   = element_text(size=14, face="bold")
-  )
-
 
 #-----------------------------------------------------------------------------
 #' Network connectivity histogram.
