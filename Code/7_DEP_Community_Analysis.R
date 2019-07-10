@@ -118,6 +118,7 @@ meta$gene <- mapIds(org.Mm.eg.db,
 meta$uniprot <- sapply(strsplit(meta$protein, "\\|"), "[", 2)
 
 # Load TAMPOR statistical results.
+# fixme! load 
 file <- paste(outputtabs, "Final_TAMPOR",
   "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx",
   sep = "/"
