@@ -478,7 +478,7 @@ for (i in 1:nboot) {
 # Load Parameters and network stats.
 files <- list.files(Rdatadir, pattern = "Stats")
 files
-file <- paste0(Rdatadir, "/", files[2])
+file <- paste0(Rdatadir, "/", files[8])
 file
 out <- readRDS(file)
 length(out)
@@ -504,15 +504,7 @@ modstats <- sapply(out, "[", 3)
 names(modstats) <- rownames(result)
 
 # Rank stats.
-result$coherenceRank <- rank(result$medianModCoherence) / nrow(result)
-result$costRank <- rank(result$costGrey) / nrow(result)
-result$modRank <- rank(result$q2) / nrow(result)
-result$nModRank <- rank(result$nSigModules) / nrow(result)
-result$nSigModRank <- rank(result$KWsigModules) / nrow(result)
-result$maxPSMDRank <- rank(result$MaxPSMD) / nrow(result)
-result$score <- result$modRank - result$costRank
-# result$score <- (result$coherenceRank + result$nSigModRank + result$modRank)/3 - result$costRank
-# result$score2 <- result$maxPSMDRank + result$nSigModRank - result$costRank
+result$score <- result$q2/(result$PercentGrayNodes/100)
 
 # Examine Dtests results.
 # result$nSigDunnettTests <- do.call(rbind,
