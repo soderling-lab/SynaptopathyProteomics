@@ -88,26 +88,8 @@ setwd(rootdir)
 functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
-
-# Creat otuput directory for figures.
 outputfigs <- paste(rootdir, "Figures", sep = "/")
-if (!file.exists(outputfigs)) {
-  dir.create(file.path(outputfigs))
-} else {
-  msg <- c(
-    "This directory already exists!",
-    "Warning: Some files may be overwritten when running this script."
-  )
-  print(msg)
-}
-
-# Create output directory for tables.
 outputtabs <- paste(rootdir, "Tables", sep = "/")
-if (!file.exists(outputtabs)) {
-  dir.create(file.path(outputtabs))
-} else {
-  print(msg)
-}
 
 # Load required custom functions.
 my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
@@ -120,13 +102,15 @@ outputMatName <- paste0("2_TMT_Analysis_", tissue)
 ggplot2::theme_set(theme_gray())
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 #-------------------------------------------------------------------------------
 #' ## Merge cortex and striatum data.
 #-------------------------------------------------------------------------------
+#' We will utilize TAMPOR to combine the Cortex and Striatum datasets. Merge the
+#' preprocessed data and traits files.
 
-## Merge traits data. 
+## Merge traits data.
 # Load the cortex and striatum traits files.
 inputTraitsCSV <- c(
   "4227_TMT_Cortex_Combined_traits.csv",
@@ -159,8 +143,8 @@ dim(traits)
 ## Merge expression data.
 # Load the Cortex and Striatum IRS + eBLM regressed data.
 files <- paste(Rdatadir, list.files(Rdatadir, pattern = "TAMPOR"), sep = "/")
-data <- lapply(as.list(files),function(x) readRDS(x))
-names(data) <- c("Cortex","Striatum")
+data <- lapply(as.list(files), function(x) readRDS(x))
+names(data) <- c("Cortex", "Striatum")
 
 # Fortify and add accession column
 data_fort <- lapply(
@@ -208,10 +192,10 @@ controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", c("
 controls
 
 # Save merged data and traits to file.
-file <- paste0(Rdatadir, "/", outputMatName, "Combined_Cortex_Striatum_cleanDat.Rds")
+file <- paste0(Rdatadir, "/", outputMatName, "Combined_cleanDat.Rds")
 saveRDS(cleanDat, file)
 
-file <- paste0(Rdatadir, "/", outputMatName, "Combined_Cortex_Striatum_traits.Rds")
+file <- paste0(Rdatadir, "/", outputMatName, "Combined_traits.Rds")
 saveRDS(traits, file)
 
 #-------------------------------------------------------------------------------

@@ -103,20 +103,12 @@ Rdatadir <- paste(rootdir, "RData", sep = "/")
 outputfigs <- paste(rootdir, "Figures", sep = "/")
 if (!file.exists(outputfigs)) {
   dir.create(file.path(outputfigs))
-} else {
-  msg <- c(
-    "This directory already exists!",
-    "Warning: Some files may be overwritten when running this script."
-  )
-  print(msg)
 }
 
 # Create output directory for tables.
 outputtabs <- paste(rootdir, "Tables", sep = "/")
 if (!file.exists(outputtabs)) {
   dir.create(file.path(outputtabs))
-} else {
-  print(msg)
 }
 
 # Load required custom functions.
@@ -131,7 +123,7 @@ library(ggplot2)
 ggplot2::theme_set(theme_gray())
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 #-------------------------------------------------------------------------------
 #' ## Load the raw data and sample info (traits) from excel.
@@ -197,13 +189,16 @@ plot <- ggplot(df, aes(x = Channel, y = value, fill = Channel)) +
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.title.y = element_text(color = "black", size = 11, face = "bold")
   )
-plot
 
 # Save as tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Example_TMT.tiff")
   ggsave(file, plot, width = 3, height = 2.5, units = "in")
 }
+
+# Store plot in list.
+all_plots <- list()
+all_plots[["Example_TMT"]] <- plot
 
 #-------------------------------------------------------------------------------
 #' ## Examine peptide and protein level identification overalap.
@@ -225,18 +220,18 @@ nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
 print(paste(nProteins, " unique proteins identified.", sep = ""))
 
 # Utilize gridExtra to create a table.
-table <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
+tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
   rows = NULL,
   theme = ttheme_default()
 )
-grid.arrange(table)
 
 # Examine the number of peptides per protein.
-nPep <- subset(raw_peptide) %>% dplyr::group_by(Accession) %>% 
+nPep <- subset(raw_peptide) %>%
+  dplyr::group_by(Accession) %>%
   dplyr::summarize(nPeptides = length(Sequence))
 
 # Remove one hit wonders!
-nPep <- nPep[!nPep$nPeptides == 1,]
+nPep <- nPep[!nPep$nPeptides == 1, ]
 
 # Summarize number of peptides per protein.
 stats <- as.matrix(summary(nPep$nPeptides))
@@ -260,7 +255,6 @@ plot <- ggplot(nPep, aes(nPeptides)) + geom_histogram(bins = 100, fill = "black"
 # Add statistical annotation.
 p <- ggranges(plot)$TopRight # ggranges calculates position of annotation.
 plot1 <- plot + annotation_custom(g, p$xmin, p$xmax, p$ymin, p$ymax)
-plot1
 
 # Peptide identification overlap per pairwise comparisons of experiments.
 contrasts <- combn(c("Shank2", "Shank3", "Syngap1", "Ube3a"), 2)
@@ -281,13 +275,11 @@ mytable$Intersection <- formatC(as.numeric(mytable$Intersection), format = "d", 
 mytable$Union <- formatC(as.numeric(mytable$Union), format = "d", big.mark = ",")
 mytable$Percent <- round(as.numeric(mytable$Percent), 2)
 colnames(mytable)[1] <- "Comparison"
-table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
-grid.arrange(table)
+tab2 <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Plot peptide identification overlap.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) + ggtitle("Peptide Identification Overlap")
-plot2
 
 # Save figures.
 if (save_plots == TRUE) {
@@ -300,6 +292,12 @@ if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Peptide_identification_overlap_Table.tiff")
   ggsave(file, table)
 }
+
+# Store plots in list.
+all_plots[["n_pep_per_protein"]] <- plot1
+all_plots[["pep_id_overlap"]] <- plot2
+all_plots[["total_pep_and_prot_tab"]] <- tab1
+all_plots[["pep_id_overlap_tab"]] <- tab2
 
 #-------------------------------------------------------------------------------
 #' ## Examine the raw data.
@@ -327,13 +325,19 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Figure.
-fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
+#fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 
 # Save plots as tiffs.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Raw_Peptide.tiff")
   ggsave(file, fig)
 }
+
+# Store plots.
+all_plots[["raw_bp"]] <- p1
+all_plots[["raw_dp"]] <- p2
+all_plots[["raw_msd"]] <- p3
+all_plots[["raw_mds"]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Sample loading normalization within experiments.
@@ -378,13 +382,19 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Figure.
-fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
+#fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 
 # Save as tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_SL_Peptide.tiff")
   ggsave(file, fig)
 }
+
+# Store plots.
+all_plots[["sl_bp"]] <- p1
+all_plots[["sl_dp"]] <- p2
+all_plots[["sl_msd"]] <- p3
+all_plots[["sl_mds"]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Examine the nature of missing values.
@@ -411,14 +421,19 @@ p3 <- ggplotDetect(SL_peptide, groups[3]) + ggtitle(NULL)
 p4 <- ggplotDetect(SL_peptide, groups[4]) + ggtitle(NULL)
 
 # Figure.
-fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig
+#fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 
 # Save plots as tiffs.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Peptide_Missing_Values.tiff")
   ggsave(file, fig)
 }
+
+# Store plots.
+all_plots[["missing_val_shank2"]] <- p1
+all_plots[["missing_val_shank3"]] <- p2
+all_plots[["missing_val_syngap1"]] <- p3
+all_plots[["missing_val_ube3a"]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Impute missing peptide values within an experiment.
@@ -449,13 +464,16 @@ colnames(table) <- c("Experiment", "N Imputed")
 table <- tableGrob(table, rows = NULL, theme = ttheme_default())
 
 # Table.
-grid.arrange(table)
+#grid.arrange(table)
 
 # Save as tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_N_Imputed_Peptides.tiff")
   ggsave(file, table)
 }
+
+# Store table. 
+all_plots[["n_imputed_pep_tab"]] <- table
 
 #-------------------------------------------------------------------------------
 #' ## Illustrate the mean variance relationship of QC peptides.
@@ -481,6 +499,10 @@ hist_list[["Ube3a"]] <- ggplotQCHist(impute_peptide, "Ube3a", nbins = 5, thresho
 # Figure.
 p1 <- plots$Shank2 + theme(legend.position = "none")
 p2 <- hist_list$shank2[[1]]
+p3 <- hist_list$shank2[[2]]
+p4 <- hist_list$shank2[[3]]
+p5 <- hist_list$shank2[[4]]
+p6 <- hist_list$shank2[[5]]
 
 # Save figures.
 if (save_plots == TRUE) {
@@ -499,6 +521,14 @@ if (save_plots == TRUE) {
   quiet(mapply(ggsave, file, hist_list$Shank2))
 }
 
+# Store plots.
+all_plots[["shank2_cor_qc"]] <- p1
+all_plots[["shank2_hist_qc_1"]] <- p2
+all_plots[["shank2_hist_qc_2"]] <- p3
+all_plots[["shank2_hist_qc_3"]] <- p4
+all_plots[["shank2_hist_qc_4"]] <- p5
+all_plots[["shank2_hist_qc_5"]] <- p6
+
 #-------------------------------------------------------------------------------
 #' ## Peptide level filtering.
 #-------------------------------------------------------------------------------
@@ -516,13 +546,16 @@ filter_peptide <- filterQCv2(impute_peptide, groups, nbins = 5, threshold = 4)
 out <- list(c(94, 77, 133, 59), c(182, 67, 73, 75))[[type]] # Cox and Str peps removed.
 mytable <- data.frame(cbind(groups, out))
 table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
-grid.arrange(table)
+#grid.arrange(table)
 
 # Save as tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_nProteins_Filtered.tiff")
   ggsave(file, table)
 }
+
+# Store table
+all_plots[["n_pep_filtered_cortex"]] <- table
 
 #-------------------------------------------------------------------------------
 #' ##  Protein level summarization and normalization across all batches.
@@ -698,17 +731,22 @@ df <- add_column(df, rownames(df), .before = 1)
 colnames(df) <- c("Experiment", "preComBat", "postComBat")
 table <- tableGrob(df, rows = NULL)
 
-# Table and figures.
-grid.newpage()
-grid.arrange(table)
-
-# Plots to check MDS:
-ggpubr::ggarrange(plotlist = plot_list[[1]])
-ggpubr::ggarrange(plotlist = plot_list[[2]])
-ggpubr::ggarrange(plotlist = plot_list[[3]])
-ggpubr::ggarrange(plotlist = plot_list[[4]])
+# # Table and figures.
+# grid.newpage()
+# grid.arrange(table)
+# 
+# # Plots to check MDS:
+# ggpubr::ggarrange(plotlist = plot_list[[1]])
+# ggpubr::ggarrange(plotlist = plot_list[[2]])
+# ggpubr::ggarrange(plotlist = plot_list[[3]])
+# ggpubr::ggarrange(plotlist = plot_list[[4]])
 
 # Save plots...
+all_plots[["batch_effect_tab"]] <- table
+all_plots[["shank2_combat_pca"]] <- plot_list[[1]]
+all_plots[["shank3_combat_pca"]] <- plot_list[[2]]
+all_plots[["syngap1_combat_pca"]] <- plot_list[[3]]
+all_plots[["ube3a_combat_pca"]] <- plot_list[[4]]
 
 #-------------------------------------------------------------------------------
 #' ##  Examine protein identification overlap.
@@ -718,13 +756,15 @@ ggpubr::ggarrange(plotlist = plot_list[[4]])
 # Inspect the overlap in protein identifcation.
 plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +
   ggtitle("Protein Identification Overlap")
-plot
 
 # Save as tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Protein_identification_overlap.tiff")
   ggsave(file, plot)
 }
+
+# Store plot.
+all_plots[["prot_id_overlap"]] <- plot
 
 #-------------------------------------------------------------------------------
 #' ## Examine the Normalized protein level data.
@@ -750,13 +790,19 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Figure.
-fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
+#fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 
 # Save tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Normalized_Protein.tiff")
   ggsave(file, fig)
 }
+
+# Store plots.
+all_plots[["sl_prot_bp"]] <- p1
+all_plots[["sl_prot_dp"]] <- p2
+all_plots[["sl_prot_msd"]] <- p3
+all_plots[["sl_prot_mds"]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## IRS Normalization.
@@ -792,11 +838,11 @@ tab <- sample_connectivity$table
 df <- add_column(tab, SampleName = rownames(tab), .before = 1)
 rownames(df) <- NULL
 knitr::kable(df)
-plot <- sample_connectivity$connectivityplot +
+plot1 <- sample_connectivity$connectivityplot +
   ggtitle("QC Sample Connectivity")
 
 # Figure.
-plot
+#plot
 
 # Save as tiff.
 if (save_plots == TRUE) {
@@ -841,13 +887,14 @@ IRS_OutRemoved_protein <- normalize_IRS(SL_protein[, !out], "QC", groups, robust
 
 # Illustrate Oldham's sample connectivity after outlier removal.
 sample_connectivity <- ggplotSampleConnectivityv2(IRS_OutRemoved_protein, colID = "QC")
-plot <- sample_connectivity$connectivityplot
-
-# Figure.
-plot
+plot2 <- sample_connectivity$connectivityplot
 
 # Write over IRS_data
 IRS_protein <- IRS_OutRemoved_protein
+
+# Store plots.
+all_plots[["irs_outliers_pre"]] <- plot1
+all_plots[["irs_outliers_post"]] <- plot2
 
 #-------------------------------------------------------------------------------
 #' ## Examine the IRS Normalized protein level data.
@@ -879,14 +926,17 @@ colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
 p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
   theme(legend.position = "none")
 
-# Figure.
-fig
-
 # Save tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_IRS_Normalized_Protein.tiff")
   ggsave(file, fig)
 }
+
+# Store plots.
+all_plots[["irs_bp"]] <- p1
+all_plots[["irs_dp"]] <- p2
+all_plots[["irs_msd"]] <- p3
+all_plots[["irs_mds"]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Protein level filtering, imputing, and final TMM normalization.
@@ -904,7 +954,12 @@ filt_protein <- filter_proteins(IRS_protein, "Abundance")
 # Generate plot to examine distribution of remaining missing values.
 plot <- ggplotDetect(filt_protein, "Abundance") +
   ggtitle("Protein missing value distribution")
-plot
+
+# # Create a table. 
+# x <- c(94,15)
+# names(x) <- c("One hit wonders", "Identified in only 50% of samples")
+# mytable <- data.frame(x)
+# table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Impute the remaining number of missing values with KNN.
 imp_protein <- impute_KNN(filt_protein, "Abundance")
@@ -919,6 +974,10 @@ if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Missing_Protein_Values.pdf")
   ggsave(file, plot)
 }
+
+# Store plots.
+all_plots[["prot_missing_val_dp"]] <- plot
+#all_plots[["n_prot_filtered"]] <- tab
 
 #-------------------------------------------------------------------------------
 #' ## Examine the TMM Normalized protein level data.
@@ -945,15 +1004,21 @@ colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
 p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
   theme(legend.position = "none")
 
-# Figure.
-fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
-fig
+# # Figure.
+# fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
+# fig
 
 # Save tiff.
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_TMM_Normalized_Protein.pdf")
   ggsave(file, fig)
 }
+
+# Store plots.
+all_plots[["tmm_bp"]] <- p1
+all_plots[["tmm_dp"]] <- p2
+all_plots[["tmm_msd"]] <- p3
+all_plots[["tmm_mds"]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Perform moderated EB regression of genetic strain as a covariate.
@@ -1015,17 +1080,16 @@ data.fit <- fit.eblm$adjustedData
 colors <- traits$Color
 plot1 <- ggplotPCA(t(data), traits, colors, title = "2D PCA Plot (Pre-Regression)")
 plot2 <- ggplotPCA(t(data.fit), traits, colors, title = "2D PCA Plot (Post-Regression)")
-fig <- plot_grid(plot1, plot2)
-fig
-
-# Just post-regression:
-plot2
 
 # Save tiffs.
 if (save_plots == TRUE) {
   files <- paste0(outputfigs, "/", outputMatName, c("pre", "post"), "_InterBatch_eBLM_Regression_PCA.tiff")
   quiet(mapply(ggsave, files, list(plot1, plot2)))
 }
+
+# Store plots.
+all_plots[["pca_pre_eblm"]] <- plot1
+all_plots[["pca_pre_eblm"]] <- plot2
 
 #-------------------------------------------------------------------------------
 #' ## Reformat final normalized, regressed data for TAMPOR Normalization.
