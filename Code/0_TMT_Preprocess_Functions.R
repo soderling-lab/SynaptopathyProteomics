@@ -975,14 +975,14 @@ store_ggplot <- function(plot_list, plot, name) {
 #-------------------------------------------------------------------------------
 #' ggplotMDS
 #'
-#' This function utilizes limma::plotMDS to generate a MDS plot which is then plotted with ggplot2. 
+#' This function utilizes limma::plotMDS to generate a MDS plot which is then plotted with ggplot2.
 #' The column names of the input data (an expression data frame) are used as geom_point() labels.
-#' To supress plot output which results from calling limma::plotMDS, a temporary file 
+#' To supress plot output which results from calling limma::plotMDS, a temporary file
 #' is created (see references).
-#' 
+#'
 #' @param data_in the expression data frame.
 #' @param colors colors for geom_point().
-#' @param title a title for the plot. 
+#' @param title a title for the plot.
 #'
 #' @return None
 #'
@@ -991,17 +991,16 @@ store_ggplot <- function(plot_list, plot, name) {
 #' @keywords fill down blank missing values
 #'
 #' @examples
-#' ggplotMDS(data_in,colors,title)
-#' 
+#' ggplotMDS(data_in, colors, title)
 #' @export
 #' @importFrom limma
 #'
 
-ggplotMDS <- function(data_in, 
-                      colID, 
-                      colors, 
-                      title, 
-                      sample_info, 
+ggplotMDS <- function(data_in,
+                      colID,
+                      colors,
+                      title,
+                      sample_info,
                       labels = FALSE) {
   # get the data
   cols <- grep(colID, colnames(data_in))
@@ -1044,7 +1043,8 @@ ggplotMDS <- function(data_in,
         legend.position = "right",
         plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
         axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-        axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+        axis.title.y = element_text(color = "black", size = 11, face = "bold")
+      )
   }
   return(plot)
 }
@@ -2980,8 +2980,8 @@ ggplotGOscatter <- function(results_GOenrichment, color, topN = 10) {
   df <- df[order(df$FDR), ]
 
   # Display only the topN terms.
-  df$label[seq(topN+1,nrow(df))] <- ""
-  #df$label[seq(round(topN * nrow(df)), nrow(df))] <- ""
+  df$label[seq(topN + 1, nrow(df))] <- ""
+  # df$label[seq(round(topN * nrow(df)), nrow(df))] <- ""
 
   # Generate plot.
   plot <- ggplot(df, aes(x = x, y = y, colour = FDR, size = nGenes, label = label)) +
@@ -3039,23 +3039,25 @@ lmp <- function(modelobject) {
 #-----------------------------------------------------------------------------
 #' Network connectivity histogram.
 
-ggplotHistK <- function(connectivity){
+ggplotHistK <- function(connectivity) {
   plot <- qplot(connectivity,
-                geom = "histogram",
-                binwidth = 5,
-                main = "Connectivity Histogram",
-                xlab = "Connectivity (k)",
-                ylab = "Frequency",
-                fill = I("black"),
-                col = I("black"),
-                alpha = 0.2) +
+    geom = "histogram",
+    binwidth = 5,
+    main = "Connectivity Histogram",
+    xlab = "Connectivity (k)",
+    ylab = "Frequency",
+    fill = I("black"),
+    col = I("black"),
+    alpha = 0.2
+  ) +
     scale_x_continuous(limits = c(0, 50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0, 0)) +
     theme(
       legend.position = "none",
       plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"))
+      axis.title.y = element_text(color = "black", size = 11, face = "bold")
+    )
   return(plot)
 }
 

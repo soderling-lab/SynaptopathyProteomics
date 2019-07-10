@@ -390,14 +390,14 @@ ggsave(file, plot, width = 3, height = 2.5, units = "in")
 
 # Histogram of k.
 plot <- qplot(connectivity,
-              geom = "histogram",
-              binwidth = 5,
-              main = "Connectivity Histogram",
-              xlab = "Connectivity (k)",
-              ylab = "Frequency",
-              fill = I("black"),
-              col = I("black"),
-              alpha = 0.2
+  geom = "histogram",
+  binwidth = 5,
+  main = "Connectivity Histogram",
+  xlab = "Connectivity (k)",
+  ylab = "Frequency",
+  fill = I("black"),
+  col = I("black"),
+  alpha = 0.2
 ) +
   scale_x_continuous(limits = c(0, 50), expand = c(0, 0)) +
   scale_y_continuous(expand = c(0, 0)) +
@@ -413,4 +413,3 @@ plot
 # Save fig.
 file <- paste0(outputfigsdir, "/", outputMatName, "PPI_Histogram_Connectivity", ".tiff")
 ggsave(file, plot, width = 3, height = 2.5, units = "in", dpi = 300)
-

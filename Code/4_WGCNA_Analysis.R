@@ -283,12 +283,12 @@ sampled_params$iter <- c(1:nrow(sampled_params))
 dim(sampled_params)[1]
 
 # Optimal params
-sampled_params$score <- sampled_params$q2/sampled_params$PercentGrayNodes
+sampled_params$score <- sampled_params$q2 / sampled_params$PercentGrayNodes
 rownames(sampled_params)[sampled_params$score == max(sampled_params$score)]
 idx <- sampled_params$iter[sampled_params$score == max(sampled_params$score)]
 
 # Choose network building parameters.
-params_iter <- idx #738 # 573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
+params_iter <- idx # 738 # 573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
 params <- sampled_params[params_iter, ]
 params[, c(1:7)]
 
@@ -389,7 +389,7 @@ preservation <- NetRep::modulePreservation(
 )
 
 # Collect stats.
-#preservation <- preservation[c("observed", "p.values")]
+# preservation <- preservation[c("observed", "p.values")]
 
 # Get the maximum permutation test p-value.
 maxPval <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))
@@ -434,9 +434,9 @@ preservation$observed
 
 x <- preservation$nulls
 dim(x)
-y <- x[1,1,]
+y <- x[1, 1, ]
 hist(y, xlim = c(0.002, 0.02))
-abline(v = preservation$observed[1,1], col = "red")
+abline(v = preservation$observed[1, 1], col = "red")
 
 dev.off()
 
@@ -582,15 +582,16 @@ diss <- 1 - TOMsimilarityFromExpr(
 )
 
 # Visualize the co-expression matrix
-if (generate_heatmap==TRUE){
+if (generate_heatmap == TRUE) {
   plotNetworkHeatmap(
-    datExpr=t(cleanDat), 
-    plotGenes = rownames(cleanDat), 
+    datExpr = t(cleanDat),
+    plotGenes = rownames(cleanDat),
     weights = NULL,
-    useTOM = TRUE, 
-    power = 1, 
-    networkType = "signed", 
-    main = "Heatmap of the network")
+    useTOM = TRUE,
+    power = 1,
+    networkType = "signed",
+    main = "Heatmap of the network"
+  )
 }
 
 # Perform hierarchical clustering.
@@ -907,15 +908,15 @@ numericIndices <- unique(c(
 #' Download gene-phenotype information...
 #-------------------------------------------------------------------------------
 
-phenotype_ontology = list(
+phenotype_ontology <- list(
   vocabulary_url = "http://www.informatics.jax.org/downloads/reports/VOC_MammalianPhenotype.rpt",
   data_url = "http://www.informatics.jax.org/downloads/reports/HMD_HumanPhenotype.rpt"
 )
 
 library(RCurl)
-myfile <- getURL('https://sakai.unc.edu/access/content/group/3d1eb92e-7848-4f55-90c3-7c72a54e7e43/public/data/bycatch.csv', ssl.verifyhost=FALSE, ssl.verifypeer=FALSE)
+myfile <- getURL("https://sakai.unc.edu/access/content/group/3d1eb92e-7848-4f55-90c3-7c72a54e7e43/public/data/bycatch.csv", ssl.verifyhost = FALSE, ssl.verifypeer = FALSE)
 
-mydat <- read.csv(textConnection(myfile), header=T)
+mydat <- read.csv(textConnection(myfile), header = T)
 head(mydat)
 
 
@@ -1164,16 +1165,16 @@ df <- as.data.frame(rbind(x, y))
 colnames(df) <- c("bicor", "group")
 df$group <- as.factor(df$group)
 
-# Calculate WRS p-value. 
+# Calculate WRS p-value.
 wrs <- wilcox.test(y[, 1], x[, 1], alternative = "greater")
 pval <- paste("P =", formatC(wrs$p.value, format = "e", digits = 2))
 
 # Generate a plot.
 plot <- ggplot(df, aes(x = group, y = bicor, fill = group)) +
-  geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) + 
-  scale_x_discrete(labels = c("non-interacting\nproteins","known interacting\nproteins")) +
-  ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) + 
-  scale_fill_manual(values = c("gray","orange")) +
+  geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
+  scale_x_discrete(labels = c("non-interacting\nproteins", "known interacting\nproteins")) +
+  ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
+  scale_fill_manual(values = c("gray", "orange")) +
   theme(
     plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
@@ -1181,9 +1182,11 @@ plot <- ggplot(df, aes(x = group, y = bicor, fill = group)) +
     axis.text.x = element_text(color = "black", size = 11, face = "bold"),
     legend.position = "none"
   )
-                     
-plot <- plot + annotate("text",x = 1.5, y = 0.9, 
-                        label = "p-value < 2.2e-16\n***", size = 6, color="black")
+
+plot <- plot + annotate("text",
+  x = 1.5, y = 0.9,
+  label = "p-value < 2.2e-16\n***", size = 6, color = "black"
+)
 
 plot
 

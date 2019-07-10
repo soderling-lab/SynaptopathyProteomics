@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------
 
 rm(list = ls())
-if (.Device != "null device" ) dev.off()
+if (.Device != "null device") dev.off()
 cat("\f")
 options(stringsAsFactors = FALSE)
 
@@ -13,7 +13,7 @@ library(JGmisc)
 detachAllPackages(keep = NULL)
 
 # Set the working directory.
-#rootdir <- "D:/projects/Synaptopathy-Proteomics"
+# rootdir <- "D:/projects/Synaptopathy-Proteomics"
 rootdir <- "C:/Users/User/Documents/Tyler/Synaptopathy-Proteomics"
 setwd(rootdir)
 
@@ -21,12 +21,12 @@ setwd(rootdir)
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
 # Load TAMPOR cleanDat from file:
-datafile <- paste(Rdatadir, "Combined","TAMPOR_data_outliersRemoved.Rds", sep = "/")
+datafile <- paste(Rdatadir, "Combined", "TAMPOR_data_outliersRemoved.Rds", sep = "/")
 data <- log2(readRDS(datafile))
 
 # Get a random subset of 1000 genes. Obscure labels.
 rand_idx <- sample(dim(data)[1], 1000, replace = FALSE)
-data <- data[rand_idx,]
+data <- data[rand_idx, ]
 rownames(data) <- paste0("protein_", c(1:nrow(data)))
 colnames(data) <- paste0("sample_", c(1:ncol(data)))
 saveRDS(data)
@@ -50,11 +50,11 @@ registerDoParallel(clusterLocal)
 ## Define a function to be optimized.
 #------------------------------------------------------------------------------
 
-score_network_hclust <- function(k){
+score_network_hclust <- function(k) {
   # Calculate the signed adjaceny matrix of data.
   # Perform heirarchical clustering and divide into k groups.
   r <- 1 - bicor(t(data))
-  adjm <- ((1 + r) / 2)^12 # Signed, weighted adjacency matrix. 
+  adjm <- ((1 + r) / 2)^12 # Signed, weighted adjacency matrix.
   diss <- 1 - adjm
   diag(diss) <- 0
   hc <- hclust(as.dist(diss), method = "average")
@@ -80,16 +80,18 @@ plot(res1$dendro, labels = FALSE)
 # What is the optimal number of heirarchical groups to divide the network into?
 
 # BayesianOptimization:
-results <- BayesianOptimization(FUN = score_network_hclust, 
-                                bounds = list(k = c(2L,3022L)), # maximum number of clusters is number of nodes...
-                                parallel = TRUE, 
-                                bulkNew = 9,
-                                packages = c("WGCNA","igraph"), 
-                                export = "data",
-                                initPoints = 5, 
-                                nIters = 100,
-                                gsPoints = 100, 
-                                verbose = 1)
+results <- BayesianOptimization(
+  FUN = score_network_hclust,
+  bounds = list(k = c(2L, 3022L)), # maximum number of clusters is number of nodes...
+  parallel = TRUE,
+  bulkNew = 9,
+  packages = c("WGCNA", "igraph"),
+  export = "data",
+  initPoints = 5,
+  nIters = 100,
+  gsPoints = 100,
+  verbose = 1
+)
 
 results$BestPars
 # Iteration   k      Score elapsedSecs
@@ -103,4 +105,3 @@ score_network(k = 1000)
 score_network(k = 3022)
 
 #------------------------------------------------------------------------------
-

@@ -100,7 +100,7 @@ functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
-# Creat otuput directory for figures and table. 
+# Creat otuput directory for figures and table.
 outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
 outputtabs <- paste(rootdir, "Tables", tissue, sep = "/")
 
@@ -145,15 +145,19 @@ dim(sample_info)
 
 # Subset the wt and ko data!
 wt_samples <- subset(sample_info$SampleID, sample_info$SampleType == "WT")
-ko_samples <- subset(sample_info$SampleID, 
-                     sample_info$SampleType == "HET" | sample_info$SampleType == "KO")
+ko_samples <- subset(
+  sample_info$SampleID,
+  sample_info$SampleType == "HET" | sample_info$SampleType == "KO"
+)
 
-wt_dat <- cleanDat[,colnames(cleanDat) %in% wt_samples]
-ko_dat <- cleanDat[,colnames(cleanDat) %in% ko_samples]
+wt_dat <- cleanDat[, colnames(cleanDat) %in% wt_samples]
+ko_dat <- cleanDat[, colnames(cleanDat) %in% ko_samples]
 dim(wt_dat)
 dim(ko_dat)
-subdat <- list(wt = wt_dat,
-               ko = ko_dat)
+subdat <- list(
+  wt = wt_dat,
+  ko = ko_dat
+)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
@@ -167,12 +171,14 @@ powers <- seq(4, 20, by = 1.0)
 
 # Soft Power selection
 sft <- lapply(subdat, function(x) {
-  pickSoftThreshold(t(x), 
-                    powerVector = powers, 
-                    corFnc = "bicor",
-                    blockSize = 15000, 
-                    verbose = 3, 
-                    networkType = "signed")})
+  pickSoftThreshold(t(x),
+    powerVector = powers,
+    corFnc = "bicor",
+    blockSize = 15000,
+    verbose = 3,
+    networkType = "signed"
+  )
+})
 
 # Figure. ggplotScaleFreeFit() generates three plots.
 plots <- lapply(sft, function(x) ggplotScaleFreeFit(x))
@@ -183,16 +189,16 @@ power_beta
 
 # Calculate node connectivity in the Weighted co-expression network.
 connectivity <- lapply(subdat, function(x) softConnectivity(
-  datExpr = t(x),
-  corFnc = "bicor",
-  weights = NULL,
-  type = "signed",
-  power = 12,
-  blockSize = 15000,
-  minNSamples = NULL,
-  verbose = 0,
-  indent = 0
-))
+    datExpr = t(x),
+    corFnc = "bicor",
+    weights = NULL,
+    type = "signed",
+    power = 12,
+    blockSize = 15000,
+    minNSamples = NULL,
+    verbose = 0,
+    indent = 0
+  ))
 
 # Examine fit.
 fit <- lapply(connectivity, function(x) ggplotScaleFreePlot(x))
@@ -200,8 +206,8 @@ fit$wt$ggplot
 fit$ko$ggplot
 
 # Save fig.
-#file <- paste0(outputfigsdir, "/", outputMatName, "ScaleFreeFit", ".tiff")
-#ggsave(file, plot, width = 3, height = 2.5, units = "in")
+# file <- paste0(outputfigsdir, "/", outputMatName, "ScaleFreeFit", ".tiff")
+# ggsave(file, plot, width = 3, height = 2.5, units = "in")
 
 # Histogram of k.
 # plot <- qplot(connectivity,
@@ -222,9 +228,9 @@ fit$ko$ggplot
 #     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
 #     axis.title.y = element_text(color = "black", size = 11, face = "bold")
 #   )
-# 
+#
 # plot
-# 
+#
 # # Save fig.
 # file <- paste0(outputfigsdir, "/", outputMatName, "Histogram_Connectivity", ".tiff")
 # ggsave(file, plot, width = 3, height = 2.5, units = "in")
@@ -244,10 +250,10 @@ sampled_params$iter <- c(1:nrow(sampled_params))
 dim(sampled_params)[1]
 
 # Determine optimal parameters.
-sampled_params$score <- sampled_params$q2/(sampled_params$PercentGrayNodes/100)
+sampled_params$score <- sampled_params$q2 / (sampled_params$PercentGrayNodes / 100)
 rownames(sampled_params)[sampled_params$score == max(sampled_params$score)]
 idx <- sampled_params$iter[sampled_params$score == max(sampled_params$score)]
-params_iter <- idx #738 # 573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
+params_iter <- idx # 738 # 573 #630 #481 #223 #216 #981 #981 # 10 #691 10, 507 530
 params <- sampled_params[params_iter, ]
 params[, c(1:7)]
 
@@ -283,23 +289,24 @@ detectCutHeight <- 0.995 # dendrogram cut height for module detection.
 
 # Call blockwiseModules to build WGCNA network.
 net <- blockwiseModules(
-    datExpr = t(subdat$wt), 
-    power = power_beta$wt,
-    deepSplit = deepSplit,
-    minModuleSize = minModSize,
-    mergeCutHeight = mergeCutHeight,
-    TOMDenom = "mean",
-    detectCutHeight = detectCutHeight,
-    corType = corType,
-    networkType = networkType,
-    pamStage = pamStage,
-    pamRespectsDendro = TRUE,
-    reassignThresh = reassignThresh,
-    minCoreKMESize = minCoreKMESize,
-    minKMEtoStay = minKMEtoStay,
-    verbose = 3,
-    saveTOMs = FALSE,
-    maxBlockSize = maxBlockSize)
+  datExpr = t(subdat$wt),
+  power = power_beta$wt,
+  deepSplit = deepSplit,
+  minModuleSize = minModSize,
+  mergeCutHeight = mergeCutHeight,
+  TOMDenom = "mean",
+  detectCutHeight = detectCutHeight,
+  corType = corType,
+  networkType = networkType,
+  pamStage = pamStage,
+  pamRespectsDendro = TRUE,
+  reassignThresh = reassignThresh,
+  minCoreKMESize = minCoreKMESize,
+  minKMEtoStay = minKMEtoStay,
+  verbose = 3,
+  saveTOMs = FALSE,
+  maxBlockSize = maxBlockSize
+)
 
 # Check the number of modules.
 nModules_original <- length(unique(net$colors))
@@ -346,7 +353,7 @@ preservation <- NetRep::modulePreservation(
 )
 
 # Collect stats.
-#preservation <- preservation[c("observed", "p.values")]
+# preservation <- preservation[c("observed", "p.values")]
 
 # Get the maximum permutation test p-value.
 maxPval <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))
@@ -384,25 +391,27 @@ file <- paste0(outputfigsdir, "/", outputMatName, "Key_Network_Stats.tiff")
 ggsave(file, table, width = 6, height = 1)
 
 #-------------------------------------------------------------------------------
-#' ## Determine module preservation between WT and KO networks. 
+#' ## Determine module preservation between WT and KO networks.
 #-------------------------------------------------------------------------------
 
 library(NetRep)
 
-# Calculate signed adjacency matrices. 
+# Calculate signed adjacency matrices.
 r <- lapply(subdat, function(x) bicor(t(x)))
-f <- function(r,power){
-  adjm <- ((1+r)/2)^power
+f <- function(r, power) {
+  adjm <- ((1 + r) / 2)^power
   return(adjm)
 }
-adjm <- mapply(f,r,power_beta, SIMPLIFY = FALSE)
+adjm <- mapply(f, r, power_beta, SIMPLIFY = FALSE)
 
 # Netrep input:
-data_list <- list(wt = t(subdat$wt), # Insure you have transformed the data!
-                  ko = t(subdat$ko)) # The protein expression data. 
-correlation_list <- r                # The bicor correlation matrix.
-network_list <- adjm                 # The weighted, signed co-expresion network.
-module_labels <- net$colors          # Module labels.
+data_list <- list(
+  wt = t(subdat$wt), # Insure you have transformed the data!
+  ko = t(subdat$ko)
+) # The protein expression data.
+correlation_list <- r # The bicor correlation matrix.
+network_list <- adjm # The weighted, signed co-expresion network.
+module_labels <- net$colors # Module labels.
 names(module_labels) <- rownames(subdat$wt)
 
 preservation <- NetRep::modulePreservation(
@@ -419,7 +428,8 @@ preservation <- NetRep::modulePreservation(
   null = "overlap",
   alternative = "greater",
   simplify = TRUE,
-  verbose = TRUE)
+  verbose = TRUE
+)
 
 #########
 # Examine preservation!
@@ -432,8 +442,8 @@ preservation <- NetRep::modulePreservation(
 
 # Fraction of un-assigned proteins.
 print(paste("Percent grey = ", round(100 * table(net$colors)["grey"] / length(net$goodGenes), 2),
-            " (n=", table(net$colors)["grey"], ")",
-            sep = ""
+  " (n=", table(net$colors)["grey"], ")",
+  sep = ""
 ))
 
 # Module Summary (excluding grey)
@@ -467,18 +477,18 @@ if (enforceMMS) {
 
 # Recalculate MEs.
 MEs <- moduleEigengenes(t(cleanDat),
-                        colors = net$colors,
-                        impute = FALSE,
-                        nPC = 1,
-                        align = "along average",
-                        excludeGrey = FALSE,
-                        grey = if (is.numeric(colors)) 0 else "grey",
-                        subHubs = TRUE,
-                        trapErrors = FALSE,
-                        returnValidOnly = FALSE,
-                        softPower = power,
-                        scale = TRUE,
-                        verbose = 0, indent = 0
+  colors = net$colors,
+  impute = FALSE,
+  nPC = 1,
+  align = "along average",
+  excludeGrey = FALSE,
+  grey = if (is.numeric(colors)) 0 else "grey",
+  subHubs = TRUE,
+  trapErrors = FALSE,
+  returnValidOnly = FALSE,
+  softPower = power,
+  scale = TRUE,
+  verbose = 0, indent = 0
 )
 net$MEs <- MEs$eigengenes
 
@@ -528,18 +538,18 @@ uniprot <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 2)
 
 # Map Uniprot IDs to Entrez IDs:
 entrez <- mapIds(org.Mm.eg.db,
-                 keys = uniprot,
-                 column = "ENTREZID",
-                 keytype = "UNIPROT",
-                 multiVals = "first"
+  keys = uniprot,
+  column = "ENTREZID",
+  keytype = "UNIPROT",
+  multiVals = "first"
 )
 
 # Map unmapped genes to entrez.
 entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db,
-                                keys = symbol[is.na(entrez)],
-                                column = "ENTREZID",
-                                keytype = "SYMBOL",
-                                multiVals = "first"
+  keys = symbol[is.na(entrez)],
+  column = "ENTREZID",
+  keytype = "SYMBOL",
+  multiVals = "first"
 )
 sum(is.na(entrez))
 
@@ -567,15 +577,16 @@ diss <- 1 - TOMsimilarityFromExpr(
 )
 
 # Visualize the co-expression matrix
-if (generate_heatmap==TRUE){
+if (generate_heatmap == TRUE) {
   plotNetworkHeatmap(
-    datExpr=t(cleanDat), 
-    plotGenes = rownames(cleanDat), 
+    datExpr = t(cleanDat),
+    plotGenes = rownames(cleanDat),
     weights = NULL,
-    useTOM = TRUE, 
-    power = 1, 
-    networkType = "signed", 
-    main = "Heatmap of the network")
+    useTOM = TRUE,
+    power = 1,
+    networkType = "signed",
+    main = "Heatmap of the network"
+  )
 }
 
 # Perform hierarchical clustering.
@@ -587,13 +598,13 @@ hier <- hclust(as.dist(diss), method = "average")
 file <- paste0(outputfigsdir, "/", outputMatName, "Network_Dendrogram.tiff")
 tiff(file)
 plotDendroAndColors(hier,
-                    net$colors[idx],
-                    "Dynamic Tree Cut",
-                    dendroLabels = FALSE,
-                    hang = 0.03,
-                    addGuide = TRUE,
-                    guideHang = 0.05,
-                    main = "Gene dendrogram and module colors"
+  net$colors[idx],
+  "Dynamic Tree Cut",
+  dendroLabels = FALSE,
+  hang = 0.03,
+  addGuide = TRUE,
+  guideHang = 0.05,
+  main = "Gene dendrogram and module colors"
 )
 
 dev.off()
@@ -693,8 +704,8 @@ df$V1 <- round(df$V1, 1)
 tt <- ttheme_default(base_size = 11, core = list(bg_params = list(fill = "white")))
 tab <- tableGrob(df, cols = NULL, rows = NULL, theme = tt)
 g <- gtable_add_grob(tab,
-                     grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
-                     t = 1, b = nrow(tab), l = 1, r = ncol(tab)
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+  t = 1, b = nrow(tab), l = 1, r = ncol(tab)
 )
 
 # Calculate ranges for positioning the annotation layer at the top right corner.
@@ -892,15 +903,15 @@ numericIndices <- unique(c(
 #' Download gene-phenotype information...
 #-------------------------------------------------------------------------------
 
-phenotype_ontology = list(
+phenotype_ontology <- list(
   vocabulary_url = "http://www.informatics.jax.org/downloads/reports/VOC_MammalianPhenotype.rpt",
   data_url = "http://www.informatics.jax.org/downloads/reports/HMD_HumanPhenotype.rpt"
 )
 
 library(RCurl)
-myfile <- getURL('https://sakai.unc.edu/access/content/group/3d1eb92e-7848-4f55-90c3-7c72a54e7e43/public/data/bycatch.csv', ssl.verifyhost=FALSE, ssl.verifypeer=FALSE)
+myfile <- getURL("https://sakai.unc.edu/access/content/group/3d1eb92e-7848-4f55-90c3-7c72a54e7e43/public/data/bycatch.csv", ssl.verifyhost = FALSE, ssl.verifypeer = FALSE)
 
-mydat <- read.csv(textConnection(myfile), header=T)
+mydat <- read.csv(textConnection(myfile), header = T)
 head(mydat)
 
 
@@ -935,14 +946,14 @@ write.excel(MEs, file, rowNames = TRUE)
 # file <- paste0(outputfigsdir,"/",outputMatName,"Module_EigenGene_Network.pdf")
 # CairoPDF(file = file, width = 16, height = 12)
 plotEigengeneNetworks(MEs, "Eigengene Network",
-                      excludeGrey = TRUE, greyLabel = "grey",
-                      marHeatmap = c(3, 4, 2, 2),
-                      marDendro = c(0, 4, 2, 0),
-                      plotDendrograms = TRUE,
-                      plotAdjacency = FALSE,
-                      printAdjacency = FALSE,
-                      xLabelsAngle = 90,
-                      heatmapColors = blueWhiteRed(50)
+  excludeGrey = TRUE, greyLabel = "grey",
+  marHeatmap = c(3, 4, 2, 2),
+  marDendro = c(0, 4, 2, 0),
+  plotDendrograms = TRUE,
+  plotAdjacency = FALSE,
+  printAdjacency = FALSE,
+  xLabelsAngle = 90,
+  heatmapColors = blueWhiteRed(50)
 )
 # dev.off()
 
@@ -1056,19 +1067,19 @@ q2
 uniprot <- sapply(strsplit(metaModule_df$protein, "\\|"), "[", 2)
 gene <- sapply(strsplit(metaModule_df$protein, "\\|"), "[", 1)
 entrez <- mapIds(org.Mm.eg.db,
-                 keys = uniprot,
-                 column = "ENTREZID",
-                 keytype = "UNIPROT",
-                 multiVals = "first"
+  keys = uniprot,
+  column = "ENTREZID",
+  keytype = "UNIPROT",
+  multiVals = "first"
 )
 
 # Use gene symbols to map any un-mapped ids to entrez...
 idx <- is.na(entrez)
 entrez[idx] <- mapIds(org.Mm.eg.db,
-                      keys = gene[idx],
-                      column = "ENTREZID",
-                      keytype = "SYMBOL",
-                      multiVals = "first"
+  keys = gene[idx],
+  column = "ENTREZID",
+  keytype = "SYMBOL",
+  multiVals = "first"
 )
 # Number of remaining un-mapped ids.
 sum(is.na(entrez)) # only 3 un-mapped, good.
@@ -1100,8 +1111,8 @@ head(sif)
 # Map rownames of cleanDat (UniprotIDs) to Entrez.
 Uniprot <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 2)
 Entrez <- mapIds(org.Mm.eg.db,
-                 keys = Uniprot, column = "ENTREZID",
-                 keytype = "UNIPROT", multiVals = "first"
+  keys = Uniprot, column = "ENTREZID",
+  keytype = "UNIPROT", multiVals = "first"
 )
 length(Entrez)
 
@@ -1121,8 +1132,8 @@ PPIgraph <- graph_from_edgelist(edgeList, directed = FALSE)
 # Calculate bicor adjacency matrix.
 Uniprot <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 2)
 rownames(cleanDat) <- mapIds(org.Mm.eg.db,
-                             keys = Uniprot, column = "ENTREZID",
-                             keytype = "UNIPROT", multiVals = "first"
+  keys = Uniprot, column = "ENTREZID",
+  keytype = "UNIPROT", multiVals = "first"
 )
 R <- bicor(t(cleanDat))
 diag(R) <- NA
@@ -1149,16 +1160,16 @@ df <- as.data.frame(rbind(x, y))
 colnames(df) <- c("bicor", "group")
 df$group <- as.factor(df$group)
 
-# Calculate WRS p-value. 
+# Calculate WRS p-value.
 wrs <- wilcox.test(y[, 1], x[, 1], alternative = "greater")
 pval <- paste("P =", formatC(wrs$p.value, format = "e", digits = 2))
 
 # Generate a plot.
 plot <- ggplot(df, aes(x = group, y = bicor, fill = group)) +
-  geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) + 
-  scale_x_discrete(labels = c("non-interacting\nproteins","known interacting\nproteins")) +
-  ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) + 
-  scale_fill_manual(values = c("gray","orange")) +
+  geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
+  scale_x_discrete(labels = c("non-interacting\nproteins", "known interacting\nproteins")) +
+  ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
+  scale_fill_manual(values = c("gray", "orange")) +
   theme(
     plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
@@ -1167,8 +1178,10 @@ plot <- ggplot(df, aes(x = group, y = bicor, fill = group)) +
     legend.position = "none"
   )
 
-plot <- plot + annotate("text",x = 1.5, y = 0.9, 
-                        label = "p-value < 2.2e-16\n***", size = 6, color="black")
+plot <- plot + annotate("text",
+  x = 1.5, y = 0.9,
+  label = "p-value < 2.2e-16\n***", size = 6, color = "black"
+)
 
 plot
 
@@ -1215,8 +1228,8 @@ traits <- sample_info
 traits_temp <- traits
 # Column groupings are determined by traits$Sample.Model.
 traits_temp$Sample.Model <- paste(traits_temp$Tissue,
-                                  traits_temp$Sample.Model,
-                                  sep = "."
+  traits_temp$Sample.Model,
+  sep = "."
 )
 traits_temp$Sample.Model[grepl("Cortex.WT", traits_temp$Sample.Model)] <- "Cortex.WT"
 traits_temp$Sample.Model[grepl("Striatum.WT", traits_temp$Sample.Model)] <- "Striatum.WT"
@@ -1233,9 +1246,9 @@ HubProteins <- HubProteins %>%
 
 # Generate boxplots to examine expresion of hub proteins.
 plot_list <- ggplotProteinBoxes(cleanDat,
-                                interesting.proteins = as.character(HubProteins$Protein),
-                                dataType = "Relative Abundance", traits = traits_temp,
-                                order = c(2, 7, 4, 6, 5, 8, 1, 9, 3, 10)
+  interesting.proteins = as.character(HubProteins$Protein),
+  dataType = "Relative Abundance", traits = traits_temp,
+  order = c(2, 7, 4, 6, 5, 8, 1, 9, 3, 10)
 )
 
 # Example plot.
@@ -1268,9 +1281,9 @@ length(prots)
 
 # Generate boxplots to examine expresion of hub proteins.
 plot_list <- ggplotProteinBoxes(cleanDat,
-                                interesting.proteins = as.character(prots),
-                                dataType = "Relative Abundance", traits = traits_temp,
-                                order = c(2, 7, 4, 6, 5, 8, 1, 9, 3, 10)
+  interesting.proteins = as.character(prots),
+  dataType = "Relative Abundance", traits = traits_temp,
+  order = c(2, 7, 4, 6, 5, 8, 1, 9, 3, 10)
 )
 # Example plot.
 plot <- plot_list[[1]]
@@ -1332,8 +1345,8 @@ my_func <- function(color) {
 # Calculate protein-wise correlation (Pearson) with traits.
 # In the WGCNA parlance this is also known as Gene significance (GS).
 geneSignificance <- cor(sapply(numericMeta[, numericIndices], as.numeric),
-                        t(cleanDat),
-                        use = "pairwise.complete.obs"
+  t(cleanDat),
+  use = "pairwise.complete.obs"
 )
 # Add rownames.
 rownames(geneSignificance) <- colnames(numericMeta)[numericIndices]
@@ -1341,8 +1354,8 @@ geneSignificance[1:5, 1:5]
 
 # Convert correlation coefficients to colors.
 geneSigColors <- t(numbers2colors(t(geneSignificance),
-                                  signed = TRUE,
-                                  lim = c(-1, 1), naColor = "black"
+  signed = TRUE,
+  lim = c(-1, 1), naColor = "black"
 ))
 # Add rownames (protein name).
 rownames(geneSigColors) <- colnames(numericMeta)[numericIndices]
@@ -1430,8 +1443,8 @@ write.excel(MS_list, file)
 
 # InterBatch statistical comparisons with EdgeR GLM:
 file <- paste(outputtabs, "Final_TAMPOR",
-              "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx",
-              sep = "/"
+  "Combined_TMT_Analysis_TAMPOR_GLM_Results.xlsx",
+  sep = "/"
 )
 results <- lapply(as.list(c(1:8)), function(x) read_excel(file, x))
 names(results) <- excel_sheets(file)
@@ -1480,10 +1493,10 @@ df.stats <- na.omit(df.stats)
 # Perform hypergeometric test for enrichment.
 # FDR is Bonferroni!
 df.stats$p.val <- phyper(df.stats$Sig.Count,
-                         df.stats$Total.sig,
-                         df.stats$N - df.stats$Sig.Count,
-                         df.stats$Module.Size,
-                         lower.tail = FALSE
+  df.stats$Total.sig,
+  df.stats$N - df.stats$Sig.Count,
+  df.stats$Module.Size,
+  lower.tail = FALSE
 )
 df.stats$FDR <- p.adjust(df.stats$p.val, method = "bonferroni")
 df.stats$FE.pval <- -log(df.stats$p.val)
@@ -1690,8 +1703,8 @@ contrasts
 
 # Generate plot.
 plot_data <- ggplotVerboseBoxplot(x, g, levels, contrasts, color,
-                                  stats = TRUE,
-                                  method = "dunn"
+  stats = TRUE,
+  method = "dunn"
 )
 plot_data$plot
 plot_data$dunn
@@ -1991,8 +2004,8 @@ MMdata <- MMdata[, !colnames(MMdata) == "grey"] # Remove grey.
 
 # Y data = Gene significnce. The absolute value of protein-wise cor to traits.
 geneSignificance <- cor(sapply(numericMeta[, numericIndices], as.numeric),
-                        t(cleanDat),
-                        use = "pairwise.complete.obs"
+  t(cleanDat),
+  use = "pairwise.complete.obs"
 )
 rownames(geneSignificance) <- colnames(numericMeta)[numericIndices]
 GSdata <- as.data.frame(abs(t(geneSignificance)))
@@ -2015,11 +2028,11 @@ trait <- "Ube3a_KO"
 # Loop
 for (color in seq_along(modules)) {
   plots[[color]] <- ggplotVerboseScatterPlot(MMdata,
-                                             GSdata,
-                                             moduleGenes,
-                                             modules[color],
-                                             trait,
-                                             stats = TRUE
+    GSdata,
+    moduleGenes,
+    modules[color],
+    trait,
+    stats = TRUE
   )
 }
 names(plots) <- modules
@@ -2147,10 +2160,10 @@ for (i in 1:ncol(logic)) {
 Uniprot_IDs <- as.character(colsplit(rownames(colors), "\\|", c("Symbol", "UniprotID"))[, 2])
 # Map Uniprot IDs to Entrez IDs:
 entrez <- mapIds(org.Mm.eg.db,
-                 keys = Uniprot_IDs,
-                 column = "ENTREZID",
-                 keytype = "UNIPROT",
-                 multiVals = "first"
+  keys = Uniprot_IDs,
+  column = "ENTREZID",
+  keytype = "UNIPROT",
+  multiVals = "first"
 )
 
 # Insure that colors is a matrix.
@@ -2165,21 +2178,21 @@ table(colors)
 
 # This chunk performs GOenrichment or loads from file.
 if (load_GOenrichment_from_file == TRUE) {
-  
+
   # Load GOenrichment result.
   file <- paste(Rdatadir, tissue, "GOenrichment_data.RDS", sep = "/")
   GOenrichment <- readRDS(file)
 } else {
   # Perform GO enrichment testing...
-  
+
   # Build a GO annotation collection:
   if (!exists(deparse(substitute(musGOcollection)))) {
     musGOcollection <- buildGOcollection(organism = "mouse")
   }
-  
+
   # Creates some space by clearing some memory.
   collectGarbage()
-  
+
   # Save GO data as RDS.
   file <- paste(Rdatadir, tissue, "GO_data.RDS", sep = "/")
   GO_data <- list(
@@ -2188,7 +2201,7 @@ if (load_GOenrichment_from_file == TRUE) {
     "musGOcollection" = musGOcollection
   )
   saveRDS(GO_data, file)
-  
+
   # Extract data for GO analysis from RDS object.
   file <- paste(Rdatadir, tissue, "GO_data.RDS", sep = "/")
   GO_data <- readRDS(file)
@@ -2196,14 +2209,14 @@ if (load_GOenrichment_from_file == TRUE) {
   entrez <- GO_data$entrez
   musGOcollection <- GO_data$musGOcollection
   collectGarbage()
-  
+
   # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
   # As implmented by the WGCNA function enrichmentAnalysis().
   # FDR is the BH adjusted p-value.
   # Insure that the correct background (used as reference for enrichment)
   # has been selected!
   # useBackgroud = "given" will use all given genes as reference background.
-  
+
   GOenrichment <- enrichmentAnalysis(
     classLabels = colors,
     identifiers = entrez,
@@ -2215,11 +2228,11 @@ if (load_GOenrichment_from_file == TRUE) {
     getOverlapSymbols = TRUE,
     ignoreLabels = "0"
   )
-  
+
   # Save GOenrichment as RDS
   file <- paste(Rdatadir, tissue, "GOenrichment_data.RDS", sep = "/")
   saveRDS(GOenrichment, file)
-  
+
   # Create some space by clearing some memory.
   collectGarbage()
 }
@@ -2296,10 +2309,10 @@ Gene_Symbols <- as.character(colsplit(rownames(colors), "\\|", c("Symbol", "Unip
 
 # Map Uniprot IDs to Entrez IDs:
 entrez <- mapIds(org.Mm.eg.db,
-                 keys = Uniprot_IDs,
-                 column = "ENTREZID",
-                 keytype = "UNIPROT",
-                 multiVals = "first"
+  keys = Uniprot_IDs,
+  column = "ENTREZID",
+  keytype = "UNIPROT",
+  multiVals = "first"
 )
 
 # Number of missing entrez ids.
@@ -2307,10 +2320,10 @@ sum(is.na(entrez))
 
 # Map unmapped gene symbols to Entrez IDs:
 entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db,
-                                keys = Gene_Symbols[is.na(entrez)],
-                                column = "ENTREZID",
-                                keytype = "SYMBOL",
-                                multiVals = "first"
+  keys = Gene_Symbols[is.na(entrez)],
+  column = "ENTREZID",
+  keytype = "SYMBOL",
+  multiVals = "first"
 )
 
 # Number of unmapped ids.
@@ -2526,13 +2539,13 @@ numericIndices <- unique(c(
 
 # Protein-wise Correlations with traits.
 geneSignificance <- cor(sapply(numericMeta[, numericIndices], as.numeric),
-                        t(cleanDat),
-                        use = "pairwise.complete.obs"
+  t(cleanDat),
+  use = "pairwise.complete.obs"
 )
 rownames(geneSignificance) <- colnames(numericMeta)[numericIndices]
 geneSigColors <- t(numbers2colors(t(geneSignificance),
-                                  signed = TRUE,
-                                  lim = c(-1, 1), naColor = "black"
+  signed = TRUE,
+  lim = c(-1, 1), naColor = "black"
 ))
 rownames(geneSigColors) <- colnames(numericMeta)[numericIndices]
 
@@ -2552,11 +2565,11 @@ tmpMEs[, "MEgrey"] <- NULL
 
 # Relationships between eigenProteins.
 plotEigengeneNetworks(tmpMEs, "Eigengene Network",
-                      marHeatmap = c(3, 4, 2, 2),
-                      marDendro = c(0, 4, 2, 0),
-                      plotDendrograms = TRUE,
-                      xLabelsAngle = 90,
-                      heatmapColors = blueWhiteRed(50)
+  marHeatmap = c(3, 4, 2, 2),
+  marDendro = c(0, 4, 2, 0),
+  plotDendrograms = TRUE,
+  xLabelsAngle = 90,
+  heatmapColors = blueWhiteRed(50)
 )
 
 ## Evaluate ME association with groups (numericMeta) using a linear model or ANOVA.
@@ -2592,9 +2605,9 @@ for (region in unique(numericMeta$Grouping)) {
   ## ANOVA framework yields same results:
   # aov1 <- aov(data.matrix(MEs[which(numericMeta$Group==region),])~Group,data=regvars)
   lm1[[region]] <- lm(data.matrix(MEs[which(numericMeta$Grouping == region), ]) ~ numericMeta$Sample.Model[which(numericMeta$Grouping == region)],
-                      data = regvars[[region]]
+    data = regvars[[region]]
   )
-  
+
   pvec[[region]] <- rep(NA, ncol(MEs))
   # Extract F-statistic and p-value corresponding to the  model.
   for (i in 1:ncol(MEs)) {
@@ -2750,8 +2763,8 @@ for (pvector in names(pvec)) {
   pvec[[pvector]] <- pvec[[pvector]][match(names(pvec[[pvector]]), rownames(toplot))]
 }
 rownames(toplot) <- paste(orderedModules[match(colnames(MEs), orderedModules[, 2]), 1], " ",
-                          rownames(toplot), "  |  K-W P.overall=", signif(pvec[["overall"]], 2),
-                          sep = ""
+  rownames(toplot), "  |  K-W P.overall=", signif(pvec[["overall"]], 2),
+  sep = ""
 )
 
 ## Plot heatmaps of eigenproteins
@@ -2856,7 +2869,7 @@ layout(
 
 for (i in 1:(nrow(toplot))) { # grey already excluded when setting MEs data frame, -1 unnecessary
   boxplot(toplot[i, ] ~ factor(numericMeta$Sample.Model,
-                               levels = rev(levels(factor(numericMeta$Sample.Model)))
+    levels = rev(levels(factor(numericMeta$Sample.Model)))
   ),
   col = colnames(MEs)[i], ylab = "Eigenprotein Value",
   main = paste0(gsub("K-W", "Kruskal-Wallis", rownames(toplot)[i])), xlab = NULL, las = 2, outline = FALSE
@@ -2868,7 +2881,7 @@ for (i in 1:(nrow(toplot))) { # grey already excluded when setting MEs data fram
       "black"
     }
     boxplot(toplot[i, which(numericMeta$Group == region)] ~ factor(numericMeta$Sample.Model[which(numericMeta$Group == region)],
-                                                                   levels = rev(levels(factor(numericMeta$Sample.Model[which(numericMeta$Group == region)])))
+      levels = rev(levels(factor(numericMeta$Sample.Model[which(numericMeta$Group == region)])))
     ),
     col = colnames(MEs)[i], ylab = "Eigenprotein Value", main = paste0(orderedModules[match(colnames(MEs)[i], orderedModules[, 2]), 1], "\nK-W P.", region, " = ", signif(pvec[[region]], 2)[i]), xlab = NULL, las = 2, col.main = titlecolor, outline = TRUE
     ) # outline=T, show outliers

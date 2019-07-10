@@ -21,7 +21,7 @@
 
 # Run this chunk before doing anything!
 rm(list = ls())
-if (.Device != "null device" ) dev.off()
+if (.Device != "null device") dev.off()
 cat("\f")
 options(stringsAsFactors = FALSE)
 
@@ -137,8 +137,8 @@ dim(cleanDat)
 ################################################################################
 ## Run this chunk if subsetting the data based on DEP communities.
 
-# Load the DEP protein communities. 
-file <- paste0(Rdatadir,"/","DEP_Communities.RDS")
+# Load the DEP protein communities.
+file <- paste0(Rdatadir, "/", "DEP_Communities.RDS")
 community_results <- readRDS(file)
 
 # Pick a group/genotype.
@@ -146,10 +146,10 @@ n <- 5
 group <- c("Shank2", "Shank3", "Syngap1", "Ube3a", "All")[n]
 
 # Define proteins of interst.
-if (group == "All"){
-  v <- unique(as.vector(unlist(sapply(community_results,"[",4))))
+if (group == "All") {
+  v <- unique(as.vector(unlist(sapply(community_results, "[", 4))))
   prots <- unlist(entrez2protein[v])
-}else{
+} else {
   prots <- unlist(entrez2protein[community_results[[group]][[4]]])
 }
 subg_name <- group
@@ -169,15 +169,19 @@ sample_info[1:5, 1:5]
 dim(sample_info)
 
 wt_samples <- subset(sample_info$SampleID, sample_info$SampleType == "WT")
-ko_samples <- subset(sample_info$SampleID, 
-                     sample_info$SampleType == "HET" | sample_info$SampleType == "KO")
+ko_samples <- subset(
+  sample_info$SampleID,
+  sample_info$SampleType == "HET" | sample_info$SampleType == "KO"
+)
 
-wt_dat <- cleanDat[,colnames(cleanDat) %in% wt_samples]
-ko_dat <- cleanDat[,colnames(cleanDat) %in% ko_samples]
+wt_dat <- cleanDat[, colnames(cleanDat) %in% wt_samples]
+ko_dat <- cleanDat[, colnames(cleanDat) %in% ko_samples]
 dim(wt_dat)
 dim(ko_dat)
-subdat <- list(wt = wt_dat,
-               ko = ko_dat)
+subdat <- list(
+  wt = wt_dat,
+  ko = ko_dat
+)
 
 # Allow parallel WGCNA calculations:
 allowWGCNAThreads()
@@ -191,12 +195,14 @@ powers <- seq(4, 20, by = 1.0)
 
 # Soft Power selection
 sft <- lapply(subdat, function(x) {
-  pickSoftThreshold(t(x), 
-  powerVector = powers, 
-  corFnc = "bicor",
-  blockSize = 15000, 
-  verbose = 3, 
-  networkType = "signed")})
+  pickSoftThreshold(t(x),
+    powerVector = powers,
+    corFnc = "bicor",
+    blockSize = 15000,
+    verbose = 3,
+    networkType = "signed"
+  )
+})
 
 # Figure. ggplotScaleFreeFit() generates three plots.
 plots <- lapply(sft, function(x) ggplotScaleFreeFit(x))
@@ -257,7 +263,7 @@ if (estimatePower == TRUE) {
 
 # Choose minimum power to achieve scale free fit > 0.8.
 power <- sft$fitIndices$Power[sft$fitIndices$SFT.R.sq > 0.8][1]
-print(paste("Power (beta):",power))
+print(paste("Power (beta):", power))
 
 #-------------------------------------------------------------------------------
 #' ## Prepare to sample WGCNA parameters.
@@ -269,7 +275,7 @@ print("Using the WT data for WGCNA parameter optimization!")
 power_beta <- power_beta$wt
 cleanDat <- subdat$wt
 dim(cleanDat)
-cleanDat[1:5,1:5] # Data should be log transformed!
+cleanDat[1:5, 1:5] # Data should be log transformed!
 
 ################################################################################
 
@@ -504,7 +510,7 @@ modstats <- sapply(out, "[", 3)
 names(modstats) <- rownames(result)
 
 # Rank stats.
-result$score <- result$q2/(result$PercentGrayNodes/100)
+result$score <- result$q2 / (result$PercentGrayNodes / 100)
 
 # Examine Dtests results.
 # result$nSigDunnettTests <- do.call(rbind,

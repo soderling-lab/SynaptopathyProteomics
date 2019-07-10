@@ -16,7 +16,7 @@
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#' Prepare the R workspace for the analysis. Load custom functions and prepare 
+#' Prepare the R workspace for the analysis. Load custom functions and prepare
 #' the porject directory for saving output files.
 
 # Run this chunk before doing anything!
@@ -34,8 +34,8 @@ library(magrittr)
 library(JGmisc)
 detachAllPackages(keep = NULL)
 
-# If necessary install TBmiscr package. 
-if ("TBmiscr" %in% rownames(installed.packages()) == FALSE){
+# If necessary install TBmiscr package.
+if ("TBmiscr" %in% rownames(installed.packages()) == FALSE) {
   print("Installing TBmiscr!")
   library(devtools)
   devtools::install_github("twesleyb/TBmiscr")
@@ -106,23 +106,21 @@ datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
 # Creat otuput directory for figures.
-outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
-outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
-if (!file.exists(outputfigsdir)) {
-  dir.create(file.path(outputfigsdir))
+outputfigs <- paste(rootdir, "Figures", sep = "/")
+if (!file.exists(outputfigs)) {
+  dir.create(file.path(outputfigs))
 } else {
   msg <- c(
-    "This directory already exists.",
+    "This directory already exists!",
     "Warning: Some files may be overwritten when running this script."
   )
   print(msg)
 }
 
 # Create output directory for tables.
-outputtabs <- paste(rootdir, "Tables", tissue, sep = "/")
-outputtabsdir <- paste(outputtabs, CodeVersion, sep = "/")
-if (!file.exists(outputtabsdir)) {
-  dir.create(file.path(outputtabsdir))
+outputtabs <- paste(rootdir, "Tables", sep = "/")
+if (!file.exists(outputtabs)) {
+  dir.create(file.path(outputtabs))
 } else {
   print(msg)
 }
@@ -132,7 +130,7 @@ my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
-outputMatName <- paste(tissue, "_TMT_Analysis", sep = "")
+outputMatName <- paste0("1_TMT_Analysis_", tissue)
 
 # Globally set ggplots theme.
 library(ggplot2)
@@ -177,7 +175,7 @@ raw_peptide <- cleanPD(data_PD, sample_info)
 #-------------------------------------------------------------------------------
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 dat <- subset(raw_peptide, grepl("Dlg4", raw_peptide$Description))
 rownames(dat) <- paste(dat$Accession, dat$Sequence, c(1:nrow(dat)), sep = "_")
@@ -208,7 +206,7 @@ plot <- ggplot(df, aes(x = Channel, y = value, fill = Channel)) +
 plot
 
 # Save as tiff.
-if (save_plots==TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Example_TMT.tiff")
   ggsave(file, plot, width = 3, height = 2.5, units = "in")
 }
@@ -225,7 +223,7 @@ if (save_plots==TRUE){
 #' approach is employed below.
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 # Determine the total number of unique peptides:
 nPeptides <- format(length(unique(raw_peptide$Sequence)), big.mark = ",")
@@ -236,14 +234,16 @@ nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
 print(paste(nProteins, " unique proteins identified.", sep = ""))
 
 # Utilize gridExtra to create a table.
-table <- tableGrob(data.frame(nPeptides = nPeptides,nProteins = nProteins),
-                   rows = NULL, 
-                   theme = ttheme_default())
+table <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
+  rows = NULL,
+  theme = ttheme_default()
+)
 grid.arrange(table)
 
 # Examine the number of peptides per protein.
 nPep <- subset(raw_peptide) %>%
-  group_by(Accession) %>% summarize(nPeptides = length(Sequence))
+  group_by(Accession) %>%
+  summarize(nPeptides = length(Sequence))
 
 # Summarize number of peptides per protein.
 stats <- as.matrix(summary(nPep$nPeptides))
@@ -303,14 +303,13 @@ plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) + ggtitle("Peptide 
 plot2
 
 # Save figures.
-if (save_plots == TRUE){
-  
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_nPeptide_per_Protein.tiff")
   ggsave(file, plot1)
-  
+
   file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_identification_overlap_Barplot.tiff")
   ggsave(file, plot2)
-  
+
   file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_identification_overlap_Table.tiff")
   ggsave(file, table)
 }
@@ -322,14 +321,14 @@ if (save_plots == TRUE){
 #' plot, samples cluster by experiment--evidence of a batch effect.
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 # Prepare the data.
 data_in <- raw_peptide
 title <- NULL
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 
-# Generate boxplot and density plots.  
+# Generate boxplot and density plots.
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
 
@@ -347,8 +346,8 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
 fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
-# Save plots as tiffs. 
-if (save_plots == TRUE){
+# Save plots as tiffs.
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Raw_Peptide.tiff")
   ggsave(file, fig)
 }
@@ -403,7 +402,7 @@ fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_SL_Peptide.tiff")
   ggsave(file, fig)
 }
@@ -440,7 +439,7 @@ fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
 # Save plots as tiffs.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Peptide_Missing_Values.tiff")
   ggsave(file, fig)
 }
@@ -485,7 +484,7 @@ grid.arrange(table)
 # ggsavePDF(table, file)
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_N_Imputed_Peptides.tiff")
   ggsave(file, table)
 }
@@ -521,11 +520,13 @@ p2 <- hist_list$shank2[[1]]
 p2
 
 # Save figures.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   genos <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-  file <- as.list(paste0(outputfigsdir, "/", outputMatName,
-                         "_", genos, "_QC_ScatterPlot.tiff"))
-  
+  file <- as.list(paste0(
+    outputfigsdir, "/", outputMatName,
+    "_", genos, "_QC_ScatterPlot.tiff"
+  ))
+
   # Use mapply to save plots.
   quiet(mapply(ggsave, file, plots))
 
@@ -558,7 +559,7 @@ table <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 grid.arrange(table)
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_nProteins_Filtered.tiff")
   ggsave(file, table)
 }
@@ -761,7 +762,7 @@ plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +
 plot
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Protein_identification_overlap.tiff")
   ggsave(file, plot)
 }
@@ -797,7 +798,7 @@ fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
 # Save tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Normalized_Protein.tiff")
   ggsave(file, fig)
 }
@@ -846,7 +847,7 @@ plot <- sample_connectivity$connectivityplot +
 plot
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_QC_Sample_Outlier.pdf")
   ggsave(file, plot)
 }
@@ -933,7 +934,7 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
 fig
 
 # Save tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_IRS_Normalized_Protein.tiff")
   ggsave(file, fig)
 }
@@ -968,7 +969,7 @@ TMM_protein <- normalize_TMM(imp_protein, "Abundance")
 dim(TMM_protein)
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_Missing_Protein_Values.pdf")
   ggsave(file, plot)
 }
@@ -1006,7 +1007,7 @@ fig <- plot_grid(p1, p2, p3, p4, labels = "auto")
 fig
 
 # Save tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_TMM_Normalized_Protein.pdf")
   ggsave(file, fig)
 }
@@ -1128,7 +1129,7 @@ file <- paste0(outputtabsdir, "/", outputMatName, "_IntraBatch_GLM_results.xlsx"
 write.excel(results, file)
 
 # Save plots.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_InraBatch_GLM_Table.tiff")
   ggsave(file, table)
 
@@ -1173,7 +1174,7 @@ write.excel(GSE_results, file)
 # Should plots be saved?
 save_plots <- FALSE
 
-# Prepare the data. 
+# Prepare the data.
 data_in <- TMM_protein
 title <- "TMM Normalized protein"
 
@@ -1233,7 +1234,7 @@ fig
 plot2
 
 # Save tiffs.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   files <- paste0(outputfigsdir, "/", outputMatName, c("pre", "post"), "_InterBatch_eBLM_Regression_PCA.tiff")
   quiet(mapply(ggsave, files, list(plot1, plot2)))
 }
@@ -1593,4 +1594,3 @@ fig
 # Save as tiff.
 file <- paste0(outputfigsdir, "/", outputMatName, "TopProteins_BoxPlots.tiff")
 ggsave(file, fig)
-

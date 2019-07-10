@@ -16,22 +16,18 @@
 #-------------------------------------------------------------------------------
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#+ eval = TRUE, echo = FALSE, error = FALSE
+#' Prepare the R workspace for the analysis. Load custom functions and prepare
+#' the porject directory for saving output files.
 
-# Use ctl+alt+T to execute a code chunk.
-
-# Run this chunk before doing anything!
 rm(list = ls())
 dev.off()
-cat("\014") # alternative is cat("\f")
+cat("\f")
 options(stringsAsFactors = FALSE)
 
 # Sometimes, if you have not cleared the workspace of all loaded packages,
 # you man incounter problems.
 # To remove all packages, you can call the following:
-library(magrittr)
-library(JGmisc)
-detachAllPackages(keep = NULL)
+JGmisc::detachAllPackages(keep = NULL)
 
 #  Load required packages.
 suppressPackageStartupMessages({
@@ -80,9 +76,6 @@ suppressPackageStartupMessages({
   library(TBmiscr)
 })
 
-# Define version of the code.
-CodeVersion <- "TMT_Analysis_part2"
-
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined.
 type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
@@ -96,30 +89,24 @@ functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
-# Create code-version specific figure and tables folders if they do not already exist.
-# Creat otuput direcotry for figures.
-outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
-outputfigsdir <- paste(outputfigs, CodeVersion, sep = "/")
-if (!file.exists(outputfigsdir)) {
-  dir.create(file.path(outputfigsdir))
+# Creat otuput directory for figures.
+outputfigs <- paste(rootdir, "Figures", sep = "/")
+if (!file.exists(outputfigs)) {
+  dir.create(file.path(outputfigs))
 } else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
+  msg <- c(
+    "This directory already exists!",
+    "Warning: Some files may be overwritten when running this script."
+  )
+  print(msg)
 }
+
 # Create output directory for tables.
-outputtabs <- paste(rootdir, "Tables", tissue, sep = "/")
-outputtabsdir <- paste(outputtabs, CodeVersion, sep = "/")
-if (!file.exists(outputtabsdir)) {
-  dir.create(file.path(outputtabsdir))
+outputtabs <- paste(rootdir, "Tables", sep = "/")
+if (!file.exists(outputtabs)) {
+  dir.create(file.path(outputtabs))
 } else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
-}
-# Create output directory for reports.
-outputreports <- paste(rootdir, "Reports", tissue, sep = "/")
-outputrepsdir <- paste(outputreports, CodeVersion, sep = "/")
-if (!file.exists(outputrepsdir)) {
-  dir.create(file.path(outputrepsdir))
-} else {
-  print("This directory already exists. Warning: Some files may be overwritten when running this script.")
+  print(msg)
 }
 
 # Load required custom functions.
@@ -127,25 +114,23 @@ my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
-outputMatName <- paste(tissue, "_TMT_Analysis", sep = "")
+outputMatName <- paste0("2_TMT_Analysis_", tissue)
 
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
+
+# Should plots be saved?
+save_plots = FALSE
 
 #-------------------------------------------------------------------------------
 #' ## Merge cortex and striatum data.
 #-------------------------------------------------------------------------------
 
-################################################################################
-## Note: Skip ahead to next chunk if you wish to load the data from file.     ##
-################################################################################
-
-## Merge Traits.
-
+## Merge traits data. 
 # Load the cortex and striatum traits files.
 inputTraitsCSV <- c(
-  "4227_TMT_Cortex_Combined_PD_Protein_Intensity_EBD_traits.csv",
-  "4227_TMT_Striatum_Combined_PD_Protein_Intensity_EBD_traits.csv"
+  "4227_TMT_Cortex_Combined_traits.csv",
+  "4227_TMT_Striatum_Combined_traits.csv"
 )
 
 # Load the sample info into a list, traits.
@@ -172,14 +157,10 @@ traits$Tissue <- c(rep("Cortex", 44), rep("Striatum", 44))
 dim(traits)
 
 ## Merge expression data.
-
 # Load the Cortex and Striatum IRS + eBLM regressed data.
-type <- c("Cortex", "Striatum")
-files <- paste(Rdatadir, type, "CleanDat_IRS_eBLM_TAMPOR_format.Rds", sep = "/")
-data <- list(
-  cortex_protein <- readRDS(files[1]),
-  striatum_protein <- readRDS(files[2])
-)
+files <- paste(Rdatadir, list.files(Rdatadir, pattern = "TAMPOR"), sep = "/")
+data <- lapply(as.list(files),function(x) readRDS(x))
+names(data) <- c("Cortex","Striatum")
 
 # Fortify and add accession column
 data_fort <- lapply(
@@ -227,18 +208,17 @@ controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", c("
 controls
 
 # Save merged data and traits to file.
-datafile <- paste(Rdatadir, "Combined_Cortex_Striatum_cleanDat.Rds", sep = "/")
-saveRDS(cleanDat, datafile)
-traitsfile <- paste(Rdatadir, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
-saveRDS(traits, traitsfile)
+file <- paste0(Rdatadir, "/", outputMatName, "Combined_Cortex_Striatum_cleanDat.Rds")
+saveRDS(cleanDat, file)
+
+file <- paste0(Rdatadir, "/", outputMatName, "Combined_Cortex_Striatum_traits.Rds")
+saveRDS(traits, file)
 
 #-------------------------------------------------------------------------------
 #' ## User Parameters to change for TAMPOR Normalization strategy.
 #-------------------------------------------------------------------------------
 
 # Load traits and data from file.
-# datafile <- paste(Rdatadir,tissue,"CleanDat_IRS_TMM_TAMPOR_format.Rds",sep="/")
-# traitsfile <- paste(Rdatadir,tissue,"Sample_info.Rds",sep="/")
 datafile <- paste(Rdatadir, "Combined_Cortex_Striatum_cleanDat.Rds", sep = "/")
 traitsfile <- paste(Rdatadir, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
 
@@ -539,7 +519,7 @@ for (repeats in 1:iterations) {
 #-------------------------------------------------------------------------------
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 iterations.intended <- iterations
 iterations <- repeats
@@ -573,7 +553,7 @@ fig
 # ggsavePDF(plots=list(plot1,plot2),file)
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking.tiff")
   ggsave(file, fig)
 }
@@ -583,7 +563,7 @@ if (save_plots == TRUE){
 #-------------------------------------------------------------------------------
 
 # Should plots be saved?
-save_plots = FALSE
+save_plots <- FALSE
 
 # Data is...
 data_in <- relAbundanceNorm2
@@ -596,7 +576,7 @@ plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post
 plot
 
 # Save as figure.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "TAMPOR_Outliers.tiff")
   ggsave(file, plot, width = 3, height = 2.5, units = "in")
 }
@@ -632,7 +612,7 @@ saveRDS(cleanDat, datafile)
 #' ## Examine sample clustering with MDS and PCA post-TAMPOR Normalization.
 #-------------------------------------------------------------------------------
 
-save_plots = FALSE
+save_plots <- FALSE
 
 # Insure that any outlier samples have been removed.
 traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
@@ -656,7 +636,7 @@ plot1 # cortex
 plot2 # striatum
 
 # Save as figure.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "Cortex_TAMPOR_PCA.tiff")
   ggsave(file, plot1, width = 3, height = 3, units = "in")
 
@@ -684,7 +664,7 @@ fig
 # plot1
 
 # Save as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
   ggsave(file, fig)
 }
@@ -761,8 +741,8 @@ contrasts <- list(
 )
 
 names(contrasts) <- unlist(
-  lapply(contrasts, function(x) sapply(strsplit(colnames(x)," "),"[",1))
-  )
+  lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
+)
 
 # Call glmQLFTest() to evaluate differences in contrasts.
 qlf <- lapply(contrasts, function(x) glmQLFTest(fit, contrast = x))
@@ -779,7 +759,7 @@ row_names <- gsub(".KO.|.HET.", " ", row_names)
 overall <- add_column(overall, Experiment = row_names, .before = 1)
 overall <- overall[, c(1, 3, 2, 4)]
 overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
-overall <- overall[c(2,6,3,7,1,5,4,8),] # Reorder.
+overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 
 # Table of DE candidates.
 # Modify tables theme to change font size.
@@ -803,7 +783,7 @@ table <- gtable_add_grob(table,
 grid.arrange(table)
 
 # Save table as tiff.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   file <- paste0(outputfigsdir, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
   ggsave(file, table, height = 2.75, width = 3.75, units = "in", dpi = 300)
 }
@@ -1034,7 +1014,7 @@ vp4 <- plots$Ube3a
 # ggsave("foo.tiff", fig, width = 7.5, units = "in", dpi = 300)
 
 # Save plots.
-if (save_plots == TRUE){
+if (save_plots == TRUE) {
   for (i in 1:length(plots)) {
     plot <- plots[[i]]
     file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_VolcanoPlot.eps")
@@ -1126,7 +1106,7 @@ write.excel(sigGO, file)
 #+ eval = FALSE
 
 # Load the GLM statistical results.
-file <- paste(outputtabs,"_TAMPOR_GLM_Results.xlsx",
+file <- paste(outputtabs, "_TAMPOR_GLM_Results.xlsx",
   sep = "/"
 )
 results <- lapply(as.list(c(1:8)), function(x) read_excel(file, x))
@@ -1411,7 +1391,7 @@ file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
 results <- readRDS(file)
 
 # Check.
-#lapply(results, function(x) sum(x$FDR < 0.05))
+# lapply(results, function(x) sum(x$FDR < 0.05))
 
 # Combine by FDR.
 stats <- lapply(results, function(x)
@@ -1424,7 +1404,7 @@ df$Uniprot <- NULL
 df$Gene <- NULL
 
 # Check.
-#apply(df, 2, function(x) sum(x < 0.05))
+# apply(df, 2, function(x) sum(x < 0.05))
 
 # Gather sigProts.
 sigProts <- list()
@@ -1616,13 +1596,13 @@ plots <- list(p1, p2, p3, p4)
 names(plots) <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Fix axis labels.
-fix_axis_labels <- function(plot){
+fix_axis_labels <- function(plot) {
   b <- ggplot_build(plot)
   labs <- gsub("\\.", " ", b$layout$panel_params[[1]]$x.labels)
   plot + scale_x_discrete(labels = labs)
-  }
+}
 
-plots <- lapply(plots,function(x) fix_axis_labels(x))
+plots <- lapply(plots, function(x) fix_axis_labels(x))
 
 # Save to pdf.
 # file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
