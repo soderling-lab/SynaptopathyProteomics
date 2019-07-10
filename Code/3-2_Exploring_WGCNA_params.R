@@ -86,7 +86,7 @@ tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
 rootdir <- "D:/projects/Synaptopathy-Proteomics"
-# rootdir <- "C:/Users/User/Documents/Tyler Bradshaw/Synaptopathy-Proteomics"
+rootdir <- "C:/Users/User/Documents/Tyler/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -269,7 +269,7 @@ print("Using the WT data for WGCNA parameter optimization!")
 power_beta <- power_beta$wt
 cleanDat <- subdat$wt
 dim(cleanDat)
-cleanDat[1:5,1:5]
+cleanDat[1:5,1:5] # Data should be log transformed!
 
 ################################################################################
 
@@ -418,7 +418,7 @@ for (i in 1:nboot) {
     subHubs = TRUE,
     trapErrors = FALSE,
     returnValidOnly = FALSE,
-    softPower = power,
+    softPower = power_beta,
     scale = TRUE,
     verbose = 0, indent = 0
   )
