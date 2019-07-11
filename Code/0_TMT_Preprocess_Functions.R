@@ -1191,7 +1191,7 @@ ggplotDetect <- function(data_in, group, log = TRUE) {
   # df$Group[df$Group==0] <- "Missing"
   df$Group <- as.factor(df$Group)
   plot <- ggplot(df, aes(x = Avg, fill = Group, colour = Group)) +
-    geom_density(alpha = 0.1, size = 1) + ggtitle(paste(group, "missing value distribution")) +
+    geom_density(alpha = 0.1, size = 1) + ggtitle(paste(group, "missing values")) +
     scale_fill_discrete(name = "Missing Values") +
     scale_color_discrete(name = "Missing Values") +
     xlab(expression(Log[2] ~ Intensity)) +
@@ -1243,8 +1243,13 @@ ggplotBoxPlot <- function(data_in, colID, colors, title) {
   dm <- df2dm_TMT(data_in, colID)
   data_temp <- melt(log2(dm))
   colnames(data_temp) <- c("Accession", "Run", "Intensity")
-  data_temp$Run <- as.factor(data_temp$Run)
+  data_temp$Run <- as.factor(data_temp$Run) 
   data_temp <- na.omit(data_temp)
+  
+  # Discrete x-axis labels.
+  #v <- seq(1,44,1)
+  #v <- v[rep(c(FALSE,TRUE), 22)] <- ""
+  
   plot <- ggplot(data_temp, aes(x = Run, y = Intensity, fill = Run)) +
     geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
     scale_fill_manual(
@@ -1254,15 +1259,19 @@ ggplotBoxPlot <- function(data_in, colID, colors, title) {
       labels = c("Syngap1", "Ube3a", "Shank2", "Shank3")
     ) +
     ggtitle(title) +
-    xlab("TMT Run") +
+    xlab("TMT Run") + 
     ylab("Log2 Intensity") +
     theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 8, angle = 45),
       axis.title.y = element_text(color = "black", size = 11, face = "bold")
     )
   return(plot)
 }
+
+
+
 #-------------------------------------------------------------------------------
 ## boxplot function.
 
@@ -2424,7 +2433,7 @@ ggplotFreqOverlap <- function(data_in, colID, groups) {
       y = "Frequency"
     ) +
     theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
       axis.title.y = element_text(color = "black", size = 11, face = "bold"),
       legend.position = "none"
@@ -2433,7 +2442,7 @@ ggplotFreqOverlap <- function(data_in, colID, groups) {
   # Add percent of total annotation.
   plot <- plot + annotate("text",
     x = df$Var1, y = df$ypos,
-    label = df$Percent, size = 6, color = "black"
+    label = df$Percent, size = 3, color = "black"
   )
   return(plot)
 }
