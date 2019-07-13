@@ -12,5 +12,6 @@ Several other directories are generated during the executation of the analysis:
 * RData - directory for storing intermediate RData files.
 * Figures - directory for figure output from scripts.
 * Tables - directory for table output from scripts. 
+* venv - Python3 virual environment for reproducibility of Python scripts.
 Due to the potential for these directories to get really big, they are not 
 managed by git (see `.gitignore`).
