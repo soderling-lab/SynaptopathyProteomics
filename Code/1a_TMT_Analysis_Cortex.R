@@ -181,7 +181,7 @@ if (save_plots == TRUE) {
 
 # Store plot in list.
 all_plots <- list()
-all_plots[["Example_TMT"]] <- plot
+all_plots[[paste(tissue,"Example_TMT",sep="_")]] <- plot
 
 #-------------------------------------------------------------------------------
 #' ## Examine peptide and protein level identification overalap.
@@ -294,10 +294,11 @@ if (save_plots == TRUE) {
 }
 
 # Store plots in list.
-all_plots[["n_pep_per_protein"]] <- plot1
-all_plots[["pep_id_overlap"]] <- plot2
-all_plots[["total_pep_and_prot_tab"]] <- tab1
-all_plots[["pep_id_overlap_tab"]] <- tab2
+
+all_plots[[paste(tissue,"n_pep_per_protein",sep="_")]]      <- plot1
+all_plots[[paste(tissue,"pep_id_overlap",sep="_")]]         <- plot2
+all_plots[[paste(tissue,"total_pep_and_prot_tab",sep="_")]] <- tab1
+all_plots[[paste(tissue,"pep_id_overlap_tab",sep="_")]]     <- tab2
 
 #-------------------------------------------------------------------------------
 #' ## Examine the raw data.
@@ -350,10 +351,10 @@ if (save_plots == TRUE) {
 }
 
 # Store plots in list. 
-all_plots[["raw_bp"]] <- p1
-all_plots[["raw_dp"]] <- p2
-all_plots[["raw_msd"]] <- p3
-all_plots[["raw_mds"]] <- p4
+all_plots[[paste(tissue,"raw_bp",sep="_")]]  <- p1
+all_plots[[paste(tissue,"raw_dp",sep="_")]]  <- p2
+all_plots[[paste(tissue,"raw_msd",sep="_")]] <- p3
+all_plots[[paste(tissue,"raw_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Sample loading normalization within experiments.
@@ -417,10 +418,10 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["sl_bp"]] <- p1
-all_plots[["sl_dp"]] <- p2
-all_plots[["sl_msd"]] <- p3
-all_plots[["sl_mds"]] <- p4
+all_plots[[paste(tissue,"sl_bp",sep="_")]] <- p1
+all_plots[[paste(tissue,"sl_dp",sep="_")]] <- p2
+all_plots[[paste(tissue,"sl_msd",sep="_")]] <- p3
+all_plots[[paste(tissue,"sl_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Examine the nature of missing values.
@@ -478,10 +479,10 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["missing_val_shank2"]] <- p1
-all_plots[["missing_val_shank3"]] <- p2
-all_plots[["missing_val_syngap1"]] <- p3
-all_plots[["missing_val_ube3a"]] <- p4
+all_plots[[paste(tissue,"missing_val_shank2",sep="_")]]  <- p1
+all_plots[[paste(tissue,"missing_val_shank3",sep="_")]]  <- p2
+all_plots[[paste(tissue,"missing_val_syngap1",sep="_")]] <- p3
+all_plots[[paste(tissue,"missing_val_ube3a",sep="_")]]   <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Impute missing peptide values within an experiment.
@@ -521,7 +522,7 @@ if (save_plots == TRUE) {
 }
 
 # Store table. 
-all_plots[["n_imputed_pep_tab"]] <- table
+all_plots[[paste(tissue,"n_imputed_pep_tab",sep="_")]] <- table
 
 #-------------------------------------------------------------------------------
 #' ## Illustrate the mean variance relationship of QC peptides.
@@ -570,12 +571,12 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["shank2_cor_qc"]] <- p1
-all_plots[["shank2_hist_qc_1"]] <- p2
-all_plots[["shank2_hist_qc_2"]] <- p3
-all_plots[["shank2_hist_qc_3"]] <- p4
-all_plots[["shank2_hist_qc_4"]] <- p5
-all_plots[["shank2_hist_qc_5"]] <- p6
+all_plots[[paste(tissue,"shank2_cor_qc",sep="_")]]    <- p1
+all_plots[[paste(tissue,"shank2_hist_qc_1",sep="_")]] <- p2
+all_plots[[paste(tissue,"shank2_hist_qc_2",sep="_")]] <- p3
+all_plots[[paste(tissue,"shank2_hist_qc_3",sep="_")]] <- p4
+all_plots[[paste(tissue,"shank2_hist_qc_4",sep="_")]] <- p5
+all_plots[[paste(tissue,"shank2_hist_qc_5",sep="_")]] <- p6
 
 #-------------------------------------------------------------------------------
 #' ## Peptide level filtering.
@@ -603,7 +604,7 @@ if (save_plots == TRUE) {
 }
 
 # Store table
-all_plots[["n_pep_filtered_cortex"]] <- table
+all_plots[[paste(tissue,"n_pep_filtered_cortex",sep="_")]] <- table
 
 #-------------------------------------------------------------------------------
 #' ##  Protein level summarization and normalization across all batches.
@@ -814,11 +815,11 @@ if (save_plots == TRUE) {
 }
 
 # Store plots...
-all_plots[["batch_effect_tab"]] <- table
-all_plots[["shank2_combat_pca"]] <- plot_list[[1]]
-all_plots[["shank3_combat_pca"]] <- plot_list[[2]]
-all_plots[["syngap1_combat_pca"]] <- plot_list[[3]]
-all_plots[["ube3a_combat_pca"]] <- plot_list[[4]]
+all_plots[[paste(tissue,"batch_effect_tab",sep="_")]]   <- table
+all_plots[[paste(tissue,"shank2_combat_pca",sep="_")]]  <- plot_list[[1]]
+all_plots[[paste(tissue,"shank3_combat_pca",sep="_")]]  <- plot_list[[2]]
+all_plots[[paste(tissue,"syngap1_combat_pca",sep="_")]] <- plot_list[[3]]
+all_plots[[paste(tissue,"ube3a_combat_pca",sep="_")]]   <- plot_list[[4]]
 
 #-------------------------------------------------------------------------------
 #' ##  Examine protein identification overlap.
@@ -836,7 +837,7 @@ if (save_plots == TRUE) {
 }
 
 # Store plot.
-all_plots[["prot_id_overlap"]] <- plot
+all_plots[[paste(tissue,"prot_id_overlap",sep="_")]] <- plot
 
 #-------------------------------------------------------------------------------
 #' ## Examine the Normalized protein level data.
@@ -880,10 +881,10 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["sl_prot_bp"]] <- p1
-all_plots[["sl_prot_dp"]] <- p2
-all_plots[["sl_prot_msd"]] <- p3
-all_plots[["sl_prot_mds"]] <- p4
+all_plots[[paste(tissue,"sl_prot_bp",sep="_")]]  <- p1
+all_plots[[paste(tissue,"sl_prot_dp",sep="_")]]  <- p2
+all_plots[[paste(tissue,"sl_prot_msd",sep="_")]] <- p3
+all_plots[[paste(tissue,"sl_prot_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## IRS Normalization.
@@ -968,10 +969,6 @@ plot2 <- sample_connectivity$connectivityplot
 # Write over IRS_data
 IRS_protein <- IRS_OutRemoved_protein
 
-# Store plots.
-all_plots[["irs_outliers_pre"]] <- plot1
-all_plots[["irs_outliers_post"]] <- plot2
-
 # Save as tiff.
 if (save_plots == TRUE) {
   
@@ -981,6 +978,10 @@ if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_QC_Sample_Outliers_after.tiff")
   ggsave(file, plot2, width = 3.0, height = 2.5, units = "in")
 }
+
+# Store plots.
+all_plots[[paste(tissue,"irs_outliers_pre",sep="_")]]  <- plot1
+all_plots[[paste(tissue,"irs_outliers_post",sep="_")]] <- plot2
 
 #-------------------------------------------------------------------------------
 #' ## Examine the IRS Normalized protein level data.
@@ -1028,10 +1029,10 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["irs_bp"]] <- p1
-all_plots[["irs_dp"]] <- p2
-all_plots[["irs_msd"]] <- p3
-all_plots[["irs_mds"]] <- p4
+all_plots[[paste(tissue,"irs_bp",sep="_")]]  <- p1
+all_plots[[paste(tissue,"irs_dp",sep="_")]]  <- p2
+all_plots[[paste(tissue,"irs_msd",sep="_")]] <- p3
+all_plots[[paste(tissue,"irs_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Protein level filtering, imputing, and final TMM normalization.
@@ -1071,8 +1072,7 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["prot_missing_val_dp"]] <- plot
-#all_plots[["n_prot_filtered"]] <- tab
+all_plots[[paste(tissue,"prot_missing_val_dp",sep="_")]] <- plot
 
 #-------------------------------------------------------------------------------
 #' ## Examine the TMM Normalized protein level data.
@@ -1115,10 +1115,10 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["tmm_bp"]] <- p1
-all_plots[["tmm_dp"]] <- p2
-all_plots[["tmm_msd"]] <- p3
-all_plots[["tmm_mds"]] <- p4
+all_plots[[paste(tissue,"tmm_bp",sep="_")]]  <- p1
+all_plots[[paste(tissue,"tmm_dp",sep="_")]]  <- p2
+all_plots[[paste(tissue,"tmm_msd",sep="_")]] <- p3
+all_plots[[paste(tissue,"tmm_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
 #' ## Perform moderated EB regression of genetic strain as a covariate.
@@ -1191,8 +1191,8 @@ if (save_plots == TRUE) {
 }
 
 # Store plots.
-all_plots[["pca_pre_eblm"]] <- plot1
-all_plots[["pca_pre_eblm"]] <- plot2
+all_plots[[paste(tissue,"pca_pre_eblm",sep="_")]] <- plot1
+all_plots[[paste(tissue,"pca_pre_eblm",sep="_")]] <- plot2
 
 # Save plot list.
 file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")

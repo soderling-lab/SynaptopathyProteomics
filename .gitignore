@@ -8,5 +8,7 @@ Figures/
 Reports/
 Tables/
 RData/
-[VvRr]env/
+venv/
+pyenv/
+renv/
 packrat/lib*/
