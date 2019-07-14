@@ -15,3 +15,13 @@ Several other directories are generated during the executation of the analysis:
 * venv - Python3 virual environment for reproducibility of Python scripts.
 Due to the potential for these directories to get really big, they are not 
 managed by git (see `.gitignore`).
+
+System Info:
+The analysis was done using RStudio on Windows 10.
+
+* [0a_Install-Dependencies.R]()
+* [0b_Functions.R]()
+* 1a_TMT_Analysis_Cortex.R
+* 1b_TMT_Analysis_Striatum.R
+* 2_TMT_Analysis_Combined.R
+

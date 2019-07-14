@@ -1,5 +1,5 @@
 #' ---
-#' title: TMT Analysis part 1.
+#' title: TMT Analysis part 1a. Preprocessing of Cortex Data.
 #' author: Tyler W Bradshaw
 #' urlcolor: blue
 #' header-includes:
@@ -17,26 +17,16 @@
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
 #' Prepare the R workspace for the analysis. Load custom functions and prepare
-#' the porject directory for saving output files.
+#' the project directory for saving output files.
 
 rm(list = ls())
-if (!is.null(dev.list())) {
-  dev.off()
-}
+if (!is.null(dev.list())) { dev.off() }
 cat("\f")
 options(stringsAsFactors = FALSE)
 
-# Sometimes, if you have not cleared the workspace of all loaded packages,
-# you man incounter problems.
-# To remove all packages, you can call the following:
+# You may encouter problems if you have not cleared the workspace of all loaded 
+# packages. To remove all packages, use the following:
 JGmisc::detachAllPackages(keep = NULL)
-
-# If necessary install TBmiscr package.
-if ("TBmiscr" %in% rownames(installed.packages()) == FALSE) {
-  print("Installing TBmiscr!")
-  library(devtools)
-  devtools::install_github("twesleyb/TBmiscr")
-}
 
 #  Load required packages.
 suppressWarnings({
@@ -99,25 +89,15 @@ setwd(rootdir)
 functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
-
-# Creat otuput directory for figures.
 outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
-if (!file.exists(outputfigs)) {
-  dir.create(file.path(outputfigs))
-}
-
-# Create output directory for tables.
 outputtabs <- paste(rootdir, "Tables", sep = "/")
-if (!file.exists(outputtabs)) {
-  dir.create(file.path(outputtabs))
-}
 
 # Load required custom functions.
-my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
+my_functions <- paste(functiondir, "0b_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
-outputMatName <- paste0("1_TMT_Analysis_", tissue)
+outputMatName <- paste0("1_", tissue)
 
 # Globally set ggplots theme.
 library(ggplot2)
@@ -195,7 +175,7 @@ plot <- ggplot(df, aes(x = Channel, y = value, fill = Channel)) +
 
 # Save as tiff.
 if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "_Example_TMT.tiff")
+  file <- paste0(outputfigs, "/", outputMatName, "_Example_TMT_Peptide.tiff")
   ggsave(file, plot, width = 2.5, height = 2.5, units = "in")
 }
 
@@ -227,6 +207,11 @@ tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
   rows = NULL,
   theme = ttheme_default()
 )
+#title <- textGrob(tissue,gp=gpar(fontsize=14, fontface="bold"))
+#padding <- unit(5,"mm")
+#tab1 <- gtable_add_rows(tab1, heights = grobHeight(title) + padding, pos = 0)
+#tab1 <- gtable_add_grob(tab1, title, 1, 1, 1, ncol(tab1))
+#grid.arrange(tab1)
 
 # Examine the number of peptides per protein.
 nPep <- subset(raw_peptide) %>%
@@ -278,10 +263,16 @@ mytable$Intersection <- formatC(as.numeric(mytable$Intersection), format = "d", 
 mytable$Union <- formatC(as.numeric(mytable$Union), format = "d", big.mark = ",")
 mytable$Percent <- round(as.numeric(mytable$Percent), 2)
 colnames(mytable)[1] <- "Comparison"
-# Reduce padding around text.  
-#tt <- ttheme_default(padding = unit(c(3, 3), "mm"))
 tab2 <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
+# title <- textGrob(tissue,gp=gpar(fontsize=14, fontface="bold"))
+# padding <- unit(5,"mm")
+# tab2 <- gtable_add_rows(tab2, heights = grobHeight(title) + padding, pos = 0)
+# tab2 <- gtable_add_grob(tab2, title, 1, 1, 1, ncol(tab2))
+# grid.arrange(tab2)
+# 
+# grid.arrange(arrangeGrob(tab2, ncol = 1, top=textGrob("Sample Title One")))
+                         
 # Plot peptide identification overlap.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) + 
@@ -444,7 +435,7 @@ all_plots[["sl_mds"]] <- p4
 #' missing not at random (MNAR), but missing because they are low-abundance
 #' and at or near the limit of detection. MNAR data can be imputed with the
 #' k-nearest neighbors (knn) algorithm in the next chunk. The __impute.knn__
-#' from the package `impute` is used to impute MNAR data.
+#' function from the package `impute` is used to impute MNAR data.
 
 # Define groups for subseting the data.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -575,7 +566,7 @@ if (save_plots == TRUE) {
   # Histograms.
   x <- c(1:5)
   file <- paste0(outputfigs, "/", outputMatName, "_Shank2", "_QC_hist", x, ".tiff")
-  quiet(mapply(ggsave, file, hist_list$Shank2))
+  quiet(mapply(ggsave, file, hist_list$Shank2, width = 2.5, height = 2.5, units = "in"))
 }
 
 # Store plots.
@@ -1202,6 +1193,10 @@ if (save_plots == TRUE) {
 # Store plots.
 all_plots[["pca_pre_eblm"]] <- plot1
 all_plots[["pca_pre_eblm"]] <- plot2
+
+# Save plot list.
+file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
+saveRDS(all_plots, file)
 
 #-------------------------------------------------------------------------------
 #' ## Reformat final normalized, regressed data for TAMPOR Normalization.

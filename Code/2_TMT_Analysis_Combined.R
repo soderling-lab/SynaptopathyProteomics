@@ -17,10 +17,15 @@
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
 #' Prepare the R workspace for the analysis. Load custom functions and prepare
-#' the porject directory for saving output files.
+#' the project directory for saving output files.
+
+
+#fixme: save/load plot list.
+#fixme: dont save intermediate files. input/output as concise as possible. 
+
 
 rm(list = ls())
-dev.off()
+if (!is.null(dev.list())) { dev.off() }
 cat("\f")
 options(stringsAsFactors = FALSE)
 
@@ -88,21 +93,25 @@ setwd(rootdir)
 functiondir <- paste(rootdir, "Code", sep = "/")
 datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
-outputfigs <- paste(rootdir, "Figures", sep = "/")
+outputfigs <- paste(rootdir, "Figures", tissue, sep = "/")
 outputtabs <- paste(rootdir, "Tables", sep = "/")
 
 # Load required custom functions.
-my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
+my_functions <- paste(functiondir, "0b_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
-outputMatName <- paste0("2_TMT_Analysis_", tissue)
+outputMatName <- paste0("2_", tissue)
 
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
 
 # Should plots be saved?
-save_plots <- FALSE
+save_plots = TRUE
+
+# Load plot list.
+file <- paste(Rdatadir,"1_All_plots.Rds", sep = "/")
+all_plots <- readRDS(file)
 
 #-------------------------------------------------------------------------------
 #' ## Merge cortex and striatum data.
@@ -141,8 +150,10 @@ traits$Tissue <- c(rep("Cortex", 44), rep("Striatum", 44))
 dim(traits)
 
 ## Merge expression data.
-# Load the Cortex and Striatum IRS + eBLM regressed data.
-files <- paste(Rdatadir, list.files(Rdatadir, pattern = "TAMPOR"), sep = "/")
+# Load the Cortex and Striatum cleanDat.
+files <- paste(Rdatadir, 
+               c("1_Cortex_CleanDat_TAMPOR_Format.Rds", "1_Striatum_CleanDat_TAMPOR_Format.Rds"),
+               sep = "/")
 data <- lapply(as.list(files), function(x) readRDS(x))
 names(data) <- c("Cortex", "Striatum")
 
@@ -192,10 +203,10 @@ controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", c("
 controls
 
 # Save merged data and traits to file.
-file <- paste0(Rdatadir, "/", outputMatName, "Combined_cleanDat.Rds")
+file <- paste0(Rdatadir, "/", outputMatName, "_cleanDat.Rds")
 saveRDS(cleanDat, file)
 
-file <- paste0(Rdatadir, "/", outputMatName, "Combined_traits.Rds")
+file <- paste0(Rdatadir, "/", outputMatName, "_traits.Rds")
 saveRDS(traits, file)
 
 #-------------------------------------------------------------------------------
@@ -203,8 +214,8 @@ saveRDS(traits, file)
 #-------------------------------------------------------------------------------
 
 # Load traits and data from file.
-datafile <- paste(Rdatadir, "Combined_Cortex_Striatum_cleanDat.Rds", sep = "/")
-traitsfile <- paste(Rdatadir, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
+datafile <- paste(Rdatadir, "2_Combined_cleanDat.Rds", sep = "/")
+traitsfile <- paste(Rdatadir, "2_Combined_traits.Rds", sep = "/")
 
 cleanDat <- readRDS(datafile)
 traits <- readRDS(traitsfile)
@@ -528,19 +539,19 @@ plot2 <- ggplot(data = iterationTrackingDF, aes(x = Iteration, y = log10(abs(Fro
     axis.title.y = element_text(color = "black", size = 11, face = "bold")
   )
 
-# Figures
-fig <- plot_grid(plot1, plot2, labels = "auto")
-fig
-
-# Save figures as pdf.
-# file <- paste0(outputfigsdir,"/",tissue,"Iteration_Tracking.pdf")
-# ggsavePDF(plots=list(plot1,plot2),file)
-
 # Save as tiff.
 if (save_plots == TRUE) {
-  file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking.tiff")
-  ggsave(file, fig)
+  file <- paste0(outputfigs, "/", outputMatName, "Iteration_Tracking.tiff")
+  ggsave(file, plot1, width = 3.0, height = 2.5, units = "in")
+  
+  file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking_logscale.tiff")
+  ggsave(file, plot2, width = 3.0, height = 2.5, units = "in")
+  
 }
+
+# Store plots in list.
+all_plots[["TAMPOR_Iteration_Tracking"]] <- plot1
+all_plots[["TAMPOR_Iteration_Tracking_logscale"]] <- plot2
 
 #-------------------------------------------------------------------------------
 #' ## Remove any sample outliers.
@@ -557,11 +568,10 @@ data_in[1:5, 1:5]
 sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
 sample_connectivity$table
 plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
-plot
 
 # Save as figure.
 if (save_plots == TRUE) {
-  file <- paste0(outputfigsdir, "/", outputMatName, "TAMPOR_Outliers.tiff")
+  file <- paste0(outputfigs, "/", outputMatName, "TAMPOR_Outliers.tiff")
   ggsave(file, plot, width = 3, height = 2.5, units = "in")
 }
 
@@ -589,7 +599,7 @@ traits$Sample.Model[rownames(traits) %in% bad_samples]
 # Save data to file.
 cleanDat <- data_in
 dim(cleanDat)
-datafile <- paste(Rdatadir, tissue, "TAMPOR_data_outliersRemoved.Rds", sep = "/")
+datafile <- paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
 saveRDS(cleanDat, datafile)
 
 #-------------------------------------------------------------------------------
@@ -616,15 +626,15 @@ plot1 <- ggplotPCA(log2(cleanDat[, idx]), traits, colors[idx], title = "Cortex")
 plot2 <- ggplotPCA(log2(cleanDat[, idy]), traits, colors[idy], title = "Striatum")
 
 # plots
-plot1 # cortex
-plot2 # striatum
+# plot1 # cortex
+# plot2 # striatum
 
 # Save as figure.
 if (save_plots == TRUE) {
-  file <- paste0(outputfigsdir, "/", outputMatName, "Cortex_TAMPOR_PCA.tiff")
+  file <- paste0(outputfigs, "/", outputMatName, "Cortex_TAMPOR_PCA.tiff")
   ggsave(file, plot1, width = 3, height = 3, units = "in")
 
-  file <- paste0(outputfigsdir, "/", outputMatName, "Striatum_TAMPOR_PCA.tiff")
+  file <- paste0(outputfigs, "/", outputMatName, "Striatum_TAMPOR_PCA.tiff")
   ggsave(file, plot2, width = 3, height = 3, units = "in")
 }
 
@@ -637,8 +647,8 @@ if (save_plots == TRUE) {
 # plot2 + scale_color_manual(values = colors) + theme(legend.position = "none")
 
 # Figure
-fig <- plot_grid(plot1, plot2)
-fig
+# fig <- plot_grid(plot1, plot2)
+# fig
 
 ## MDS Plots.
 # Relative abundance.
@@ -649,7 +659,7 @@ fig
 
 # Save as tiff.
 if (save_plots == TRUE) {
-  file <- paste0(outputfigsdir, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
+  file <- paste0(outputfigs, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
   ggsave(file, fig)
 }
 
@@ -658,21 +668,22 @@ if (save_plots == TRUE) {
 #-------------------------------------------------------------------------------
 
 # Data is...
-file <- paste(Rdatadir, tissue, "TAMPOR_data_outliersRemoved.Rds", sep = "/")
+file <- paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
 cleanDat <- readRDS(file)
 
 # Insure traits are loaded.
-traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
+traitsfile <- paste(Rdatadir, "2_Combined_traits.Rds", sep = "/")
 sample_info <- readRDS(traitsfile)
 
 # Create DGEList object...
 data <- cleanDat # Data should not be log transformed!
 data[1:5, 1:5]
+dim(data)
 y_DGE <- DGEList(counts = data)
 
 # Example, checking the the normalization with plotMD.
-plotMD(cpm(y_DGE, log = TRUE), column = 2)
-abline(h = 0, col = "red", lty = 2, lwd = 2)
+# plotMD(cpm(y_DGE, log = TRUE), column = 2)
+# abline(h = 0, col = "red", lty = 2, lwd = 2)
 
 # Create sample mapping.
 traits <- sample_info
@@ -690,20 +701,20 @@ y_DGE$samples$group <- as.factor(group)
 # Basic design matrix for GLM.
 design <- model.matrix(~ 0 + group, data = y_DGE$samples)
 colnames(design) <- levels(y_DGE$samples$group)
-design
+#design
 
 # Estimate dispersion:
 y_DGE <- estimateDisp(y_DGE, design, robust = TRUE)
 
 # PlotBCV
 plot <- ggplotBCV(y_DGE)
-plot
+# plot
 
 # Fit a general linear model.
 fit <- glmQLFit(y_DGE, design, robust = TRUE)
 
 # Examine the QL fitted dispersion.
-plotQLDisp(fit)
+# plotQLDisp(fit)
 
 # Generate contrasts.
 g1 <- colnames(design)[grepl("Cortex", colnames(design))][-5]
@@ -768,7 +779,7 @@ grid.arrange(table)
 
 # Save table as tiff.
 if (save_plots == TRUE) {
-  file <- paste0(outputfigsdir, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
+  file <- paste0(outputfigs, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
   ggsave(file, table, height = 2.75, width = 3.75, units = "in", dpi = 300)
 }
 
@@ -824,95 +835,13 @@ for (i in 1:length(results)) {
 not_mapped <- lapply(results, function(x) sum(is.na(x$Entrez)))
 head(not_mapped) # good.
 
-# Write to excel.
-file <- paste0(outputtabs, "/", "_TAMPOR_GLM_Results.xlsx")
+# Write results to excel.
+file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_GLM_Results.xlsx")
 write.excel(results, file)
 
 # Write to RDS.
 file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
 saveRDS(results, file)
-
-#-------------------------------------------------------------------------------
-#' ## Volcano plots for cortex and striatum.
-#-------------------------------------------------------------------------------
-
-################################################################################
-## Skip this chunk if plotting volcano plots for each genotype.               ##
-################################################################################
-
-# Add column for genotype and unique ID to results in list.
-for (i in 1:length(results)) {
-  Experiment <- names(results)[i]
-  df <- results[[i]]
-  df <- add_column(df, Experiment, .before = 1)
-  # ID <- paste(df$Experiment,df$Uniprot, sep = "_")
-  # df <- add_column(df, ID, .after = 1)
-  results[[i]] <- df
-}
-
-# Merge the results.
-df <- do.call(rbind, results)
-
-# Add column for genotype specific colors.
-colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
-# colors <- as.list(c("yellow","blue","green","purple"))
-names(colors) <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-df$Color <- unlist(colors[sapply(strsplit(df$Experiment, "\\."), "[", 3)])
-
-# Split into cortex and striatum datasets.
-idx <- grepl("Cortex", df$Experiment)
-results <- split(df, idx)
-names(results) <- c("Striatum", "Cortex")
-
-# Function for producing volcano plots.
-vp <- function(df) {
-  df$x <- df[, grep("FC", colnames(df))]
-  df$y <- -log10(df[, grep("PValue", colnames(df))])
-  logic <- df$FDR < 0.05
-  df$Color[!logic] <- "gray"
-  df$Color <- as.factor(df$Color)
-  y_int <- -1 * log10(max(df$PValue[df$FDR < 0.05]))
-  plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) +
-    geom_point() + scale_color_manual(values = levels(df$Color)) +
-    geom_hline(yintercept = y_int, linetype = "dashed", color = "black", size = 0.6) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
-    # geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) +
-    xlab("Log2(Fold Change) ASD vs Control") + ylab("-Log10PValue") +
-    theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-      legend.position = "none"
-    )
-  return(plot)
-}
-
-# Cortex plot.
-plot1 <- vp(results$Cortex) + ggtitle("Cortex") + xlim(-3.5, 3.5)
-plot1
-
-# Summarize up and down-regulated proteins.
-updown <- function(results, tissue) {
-  res <- results[[tissue]]
-  up <- sum(res$FDR < 0.05 & res$logFC > 0)
-  down <- sum(res$FDR < 0.05 & res$logFC < 0)
-  return(list(up = up, down = down))
-}
-
-updown(results, "Cortex")
-updown(results, "Striatum")
-
-# Save
-file <- paste0(outputfigsdir, "/", outputMatName, "Cortex_VolcanoPlot.tiff")
-ggsave(file, plot1, width = 3, height = 2.5, units = "in")
-
-# Striatum plot.
-plot2 <- vp(results$Striatum) + ggtitle("Striatum") + xlim(-3, 3)
-plot2
-
-# Save
-file <- paste0(outputfigsdir, "/", outputMatName, "Striatum_VolcanoPlot.tiff")
-ggsave(file, plot2, width = 3, height = 2.5, units = "in")
 
 #-------------------------------------------------------------------------------
 #' ## Volcano plots for each genotype.
@@ -1001,7 +930,7 @@ vp4 <- plots$Ube3a
 if (save_plots == TRUE) {
   for (i in 1:length(plots)) {
     plot <- plots[[i]]
-    file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_VolcanoPlot.eps")
+    file <- paste0(outputfigs, "/", outputMatName, "_", names(plots)[i], "_VolcanoPlot.tiff")
     ggsave(file, plot, width = 1.8, height = 1.5, units = "in", dpi = 300)
   }
 }
@@ -1009,7 +938,6 @@ if (save_plots == TRUE) {
 #-------------------------------------------------------------------------------
 #' ## GO Enrichment analysis of DEPs.
 #-------------------------------------------------------------------------------
-#+ eval = FALSE
 
 # GO testing with the EdgeR qlf object...
 # Extract rownames and map to entrez ids.
@@ -1078,19 +1006,18 @@ rownames(GO_result) <- NULL
 sigGO <- lapply(GO, function(x) subset(x, FDR.Up < 0.1 | x$FDR.Down < 0.1))
 
 # Write to excel.
-file <- paste0(outputtabs, "/", "_TAMPOR_GO_Results.xlsx")
+file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_GO_Results.xlsx")
 write.excel(GO, file)
 
-file <- paste0(outputtabs, "/", "_TAMPOR_sigGO_Results.xlsx")
+file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_sigGO_Results.xlsx")
 write.excel(sigGO, file)
 
 #-------------------------------------------------------------------------------
 #' ## GO enrichment analaysis for DEPs from each genotype.
 #-------------------------------------------------------------------------------
-#+ eval = FALSE
 
 # Load the GLM statistical results.
-file <- paste(outputtabs, "_TAMPOR_GLM_Results.xlsx",
+file <- paste(outputtabs, "2_Combined_TAMPOR_GLM_Results.xlsx",
   sep = "/"
 )
 results <- lapply(as.list(c(1:8)), function(x) read_excel(file, x))
@@ -1206,7 +1133,7 @@ c <- results_GOenrichment[[3]]
 d <- results_GOenrichment[[4]]
 
 # Write results to file.
-file <- paste0(outputtabs, "_WGCNA_Analysis_Module_GOenrichment_Results.xlsx")
+file <- paste0(outputtabs, "/", "2_Combined_Genotypes_GO_Analysis.xlsx")
 write.excel(results_GOenrichment, file)
 
 #-------------------------------------------------------------------------------
@@ -1225,13 +1152,14 @@ plots <- list(
 )
 
 # Save plots and legends.
-for (i in 1:length(plots)) {
-  plot <- plots[[i]]
-  file <- paste0(
-    outputfigsdir, "/", outputMatName, "_",
-    names(plots)[[i]], "_GO_ScatterPlot.tiff"
-  )
-  ggsave(file, plot, width = 3.0, height = 2.5, units = "in")
+if (save_plots == TRUE){
+  for (i in 1:length(plots)) {
+    plot <- plots[[i]]
+    file <- paste0(
+      outputfigs, "/", outputMatName, "_",
+      names(plots)[[i]], "_GO_ScatterPlot.tiff")
+    ggsave(file, plot, width = 3.0, height = 2.5, units = "in")
+  }
 }
 
 #-------------------------------------------------------------------------------
@@ -1242,7 +1170,7 @@ for (i in 1:length(plots)) {
 file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
 results <- readRDS(file)
 
-# Check.
+# Check that number of DE candidates looks correct. 
 lapply(results, function(x) sum(x$FDR < 0.05))
 
 # Combine by FDR.
@@ -1328,43 +1256,14 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 legend <- get_legend(plot)
 plot <- plot + theme(legend.position = "none")
 
-# Save figure.
-file <- paste0(outputfigsdir, "/", outputMatName, "Condition_Overlap.tiff")
-ggsave(file, plot, width = 3, height = 3, units = "in")
+# Save figure and legend.
+if (save_plots == TRUE) {
+  file <- paste0(outputfigs, "/", outputMatName, "_Condition_Overlap.tiff")
+  ggsave(file, plot, width = 3, height = 3, units = "in")
 
-# Save legend.
-file <- paste0(outputfigsdir, "/", outputMatName, "Condition_Overlap_legend.tiff")
-ggsave(file, legend, width = 3, height = 3, units = "in")
-
-
-#-------------------------------------------------------------------------------
-#' ## Figure 2.
-#-------------------------------------------------------------------------------
-
-# Fiddle with figure.
-p1 <- vp1 + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-p2 <- vp2 + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-p3 <- vp3 + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-p4 <- vp4 + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
-
-# New labels.
-y_label <- textGrob("-Log10 P-Value", gp = gpar(fontface = "bold"), rot = 90)
-x_label <- textGrob("Log2 Fold Change", gp = gpar(fontface = "bold"))
-
-# Build figure.
-c1 <- grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2, left = y_label, bottom = x_label)
-c2 <- grid.arrange(table, plot, ncol = 1)
-fig <- grid.arrange(c1, c2, ncol = 2, nrow = 1)
-fig
-
-# Save.
-file <- paste0("D:/Documents/R/Synaptopathy-Proteomics/Figures/Final/", "Figure_2.tiff")
-ggsave(file, fig, width = 7.5, units = "in", dpi = 300)
-
-## Add sig prot overlap. use four genotypes...
-## Change color for readability.
-## Add legend.
-## Remove NS column to save space. Consider adding percent sig..
+  file <- paste0(outputfigs, "/", outputMatName, "_Condition_Overlap_legend.tiff")
+  ggsave(file, legend, width = 3, height = 3, units = "in")
+}
 
 #-------------------------------------------------------------------------------
 #' ## Condition overlap, combined tissue types.
@@ -1487,6 +1386,7 @@ ggsave(file, plot, width = 1.8, height = 1.5, units = "in", dpi = 300)
 file <- paste0(outputfigsdir, "/", outputMatName, "Condition_Overlap_legend.tiff")
 ggsave(file, legend, width = 3, height = 3, units = "in")
 
+
 #--------------------------------------------------------------------------------
 #' ## Generate protein boxplots for significantly DE proteins.
 #-------------------------------------------------------------------------------
@@ -1516,7 +1416,7 @@ plot_list <- ggplotProteinBoxes(
 )
 
 # Check a plot.
-plot_list$`Shank2|Q80Z38`
+# plot_list$`Shank2|Q80Z38`
 
 # Add custom colors.
 colors <- c(
@@ -1588,16 +1488,14 @@ fix_axis_labels <- function(plot) {
 
 plots <- lapply(plots, function(x) fix_axis_labels(x))
 
-# Save to pdf.
-# file <- paste0(outputfigsdir, "/", tissue, "_WGCNA_Analysis_InterBatch_ProteinBoxPlots.pdf")
-# ggsavePDF(plots = plot_list, file)
 
 # Save as tiff.
-for (i in 1:length(plots)) {
-  file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_BoxPlot.tiff")
-  ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
+if (save_plots == TRUE) {
+  for (i in 1:length(plots)) {
+    file <- paste0(outputfigs, "/", outputMatName, "_", names(plots)[i], "_BoxPlot.tiff")
+    ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
+  }
 }
-
 
 ## Inspecting other interesting proteins...
 
@@ -1621,7 +1519,9 @@ names(plots) <- sapply(strsplit(names(plots), "\\|"), "[", 1)
 plots <- lapply(plots, function(x) change_axis_color(x))
 
 # Save as tiff.
-for (i in 1:length(plots)) {
-  file <- paste0(outputfigsdir, "/", outputMatName, names(plots)[i], "_BoxPlot.tiff")
-  ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
+if (save_plots == TRUE) {
+  for (i in 1:length(plots)) {
+    file <- paste0(outputfigs, "/", outputMatName, "_", names(plots)[i], "_BoxPlot.tiff")
+    ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
+  }
 }

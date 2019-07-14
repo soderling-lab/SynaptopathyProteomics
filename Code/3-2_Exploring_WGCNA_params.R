@@ -17,9 +17,6 @@
 #' ## Prepare the workspace.
 #-------------------------------------------------------------------------------
 
-# Use ctl+alt+T to execute a code chunk.
-
-# Run this chunk before doing anything!
 rm(list = ls())
 if (.Device != "null device") dev.off()
 cat("\f")
@@ -73,10 +70,6 @@ suppressPackageStartupMessages({
   library(TBmiscr)
 })
 
-# To install TBmiscr:
-# library(devtools)
-# devtools::install_github("twesleyb/TBmiscr")
-
 # Define version of the code.
 CodeVersion <- "Exploring_Params"
 
@@ -86,7 +79,7 @@ tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
 rootdir <- "D:/projects/Synaptopathy-Proteomics"
-rootdir <- "C:/Users/User/Documents/Tyler/Synaptopathy-Proteomics"
+#rootdir <- "C:/Users/User/Documents/Tyler/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
@@ -95,7 +88,7 @@ datadir <- paste(rootdir, "Input", sep = "/")
 Rdatadir <- paste(rootdir, "RData", sep = "/")
 
 # Load required custom functions.
-my_functions <- paste(functiondir, "0_TMT_Preprocess_Functions.R", sep = "/")
+my_functions <- paste(functiondir, "0b_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
@@ -128,42 +121,42 @@ estimatePower <- TRUE
 
 # Data is...
 # Load TAMPOR cleanDat from file: #2918 of 2918
-datafile <- paste(Rdatadir, tissue, "TAMPOR_data_outliersRemoved.Rds", sep = "/")
+datafile <- paste(Rdatadir, "2_TMT_Analysis_CombinedCombined_cleanDat.Rds", sep = "/")
 cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
-cleanDat[1:5, 1:5] # Data should be log transformed.
+cleanDat[1:5, 1:5]
 dim(cleanDat)
 
-################################################################################
-## Run this chunk if subsetting the data based on DEP communities.
-
-# Load the DEP protein communities.
-file <- paste0(Rdatadir, "/", "DEP_Communities.RDS")
-community_results <- readRDS(file)
-
-# Pick a group/genotype.
-n <- 5
-group <- c("Shank2", "Shank3", "Syngap1", "Ube3a", "All")[n]
-
-# Define proteins of interst.
-if (group == "All") {
-  v <- unique(as.vector(unlist(sapply(community_results, "[", 4))))
-  prots <- unlist(entrez2protein[v])
-} else {
-  prots <- unlist(entrez2protein[community_results[[group]][[4]]])
-}
-subg_name <- group
-subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
-
-# Write over cleanDat.
-cleanDat <- subDat
-dim(cleanDat)
+# ################################################################################
+# ## Run this chunk if subsetting the data based on DEP communities.
+# 
+# # Load the DEP protein communities.
+# file <- paste0(Rdatadir, "/", "DEP_Communities.RDS")
+# community_results <- readRDS(file)
+# 
+# # Pick a group/genotype.
+# n <- 5
+# group <- c("Shank2", "Shank3", "Syngap1", "Ube3a", "All")[n]
+# 
+# # Define proteins of interst.
+# if (group == "All") {
+#   v <- unique(as.vector(unlist(sapply(community_results, "[", 4))))
+#   prots <- unlist(entrez2protein[v])
+# } else {
+#   prots <- unlist(entrez2protein[community_results[[group]][[4]]])
+# }
+# subg_name <- group
+# subDat <- subset(cleanDat, rownames(cleanDat) %in% prots)
+# 
+# # Write over cleanDat.
+# cleanDat <- subDat
+# dim(cleanDat)
 
 ################################################################################
 ## Run this chunk if splitting data into WT and KO!
 
 # Load combined sample info.
-traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
+traitsfile <- paste(Rdatadir, "2_TMT_Analysis_CombinedCombined_traits.Rds", sep = "/")
 sample_info <- readRDS(traitsfile)
 sample_info[1:5, 1:5]
 dim(sample_info)
