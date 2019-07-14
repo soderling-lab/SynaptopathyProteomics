@@ -25,3 +25,5 @@ The analysis was done using RStudio on Windows 10.
 * [1b_TMT_Analysis_Striatum.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/1b_TMT_Analysis_Striatum.R)
 * [2_TMT_Analysis_Combined.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/2_TMT_Analysis_Combined.R)
 
+## Supplemental Information.
+See detailed overview of the analysis, [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/Manuscript/Supplement).
