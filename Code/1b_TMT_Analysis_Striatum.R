@@ -19,6 +19,8 @@
 #' Prepare the R workspace for the analysis. Load custom functions and prepare
 #' the project directory for saving output files.
 
+#Fixme: add tabular output of raw data, and final normalized data.
+
 rm(list = ls())
 if (!is.null(dev.list())) { dev.off() }
 cat("\f")

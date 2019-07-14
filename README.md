@@ -19,9 +19,9 @@ managed by git (see `.gitignore`).
 System Info:
 The analysis was done using RStudio on Windows 10.
 
-* [0a_Install-Dependencies.R]()
-* [0b_Functions.R]()
-* 1a_TMT_Analysis_Cortex.R
-* 1b_TMT_Analysis_Striatum.R
-* 2_TMT_Analysis_Combined.R
+* [0a_Install_Dependencies.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/0a_Install_Dependencies.R)
+* [0b_Functions.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/0b_Functions.R)
+* [1a_TMT_Analysis_Cortex.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/1a_TMT_Analysis_Cortex.R)
+* [1b_TMT_Analysis_Striatum.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/1b_TMT_Analysis_Striatum.R)
+* [2_TMT_Analysis_Combined.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/2_TMT_Analysis_Combined.R)
 
