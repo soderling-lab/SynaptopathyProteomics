@@ -20,7 +20,7 @@ suppressPackageStartupMessages({
   library(parallel)
 })
 
-# The WGCNA wrapper:
+# Load the WGCNA wrapper function:
 source("D:/projects/Synaptopathy-Proteomics/Bin/wgcna.R")
 
 #------------------------------------------------------------------------------
@@ -30,9 +30,9 @@ source("D:/projects/Synaptopathy-Proteomics/Bin/wgcna.R")
 # Load hyperparameters passed from Python as a dictionary of key : value pairs.
 args = commandArgs(trailingOnly=TRUE)
 args = gsub("[\r\n]", "", args)
-
+#file <- "D:/projects/Synaptopathy-Proteomics/Code/parameters.txt"
 file <- paste(dir, args, sep="/") # 
-dict <- read.delim(file, header = FALSE, sep=",")
+pydict <- read.delim(file, header = FALSE, sep=",")
 
 # Quick function to parse the python dictionary.
 f <- function(x){
@@ -42,20 +42,23 @@ f <- function(x){
 }
 
 # Build a list of hyperparameters.
-d <- apply(dict, 2, function(x) f(x))
-keys <- d[1,]
-values <- d[2,]
-params <- as.list(values)
-names(params) <- keys
+dict <- apply(dict, 2, function(x) f(x))
+keys <- dict[1,]
+values <- dict[2,]
+user_params <- as.list(values)
+names(user_params) <- keys
+
+# Remove NoneType from Python. These will be replaced by default = NULL.
+user_params <- user_params[!user_params == "None"]
 
 #------------------------------------------------------------------------------
-# ## Perform WGCNA
+# ## Perform WGCNA!
 #------------------------------------------------------------------------------
 
 # Load the normalized data.
 file <- "D:/projects/Synaptopathy-Proteomics/RData/2_Combined_TAMPOR_cleanDat.Rds"
-exprDat <- t(log2(readRDS(file)))
+datExpr <- t(log2(readRDS(file)))
 
 # WGCNA:
-result <- wgcna(exprDat, hyperparameters=params, verbose = 0)
+result <- wgcna(datExpr, powerBeta = NULL, parameters = user_params, verbose = 0)
   

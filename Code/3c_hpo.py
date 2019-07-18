@@ -11,6 +11,7 @@
 #-----------------------------------------------------------------------------
 
 # Parameters to be optimized (17):
+# Don't use None!
 hyperparameters = {
         # Network construction arguments: correlation options
         "maxPOutliers"             : 1,     #(0,1) pearson -> bicor behavior
@@ -38,7 +39,7 @@ hyperparameters = {
 
 # Save as parameters.txt
 with open('parameters.txt', 'w') as f:
-        print(hyperparameters, file=f)
+        print(hyperparameters, file = f)
 
 #------------------------------------------------------------------------------
 # ## Optimization of WGCNA Parameters.
@@ -50,7 +51,7 @@ import subprocess
 path2rexe = "/mnt/c/Program Files/R/R-3.6.1/bin/Rscript.exe" 
 
 # Path to Rscript must be a Windows path!
-rscript = "wgcna-db.R"
+rscript = "3b_wgcna-db.R"
 path2rscript = "D:/projects/Synaptopathy-Proteomics/Code/" + rscript
 
 # Define list of additional arguments to pass to rscript.

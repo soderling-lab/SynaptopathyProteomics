@@ -3,119 +3,31 @@
 #------------------------------------------------------------------------------
 
 # Wrapper function around WGCNA::BlockWiseModules() to perform WGCNA using
-# user provided hyperparameters.
+# user provided hyperparameters.If parameters are not provided, then the 
+# defaults will be used.
 
-wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
-  #############################################################################
-  ## Define Default WGCNA Hyperparameters.
-  # These will be used if the user does not specify them. 
-  params <- list(); {
-    # Input data
-    #params$datExpr <- datExpr
-    params$weights <- NULL
-    
-    # Data checking options
-    params$checkMissingData <- FALSE
-    
-    # Options for splitting data into blocks
-    params$blocks                <- NULL
-    params$maxBlockSize          <- 5000
-    params$blockSizePenaltyPower <- 5
-    params$nPreclusteringCenters <- as.integer(min(ncol(datExpr)/20, 100*ncol(datExpr)/params$maxBlockSize))
-    params$randomSeed            <- 12345
-    
-    # load TOM from previously saved file?
-    params$loadTOM <- FALSE
-    
-    # Network construction arguments: correlation options
-    params$corType           <- "bicor"
-    params$maxPOutliers      <- 1
-    params$quickCor          <- 0
-    params$pearsonFallback   <- "individual"
-    params$cosineCorrelation <- FALSE
-    
-    # Adjacency function options
-    params$power                         <- NULL
-    params$networkType                   <- "signed"
-    params$replaceMissingAdjacencies     <- FALSE
-    params$suppressTOMForZeroAdjacencies <- FALSE
-    
-    # Topological overlap options
-    params$TOMType  <- "signed"  # c()
-    params$TOMDenom <- "min"     # c("min","mean")
-    
-    # Saving or returning TOM
-    params$getTOMs         <- NULL
-    params$saveTOMs        <- FALSE 
-    params$saveTOMFileBase <- "blockwiseTOM"
-    
-    # Basic tree cut options
-    params$deepSplit       <- 2
-    params$detectCutHeight <- 0.995 
-    params$minModuleSize   <- min(20, ncol(datExpr)/2)
-    
-    # Advanced tree cut options
-    params$maxCoreScatter           <- NULL 
-    params$minGap                   <- NULL
-    params$maxAbsCoreScatter        <- NULL
-    params$minAbsGap                <- NULL
-    params$minSplitHeight           <- NULL
-    params$minAbsSplitHeight        <- NULL
-    params$useBranchEigennodeDissim <- FALSE
-    params$minBranchEigennodeDissim <- 0.15
-    params$stabilityLabels          <- NULL
-    params$stabilityCriterion       <- "Individual fraction" # c("Individual fraction", "Common fraction")
-    params$minStabilityDissim       <- NULL
-    params$pamStage                 <- TRUE
-    params$pamRespectsDendro        <- TRUE
-    
-    # Gene reassignment, module trimming, and module "significance" criteria
-    params$reassignThreshold <- 1e-6
-    params$minCoreKME        <- 0.5
-    params$minCoreKMESize    <- (min(20, ncol(datExpr)/2))/3
-    params$minKMEtoStay      <- 0.3
-    
-    # Module merging options
-    params$mergeCutHeight <- 0.15
-    params$impute         <- TRUE
-    params$trapErrors     <- FALSE
-    
-    # Output options
-    params$numericLabels <- FALSE
-    
-    # Options controlling behaviour
-    params$nThreads                 <- 0
-    params$useInternalMatrixAlgebra <- FALSE
-    params$useCorOptionsThroughout  <- TRUE
-    params$verbose                  <- verbose 
-    params$indent                   <- 0
-  }
-  #############################################################################
+wgcna <- function(exprDat, powerBeta = NULL, parameters=NULL, verbose = 0){
 
-  ## Parse the users hyperparameters.
+  ## Load WGCNA defaults stored in Bin/.
+  # These will be used if the user does not provide any.
+  source("D:/projects/Synaptopathy-Proteomics/Bin/wgcna-defaults.R")
   
-  # Check that hyperparameters is character or list.
-  if (!(inherits(hyperparameters,"list") | inherits(hyperparameters, "character"))) {
-    stop("please provide a named list of hyperaparameters, or use the defaults.")
-    
-    # If list of user defined parameters is defined, then use them. 
-  } else if (inherits(hyperparameters, "list")) {
-    msg <- paste("Using", length(hyperparameters), "user defined parameters!")
-    if (verbose > 0) { print(msg)}
-    idx <- match(names(hyperparameters), names(params))
-    params <- params
-    params[idx] <- hyperparameters
-    
-    # Else, use default parameters.
-  } else if (tolower(hyperparameters) == "default") {
-    msg <- c("Using default parameters!")
-    if (verbose > 0) { print(msg) }
-    params <- params # The defaults defined above. 
-    
-    # Otherwise, quit. 
+  ## If provided, parse the user provided parameters.
+  if (!exists("parameters")) {
+    params <- default_params
+  } else if (inherits(parameters,"list")) {
+    user_params <- parameters
   } else {
-    stop("unable to parse the hyperparameters input.")
+    stop("please provide a list of parameters, or use the defaults.")
   }
+    
+  idx <- match(names(user_params), names(default_params))
+  params <- default_params
+  params[idx] <- user_params
+  
+  # Insure that params are the correct data type.
+  # None type should be removed. What about factors?
+  params <- lapply(params, function(x) type.convert(x))
   
   # Allow parallel WGCNA calculations if nThreads is >0.
   if (params$nThreads > 0) {
@@ -125,13 +37,10 @@ wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
   }
   
   # If specified, use the user's powerBeta. 
-  if (inherits(powerBeta, "numeric")) {
+  if (inherits(params$power, "numeric")) {
     params$power <- powerBeta
-    msg <- paste("Using user provided powerBeta:", powerBeta)
-    if (verbose > 0) { print(msg) }
-    
     # If not specified, determine soft power to achieve scale free toplogy. 
-  } else if (tolower(powerBeta) == "scale free") {
+  } else {
     sft <- capture.output(
       WGCNA::pickSoftThreshold(datExpr,
                                weights     = params$weights,
@@ -155,12 +64,10 @@ wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
     powerBeta <- fit$Power[fit$SFT.R.sq > 0.8][1]
     params$power <- powerBeta
     fit <- subset(fit, fit$Power == powerBeta)
-    msg <- paste0("Using a power of ", powerBeta, " to achieve a scale free fit of ", fit$SFT.R.sq,".")
-    if (params$verbose > 0) { print(msg) }
     # else quit.    
-  } else {
-    stop("error parsing powerBeta.")
-  }
+    } else {
+      stop("error parsing powerBeta.")
+      }
 
   ## Perform WGCNA by calling the blockwiseModules() function. 
   net <- WGCNA::blockwiseModules(
@@ -169,7 +76,7 @@ wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
     weights               = params$weights,
     
     # Data checking options
-    checkMissingData      = params$checkMissingData,
+    checkMissingData      = as.logical(params$checkMissingData),
     
     # Options for splitting data into blocks
     blocks                = params$blocks,
@@ -182,11 +89,11 @@ wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
     loadTOM               = params$loadTOM,
     
     # Network construction arguments: correlation options
-    corType                   = params$corType,
-    maxPOutliers              = params$maxPOutliers, 
-    quickCor                  = params$quickCor,
-    pearsonFallback           = params$pearsonFallback,
-    cosineCorrelation         = params$cosineCorrelation,
+    corType               = params$corType,
+    maxPOutliers          = params$maxPOutliers, 
+    quickCor              = params$quickCor,
+    pearsonFallback       = params$pearsonFallback,
+    cosineCorrelation     = params$cosineCorrelation,
     
     # Adjacency function options
     power                     = params$power,
@@ -217,12 +124,12 @@ wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
     minSplitHeight           = params$minSplitHeight, 
     minAbsSplitHeight        = params$minAbsSplitHeight,
     useBranchEigennodeDissim = params$useBranchEigennodeDissim,
-    minBranchEigennodeDissim = params$mergeCutHeight,
+    minBranchEigennodeDissim = as.numeric(params$mergeCutHeight),
     stabilityLabels          = params$stabilityLabels,
     stabilityCriterion       = params$stabilityCriterion,
     minStabilityDissim       = params$minStabilityDissim,
-    pamStage                 = params$pamStage, 
-    pamRespectsDendro        = params$pamRespectsDendro,
+    pamStage                 = as.logical(params$pamStage), 
+    pamRespectsDendro        = as.logical(params$pamRespectsDendro),
     
     # Gene reassignment, module trimming, and module "significance" criteria
     reassignThreshold  = params$reassignThreshold,
@@ -246,8 +153,11 @@ wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
     indent                   = params$indent)
   
   # Output:
-  if (params$verbose > 0) { print("Done!") }
   return(list("network" = net, "hyperparameters" = params))
 } # END FUNCTION.
 
 ## END
+
+
+
+
