@@ -1,24 +1,21 @@
-#!/usr/bin/env Rscript
+#------------------------------------------------------------------------------
+# ## wgcna-db.R
+#------------------------------------------------------------------------------
 
-# Wrapper function around WGCNA::BlockWiseModules().
-wgcna <- function(datExpr, powerBeta = "scale free", hyperparameters="Default", verbose = 0){
-  
-  ## Global options and imports. 
-  options(stringsAsFactors = FALSE)
-  suppressPackageStartupMessages({
-    library(WGCNA)
-    library(doParallel)
-    library(parallel)
-  })
-  
+# Wrapper function around WGCNA::BlockWiseModules() to perform WGCNA using
+# user provided hyperparameters.
+
+wgcna <- function(exprDat, hyperparameters="default", verbose = 0){
+  #############################################################################
   ## Define Default WGCNA Hyperparameters.
+  # These will be used if the user does not specify them. 
   params <- list(); {
     # Input data
     #params$datExpr <- datExpr
     params$weights <- NULL
     
     # Data checking options
-    params$checkMissingData <- TRUE
+    params$checkMissingData <- FALSE
     
     # Options for splitting data into blocks
     params$blocks                <- NULL
@@ -39,7 +36,7 @@ wgcna <- function(datExpr, powerBeta = "scale free", hyperparameters="Default", 
     
     # Adjacency function options
     params$power                         <- NULL
-    params$networkType                   <- "unsigned"
+    params$networkType                   <- "signed"
     params$replaceMissingAdjacencies     <- FALSE
     params$suppressTOMForZeroAdjacencies <- FALSE
     
@@ -93,77 +90,78 @@ wgcna <- function(datExpr, powerBeta = "scale free", hyperparameters="Default", 
     params$verbose                  <- verbose 
     params$indent                   <- 0
   }
-  
-  ## Parse the users input.
+  #############################################################################
+
+  ## Parse the users hyperparameters.
   
   # Check that hyperparameters is character or list.
   if (!(inherits(hyperparameters,"list") | inherits(hyperparameters, "character"))) {
     stop("please provide a named list of hyperaparameters, or use the defaults.")
     
     # If list of user defined parameters is defined, then use them. 
-    } else if (inherits(hyperparameters, "list")) {
-      msg <- paste("Using", length(hyperparameters), "user defined parameters!")
-      if (verbose > 0) { print(msg)}
-      idx <- match(names(hyperparameters), names(params))
-      params <- params
-      params[idx] <- hyperparameters
-      
-      # Else, use default parameters.
-      } else if (tolower(hyperparameters) == "default") {
-        msg <- c("Using default parameters!")
-        if (verbose > 0) { print(msg) }
-        params <- params # The defaults defined above. 
-        
-        # Otherwise, quit. 
-        } else {
-          stop("unable to parse the hyperparameters input.")
-          }
+  } else if (inherits(hyperparameters, "list")) {
+    msg <- paste("Using", length(hyperparameters), "user defined parameters!")
+    if (verbose > 0) { print(msg)}
+    idx <- match(names(hyperparameters), names(params))
+    params <- params
+    params[idx] <- hyperparameters
+    
+    # Else, use default parameters.
+  } else if (tolower(hyperparameters) == "default") {
+    msg <- c("Using default parameters!")
+    if (verbose > 0) { print(msg) }
+    params <- params # The defaults defined above. 
+    
+    # Otherwise, quit. 
+  } else {
+    stop("unable to parse the hyperparameters input.")
+  }
   
   # Allow parallel WGCNA calculations if nThreads is >0.
   if (params$nThreads > 0) {
     allowWGCNAThreads(nThreads = params$nThreads)
     clusterLocal <- makeCluster(c(rep("localhost", params$nThreads)), type = "SOCK")
     registerDoParallel(clusterLocal)
-    }
+  }
   
-    # If specified, use the user's powerBeta. 
-    if (inherits(powerBeta, "numeric")) {
+  # If specified, use the user's powerBeta. 
+  if (inherits(powerBeta, "numeric")) {
     params$power <- powerBeta
     msg <- paste("Using user provided powerBeta:", powerBeta)
     if (verbose > 0) { print(msg) }
     
     # If not specified, determine soft power to achieve scale free toplogy. 
-    } else if (tolower(powerBeta) == "scale free") {
-      sft <- capture.output(
-        WGCNA::pickSoftThreshold(datExpr,
-                          weights     = params$weights,
-                          powerVector = seq(2, 20, by = 1.0),
-                          corFnc      = params$corType,
-                          blockSize   = params$maxBlockSize,
-                          networkType = params$networkType,
-                          verbose     = params$verbose,
-                          indent      = params$indent
-        )
+  } else if (tolower(powerBeta) == "scale free") {
+    sft <- capture.output(
+      WGCNA::pickSoftThreshold(datExpr,
+                               weights     = params$weights,
+                               powerVector = seq(2, 20, by = 1.0),
+                               corFnc      = params$corType,
+                               blockSize   = params$maxBlockSize,
+                               networkType = params$networkType,
+                               verbose     = params$verbose,
+                               indent      = params$indent
       )
-      # Parse output of pickSoftThreshold().
-      out <- sft[c((match("$fitIndices", sft)+1):(length(sft)-1))]
-      rows <- unlist(strsplit(out,"\t"))
-      header <- unlist(strsplit(rows[1], "\\s+"))[c(2:8)]
-      fit <- do.call(rbind,strsplit(rows[2:length(rows)], "\\s+"))
-      fit <- as.data.frame(apply(fit,2,function(x) as.numeric(x)))
-      fit[,1] <- NULL
-      colnames(fit) <- header
-      # Calculate powerBeta
-      powerBeta <- fit$Power[fit$SFT.R.sq > 0.8][1]
-      params$power <- powerBeta
-      fit <- subset(fit, fit$Power == powerBeta)
-      msg <- paste0("Using a power of ", powerBeta, " to achieve a scale free fit of ", fit$SFT.R.sq,".")
-      if (params$verbose > 0) { print(msg) }
-      # else quit.    
-      } else {
-  stop("error parsing powerBeta.")
-    }
-  
+    )
+    # Parse output of pickSoftThreshold().
+    out <- sft[c((match("$fitIndices", sft)+1):(length(sft)-1))]
+    rows <- unlist(strsplit(out,"\t"))
+    header <- unlist(strsplit(rows[1], "\\s+"))[c(2:8)]
+    fit <- do.call(rbind,strsplit(rows[2:length(rows)], "\\s+"))
+    fit <- as.data.frame(apply(fit,2,function(x) as.numeric(x)))
+    fit[,1] <- NULL
+    colnames(fit) <- header
+    # Calculate powerBeta
+    powerBeta <- fit$Power[fit$SFT.R.sq > 0.8][1]
+    params$power <- powerBeta
+    fit <- subset(fit, fit$Power == powerBeta)
+    msg <- paste0("Using a power of ", powerBeta, " to achieve a scale free fit of ", fit$SFT.R.sq,".")
+    if (params$verbose > 0) { print(msg) }
+    # else quit.    
+  } else {
+    stop("error parsing powerBeta.")
+  }
+
   ## Perform WGCNA by calling the blockwiseModules() function. 
   net <- WGCNA::blockwiseModules(
     # Input data
@@ -247,13 +245,9 @@ wgcna <- function(datExpr, powerBeta = "scale free", hyperparameters="Default", 
     verbose                  = params$verbose, 
     indent                   = params$indent)
   
-  # Status message.
-  if (params$verbose > 0) { print("Done!") }
-  
   # Output:
+  if (params$verbose > 0) { print("Done!") }
   return(list("network" = net, "hyperparameters" = params))
 } # END FUNCTION.
 
-
-  
-
+## END
