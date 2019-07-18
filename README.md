@@ -2,10 +2,10 @@
 Analysis of synaptosome TMT proteomics from __Shank2__, __Shank3__, 
 __Syngap1__, and __Ube3a__ mouse models of neurodevelopmental disorders.
 
-Main directories:
-* Bin - executable scripts for the project.
-* Code - the code that performs the projects analysis.
-* Input - the input data.
+## Project Organization
+* Bin/ - executable scripts for the project.
+* Code/ - the code that performs the projects analysis.
+* Input/ - the raw data used as a starting point for the analysis.
 
 Additional directories:
 Several other directories are generated during the executation of the analysis:
@@ -16,9 +16,7 @@ Several other directories are generated during the executation of the analysis:
 Due to the potential for these directories to get really big, they are not 
 managed by git (see `.gitignore`).
 
-System Info:
-The analysis was done using RStudio on Windows 10.
-
+#### Analysis organization.
 * [0a_Install_Dependencies.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/0a_Install_Dependencies.R)
 * [0b_Functions.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/0b_Functions.R)
 * [1a_TMT_Analysis_Cortex.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/1a_TMT_Analysis_Cortex.R)
@@ -27,3 +25,7 @@ The analysis was done using RStudio on Windows 10.
 
 ## Supplemental Information.
 See detailed overview of the analysis, [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/Manuscript/Supplement).
+
+## System Info:
+The analysis was done using RStudio on Windows 10.
+

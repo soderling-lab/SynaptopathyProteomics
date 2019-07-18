@@ -106,6 +106,10 @@ ggplot2::theme_set(theme_gray())
 # Should plots be saved?
 save_plots = TRUE
 
+# Load plot list.
+file <- paste(Rdatadir,"1_All_plots.Rds", sep = "/")
+all_plots <- readRDS(file)
+
 #-------------------------------------------------------------------------------
 #' ## Load the raw data and sample info (traits) from excel.
 #-------------------------------------------------------------------------------
@@ -180,7 +184,7 @@ if (save_plots == TRUE) {
 }
 
 # Store plot in list.
-all_plots <- list()
+if (type == 1) { all_plots <- list() }
 all_plots[[paste(tissue,"Example_TMT",sep="_")]] <- plot
 
 #-------------------------------------------------------------------------------
@@ -1246,4 +1250,6 @@ dim(cleanDat)
 file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_TAMPOR_Format.Rds")
 saveRDS(cleanDat, file)
 
-## END
+#-------------------------------------------------------------------------------
+#' ## END
+#-------------------------------------------------------------------------------

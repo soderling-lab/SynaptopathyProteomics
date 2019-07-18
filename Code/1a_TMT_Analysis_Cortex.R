@@ -180,7 +180,7 @@ if (save_plots == TRUE) {
 }
 
 # Store plot in list.
-all_plots <- list()
+if (type == 1) { all_plots <- list() }
 all_plots[[paste(tissue,"Example_TMT",sep="_")]] <- plot
 
 #-------------------------------------------------------------------------------
@@ -1246,4 +1246,6 @@ dim(cleanDat)
 file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_TAMPOR_Format.Rds")
 saveRDS(cleanDat, file)
 
-## END
+#-------------------------------------------------------------------------------
+#' ## END
+#-------------------------------------------------------------------------------

@@ -1525,3 +1525,15 @@ if (save_plots == TRUE) {
     ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
   }
 }
+
+# Store plots in list. 
+all_plots[[paste(tissue,"Shank2_BP",sep="_")]] <- p1
+all_plots[[paste(tissue,"Shank3_BP",sep="_")]] <- p2
+all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
+all_plots[[paste(tissue,"Ube3a_BP",sep="_")]] <- p4
+
+# Save plot list. 
+file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
+saveRDS(all_plots, file)
+
+## END
