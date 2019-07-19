@@ -1,13 +1,12 @@
 # Files and folders/ to ignore.
 .Rproj.user
 .Rhistory
-.RData
+.rdata
 .Ruserdata
 [Tt]emp/
-Figures/
-Reports/
-Tables/
-RData/
+figures/
+reports/
+tables/
 venv/
 pyenv/
 renv/
