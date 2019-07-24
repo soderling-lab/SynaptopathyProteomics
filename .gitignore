@@ -1,6 +1,7 @@
 # Files and folders/ to ignore.
 .Rproj.user
 .Rhistory
+*.Rproj
 .rdata
 .Ruserdata
 [Tt]emp/
