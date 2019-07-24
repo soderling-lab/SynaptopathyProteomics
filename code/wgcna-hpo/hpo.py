@@ -128,7 +128,7 @@ def wgcna_evaluation(
         useBranchEigennodeDissim,
         minStabilityDissim,
         pamStage,
-        pamRespectDendro,
+        pamRespectsDendro,
         reassignThreshold,
         minCoreKME,
         minCoreKMESize,
@@ -137,21 +137,18 @@ def wgcna_evaluation(
         ):
     # Get function arguments and write these to file.
     args = locals()
-    with open('test.txt', 'w') as f:
+    with open('parameters.txt', 'w') as f:
         for key in sorted(args):
             f.write(key + "\t" + str(args[key]) + "\n")
     f.close()
     return None
 
 
-    # Call wgcna.r to perform WGCNA.
-    import subprocess
-    process = subprocess.Popen(["./wgcna.r", "exprDat.Rds", "test.txt"], stdout=subprocess.PIPE)
-    out = process.communicate()
-
-
-    # Parse the output.
-    return out
+# Call wgcna.r to perform WGCNA.
+import subprocess
+cmd = ["./wgcna.r", "exprDat.Rds", "parameters.txt"]
+process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+out = process.communicate()
 
 # Perform optimization
 from skopt import gp_minimize
@@ -161,22 +158,22 @@ result = gp_minimize(func=wgcna_evaluation, dimensions=yperparameters,
 #######
 # Test the function.
 
-
+# None arguments will be replaced with defaults!
 wgcna_evaluation(
-        maxPOutliers = 0.05,
-        deepSplit = 0,
-        detectCutHeight = 0.01,
-        minModuleSize = 5,
-        maxCoreScatter = 0,
-        minGap = 0,
-        minSplitHeight = 0.5, 
-        useBranchEigennodeDissim = True,
-        minStabilityDissim =0,
-        pamStage = True,
-        pamRespectDendro = True,
-        reassignThreshold = 0.5,
-        minCoreKME = 0.4,
-        minCoreKMESize =4,
-        minKMEtoStay = 0.2,
-        mergeCutHeight = 0.095
+        maxPOutliers = None,
+        deepSplit = None,
+        detectCutHeight = None,
+        minModuleSize = None,
+        maxCoreScatter = None,
+        minGap = None,
+        minSplitHeight = None, 
+        useBranchEigennodeDissim = None,
+        minStabilityDissim = None,
+        pamStage = None,
+        pamRespectsDendro = None,
+        reassignThreshold = None,
+        minCoreKME = None,
+        minCoreKMESize = None,
+        minKMEtoStay = None,
+        mergeCutHeight = None
         )

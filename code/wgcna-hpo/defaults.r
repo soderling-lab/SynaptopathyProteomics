@@ -19,6 +19,8 @@ keys <- c("weights", "checkMissingData", "blocks", "maxBlockSize", "blockSizePen
 default_params <- vector("list", length(keys))
 names(default_params) <- keys
 
+## Define defaults. Ignore NULL defaults.
+
 # Input data
 #default_params$exprDat <- exprDat
 #default_params$weights <- NULL
@@ -93,7 +95,7 @@ default_params$trapErrors     <- FALSE
 default_params$numericLabels <- FALSE
 
 # Options controlling behaviour
-default_params$nThreads                 <- 0
+default_params$nThreads                 <- 8
 default_params$useInternalMatrixAlgebra <- FALSE
 default_params$useCorOptionsThroughout  <- TRUE
 default_params$verbose                  <- 0 
