@@ -6,6 +6,9 @@
 # ## Parse the command line input.
 #------------------------------------------------------------------------------
 
+# Global options
+options(stringsAsFactors = FALSE)
+
 # If provided, parse the user provided hyperparemeters.
 args <- commandArgs(trailingOnly=TRUE)
 nargs <- length(args)
@@ -32,9 +35,12 @@ if (nargs == 0) { stop("Please provide input expression data!")
     # Format as list. 
     user_params <- as.list(temp_params$Value)
     names(user_params) <- temp_params$Parameter
+    
   }
 
-##### LOAD INPUT IF JUST TESTING ##############################################
+
+# ##### LOAD INPUT IF JUST TESTING ##############################################
+options(stringsAsFactors = FALSE)
 dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
 setwd(dir)
 data_file  <- paste(dir, "exprDat.Rds", sep="/")
@@ -68,7 +74,6 @@ names(user_params) <- temp_params$Parameter
 wgcna <- function(exprDat, parameters=NULL){
 
   ## Global options and imports. 
-  options(stringsAsFactors = FALSE)
   suppressPackageStartupMessages({
     require(WGCNA)
     require(doParallel)
@@ -80,9 +85,9 @@ wgcna <- function(exprDat, parameters=NULL){
   source("./defaults.r")
   
   ## If provided, parse the user provided parameters.
-  if (!exists("parameters")) {
+  if (!exists("parameters") | length(parameters) == 0) {
     params <- default_params
-  } else if (inherits(parameters,"list")) {
+  } else if (inherits(parameters,"list") & length(parameters) > 0) {
     user_params <- parameters
   } else {
     stop("please provide a list of parameters, or use the defaults.")
@@ -146,8 +151,7 @@ wgcna <- function(exprDat, parameters=NULL){
     params$power <- sft$powerEstimate
     
     ## Perform WGCNA by calling the blockwiseModules() function.
-  
-  # Function to supress unwanted output from the blockwiseModules with sink().
+    # Function to supress unwanted output from the blockwiseModules with sink().
     blockwiseWGCNA <- function(...){
       temp <- tempfile()
       sink(temp) 
@@ -240,7 +244,7 @@ wgcna <- function(exprDat, parameters=NULL){
       indent                   = params$indent)
   
     # Output:
-    return(list("network" = net, "hyperparameters" = params))
+    return(list("data" = exprDat, "network" = net, "hyperparameters" = params))
     } 
 # END FUNCTION.
 
@@ -253,14 +257,17 @@ results <- wgcna(exprDat, parameters = user_params)
 #------------------------------------------------------------------------------
 # ## Evaluate the quality of the WGCNA partition.
 #------------------------------------------------------------------------------
-
+# Fix the error in this chunk!
+# Use sink to suppress warnings about being unable to connect to x11 display,
+# this is because WSL cannot access the Window's display.
 suppressPackageStartupMessages({
   require(clusterSim)
 })
 
 # Extract WGCNA results.
+exprDat <- results$data
 net <- results$network
-params <- results$parameters
+params <- results$hyperparameters
 
 # The number of modules.
 nmodules <- length(unique(net$colors)) - 1 # exclude grey
@@ -293,7 +300,7 @@ diss <- 1 - TOMsimilarity(
 )
 
 # Calcualte network cluster quality indices.
-cl <- as.integer(as.numeric(as.factor(result$network$colors[!is_grey])))
+cl <- as.integer(as.numeric(as.factor(net$colors[!is_grey])))
 db <- index.DB(adjm, cl)$DB
 ch <- index.G1(adjm, cl)
 sc <- index.S(as.dist(diss), cl)
@@ -305,12 +312,6 @@ quality_results <- list(
   Median_PVE        = median_pve, # exluding grey module.
   Davies_Bouldin    = db, # DB index evaluates intra-cluster similarity and inter-cluster differences
   Calinski_Harabasz = ch, # Silhouette Index measure the distance between each data point, the centroid of the cluster it was assigned to and the closest centroid belonging to another cluster
-  Silhouett_index   = sc)
+  Silhouett_Index   = sc)
 
-
-print("Done!")
-
-
-
-
-
+# END

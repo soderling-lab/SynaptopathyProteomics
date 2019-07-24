@@ -13,4 +13,4 @@ minStabilityDissim	None
 pamRespectsDendro	None
 pamStage	None
 reassignThreshold	None
-useBranchEigennodeDissim	True
+useBranchEigennodeDissim	None
