@@ -1,16 +1,10 @@
 #!/usr/bin/env python
 
-#-----------------------------------------------------------------------------
-# ## hpo.py
-#-----------------------------------------------------------------------------
-
-# Performs hyperparameter optimization of the WGCNA function.
+## Performing hyperparameter optimization of the WGCNA function.
 
 #-----------------------------------------------------------------------------
 # ## Define WGCNA parameters.
 #-----------------------------------------------------------------------------
-
-import json # for writing parameters to file. 
 
 # Parameters to be optimized (17):
 # Please specify all parameters that you want to optimized or don't include them.
@@ -41,37 +35,148 @@ hyperparameters = {
         }
 
 # Save parameters.txt. These will be passed as input to the WGCNA function.
-#with open('parameters.txt', 'w') as f:
-#        print(hyperparameters, file = f)
+import json  
 with open('parameters.txt', 'w') as f:
-    for key in?!?jedi=0,  sorted(hyperpara?!? (*_*s: AnyStr*_*) ?!?jedi?!?meters):
-        f.write(key + "\t" + str(d[key]) + "\n")
+    for key in sorted(hyperparameters):
+        f.write(key + "\t" + str(hyperparameters[key]) + "\n")
 f.close()
 
 #------------------------------------------------------------------------------
 # ## Optimization of WGCNA Parameters.
 #------------------------------------------------------------------------------
 
+# Call wgcna.r to perform WGCNA and evaluate partition quality.
 import subprocess
+process = subprocess.Popen(["./wgcna.r", "exprDat.Rds", "parameters.txt"], stdout=subprocess.PIPE)
+out = process.communicate()
 
-# Path to R executable (R.exe or Rscript.exe). This must be a Linux path!
-path2rexe = "/mnt/c/Program Files/R/R-3.6.1/bin/Rscript.exe" 
-
-# Path to Rscript must be a Windows path!
-rscript = "3b_wgcna-db.R"
-path2rscript = "D:/projects/Synaptopathy-Proteomics/Code/" + rscript
-
-# Define list of additional arguments to pass to rscript.
-args = ["parameters.txt"]
-
-# Send command to R on Windows side!
-cmd = [path2rexe, path2rscript] + args
-x = subprocess.check_output(cmd, universal_newlines = True)
+# Check output.
+print(out)
 
 #------------------------------------------------------------------------------
-# ## Optimization of WGCNA Parameters (linux).
-#------------------------------------------------------------------------------
-subprocess.call(["/pathto/MyrScript.R"])
+# Testing the skopt module.
 
-# Also try:
-subprocess.run(["ls", "-l"])
+## Using multiple named arguments!
+from skopt.space import Real
+
+# Build a list of parameters.
+params = [
+        Real(name='foo', low=0.0, high=1.0),
+        Real(name='bar', low=0.0, high=1.0),
+        Real(name='baz', low=0.0, high=1.0),
+        ]
+
+# Define a function.
+from skopt.utils import use_named_args
+@use_named_args(dimensions=params)
+def f(foo, bar, baz):
+    out = foo ** 2 + bar ** 4 + baz ** 8
+    return out
+
+# Perform optimization
+from skopt import forest_minimize
+result = forest_minimize(func=f, dimensions=params,
+        n_calls=20, base_estimator="ET", random_state=4)
+
+print("Best fitness:", result.fun)
+print("Best parameters:", result.x)
+
+
+#------------------------------------------------------------------------------
+## Hyperparameter optimization.
+
+from skopt.space import Real, Integer, Categorical
+
+# Define parameter space for WGCNA algorithm.
+hyperparameters = [
+        # Network construction arguments: correlation options
+        Real(name        = "maxPOutliers", low=0.0, high=1.0), #(0,1) pearson -> bicor
+        # Basic tree cut options
+        Integer(name     ="deepSplit", low = 1, high = 4),   #(0,4)
+        Real(name        ="detectCutHeight", low=0, high=1.0),  #(0.995,0,1)
+        Integer(name     ="minModuleSize", low=2, high=3022),     #(2,m)
+        # Advanced tree cut options
+        Real(name        ="maxCoreScatter", low=0.0, high=1.0),            #(None,0,1)
+        Real(name        ="minGap", low=0.0, high=1.0),                    #(None,0,1)
+        Real(name        ="minSplitHeight", low=0.0, high=1.0),            #(None,0,1)
+        Categorical(name ="useBranchEigennodeDissim", categories=[False,True]), #(False,True)
+        Real(name        ="minBranchEigennodeDissim", low=0.0, high=1.0),   #(0.15,0,1)
+        Real(name        ="minStabilityDissim",low=0.0, high=1.0),         #(None,0,1)
+        Categorical(name ="pamStage", categories=[True,False]),               #(TRUE,FALSE)
+        Categorical(name ="pamRespectsDendro", categories=[True,False]),       #(True, False
+        # Gene reassignment, module trimming, and module "significance" criteria
+        Real(name        ="reassignThreshold", low=0.0, high=1.0),           #(1e-6,0,1)
+        Real(name        ="minCoreKME", low=0.0, high=1.0),                  # (0,1)
+        Integer(name     ="minCoreKMESize", low=0, high=5),     #(0,minModuleSize)
+        Real(name        ="minKMEtoStay", low=0.0, high=1.0),   #(0,1)
+        # Module merging options
+        Real(name       ="mergeCutHeight", low=0.0, high=1.0) #(0.15,0,1)
+        ]
+
+# Define a function, decorated with named arguments.
+from skopt.utils import use_named_args
+
+#@use_named_args(dimensions = hyperparameters)
+def wgcna_evaluation(
+        maxPOutliers,
+        deepSplit,
+        detectCutHeight,
+        minModuleSize,
+        maxCoreScatter,
+        minGap,
+        minSplitHeight,
+        useBranchEigennodeDissim,
+        minStabilityDissim,
+        pamStage,
+        pamRespectDendro,
+        reassignThreshold,
+        minCoreKME,
+        minCoreKMESize,
+        minKMEtoStay,
+        mergeCutHeight
+        ):
+    # Get function arguments and write these to file.
+    args = locals()
+    with open('test.txt', 'w') as f:
+        for key in sorted(args):
+            f.write(key + "\t" + str(args[key]) + "\n")
+    f.close()
+    return None
+
+
+    # Call wgcna.r to perform WGCNA.
+    import subprocess
+    process = subprocess.Popen(["./wgcna.r", "exprDat.Rds", "test.txt"], stdout=subprocess.PIPE)
+    out = process.communicate()
+
+
+    # Parse the output.
+    return out
+
+# Perform optimization
+from skopt import gp_minimize
+result = gp_minimize(func=wgcna_evaluation, dimensions=yperparameters,
+        n_calls=20, base_estimator="ET", random_state=4)
+
+#######
+# Test the function.
+
+
+wgcna_evaluation(
+        maxPOutliers = 0.05,
+        deepSplit = 0,
+        detectCutHeight = 0.01,
+        minModuleSize = 5,
+        maxCoreScatter = 0,
+        minGap = 0,
+        minSplitHeight = 0.5, 
+        useBranchEigennodeDissim = True,
+        minStabilityDissim =0,
+        pamStage = True,
+        pamRespectDendro = True,
+        reassignThreshold = 0.5,
+        minCoreKME = 0.4,
+        minCoreKMESize =4,
+        minKMEtoStay = 0.2,
+        mergeCutHeight = 0.095
+        )

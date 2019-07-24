@@ -96,5 +96,5 @@ default_params$numericLabels <- FALSE
 default_params$nThreads                 <- 0
 default_params$useInternalMatrixAlgebra <- FALSE
 default_params$useCorOptionsThroughout  <- TRUE
-default_params$verbose                  <- verbose 
+default_params$verbose                  <- 0 
 default_params$indent                   <- 0

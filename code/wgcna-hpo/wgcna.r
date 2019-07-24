@@ -7,8 +7,6 @@
 rm(list = ls())
 if (.Device != "null device") dev.off()
 cat("\f")
-options(stringsAsFactors = FALSE)
-JGmisc::detachAllPackages(keep = NULL)
 
 ## Global options and imports. 
 options(stringsAsFactors = FALSE)
@@ -55,19 +53,19 @@ if (nargs == 0) { stop("Please provide input expression data!")
   }
 
 ##### LOAD INPUT IF JUST TESTING ##############################################
-dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
-data_file  <- paste(dir, "exprDat.Rds", sep="/")
-params_file <- paste(dir, "parameters.txt", sep="/")
-exprDat <- log2(t(readRDS(data_file)))
-temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-
-# Replace True/False with TRUE/FALSE.
-temp_params$Value[temp_params$Value == "True"] <- TRUE
-temp_params$Value[temp_params$Value == "False"] <- FALSE
-
-# Format as list.
-user_params <- as.list(temp_params$Value)
-names(user_params) <- temp_params$Parameter
+# dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
+# data_file  <- paste(dir, "exprDat.Rds", sep="/")
+# params_file <- paste(dir, "parameters.txt", sep="/")
+# exprDat <- log2(t(readRDS(data_file)))
+# temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+# 
+# # Replace True/False with TRUE/FALSE.
+# temp_params$Value[temp_params$Value == "True"] <- TRUE
+# temp_params$Value[temp_params$Value == "False"] <- FALSE
+# 
+# # Format as list.
+# user_params <- as.list(temp_params$Value)
+# names(user_params) <- temp_params$Parameter
 
 ###############################################################################
 
@@ -246,15 +244,13 @@ wgcna <- function(exprDat, power_beta = NULL, parameters=NULL, verbose = 0){
   
   # Output:
   return(list("network" = net, "hyperparameters" = params))
-} # END FUNCTION.
-
-
-
+} 
+# END FUNCTION.
 
 #------------------------------------------------------------------------------
 # ## Perform WGCNA!
 #------------------------------------------------------------------------------
 
-net <- wgcna(exprDat, parameters = user_params)
+result <- wgcna(exprDat, parameters = user_params)
 
-
+print(length(unique(result$network$colors)))
