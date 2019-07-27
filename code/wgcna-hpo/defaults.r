@@ -46,7 +46,7 @@ default_params$pearsonFallback   <- "individual"
 default_params$cosineCorrelation <- FALSE
 
 # Adjacency function options
-#default_params$power                         <- NULL
+default_params$power                         <- 9
 default_params$networkType                   <- "signed"
 default_params$replaceMissingAdjacencies     <- FALSE
 default_params$suppressTOMForZeroAdjacencies <- FALSE
@@ -83,7 +83,7 @@ default_params$pamRespectsDendro        <- TRUE
 # Gene reassignment, module trimming, and module "significance" criteria
 default_params$reassignThreshold <- 1e-6
 default_params$minCoreKME        <- 0.5
-default_params$minCoreKMESize    <- (min(20, ncol(exprDat)/2))/3
+default_params$minCoreKMESize    <- round(min(20, ncol(exprDat)/2)/3)
 default_params$minKMEtoStay      <- 0.3
 
 # Module merging options

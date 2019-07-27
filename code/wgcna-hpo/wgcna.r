@@ -6,6 +6,9 @@
 # ## Parse the command line input.
 #------------------------------------------------------------------------------
 
+#FIXME: save wgcna output.
+# Need to account for percent grey in quality score.
+
 # Global options
 options(stringsAsFactors = FALSE)
 
@@ -14,51 +17,51 @@ args <- commandArgs(trailingOnly=TRUE)
 nargs <- length(args)
 
 if (nargs == 0) { stop("Please provide input expression data!")
-  } else if (nargs > 0) {
+  } else if (nargs == 1) {
+    # Load the expression data.
+	  dir <- getwd()
+	  data_file <- paste(dir, args[1], sep="/")
+	  exprDat <- log2(t(readRDS(data_file)))
+	  user_params <- NULL
+	  } else if (nargs == 2) {
+	    # Load the expression data and parameters. 
+	    dir <- getwd()
+      data_file  <- paste(dir, args[1], sep="/")
+      params_file <- paste(dir, args[2], sep="/")
     
-    # Load the expression data and parameters. 
-    dir <- getwd()
-    data_file  <- paste(dir, args[1], sep="/")
-    params_file <- paste(dir, args[2], sep="/")
+      # Load data as n x m normalized expression matrix. 
+      exprDat <- log2(t(readRDS(data_file)))
+      temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
     
-    # Load data as n x m normalized expression matrix. 
-    exprDat <- log2(t(readRDS(data_file)))
-    temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+      # Replace True/False with TRUE/FALSE
+      temp_params$Value[temp_params$Value == "True"] <- TRUE
+      temp_params$Value[temp_params$Value == "False"] <- FALSE
     
-    # Replace True/False with TRUE/FALSE
-    temp_params$Value[temp_params$Value == "True"] <- TRUE
-    temp_params$Value[temp_params$Value == "False"] <- FALSE
+      # Remove 'None' type arguments. These will be replaced with defaults.
+      temp_params <- temp_params[!(temp_params$Value == "None"),]
     
-    # Remove 'None' type arguments. These will be replaced with defaults.
-    temp_params <- temp_params[!(temp_params$Value == "None"),]
-    
-    # Format as list. 
-    user_params <- as.list(temp_params$Value)
-    names(user_params) <- temp_params$Parameter
-    
-  }
+      # Format as list. 
+      user_params <- as.list(temp_params$Value)
+      names(user_params) <- temp_params$Parameter
+      } else {
+        stop("Unable to parse user input.")
+      }
 
-
-# ##### LOAD INPUT IF JUST TESTING ##############################################
-options(stringsAsFactors = FALSE)
-dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
-setwd(dir)
-data_file  <- paste(dir, "exprDat.Rds", sep="/")
-params_file <- paste(dir, "parameters.txt", sep="/")
-exprDat <- log2(t(readRDS(data_file)))
-temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-
-# Replace True/False with TRUE/FALSE.
-temp_params$Value[temp_params$Value == "True"] <- TRUE
-temp_params$Value[temp_params$Value == "False"] <- FALSE
-
-# Remove 'None' type arguments. These will be replaced with defaults.
-temp_params <- temp_params[!(temp_params$Value == "None"),]
-
-# Format as list.
-user_params <- as.list(temp_params$Value)
-names(user_params) <- temp_params$Parameter
-
+###############################################################################
+# Load data for testing if no command line arguments passed.
+if (nargs == 0){
+  dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
+  setwd(dir)
+  data_file  <- paste(dir, "exprDat.Rds", sep="/")
+  params_file <- paste(dir, "parameters.txt", sep="/")
+  exprDat <- log2(t(readRDS(data_file)))
+  temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+  temp_params$Value[temp_params$Value == "True"] <- TRUE
+  temp_params$Value[temp_params$Value == "False"] <- FALSE
+  temp_params <- temp_params[!(temp_params$Value == "None"),]
+  user_params <- as.list(temp_params$Value)
+  names(user_params) <- temp_params$Parameter
+}
 ###############################################################################
 
 #------------------------------------------------------------------------------
@@ -86,7 +89,8 @@ wgcna <- function(exprDat, parameters=NULL){
   
   ## If provided, parse the user provided parameters.
   if (!exists("parameters") | length(parameters) == 0) {
-    params <- default_params
+	  message("No user defined parameters. Using the saved default parameters!")
+	  params <- default_params
   } else if (inherits(parameters,"list") & length(parameters) > 0) {
     user_params <- parameters
   } else {
@@ -128,6 +132,7 @@ wgcna <- function(exprDat, parameters=NULL){
   
   # If no power was provided, then determine the best power to achieve ~scale free toplogy. 
   if (is.null(params$power)) {
+	  message("Picking the best soft thresholding power to achieve scale free fit > 0.8!")
     sft <- pickPower(
       data        = exprDat,
       dataIsExpr  = TRUE,
@@ -145,10 +150,10 @@ wgcna <- function(exprDat, parameters=NULL){
       verbose     = params$verbose,
       indent      = params$indent
     )
-  }
-  
+    
     # Calculate the best power_beta.
     params$power <- sft$powerEstimate
+  }
     
     ## Perform WGCNA by calling the blockwiseModules() function.
     # Function to supress unwanted output from the blockwiseModules with sink().
@@ -246,7 +251,7 @@ wgcna <- function(exprDat, parameters=NULL){
     # Output:
     return(list("data" = exprDat, "network" = net, "hyperparameters" = params))
     } 
-# END FUNCTION.
+# EOF
 
 #------------------------------------------------------------------------------
 # ## Perform WGCNA!
@@ -254,23 +259,23 @@ wgcna <- function(exprDat, parameters=NULL){
 
 results <- wgcna(exprDat, parameters = user_params)
 
-#------------------------------------------------------------------------------
-# ## Evaluate the quality of the WGCNA partition.
-#------------------------------------------------------------------------------
-# Fix the error in this chunk!
-# Use sink to suppress warnings about being unable to connect to x11 display,
-# this is because WSL cannot access the Window's display.
-suppressPackageStartupMessages({
-  require(clusterSim)
-})
-
 # Extract WGCNA results.
 exprDat <- results$data
 net <- results$network
 params <- results$hyperparameters
 
-# The number of modules.
-nmodules <- length(unique(net$colors)) - 1 # exclude grey
+# The number of modules and percent grey.
+nmodules <- length(unique(results$network$colors)) - 1 # exclude grey
+
+# Catch errors caused by 0 or 1 clusters.
+if (nmodules < 2){
+  message("Cannot compute quality statistics for 0 or 1 modules!")
+  print(10) # <- A bad quality score
+  quit()
+}
+
+msg <- paste("WGCNA identified", nmodules, "modules!")
+message(msg)
 
 # Calculate percent grey (unclustered nodes):
 is_grey <- net$colors == "grey"
@@ -282,7 +287,20 @@ median_pve <- median(pve[!names(pve) == "PVEgrey"])
 
 # Remove grey nodes from data.
 subDat <- exprDat[,!is_grey]
-  
+
+#------------------------------------------------------------------------------
+# ## Evaluate the quality of the WGCNA partition.
+#------------------------------------------------------------------------------
+# If using WSL, you need to initialize x11 display. Before calling clusterSim,
+# insure you have launched x11 display first! 
+
+# FIXME: catch this error and tell the user to use bin/xlaunch
+# Warning messages:                                                                                  1: In rgl.init(initValue, onlyNULL) : RGL: unable to open X11 display                              2: 'rgl_init' failed, running with rgl.useNULL = TRUE
+
+suppressPackageStartupMessages({
+  library(clusterSim)
+})
+
 # Calculate weighted signed adjacency matrix.
 sink(tempfile())
 adjm <- ((1 + bicor(subDat))/ 2)^params$power
@@ -305,13 +323,27 @@ db <- index.DB(adjm, cl)$DB
 ch <- index.G1(adjm, cl)
 sc <- index.S(as.dist(diss), cl)
 
-# Return results.
-quality_results <- list(
+# quality results
+quality <- list(
   n_Modules         = nmodules,
   Percent_grey      = percent_grey,
   Median_PVE        = median_pve, # exluding grey module.
-  Davies_Bouldin    = db, # DB index evaluates intra-cluster similarity and inter-cluster differences
-  Calinski_Harabasz = ch, # Silhouette Index measure the distance between each data point, the centroid of the cluster it was assigned to and the closest centroid belonging to another cluster
-  Silhouett_Index   = sc)
+  Davies_Bouldin    = db,         # Smaller is better, min(0): DB index evaluates intra-cluster similarity and inter-cluster differences
+  Calinski_Harabasz = ch,         # CH index: larger is better (ratio of between cluster variance and within cluster variance)
+  Silhouette_Coeff   = sc)        # S Index measure the distance between each data point, the centroid of the cluster it was assigned to and the closest centroid belonging to another cluster
+
+# Which metric to use?
+metric = "Davies_Bouldin"
+
+if (metric == "Calinski_Harabasz") {
+  score = 1/ch
+} else if (metric == "Davies_Bouldin") {
+  score = db
+} else if (metric == "Silhouette_Coeff") {
+  score = -1*sc
+}
+
+# Return score
+print(score * percent_grey)
 
 # END
