@@ -1,17 +1,53 @@
 #!/usr/bin/env Rscript
 
-## wgcna.R [exprDat.Rds] [parameters.txt]
+## Usage:
+#  ./wgcna.R [expression-data] [optional: wgcna-parameters] [optional: quality-index]
 
 #------------------------------------------------------------------------------
 # ## Parse the command line input.
 #------------------------------------------------------------------------------
 
-#FIXME: save wgcna output.
-# Need to account for percent grey in quality score.
-
 # Global options
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors=FALSE)
 
+################################################################################
+library(argparser, quietly=TRUE)
+
+# Create argument parser.
+p <- arg_parser("Perform WGCNA given a normalized n x m expression matrix. ")
+p <- add_argument(p, "data", 
+		  help = "normalized n x m expression matrix")
+p <- add_argument(p, "-p", "--parameters", 
+		  help = "optional parameters for WGCNA algorithm", 
+		  default = "defaults.r")
+quit()
+
+# Parse the command line arguments.
+args <- parse_args(p)
+print(args$data)
+
+# Load data as n x m normalized expression matrix. 
+dir <- getwd()
+data_file <- paste(dir, args[1], sep="/")
+exprDat <- log2(t(readRDS(data_file)))
+user_params <- NULL
+
+# If provided, parse the user's hyperparameters.
+params_file <- paste(dir, args[2], sep="/")
+temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+
+# Replace True/False with TRUE/FALSE
+temp_params$Value[temp_params$Value == "True"] <- TRUE
+temp_params$Value[temp_params$Value == "False"] <- FALSE
+
+# Remove 'None' type arguments. These will be replaced with defaults.
+temp_params <- temp_params[!(temp_params$Value == "None"),]
+
+# Format as list. 
+user_params <- as.list(temp_params$Value)
+names(user_params) <- temp_params$Parameter
+
+################################################################################
 # If provided, parse the user provided hyperparemeters.
 args <- commandArgs(trailingOnly=TRUE)
 nargs <- length(args)
@@ -26,26 +62,26 @@ if (nargs == 0) { stop("Please provide input expression data!")
 	  } else if (nargs == 2) {
 	    # Load the expression data and parameters. 
 	    dir <- getwd()
-      data_file  <- paste(dir, args[1], sep="/")
-      params_file <- paste(dir, args[2], sep="/")
+	    data_file  <- paste(dir, args[1], sep="/")
+	    params_file <- paste(dir, args[2], sep="/")
+	    
+	    # Load data as n x m normalized expression matrix. 
+            exprDat <- log2(t(readRDS(data_file)))
+            temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
     
-      # Load data as n x m normalized expression matrix. 
-      exprDat <- log2(t(readRDS(data_file)))
-      temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+            # Replace True/False with TRUE/FALSE
+      	    temp_params$Value[temp_params$Value == "True"] <- TRUE
+            temp_params$Value[temp_params$Value == "False"] <- FALSE
     
-      # Replace True/False with TRUE/FALSE
-      temp_params$Value[temp_params$Value == "True"] <- TRUE
-      temp_params$Value[temp_params$Value == "False"] <- FALSE
+            # Remove 'None' type arguments. These will be replaced with defaults.
+            temp_params <- temp_params[!(temp_params$Value == "None"),]
     
-      # Remove 'None' type arguments. These will be replaced with defaults.
-      temp_params <- temp_params[!(temp_params$Value == "None"),]
-    
-      # Format as list. 
-      user_params <- as.list(temp_params$Value)
-      names(user_params) <- temp_params$Parameter
-      } else {
-        stop("Unable to parse user input.")
-      }
+            # Format as list. 
+            user_params <- as.list(temp_params$Value)
+            names(user_params) <- temp_params$Parameter
+          } else {
+		  stop("Unable to parse user input.")
+}
 
 ###############################################################################
 # Load data for testing if no command line arguments passed.
