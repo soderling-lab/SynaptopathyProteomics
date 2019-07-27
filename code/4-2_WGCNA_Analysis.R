@@ -131,14 +131,14 @@ results <- readRDS(file)
 #-------------------------------------------------------------------------------
 
 # Load TAMPOR cleanDat from file: #3022 rows.
-datafile <- paste(Rdatadir, tissue, "TAMPOR_data_outliersRemoved.Rds", sep = "/")
+datafile <- paste(Rdatadir, "TAMPOR_data_outliersRemoved.Rds", sep = "/")
 cleanDat <- readRDS(datafile)
 cleanDat <- log2(cleanDat)
 cleanDat[1:5, 1:5] # data should already have been log transformed!
 dim(cleanDat) # 1 outlier removed.
 
 # Load combined sample info.
-traitsfile <- paste(Rdatadir, tissue, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
+traitsfile <- paste(Rdatadir, "Combined_Cortex_Striatum_traits.Rds", sep = "/")
 sample_info <- readRDS(traitsfile)
 sample_info[1:5, 1:5]
 dim(sample_info)

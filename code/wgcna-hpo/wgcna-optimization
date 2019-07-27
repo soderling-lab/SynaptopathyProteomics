@@ -1,12 +1,41 @@
 #!/usr/bin/env python3
 
-## Performing hyperparameter optimization of the WGCNA function.
+## Performing baesian hyperparameter optimization of the WGCNA function using  
+#  the skopt-optimizer module.
 
 #------------------------------------------------------------------------------
-# ## WGCNA Hyperparameter optimization.
+# ## Parse the command line input.
 #------------------------------------------------------------------------------
 
-# Bayesian parameter optimization using the skopt-optimizer module.
+## Required inputs:
+# Input expression data.
+
+## Option inputs:
+# Cluster quality index to use.
+# Output file name
+# Other parameters for gp_minimize
+# verbose
+
+from argparse import ArgumentParser
+# Required input:
+ap = ArgumentParser(description = ''' Perform optimization of the WGCNA 
+        algorithm with Baesian hyperparameter optimization.''')
+
+ap.add_argument("data", type = str, 
+        help = ''' The normalized n x m expression
+        data matrix that will be clustered by WGCNA.''')
+
+ap.add_argument("WGCNA parameters", type = str, help = "Default parameters for WGCNA")
+
+args = vars(ap.parse_args())
+
+import sys
+sys.exit()
+
+#------------------------------------------------------------------------------
+# ## Define WGCNA hyperparameters and an optimizer function.
+#------------------------------------------------------------------------------
+
 # The DepractionWarning which results from importing skopt is acknowledged by 
 # skopt's developers and will be fixed in the next release. It cannot be 
 # suppressed by `warnings.filterwarnings("ignore", category=DeprecationWarning)`.
@@ -96,25 +125,33 @@ def wgcna_evaluation(
 # EOF
 
 #------------------------------------------------------------------------------
-# Perform optimization.
+# Perform baesian optimization of the WGCNA function with gp_minimize.
 #------------------------------------------------------------------------------
 
 from skopt import gp_minimize
 
 result = gp_minimize(func = wgcna_evaluation, dimensions = space,
         base_estimator="ET", 
-        n_calls=100,         # total number of evaluations
-        n_random_starts=10,  # Number of random starts before the approximating the function with base_estimator.
-        acq_func='LCB', # function to minimize c(LCB, EI, PI, gp_hedge) gp_hedge is a probabilistic combination of LCB, EI, and PI.  
-        acq_optimizer='auto',# .
-        x0=defaults, # If provided then f(x0) is evaluated, followed by n_random_starts. Finally, n_calls - len(x0) - n_random_starts are evaluated.
+        n_calls=500,          # total number of evaluations
+        n_random_starts=50,   # Num of rand starts before approximating the func w/base_estimator.
+        acq_func='LCB',      # func to minimize c(LCB, EI, PI, gp_hedge) gp_hedge is a probabilistic combination of LCB, EI, and PI.  
+        acq_optimizer='auto',
+        x0=defaults,         # If provided then f(x0) is evaluated as a starting point, followed by n_random_starts.
         kappa=1.96,
         random_state=4,      # For reproducible results use something other than None.
         verbose=True,
         )
 
-print("Best fitness:", result.fun)
-print("Best parameters:", result.x)
+# Save the results.
+params = [param.name for param in space]
+values = result.x
+optimized_params = dict(zip(params,values))
 
+out_file = "optimized_params.txt"
 
+with open(out_file, 'w') as f:
+    for key in sorted(optimized_params):
+        f.write(key + "\t" + str(optimized_params[key]) + "\n")
+        f.close()
 
+# DONE!
