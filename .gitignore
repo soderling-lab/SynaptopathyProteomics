@@ -3,7 +3,7 @@
 .Rhistory
 *.Rproj
 *.swp
-.rdata
+rdata
 .Ruserdata
 [Tt]emp/
 figures/
