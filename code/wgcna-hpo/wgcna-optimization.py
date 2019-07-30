@@ -3,7 +3,7 @@
 ## Performing baesian hyperparameter optimization of the WGCNA function using  
 #  the skopt-optimizer module.
 # Usage:
-# wgcna-optimization [data.Rds] 
+# ./wgcna-optimization.py [data.Rds] 
 
 #------------------------------------------------------------------------------
 # ## Parse the command line input.
@@ -123,7 +123,7 @@ from skopt import gp_minimize
 result = gp_minimize(func = wgcna_evaluation, dimensions = space,
         base_estimator="ET", 
         n_calls=10,          # total number of evaluations
-        n_random_starts=2,   # Num of rand starts before approximating the func w/base_estimator.
+        n_random_starts=5,   # Num of rand starts before approximating the func w/base_estimator.
         acq_func='LCB',      # func to minimize c(LCB, EI, PI, gp_hedge) gp_hedge is a probabilistic combination of LCB, EI, and PI.  
         acq_optimizer='auto',
         x0=defaults,         # If provided then f(x0) is evaluated as a starting point, followed by n_random_starts.
@@ -136,9 +136,7 @@ result = gp_minimize(func = wgcna_evaluation, dimensions = space,
 params = [param.name for param in space]
 values = result.x
 optimized_params = dict(zip(params,values))
-
 out_file = "optimized_params.txt"
-
 with open(out_file, 'w') as f:
     for key in sorted(optimized_params):
         f.write(key + "\t" + str(optimized_params[key]) + "\n")
