@@ -408,7 +408,7 @@ wgcna <- function(exprDat, params) {
       sink(NULL) 
       unlink(temp)
       message("Warning: unable to complete analysis! Likely cause: WGCNA returned 0 or 1 module.")
-      print(10)
+      print(20)
       quit()
       }, 
     finally = {
@@ -442,7 +442,7 @@ nmodules <- length(unique(results$network$colors)) - 1 # exclude grey
 # Stop if nModules < 2, as we cannot compute quality statistics with fewer than 2 modules. 
 if (nmodules < 2) {
 	message("Error: cannot compute quality indices if nModules < 2.0")
-	print(10)
+	print(20) # A bad score
 	quit()
 }
 

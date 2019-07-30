@@ -40,18 +40,18 @@ import subprocess
 # Use 'default' : None for parameters you don't want to optimize.
 hyperparameters = {
         # Network construction arguments: correlation options:
-        "maxPOutliers"    : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None},
+        "maxPOutliers"    : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5},
         # Basic tree cut options:
         "deepSplit"       : {'type' : Integer, 'low' : 0, 'high' : 4.0, 'default' : 2},
         "detectCutHeight" : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.995},
         "minModuleSize"   : {'type' : Integer, 'low' : 2, 'high' : 302, 'default' : 12},   
         # Advanced tree cut options:
-        "maxCoreScatter"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None},  
-        "minGap"             : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None}, 
-        "minSplitHeight"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None},                    
+        "maxCoreScatter"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5},  
+        "minGap"             : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5}, 
+        "minSplitHeight"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5},                    
         "pamRespectsDendro"  : {'type' : Categorical, 'categories' : [False,True], 'default' : True}, 
-        "minBranchEigennodeDissim" : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None}, 
-        "minStabilityDissim"       : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None}, 
+        "minBranchEigennodeDissim" : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5}, 
+        "minStabilityDissim"       : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5}, 
         "useBranchEigennodeDissim" : {'type' : Categorical, 'categories' : [False,True], 'default' : False}, 
         # Gene reassignment, module trimming, and module "significance" criteria
         "reassignThreshold"   : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 1e-6}, 
@@ -96,7 +96,14 @@ def wgcna_evaluation(
         minCoreKME,
         minKMEtoStay,
         minCoreKMESize,
-        mergeCutHeight
+        mergeCutHeight,
+        # None overrides:
+        maxCoreScatter,
+        maxPOutliers,
+        minGap,
+        minSplitHeight,
+        minBranchEigennodeDissim,
+        minStabilityDissim
         ):
     # Get function arguments and write these to file.
     args = locals()
