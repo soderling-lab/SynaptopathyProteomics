@@ -17,7 +17,6 @@ ap = ArgumentParser(description = ''' Perform optimization of the WGCNA
 ap.add_argument("data", type = str, 
         help = ''' The normalized n x m expression
         data matrix that will be clustered by WGCNA.''')
-
 # Parse input arguments.
 args = vars(ap.parse_args())
 data = args['data']
@@ -40,18 +39,18 @@ import subprocess
 # Use 'default' : None for parameters you don't want to optimize.
 hyperparameters = {
         # Network construction arguments: correlation options:
-        "maxPOutliers"    : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None},
+        "maxPOutliers"    : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5},
         # Basic tree cut options:
         "deepSplit"       : {'type' : Integer, 'low' : 0, 'high' : 4.0, 'default' : 2},
         "detectCutHeight" : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.995},
         "minModuleSize"   : {'type' : Integer, 'low' : 2, 'high' : 302, 'default' : 12},   
         # Advanced tree cut options:
-        "maxCoreScatter"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None},  
-        "minGap"             : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None}, 
-        "minSplitHeight"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None},                    
+        "maxCoreScatter"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5},  
+        "minGap"             : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5}, 
+        "minSplitHeight"     : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5},                    
         "pamRespectsDendro"  : {'type' : Categorical, 'categories' : [False,True], 'default' : True}, 
-        "minBranchEigennodeDissim" : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None}, 
-        "minStabilityDissim"       : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : None}, 
+        "minBranchEigennodeDissim" : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5}, 
+        "minStabilityDissim"       : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 0.5}, 
         "useBranchEigennodeDissim" : {'type' : Categorical, 'categories' : [False,True], 'default' : False}, 
         # Gene reassignment, module trimming, and module "significance" criteria
         "reassignThreshold"   : {'type' : Real, 'low' : 0.0, 'high' : 1.0, 'default' : 1e-6}, 
@@ -86,18 +85,7 @@ defaults = [hyperparameters.get(key).get('default') for key in hyperparameters]
 # Define a function, decorated with named arguments.
 # NOTE: parameters need to be defined in the same order as they are above.
 @use_named_args(dimensions = space)
-def wgcna_evaluation(
-        deepSplit,
-        detectCutHeight,
-        minModuleSize,
-        pamRespectsDendro,
-        useBranchEigennodeDissim,
-        reassignThreshold,
-        minCoreKME,
-        minKMEtoStay,
-        minCoreKMESize,
-        mergeCutHeight
-        ):
+def wgcna_evaluation(**space):
     # Get function arguments and write these to file.
     args = locals()
     with open('parameters.txt', 'w') as f:

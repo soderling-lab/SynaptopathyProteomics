@@ -21,22 +21,27 @@
 # Set power to NULL, if you wish to calculate the best soft-thresholding power.
 
 ###############################################################################
-# Load data for testing if no command line arguments passed.
-if (length(commandArgs(trailingOnly=FALSE)) == 0){
-  print("Using test data!")
-  options(stringsAsFactors = FALSE)
-  dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
-  setwd(dir)
-  data_file  <- paste(dir, "exprDat.Rds", sep="/")
-  params_file <- paste(dir, "parameters.txt", sep="/")
-  exprDat <- readRDS(data_file)
-  temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-  temp_params$Value[temp_params$Value == "True"] <- TRUE
-  temp_params$Value[temp_params$Value == "False"] <- FALSE
-  temp_params <- temp_params[!(temp_params$Value == "None"),]
-  user_params <- as.list(temp_params$Value)
-  names(user_params) <- temp_params$Parameter
-}
+# # Load data for testing if no command line arguments passed.
+# if (length(commandArgs(trailingOnly=TRUE)) == 0){
+#   print("Using test data!")
+#   options(stringsAsFactors = FALSE)
+#   os <- as.character(Sys.info()[1])
+#     if (os == "Windows") {
+#       dir <- "D:/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
+#     } else {
+#       dir <- "/mnt/d/projects/Synaptopathy-Proteomics/code/wgcna-hpo"
+#     }
+#   setwd(dir)
+#   data_file  <- paste(dir, "exprDat.Rds", sep="/")
+#   params_file <- paste(dir, "parameters.txt", sep="/")
+#   exprDat <- readRDS(data_file)
+#   temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+#   temp_params$Value[temp_params$Value == "True"] <- TRUE
+#   temp_params$Value[temp_params$Value == "False"] <- FALSE
+#   temp_params <- temp_params[!(temp_params$Value == "None"),]
+#   user_params <- as.list(temp_params$Value)
+#   names(user_params) <- temp_params$Parameter
+# }
 
 ###############################################################################
 
@@ -175,7 +180,7 @@ get_wgcna_params <- function(exprDat, user_params = NULL){
   # Basic tree cut options
   default_params$deepSplit       <- 2
   default_params$detectCutHeight <- 0.995 
-  default_params$minModuleSize   <- min(20, ncol(exprDat)/2)
+  default_params$minModuleSize   <- min(10, ncol(exprDat)/2)
   
   # Advanced tree cut options
   # default_params$maxCoreScatter           <- NULL 
@@ -408,7 +413,7 @@ wgcna <- function(exprDat, params) {
       sink(NULL) 
       unlink(temp)
       message("Warning: unable to complete analysis! Likely cause: WGCNA returned 0 or 1 module.")
-      print(10)
+      print(100) # a bad score
       quit()
       }, 
     finally = {
@@ -425,15 +430,13 @@ results <- wgcna(exprDat, parameters)
 #------------------------------------------------------------------------------
 
 # FIXME: catch xlaunch error and tell the user to use bin/xlaunch
-# FIXME: need to add ability to specify which quality metric.
-
-suppressPackageStartupMessages({
-  require(clusterSim, quietly = TRUE)
-})
 
 # Extract WGCNA results.
 exprDat <- results$data
+exprDat <- results$data
 net <- results$network
+mes <- net$MEs
+colors <- net$colors
 params <- results$hyperparameters
 
 # The number of modules and percent grey.
@@ -442,7 +445,7 @@ nmodules <- length(unique(results$network$colors)) - 1 # exclude grey
 # Stop if nModules < 2, as we cannot compute quality statistics with fewer than 2 modules. 
 if (nmodules < 2) {
 	message("Error: cannot compute quality indices if nModules < 2.0")
-	print(10)
+	print(100) # A bad score
 	quit()
 }
 
@@ -455,29 +458,58 @@ is_grey <- net$colors == "grey"
 percent_grey <- sum(is_grey)/length(is_grey)
 message(paste("... Percent grey  :", round(percent_grey,3)))
 
+# Define vector of clusters.
+cl <- as.integer(as.numeric(as.factor(colors[!is_grey])))
+names(cl) <- names(colors)[!is_grey]
+
 # Calculate median percent variance explained, module cohesivness:
 pve <- WGCNA::propVarExplained(exprDat, net$colors, net$MEs, corFnc = params$corType)
-median_pve <- median(pve[!names(pve) == "PVEgrey"]) # exclude grey
+pve <- pve[!names(pve) == "PVEgrey"] # Exclude grey.
+median_pve <- median(pve)
 message(paste("... Median PVE    :", round(median_pve,3)))
 
-# Remove grey nodes from data.
-subDat <- exprDat[,!is_grey]
+## Calculate quality using ME idea and ideas of WGCNA quality!
 
-# Calculate weighted signed adjacency matrix.
+# ME network. 
 sink(tempfile())
-adjm <- ((1 + bicor(subDat))/ 2)^params$power
+MEadjm <- bicor(net$MEs[!colnames(net$MEs) == "grey"])
+diag(MEadjm) <- 0
 sink(NULL)
 
-# Calcualte cluster quality index.
-cl <- as.integer(as.numeric(as.factor(net$colors[!is_grey])))
-ch_index <- index.G1(adjm, cl)
+# ME distance matrix. 
+diss <- as.matrix(dist(1 - MEadjm))
 
-# Return score
-score <- 1000*(1/ch_index * percent_grey)
-print(score)
+# Quality is the product of the total variance explained and seperation between clusters.
+N = dim(exprDat)[2]
+k = nmodules
 
-# ## OTHER QUALITY METRICS:
-# # Calculate TOM dissimilarity. 
+TWk <- sum(pve^2)
+TBk <- sum(diss^2)
+  
+score <- TWk * TBk * ((N-k)/(k-1))
+print(10000000/score)
+
+# # Other quality metrics:
+# #################################################################
+# 
+# # Remove grey nodes from data.
+# subDat <- exprDat[,!is_grey]
+# 
+# # Calculate weighted, signed adjacency matrix.
+# sink(tempfile())
+# adjm <- ((1 + bicor(subDat))/ 2)^params$power
+# sink(NULL)
+# 
+# 
+# ## Using medoids as center of clusters.
+# 
+# # Calculate a new cluster quality index based on CH.
+# # s(r) = Total Bk/ Total Wk x [(N-k)/(k-1)]
+# 
+# # Within cluster variance is sum of squared distances to clusters center.
+# # Between cluster variance is sum of nq(distance between cq and E)
+# 
+# # Distance matrix based on TOM similarity.
 # diss <- 1 - TOMsimilarity(
 #   adjm, 
 #   TOMType  = params$TOMType,
@@ -487,7 +519,95 @@ print(score)
 #   verbose  = params$verbose,
 #   indent   = params$indent
 # )
+# colnames(diss) <- rownames(diss) <- rownames(adjm)
 # 
-# #db <- index.DB(adjm, cl)$DB
-# ch <- index.G1(adjm, cl)
-# #sc <- index.S(as.dist(diss), cl)
+# # Create a graph from dissimilarity matrix. 
+# graph <- graph_from_adjacency_matrix(diss, mode = "undirected", weighted = TRUE, diag = FALSE)
+# 
+# # For all clusters find winthin cluster variance (Wk).
+# Wk <- list() 
+# for (i in seq_along(unique(cl))) {
+# 	v <- names(cl[cl == i])
+# 	subg <- induced_subgraph(graph, vids = v) # Get subgraph for cluster defined by nodes v.
+# 	dist_matrix <- as_adjacency_matrix(subg, attr = "weight") 
+# 	d <- apply(dist_matrix,2,sum)             # ColSum is distance between a point all all other points in the cluster.
+# 	med <- dist_matrix[ ,d==min(d)]           # Medoid is point that is closest to all other points in cluster.
+# 	Wk[[i]] <- sum(med^2)
+# }                     # Within cluster variance is sum of squared Euclidean distances to medoid.
+# 
+# TWk <- sum(unlist(Wk))
+# D <- apply(diss,2,sum)
+# medE <- diss[,D==min(D)]
+# TBk <- sum(medE^2)
+# 
+# N = dim(exprDat)[2]
+# k = nmodules
+# score <- TWk/TBk * ((N-k)/(k-1))
+# print(score)
+# 
+# #################################################################3
+# # Using expression data and center of mass idea.
+# Wk <- list()
+# for (i in seq_along(unique(cl))) {
+#   v <- names(cl[cl == i])
+#   subDat <- exprDat[,colnames(exprDat) %in% v]
+#   avg <- apply(subDat, 1, mean)
+#   dm <- cbind(subDat, avg)
+#   Wk[[i]] <- sum(dist(dm)^2)
+# }
+# TWk <- sum(unlist(Wk))
+# 
+# E <- apply(exprDat, 1, mean)
+# dm2 <- cbind(exprDat, E)
+# TBk <- sum(dist(dm2)^2)
+# 
+# N = dim(exprDat)[2]
+# k = nmodules
+# score <- TWk/TBk * ((N-k)/(k-1))
+# print(score)
+# 
+# #################################################################
+# ## Using centroids as center of clusters.
+# 
+# # Distance matrix based on TOM similarity.
+# diss <- 1 - TOMsimilarity(
+#   adjm, 
+#   TOMType  = params$TOMType,
+#   TOMDenom = params$TOMDenom,
+#   suppressTOMForZeroAdjacencies = params$suppressTOMForZeroAdjacencies,
+#   useInternalMatrixAlgebra      = params$useInternalMatrixAlgebra,
+#   verbose  = params$verbose,
+#   indent   = params$indent
+# )
+# colnames(diss) <- rownames(diss) <- rownames(adjm)
+# 
+# # Create a graph from dissimilarity matrix. 
+# graph <- graph_from_adjacency_matrix(diss, mode = "undirected", weighted = TRUE, diag = FALSE)
+# 
+# # For all clusters find winthin cluster variance (Wk).
+# Wk <- list() 
+# for (i in seq_along(unique(cl))) {
+#   v <- names(cl[cl == i])
+#   subg <- induced_subgraph(graph, vids = v) # Get subgraph for cluster defined by nodes v.
+#   dist_matrix <- as_adjacency_matrix(subg, attr = "weight") 
+#   cent <- apply(dist_matrix,1,mean)             
+#   d <- dist(cbind(dist_matrix,cent))
+#   Wk[[i]] <- sum(d^2)
+# }                     # Within cluster variance is sum of squared Euclidean distances to medoid.
+# 
+# TWk <- sum(unlist(Wk))
+# 
+# CENT <- apply(diss,1,mean)
+# D <- dist(cbind(diss,CENT))
+# TBk <- sum(D^2)
+# 
+# N = dim(exprDat)[2]
+# k = nmodules
+# score <- TWk/TBk * ((N-k)/(k-1))
+# print(score)
+# 
+# 
+# #################################################################
+# # Using clusterSim
+# index.G1(diss, cl)           
+# index.G1(diss, sample(cl)) # Randomized...

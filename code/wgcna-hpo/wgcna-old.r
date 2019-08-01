@@ -66,8 +66,19 @@ p <- add_argument(p, "data",
 p <- add_argument(p, "--parameters", short = "-p", 
 		  help = "optional parameters for WGCNA algorithm", 
 		  default = NULL)
+p <- add_argument(p, c("-ch", "-db", "-sc"), flag = c(TRUE, TRUE, TRUE),
+		  help = c("Calinski-Harabasz", "Davies-Bouldin", "Silhouette coefficient"),
+		  default = as.list(c(FALSE, FALSE, FALSE)))
 
 args <- parse_args(p)
+
+# Check flags.
+if (all(args$ch == FALSE, 
+	args$db == FALSE,
+	args$sc == FALSE)) {
+	message("No quality index was specified. Using Calinski-Harabasz (ch) as default!")
+	args$ch <- TRUE
+}
 
 # Load data as n x m normalized expression matrix. 
 dir <- getwd()
@@ -408,7 +419,7 @@ wgcna <- function(exprDat, params) {
       sink(NULL) 
       unlink(temp)
       message("Warning: unable to complete analysis! Likely cause: WGCNA returned 0 or 1 module.")
-      print(20)
+      print(100) # a bad score
       quit()
       }, 
     finally = {
@@ -442,7 +453,7 @@ nmodules <- length(unique(results$network$colors)) - 1 # exclude grey
 # Stop if nModules < 2, as we cannot compute quality statistics with fewer than 2 modules. 
 if (nmodules < 2) {
 	message("Error: cannot compute quality indices if nModules < 2.0")
-	print(20) # A bad score
+	print(100) # A bad score
 	quit()
 }
 
@@ -470,24 +481,31 @@ sink(NULL)
 
 # Calcualte cluster quality index.
 cl <- as.integer(as.numeric(as.factor(net$colors[!is_grey])))
-ch_index <- index.G1(adjm, cl)
+if (args$ch == TRUE) {
+	# Calculate Calinski-Harabasz index
+	ch_index <- index.G1(adjm, cl)
+	score <- 1000*(1/ch_index * percent_grey)
+	print(score)
+} else if (args$db == TRUE) {
+	# Calculate Davies-Bouldin index
+	db_index <- index.DB(adjm, cl)$DB
+	score <- 1000 * db_index * percent_grey
+	print(score)
+} else if (args$sc == TRUE) {
+	# Calculate Silhouette coefficient, using TOM diss matrix.
+	diss <- 1 - TOMsimilarity(
+				  adjm, 
+				  TOMType  = params$TOMType,
+				  TOMDenom = params$TOMDenom,
+				  suppressTOMForZeroAdjacencies = params$suppressTOMForZeroAdjacencies,
+				  useInternalMatrixAlgebra      = params$useInternalMatrixAlgebra,
+				  verbose  = params$verbose,
+				  indent   = params$indent
+				  )
+	sc_index <- index.S(as.dist(diss), cl)
+	score <- (1/sc_index * percent_grey)
+	print(score)
+} else {
+	stop("Please specify a cluster quality index: c('ch', 'db', 'sc')")
+}
 
-# Return score
-score <- 1000*(1/ch_index * percent_grey)
-print(score)
-
-# ## OTHER QUALITY METRICS:
-# # Calculate TOM dissimilarity. 
-# diss <- 1 - TOMsimilarity(
-#   adjm, 
-#   TOMType  = params$TOMType,
-#   TOMDenom = params$TOMDenom,
-#   suppressTOMForZeroAdjacencies = params$suppressTOMForZeroAdjacencies,
-#   useInternalMatrixAlgebra      = params$useInternalMatrixAlgebra,
-#   verbose  = params$verbose,
-#   indent   = params$indent
-# )
-# 
-# #db <- index.DB(adjm, cl)$DB
-# ch <- index.G1(adjm, cl)
-# #sc <- index.S(as.dist(diss), cl)
