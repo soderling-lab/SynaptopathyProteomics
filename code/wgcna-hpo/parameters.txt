@@ -1,1 +1,16 @@
-space	{'maxPOutliers': 0.26097207597042166, 'deepSplit': 0, 'detectCutHeight': 0.2287626679629285, 'minModuleSize': 65, 'maxCoreScatter': 0.18072059480555538, 'minGap': 0.31611621678989715, 'minSplitHeight': 0.24103860296163787, 'pamRespectsDendro': False, 'minBranchEigennodeDissim': 0.6326639773243377, 'minStabilityDissim': 0.2230325249389184, 'useBranchEigennodeDissim': False, 'reassignThreshold': 0.5769969699947222, 'minCoreKME': 0.3516737111101527, 'minKMEtoStay': 0.5209753179401188, 'minCoreKMESize': 37, 'mergeCutHeight': 0.08316909190074252}
+deepSplit	2
+detectCutHeight	0.995
+maxCoreScatter	0.5
+maxPOutliers	0.5
+mergeCutHeight	0.15
+minBranchEigennodeDissim	0.5
+minCoreKME	0.5
+minCoreKMESize	4
+minGap	0.5
+minKMEtoStay	0.2
+minModuleSize	12
+minSplitHeight	0.5
+minStabilityDissim	0.5
+pamRespectsDendro	True
+reassignThreshold	1e-06
+useBranchEigennodeDissim	False

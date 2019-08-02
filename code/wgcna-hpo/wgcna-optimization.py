@@ -32,7 +32,6 @@ data = args['data']
 
 from skopt.space import Real, Integer, Categorical
 from skopt.utils import use_named_args
-    
 import subprocess
 
 # Define WGCNA hyperparameters for optimization:
@@ -61,7 +60,7 @@ hyperparameters = {
         "mergeCutHeight" : {'type' : Real, 'low' : 0, 'high' : 1, 'default' : 0.15}
         }
     
-# Remove parameters with default of 'None'. 
+# If any parameters are 'None', then remove them. 
 out = [key for key in hyperparameters if hyperparameters.get(key).get('default') is None] 
 for key in out: del hyperparameters[key]
 
@@ -86,11 +85,12 @@ defaults = [hyperparameters.get(key).get('default') for key in hyperparameters]
 # NOTE: parameters need to be defined in the same order as they are above.
 @use_named_args(dimensions = space)
 def wgcna_evaluation(**space):
-    # Get function arguments and write these to file.
+    # Get function arguments with locals() and write these to file.
     args = locals()
+    user_params = args['space']
     with open('parameters.txt', 'w') as f:
-        for key in sorted(args):
-            f.write(key + "\t" + str(args[key]) + "\n")
+        for key in sorted(user_params):
+            f.write(key + "\t" + str(user_params[key]) + "\n")
     f.close()
     # Call wgcna.r to perform WGCNA and evaluate quality of partition..
     cmd = ["./wgcna.r", data, "--parameters", "parameters.txt"]
