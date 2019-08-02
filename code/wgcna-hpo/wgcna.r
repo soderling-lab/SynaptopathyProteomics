@@ -101,6 +101,14 @@ if (!is.na(args$parameters)) {
 # ## Define default WGCNA parameters.
 #------------------------------------------------------------------------------
 
+## Define a function that can suppress unwanted messages from a function. 
+silently <- function(func, ...) {
+  sink(tempfile())
+  out <- func(...)
+  sink(NULL)
+  return(out)
+}
+
 ## Given expression data matrix and optional user defined parameters, 
 #  define parameters for WGCNA analysis. 
 
@@ -425,7 +433,7 @@ wgcna <- function(exprDat, parameters) {
 results <- wgcna(exprDat, parameters)
 
 #------------------------------------------------------------------------------
-# ## Evaluate quality of the WGCNA partition.
+# ## Exctract key WGCNA results. 
 #------------------------------------------------------------------------------
 
 # FIXME: catch xlaunch error and tell the user to use bin/xlaunch
@@ -460,57 +468,110 @@ pve <- pve[!names(pve) == "PVEgrey"]
 message(paste("... Median PVE    :", round(median(pve),3)))
 
 #------------------------------------------------------------------------------
-# Calculate quality as...
+# ## Calculate quality as... Attempt 1.
 #------------------------------------------------------------------------------
 
 # Sum of total within cluster variance explained.
 # Sum of distance between eigengenes.
+
 suppressPackageStartupMessages({
   require(igraph, quietly = TRUE)
 })
 
-#CH = (TWk/TBk) * (N-k)/(k-1)
-# score = 1/CH
-#kMEdat <- signedKME(t(cleanDat), tmpMEs, corFnc = "bicor")
+# Calculate total variance explained within a cluster.
 
-## Caclulate total variance explained within a cluster.
+# Calculate weighted, signed adjacency matrix.
+adjm <- silently(bicor,exprDat)
 
-# Calculate weighted signed adjacency matrix.
-sink(tempfile())
-adjm <- bicor(exprDat)^2
-total_information <- sum(adjm)
-sink(NULL)
+# The total amount of information in the network is the sum of this adjacency matrix.
+# Raise to the power of two so that all adjacencies are positive.
+total_information <- sum(adjm^2)
 
-# Complete graph.
+# Generate igraph of this adjacency matrix.
 g <- graph_from_adjacency_matrix(adjm, mode = "directed", weighted = TRUE, diag = FALSE)
 
-# Get total variance explained for all clusters.
-tve <- list()
+# Get variance explained for all clusters.
+# The variance in a cluster is the sum of the squared adjacency matrix.
+# The total variance explained is the percent_variance_explained * total_variance
+ve <- list()
 for (color in unique(net$colors)){
   v <- names(net$colors[net$colors == color])
   subg <- induced_subgraph(g, vids = v)
   subadjm <- as.matrix(as_adjacency_matrix(subg, attr = "weight"))
-  tv <- sum(subadjm)
-  tve[color] <- tv * pve[match(color,substring(names(pve),4))]
+  total_var <- sum(subadjm^2)
+  ve[color] <- total_var * pve[match(color,substring(names(pve),4))]
 }
 
-tve <- sum(unlist(tve), na.rm = TRUE)
+# The sum of all variance explained by the clustering:
+tve <- sum(unlist(ve), na.rm = TRUE)     # Grey is NA.
 
-# total information is always the same. We want to maximize the total 
+# total information is always the same. We want to maximize the total
 # variation explained by the network partition. This should maximize
-# cluster quality (cohesiveness) while requiring that percent grey is 
-# minimized. 
+# cluster quality (cohesiveness) while requiring that percent grey is
+# minimized.
+TWk <- tve/total_information # Bigger is better!
 
 # Distance between module eigengenes.
-sink(tempfile())
-r <- bicor(net$MEs[!colnames(net$MEs) == "MEgrey"])
+r <- silently(bicor, net$MEs)
 diss <- 1 - r
 diag(diss) <- 0
-sink(NULL)
 
-# Maximize speration of clusters. 
+# Maximize speration of clusters.
 N = dim(exprDat)[2]
 k = nmodules
-cluster_dispersion <- sum(diss)
-score <- tve * cluster_dispersion * (N-k)/(k-1) * 1/100000000000
-print(1/score)
+cluster_dispersion <- sum(diss) 
+score <- TWk * cluster_dispersion * (N-k)/(k-1) # Bigger is better!
+print(100000/score)
+quit()
+
+#------------------------------------------------------------------------------
+# ## Evaluate quality of partition... Attempt 2.
+#------------------------------------------------------------------------------
+
+## Calinksi-Harabasz definition of partition quality = Variance Ratio * (N-k)/(k-1)
+# The variance Ratio is the ratio between within cluster variance and between 
+# cluster variance: CH = TWk/TBk * (N-k)/(k-1) 
+# When:
+# TWk is the sum of squared distances between the nodes in a cluster and its center.
+# TBk is the sum squared distances between the center of all clusters and the 
+# center of the network. 
+
+# Here, Twk is the sum of the distances between proteins and their ME. This is 
+# equivalent to: sum(1-kme)^2
+# As kme is a proteins module membership (the correlation between its expression 
+# vector and the ME). 
+
+# Here, TBk is the sum of squared distances between module centers which is 
+# taken to be their ME and the centroid of the network. Define the center of 
+# the network as the average mean of all MEs.
+
+# KME is module membership. Bicor between protein and modules ME (its center).
+kME <- signedKME(exprDat, datME=net$MEs, outputColumnName = "kME", corFnc = params$corType)
+cl <- as.numeric(as.factor(net$colors[match(rownames(kME),names(net$colors))]))
+
+# Complete graph.
+adjm <- silently(bicor, exprDat)
+g <- graph_from_adjacency_matrix(adjm, mode = "directed", weighted = TRUE, diag = FALSE)
+
+Wk <- list()
+for (color in unique(net$colors)) {
+  v <- names(net$colors[net$colors == color])
+  dm <- subset(kME,rownames(kME) %in% v)
+  idy <- match(color, substring(colnames(dm),4))
+  Wk[color] <- sum((1 - dm[,idy])^2)
+}
+TWk <- sum(unlist(Wk))
+
+# BC is distance between modules ME and ME centroid.
+MEs <- net$MEs
+MEcentroid <- apply(MEs,1,mean)
+adjm <- silently(bicor,(cbind(MEs,MEcentroid)))
+Bk <- (1 - adjm[,"MEcentroid"])^2
+TBk <- sum(Bk)
+
+# Return score. 
+N <- dim(exprDat)[2]
+k <- nmodules
+score <- percent_grey * (TWk/TBk) * (N-k)/(k-1) # Bigger is better!
+print(10000/score)
+
