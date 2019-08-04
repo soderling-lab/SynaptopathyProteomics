@@ -42,3 +42,17 @@ MEs. Then compute the bicor adjacency and sum of squared adjacencies to
 centroid.
 
 
+The optimization of modularity cannot be performed by exhaustive search, as
+the number of different partitions are equal to the Bell [16] or exponential numbers
+which grow at least exponentially in the number of nodes N.
+Optimization of modularity is a NP-Hard problem [17].
+
+[16] E. T. Bell, Amer. Math. Monthly 41, 411 (1934).
+[17] U. Brandes, D. Delling, M. Gaertler, R. Goerke, M.
+Hoefer, Z. Nikoloski, D. Wagner, IEEE Transactions on
+Knowledge and Data Engineering 20(2), 172 (2008).
+
+## Modularity of signed network:
+Q = Q+[2w+/(2w+ + 2w-)] - Q-[2w-/(2w+ + 2w-)]
+
+
