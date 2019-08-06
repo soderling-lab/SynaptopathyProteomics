@@ -1,0 +1,16 @@
+deepSplit	3
+detectCutHeight	0.9835817092271464
+maxCoreScatter	0.9106213744036565
+maxPOutliers	0.2113226851160201
+mergeCutHeight	0.7251340511437535
+minBranchEigennodeDissim	0.07169900782686113
+minCoreKME	0.3120625943417494
+minCoreKMESize	61
+minGap	0.9161034060993445
+minKMEtoStay	0.2782467791392773
+minModuleSize	11
+minSplitHeight	0.5190490361222824
+minStabilityDissim	0.636925619172659
+pamRespectsDendro	True
+reassignThreshold	0.8756270538963938
+useBranchEigennodeDissim	False

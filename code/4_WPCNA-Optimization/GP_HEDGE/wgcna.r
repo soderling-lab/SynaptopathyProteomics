@@ -447,6 +447,10 @@ results <- wgcna(exprDat, parameters)
 # ## Exctract key WGCNA results. 
 #------------------------------------------------------------------------------
 
+suppressPackageStartupMessages({
+  require(data.table, quietly = TRUE)
+})
+
 # Extract WGCNA results.
 exprDat <- results$data
 net <- results$network
@@ -476,10 +480,21 @@ pve <- WGCNA::propVarExplained(exprDat, net$colors, net$MEs, corFnc = params$cor
 pve <- pve[!names(pve) == "PVEgrey"]
 message(paste("... Cluster medPVE:", round(median(pve),3)))
 
+# Calculate percent total variation explained by the clustering.
+adjm <- silently(bicor, exprDat)
+subadjm <- silently(bicor, exprDat[,!is_grey])
+ptve <- sum(subadjm^2) / sum(adjm^2)
+loss_ptve <- 1 - ptve
+message(paste("... Partition PVE :", round(ptve,3)))
+
+# Write WGCNA partition to file.
+v <- as.numeric(as.factor(net$colors))
+file <- paste(dir,"wgcna-partition.csv")
+fwrite(as.data.table(t(v)),"wgcna-partition.txt", append = TRUE) 
+
 #------------------------------------------------------------------------------
 # ## Calculate Modularity, the quality of the partition.
 #------------------------------------------------------------------------------
-
 # Modularity typically only applies to unsigned graphs.
 # Modularity for signed graphs: Gomez et al., 2018 
 # REF: (https://arxiv.org/abs/0812.3030)
@@ -487,11 +502,10 @@ message(paste("... Cluster medPVE:", round(median(pve),3)))
 suppressPackageStartupMessages({
   require(reshape2, quietly = TRUE)
   require(igraph, quietly = TRUE)
-  require(data.table, quietly = TRUE)
-  require(blockmodeling, quietly = TRUE)
 })
 
 # Function to check if value is even.
+# If params$power is even then we will need to enforce sign of adjm.
 is_even <- function(x){
   return((x %% 2) == 0)
 }
@@ -500,42 +514,34 @@ is_even <- function(x){
 # Weight (power) affects sign and modularity. If power is even, then ensure that
 # sign of interaction is enforced. (negative value ^ even power = positive)
 if (is_even(params$power)) {
-  r <- silently(bicor, exprDat)
-  x <- r
-  x[x<0] <- -1
-  x[x>0] <- 1
-  adjm <- x * (r^params$power)
+	r <- adjm
+	r[r<0] <- -1
+	r[r>0] <- 1
+        signed_adjm <- r * (adjm^params$power)
 } else {
-  r <- silently(bicor, exprDat)
-  adjm <- r^params$power
+	signed_adjm <- adjm^params$power
 }
-
-cat(paste("*Vertices",ncol(n),"\r\n"), filename = "test.txt")
-
-x <- paste(seq(1,ncol(n)), " \"", seq(1,ncol(n)), "\"", "\r\n", sep = "")
 
 # Write cluster info to file.
 script_dir <- "/home/twesleyb/ada/radalib/tools/clean-up/modularity/working_example"
-n <- adjm
-cl <- as.numeric(as.factor(net$colors[match(colnames(adjm), names(net$colors))]))
-colnames(n) <- rownames(n) <- c(1:ncol(n))
-savevector(cl, paste(script_dir, "clusters.clu", sep ="/"))
+cluster_file <- paste(script_dir,"clusters.clu", sep="/")
+cl <- as.matrix(as.numeric(as.factor(net$colors[match(colnames(adjm), names(net$colors))])))
+colnames(cl) <- paste("*Vertices",ncol(signed_adjm))
+write.table(cl, quote = FALSE, file = cluster_file, row.names = FALSE, col.names = TRUE)
 
-# Write network to file in Pajak format. 
-# Write network data to file: use fwrite for faster performance!
-# Do node names need to be in quotes? "1" "2" ...
+# Write network to file in Pajak format: use fwrite for faster performance!
 network_file <- paste(script_dir, "network.net", sep="/")
+n <- signed_adjm
 colnames(n) <- rownames(n) <- c(1:ncol(n))
 edge_list <- as.data.table(na.omit(melt(n)))
 colnames(edge_list) <- c("protA","protB","weight")
-v <- as.data.table(paste(seq(1,ncol(n)), " \"", seq(1,ncol(n)), "\"", "\r\n", sep = ""))
+v <- as.data.table(paste(seq(1,ncol(n)), " \"", seq(1,ncol(n)), "\"", sep = ""))
 write.table(paste("*Vertices", dim(n)[1]), file = network_file, quote = FALSE, row.names = FALSE, col.names = FALSE)
-fwrite(v, file = network_file, sep = " ", row.names = FALSE, col.names = FALSE, append = TRUE)
+fwrite(v, file = network_file, quote = FALSE, sep = " ", row.names = FALSE, col.names = FALSE, append = TRUE)
 write.table("*Edges", file = network_file, quote = FALSE, row.names = FALSE, col.names = FALSE, append = TRUE)
 fwrite(edge_list, file = network_file, sep = " ", col.names = FALSE, append = TRUE)
 
-# Build command to be passed to radalib.
-# Not working... 
+# Build a command to be passed to radalib.
 script <- "./modularity_calculation"
 network <- "network.net"
 clusters <- "clusters.clu"
@@ -549,13 +555,8 @@ result <- system(cmd, intern = TRUE, ignore.stderr = TRUE)
 setwd(dir)
 
 # Parse the result.
-result[15]
-
-
-
-Q  <- as.numeric(result[3])
-Qp <- as.numeric(result[5])
-Qn <- as.numeric(result[7])
+Q <- as.numeric(unlist(strsplit(result[17], split = "\\ "))[8])
+message(paste("... Modularity    :", round(Q,3)))
 
 # Return score as the inverse of modularity. Bigger is better = smaller.
 score <- 1/Q
@@ -563,8 +564,6 @@ print(score)
 
 quit()
 
-
-#------------------------------------------------------------------------------
 #------------------------------------------------------------------------------
 # ## Calculate modified Davies-Bouldin quality index
 #------------------------------------------------------------------------------

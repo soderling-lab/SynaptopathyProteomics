@@ -109,15 +109,16 @@ def wgcna_evaluation(**space):
 from skopt import gp_minimize
 
 result = gp_minimize(func = wgcna_evaluation, dimensions = space,
-        base_estimator="ET", 
-        n_calls=500,          # total number of evaluations
-        n_random_starts=50,   # Num of rand starts before approximating the func w/base_estimator.
-        acq_func='LCB',      # func to minimize c(LCB, EI, PI, gp_hedge) gp_hedge is a probabilistic combination of LCB, EI, and PI.  
-        acq_optimizer='auto',
-        x0=defaults,         # If provided then f(x0) is evaluated as a starting point, followed by n_random_starts.
-        kappa=1.96,
-        random_state=4,      # For reproducible results use something other than None.
-        verbose=True,
+        base_estimator="ET",  # the gp estimator to use for optimization. Default is matern kernel.
+        n_calls=250,          # total number of evaluations
+        n_random_starts=25,   # Num of rand starts before approximating the func w/base_estimator.
+        acq_func='EIps',       # func to minimize c(LCB, EI, PI, gp_hedge) gp_hedge is a probabilistic combination of LCB, EI, and PI.  
+        acq_optimizer='auto', # one of "auto", "sampling" or "lbfgs": method used to optimize the acq_function.
+        x0=defaults,          # If provided then f(x0) is evaluated as a starting point, followed by n_random_starts.
+        xi=0.05,              # If using acq_func EI or PI: how much expected improvement one wants over previous best value.
+        kappa=1.96,           # how much variance in expected values. Used when acq_func is LCB. Higher favors exploration.
+        random_state=4,       # For reproducible results use something other than None.
+        verbose=True,         # print progress
         )
 
 # Save the search results.
