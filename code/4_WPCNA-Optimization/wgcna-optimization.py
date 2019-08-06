@@ -3,7 +3,7 @@
 ## Performing baesian hyperparameter optimization of the WGCNA function using  
 #  the skopt-optimizer module.
 # Usage:
-# ./wgcna-optimization.py [data.Rds] 
+# ./wgcna-optimization.py data.Rds [acq_func]
 
 #------------------------------------------------------------------------------
 # ## Parse the command line input.
@@ -17,6 +17,40 @@ ap = ArgumentParser(description = ''' Perform optimization of the WGCNA
 ap.add_argument("data", type = str, 
         help = ''' The normalized n x m expression
         data matrix that will be clustered by WGCNA.''')
+# Optional arguments passed to gp_minimize:
+ap.add_argument("-e", "--estimator", type = str,
+        help = ''' The gp base estimator to use for the optimization.
+        Default is Matern kernel.''', default = None)
+ap.add_argument("-n", "--n_calls", type = int,
+        help = ''' The total number of evaluations to be performed.''',
+        default = 100)
+ap.add_argument("-r", "--random_starts", type = int,
+        help = ''' The number of random evaluations of wgcna with
+        random parameters to be performed approximating it with
+        'base_estimator'.''', default = 10)
+ap.add_argument("-a", "--acq_func", type = str,
+        help = ''' The acquisition function used by gp_minimize to 
+        minimize over the posterior distribution. One of LCB, EI, PI, 
+        gp_hedge, EIps, or PIps. ''', default = 'gp_hedge')
+ap.add_argument("-o", "--optimizer", type = str,
+        help = ''' The Method used to optimize the 'acq_function'.
+        One of 'auto', 'sampling', or 'lbfgs'.''',
+        default = 'auto')
+ap.add_argument("-xi", "--xi", type = float,
+        help = '''Use to set how much imporvement one wants over 
+        previous evaluation used if acquisition function is 'EI',
+        or 'PI'.''', default = 0.01)
+ap.add_argument("-k", "--kappa", type = float,
+        help = ''' How much variance in expected values. Used when
+        acquisition function is LCB. Higher values favor exploration
+        over exploitation.''', default = 1.96)
+ap.add_argument("-s", "--seed", type = int,
+        help = ''' For reproducible results, use something other than
+        None.''', default = 4)
+ap.add_argument("-v", "--verbose", type = bool,
+        help = ''' If True then progress of function will be 
+        printed to stdout. ''', default = True)
+
 # Parse input arguments.
 args = vars(ap.parse_args())
 data = args['data']
@@ -105,20 +139,21 @@ def wgcna_evaluation(**space):
 #------------------------------------------------------------------------------
 # Perform baesian optimizahyerparameterotion of the WGCNA function with gp_minimize.
 #------------------------------------------------------------------------------
+# FIXME: It might be helpful if arguments were saved to file.
 
 from skopt import gp_minimize
 
 result = gp_minimize(func = wgcna_evaluation, dimensions = space,
-        base_estimator="ET",  # the gp estimator to use for optimization. Default is matern kernel.
-        n_calls=250,          # total number of evaluations
-        n_random_starts=25,   # Num of rand starts before approximating the func w/base_estimator.
-        acq_func='EIps',       # func to minimize c(LCB, EI, PI, gp_hedge) gp_hedge is a probabilistic combination of LCB, EI, and PI.  
-        acq_optimizer='auto', # one of "auto", "sampling" or "lbfgs": method used to optimize the acq_function.
-        x0=defaults,          # If provided then f(x0) is evaluated as a starting point, followed by n_random_starts.
-        xi=0.05,              # If using acq_func EI or PI: how much expected improvement one wants over previous best value.
-        kappa=1.96,           # how much variance in expected values. Used when acq_func is LCB. Higher favors exploration.
-        random_state=4,       # For reproducible results use something other than None.
-        verbose=True,         # print progress
+        base_estimator  = args['estimator'],        
+        n_calls         = args['n_calls'],               
+        n_random_starts = args['random_starts'],         
+        acq_func        = args['acq_func'], 
+        acq_optimizer   = args['optimizer'],       
+        x0              = defaults,        
+        xi              = args['xi'],                    
+        kappa           = args['kappa'],                
+        random_state    = args['seed'],            
+        verbose         = args['verbose']            
         )
 
 # Save the search results.

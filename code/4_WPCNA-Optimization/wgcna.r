@@ -2,8 +2,8 @@
 
 #' ---
 #' title: wgcna.r
-#' description: Performs WGCNA given some data and parameters (optional).
 #' authors: Tyler W Bradshaw
+#' description: Performs WGCNA given some data and parameters (optional).
 #' usage: ./wgcna.R data.Rds [--parameters parameters.txt] 
 
 #' This script performs Weighted Gene (or Protein) Co-expression Analysis (WGCNA).
@@ -31,17 +31,17 @@
    if (.Device != "null device") { dev.off() }
    cat("\f") 
    options(stringsAsFactors = FALSE)
-   message("Using exprDat and saved params!")
+   message("Using wtDat and saved params!")
    if (as.character(Sys.info()[1]) == "Linux"){
 	   message("Working on Linux OS!")
-	   dir <- "/mnt/d/projects/Synaptopathy-Proteomics/code/WGCNA-Optimization/"
+	   dir <- getwd()
 	   setwd(dir)
    }else if (as.character(Sys.info()[1]) == "Windows"){
-     dir <- "D:/projects/Synaptopathy-Proteomics/code/WGCNA-Optimization/"
+	   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization/EI"
 	   message("Working on Windows OS!")
 	   setwd(dir)
    }
-   data_file  <- paste(dir, "exprDat.Rds", sep="/")
+   data_file  <- paste(dir, "wtDat.Rds", sep="/")
    params_file <- paste(dir, "default_parameters.txt", sep="/")
    exprDat <- readRDS(data_file)
    temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
@@ -82,6 +82,7 @@ args <- parse_args(p)
 
 # Load data as n x m normalized expression matrix. 
 dir <- getwd()
+project_dir <- dirname(dirname(dirname(dir)))
 data_file <- paste(dir, args$data, sep="/")
 exprDat <- readRDS(data_file)
 
@@ -124,10 +125,8 @@ silently <- function(func, ...) {
 #  define parameters for WGCNA analysis. 
 
 get_wgcna_params <- function(exprDat, overrides = NULL){
-  
   # Global options:
   options(stringsAsFactors = FALSE)
-  
   # WGCNA Parameters:
   keys <- c("weights", "checkMissingData", "blocks", "maxBlockSize", "blockSizePenaltyPower", 
             "nPreclusteringCenters", "randomSeed", 'loadTOM', 'corType', 'maxPOutliers', 
@@ -143,53 +142,42 @@ get_wgcna_params <- function(exprDat, overrides = NULL){
             'useCorOptionsThroughout', 'verbose', 'indent')
   default_params <- vector("list", length(keys))
   names(default_params) <- keys
-  
   ## Define defaults.
-  
   # Input data
   #default_params$exprDat <- exprDat
   #default_params$weights <- NULL
-  
   # Data checking options
   default_params$checkMissingData <- FALSE
-  
   # Options for splitting data into blocks
   #default_params$blocks                <- NULL
   default_params$maxBlockSize          <- 15000
   default_params$blockSizePenaltyPower <- 5
   default_params$nPreclusteringCenters <- as.integer(min(ncol(exprDat)/20, 100*ncol(exprDat)/default_params$maxBlockSize))
   default_params$randomSeed            <- 12345
-  
   # load TOM from previously saved file?
   default_params$loadTOM <- FALSE
-  
   # Network construction arguments: correlation options
   default_params$corType           <- "bicor"
   default_params$maxPOutliers      <- 1
   default_params$quickCor          <- 0
   default_params$pearsonFallback   <- "individual"
   default_params$cosineCorrelation <- FALSE
-  
   # Adjacency function options
   default_params$power                         <- 13
   default_params$networkType                   <- "signed"
   default_params$replaceMissingAdjacencies     <- FALSE
   default_params$suppressTOMForZeroAdjacencies <- FALSE
-  
   # Topological overlap options
   default_params$TOMType  <- "signed"  # c()
   default_params$TOMDenom <- "min"     # c("min","mean")
-  
   # Saving or returning TOM
   #default_params$getTOMs         <- NULL
   default_params$saveTOMs        <- FALSE 
   default_params$saveTOMFileBase <- "blockwiseTOM"
-  
   # Basic tree cut options
   default_params$deepSplit       <- 2
   default_params$detectCutHeight <- 0.995 
   default_params$minModuleSize   <- min(20, ncol(exprDat)/2)
-  
   # Advanced tree cut options
   # default_params$maxCoreScatter           <- NULL 
   # default_params$minGap                   <- NULL
@@ -204,52 +192,43 @@ get_wgcna_params <- function(exprDat, overrides = NULL){
   # default_params$minStabilityDissim       <- NULL
   default_params$pamStage                 <- TRUE
   default_params$pamRespectsDendro        <- TRUE
-  
   # Gene reassignment, module trimming, and module "significance" criteria
   default_params$reassignThreshold <- 1e-6
   default_params$minCoreKME        <- 0.5
   default_params$minCoreKMESize    <- round(min(20, ncol(exprDat)/2)/3)
   default_params$minKMEtoStay      <- 0.3
-  
   # Module merging options
   default_params$mergeCutHeight <- 0.15
   default_params$impute         <- TRUE
   default_params$trapErrors     <- FALSE
-  
   # Output options
   default_params$numericLabels <- FALSE
-  
   # Options controlling behaviour
   default_params$nThreads                 <- 8
   default_params$useInternalMatrixAlgebra <- FALSE
   default_params$useCorOptionsThroughout  <- TRUE
   default_params$verbose                  <- 0 
   default_params$indent                   <- 0
-  
-  # Save defaults to file.
-  if (!"default_parameters.txt" %in% list.files(dir)) {
-    message("Saving default parameters!")
-    write.table(as.matrix(unlist(default_params)),
-                "default_parameters.txt", quote = FALSE, sep ="\t", col.names = FALSE)
-  }
-  
+  # # Save defaults to file.
+  # if (!"default_parameters.txt" %in% list.files(dir)) {
+  #   message("Saving default parameters!")
+  #   write.table(as.matrix(unlist(default_params)),
+  #               "default_parameters.txt", quote = FALSE, sep ="\t", col.names = FALSE)
+  # }
   # If provided, overwrite default parameters with user provided ones.
   if (inherits(overrides, "list")) {
     idx <- match(names(overrides), names(default_params))
     parameters <- default_params
     parameters[idx] <- overrides
-    
     # Insure that params are the correct data type. Ignore NULLS.
     parameters <- lapply(parameters, function(x) if(!is.null(x)) { type.convert(x) })
-    
     # Make sure factors are converted back to characters!
     idx <- c(1:length(parameters))[unlist(lapply(parameters, function(x) is.factor(x)))]
     parameters[idx] <- unlist(lapply(parameters[idx], function(x) as.character(x)))
     return(parameters)
-    
     # Otherwise, use the defaults.
     } else if (is.null(user_params) | is.na(user_params)) {
-      message("No user defined parameters. Using default WGCNA parameters!")
+      message("No user defined parameters. Using default parameters!")
       parameters <- default_params
       return(parameters)
       } else {
@@ -265,7 +244,6 @@ parameters <- get_wgcna_params(exprDat, overrides = user_params)
 #------------------------------------------------------------------------------
 
 wgcna <- function(exprDat, parameters) {
-  
   # Use tryCatch to handle errors caused by parameters which return a single module.
   tryCatch(
     {
@@ -276,7 +254,6 @@ wgcna <- function(exprDat, parameters) {
         require(doParallel)
         require(parallel)
       })
-      
       # Allow parallel WGCNA calculations if nThreads is > 0.
       if (parameters$nThreads > 0) {
         # Use sink to supress unwanted output.
@@ -288,7 +265,6 @@ wgcna <- function(exprDat, parameters) {
         clusterLocal <- makeCluster(c(rep("localhost", parameters$nThreads)), type = "SOCK")
         registerDoParallel(clusterLocal)
       }
-      
       # Function to get best power, suppressing unwanted output with sink.
       pickPower <- function(...){
         temp <- tempfile()
@@ -298,7 +274,6 @@ wgcna <- function(exprDat, parameters) {
         unlink(temp)
         return(output)
       }
-      
       # If no power was provided, then determine the best power to achieve ~scale free toplogy. 
       if (is.null(parameters$power)) {
         message("Picking the best soft thresholding power to achieve scale free fit > 0.8!")
@@ -319,12 +294,10 @@ wgcna <- function(exprDat, parameters) {
           verbose     = parameters$verbose,
           indent      = parameters$indent
         )
-        
         # Calculate the best power_beta.
         parameters$power <- sft$powerEstimate
         message(paste("Best soft-threshold power, beta:", sft$powerEstimate))
       }
-      
       ## Perform WGCNA by calling the blockwiseModules() function.
       # Function to supress unwanted output from the blockwiseModules with sink().
       blockwiseWGCNA <- function(...){
@@ -335,53 +308,43 @@ wgcna <- function(exprDat, parameters) {
         unlink(temp)
         return(output)
       }
-      
       net <- blockwiseWGCNA(
         # Input data
         datExpr               = exprDat, 
         weights               = parameters$weights,
-        
         # Data checking options
         checkMissingData      = parameters$checkMissingData,
-        
         # Options for splitting data into blocks
         blocks                = parameters$blocks,
         maxBlockSize          = parameters$maxBlockSize,
         blockSizePenaltyPower = parameters$blockSizePenaltyPower,
         nPreclusteringCenters = parameters$nPreclusteringCenters,
         randomSeed            = parameters$randomSeed,
-        
         # load TOM from previously saved file? This will speed things up. 
         loadTOM               = parameters$loadTOM,
-        
         # Network construction arguments: correlation options
         corType               = parameters$corType,
         maxPOutliers          = parameters$maxPOutliers, 
         quickCor              = parameters$quickCor,
         pearsonFallback       = parameters$pearsonFallback,
         cosineCorrelation     = parameters$cosineCorrelation,
-        
         # Adjacency function options
         power                     = parameters$power,
         networkType               = parameters$networkType,
         replaceMissingAdjacencies = parameters$replaceMissingAdjacencies,
-        
         # Topological overlap options
         TOMType                       = parameters$TOMType,
         TOMDenom                      = parameters$TOMDenom,
         suppressTOMForZeroAdjacencies = parameters$suppressTOMForZeroAdjacencies,
         suppressNegativeTOM           = parameters$suppressNegativeTOM,
-        
         # Saving or returning TOM
         getTOMs         = parameters$getTOMs,
         saveTOMs        = parameters$saveTOMs, 
         saveTOMFileBase = parameters$saveTOMFileBase,
-        
         # Basic tree cut options
         deepSplit       = parameters$deepSplit,
         detectCutHeight = parameters$detectCutHeight,
         minModuleSize   = parameters$minModuleSize,
-        
         # Advanced tree cut options
         maxCoreScatter           = parameters$maxCoreScatter, 
         minGap                   = parameters$minGap,
@@ -396,28 +359,23 @@ wgcna <- function(exprDat, parameters) {
         minStabilityDissim       = parameters$minStabilityDissim,
         pamStage                 = parameters$pamStage, 
         pamRespectsDendro        = parameters$pamRespectsDendro,
-        
         # Gene reassignment, module trimming, and module "significance" criteria
         reassignThreshold  = parameters$reassignThreshold,
         minCoreKME         = parameters$minCoreKME, 
         minCoreKMESize     = round(parameters$minModuleSize/3),
         minKMEtoStay       = parameters$minKMEtoStay,
-        
         # Module merging options
         mergeCutHeight = parameters$mergeCutHeight, 
         impute         = parameters$impute, 
         trapErrors     = parameters$trapErrors, 
-        
         # Output options
         numericLabels = parameters$numericLabels,
-        
         # Options controlling behaviour
         nThreads                 = parameters$nThreads,
         useInternalMatrixAlgebra = parameters$useInternalMatrixAlgebra,
         useCorOptionsThroughout  = parameters$useCorOptionsThroughout,
         verbose                  = parameters$verbose, 
         indent                   = parameters$indent)
-      
       return(list("data" = exprDat, "network" = net, "hyperparameters" = parameters))
     }, 
     # Catch error messages. 
@@ -433,12 +391,10 @@ wgcna <- function(exprDat, parameters) {
       message("Warning: unable to complete analysis! Likely cause: WGCNA returned 0 or 1 module.")
       print(100) # a bad score
       quit()
-    }, 
-    finally = {
-      # wrap up code if you want. 
     }
   )
-} # Ends wgcna()
+} 
+# Ends wgcna()
 
 ## Perform WGCNA!
 results <- wgcna(exprDat, parameters)
@@ -487,10 +443,10 @@ ptve <- sum(subadjm^2) / sum(adjm^2)
 loss_ptve <- 1 - ptve
 message(paste("... Partition PVE :", round(ptve,3)))
 
-# Write WGCNA partition to file.
-v <- as.numeric(as.factor(net$colors))
-file <- paste(dir,"wgcna-partition.csv")
-fwrite(as.data.table(t(v)),"wgcna-partition.txt", append = TRUE) 
+# # Write WGCNA partition to file.
+# v <- as.numeric(as.factor(net$colors))
+# file <- paste(dir,"wgcna-partition.csv")
+# fwrite(as.data.table(t(v)),"wgcna-partition.txt", append = TRUE) 
 
 #------------------------------------------------------------------------------
 # ## Calculate Modularity, the quality of the partition.
@@ -523,7 +479,7 @@ if (is_even(params$power)) {
 }
 
 # Write cluster info to file.
-script_dir <- "/home/twesleyb/ada/radalib/tools/clean-up/modularity/working_example"
+script_dir <- paste(project_dir,"bin","radalib", sep="/")
 cluster_file <- paste(script_dir,"clusters.clu", sep="/")
 cl <- as.matrix(as.numeric(as.factor(net$colors[match(colnames(adjm), names(net$colors))])))
 colnames(cl) <- paste("*Vertices",ncol(signed_adjm))
@@ -542,11 +498,9 @@ write.table("*Edges", file = network_file, quote = FALSE, row.names = FALSE, col
 fwrite(edge_list, file = network_file, sep = " ", col.names = FALSE, append = TRUE)
 
 # Build a command to be passed to radalib.
-script <- "./modularity_calculation"
-network <- "network.net"
-clusters <- "clusters.clu"
+script <- "./modularity_calculation.exe"
 type <- "WS" # Weighted signed network. 
-cmd <- paste(script, network, clusters, type)
+cmd <- paste(script, "network.net", "clusters.clu", type)
 
 # Evaluate modularity of the partition.
 # Need to be in radalib/tools directory!
@@ -555,12 +509,17 @@ result <- system(cmd, intern = TRUE, ignore.stderr = TRUE)
 setwd(dir)
 
 # Parse the result.
-Q <- as.numeric(unlist(strsplit(result[17], split = "\\ "))[8])
-message(paste("... Modularity    :", round(Q,3)))
+x <- trimws(result[grep(" Q = ", result)])
+message(paste("...", x))
+Q <- as.numeric(unlist(strsplit(x,"\ "))[4])
 
 # Return score as the inverse of modularity. Bigger is better = smaller.
 score <- 1/Q
 print(score)
+
+# Remove .net and .clu files.
+unlink(network_file)
+unlink(cluster_file)
 
 quit()
 

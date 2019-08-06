@@ -216,7 +216,7 @@ data$musEntrezB <- mus_homology_data$EntrezGene.ID[idx]
 
 # Keep genes that are mapped to homologous mouse genes.
 keep <- !is.na(data$musEntrezA) & !is.na(data$musEntrezB)
-data <- data[keep, ]
+ppi_data <- data[keep, ]
 dim(data)
 
 #-------------------------------------------------------------------------------
@@ -229,8 +229,8 @@ file <- paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
 tmt_data <- readRDS(file)
 
 # Collect protein identifiers.
-prots <- strsplit(rownames(data),"\\|")
-names(prots) <- rownames(data)
+prots <- strsplit(rownames(tmt_data),"\\|")
+names(prots) <- rownames(tmt_data)
 symbols <- sapply(prots,"[", 1)
 uniprot <- sapply(prots, "[", 2)
 
@@ -257,100 +257,55 @@ not_mapped <- list(
 entrez[names(not_mapped)] <- unlist(not_mapped[names(not_mapped)])
 
 # Check.
-sum(is.na(entrez))
+sum(is.na(entrez)) == 0
 
-# Df of meta info.
-df <- as.data.frame(entrez)
+# Gene identifier map.
+map <- as.data.frame(entrez)
 
 # Map Entrez to Symbol for consistency.
-df$symbol <- mapIds(org.Mm.eg.db,
-  keys = df$entrez, column = "SYMBOL",
+map$symbol <- mapIds(org.Mm.eg.db,
+  keys = map$entrez, column = "SYMBOL",
   keytype = "ENTREZID", multiVals = "first"
 )
 
 # Get PPIs
-idx <- data$musEntrezA %in% meta$entrez & data$musEntrezB %in% meta$entrez
-sif <- data[idx, c(18, 19, 14)]
+idx <- ppi_data$musEntrezA %in% map$entrez & ppi_data$musEntrezB %in% map$entrez
+ppi_subdat <- ppi_data[idx,]
+head(ppi_subdat)
+
+# Write compiled ppis to file.
+suppressPackageStartupMessages({
+  library(data.table, quiet = TRUE)
+})
+file <- paste(dir,"tables", "3_Compiled_PPIs.csv", sep="/")
+fwrite(ppi_subdat, file)
+
+# Create simple interaction file, sif.txt.
+sif <- ppi_subdat[c(18,19)]
+sif$musProtA <- rownames(map)[match(sif$musEntrezA,map$entrez)]
+sif$musProtB <- rownames(map)[match(sif$musEntrezB,map$entrez)]
+rownames(sif) <- NULL
 head(sif)
 
-# Add gene symbol annotation.
-entrez <- unique(c(sif$musEntrezA, sif$musEntrezB))
-symbol <- mapIds(org.Mm.eg.db,
-  keys = entrez, column = "SYMBOL",
-  keytype = "ENTREZID", multiVals = "first"
-)
-# Create map and add gene symbols.
-map <- as.list(symbol)
-names(map) <- entrez
-sif$geneA <- map[sif$musEntrezA]
-sif$geneB <- map[sif$musEntrezB]
-
-# Remove any missing values. There should be none.
-out <- is.na(sif$musEntrezA) | is.na(sif$musEntrezB)
-table(out)
-sif <- sif[!out, ]
-dim(sif)
-
-# Sif is a data frame of lists... fix this.
-apply(sif, 2, function(x) class(x))
-sif <- as.data.frame(apply(sif, 2, function(x) unlist(x)))
-rownames(sif) <- NULL
-
-# Write to file.
-outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(outdir, "SIF.xlsx", sep = "/")
-write.excel(sif, file)
-
-# Create a simple node attributes file for mapping node name to gene symbol.
-# foo <- data.frame("EntrezID" = sif$musEntrezA,
-#                  "Symbol" = sif$geneA)
-
-# man <- data.frame("EntrezID" = sif$musEntrezB,
-#                  "Symbol" = sif$geneB)
-
-# noa <- unique(rbind(foo,man))
-
-# Add module id and meta module id
-# map1 <- as.list(meta$module)
-# names(map1) <- meta$entrez
-
-# map2 <- as.list(meta$metaModule)
-# names(map2) <- meta$entrez
-
-# add module and meta module annotations.
-# noa$Module <- map1[noa$EntrezID]
-# noa$MetaModule <- map2[noa$EntrezID]
-# noa$MetaModule <- paste0("MM",noa$MetaModule)
-
-# Convert module color to hex
-# noa$ModuleColor <- lapply(as.list(noa$Module),function(x) col2hex(x))
-
-# Insure that noa is a df.
-# noa <- as.data.frame(apply(noa,2,function(x) unlist(x)))
-
-# Write to file.
-# outdir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-# file <- paste(outdir,"NOA.xlsx",sep="/")
-# write.excel(noa,file)
+# Write to rdata.
+file <- paste(Rdatadir, "3_SIF.Rds", sep = "/")
+saveRDS(sif, file)
 
 #-------------------------------------------------------------------------------
 #' ## Evaluate topology of the network.
 #-------------------------------------------------------------------------------
 
-# Load the data.
-dir <- "D:/Documents/R/Synaptopathy-Proteomics/Tables/Network"
-file <- paste(dir, "SIF.xlsx", sep = "/")
-sif <- read_excel(file, sheet = 1)
-
 # Create a data frame with all node attributes.
 nodes <- data.frame(
-  Entrez = unlist(meta$entrez),
-  Uniprot = unlist(meta$uniprot),
-  Symbol = unlist(meta$gene)
+  entrez = unique(c(sif$musEntrezA,sif$musEntrezB))
 )
+nodes$prot <- rownames(map)[match(nodes$entrez, map$entrez)]
+nodes$symbol <- map$symbol[match(nodes$prot, rownames(map))]
+rownames(nodes) <- NULL
+head(nodes)
 
 # Make igraph object.
-g <- graph_from_data_frame(d = sif, vertices = nodes, directed = FALSE)
+g <- graph_from_data_frame(d = sif[,c(1,2)], vertices = nodes, directed = FALSE)
 
 # Coerce to simple graph--remove duplicate edges and self-loops.
 g <- simplify(g)
@@ -372,11 +327,6 @@ mytable <- data.frame(
 table <- tableGrob(mytable, rows = NULL)
 grid.arrange(table)
 
-# Save
-outputfigsdir <- "D:/Documents/R/Synaptopathy-Proteomics/Figures/Combined/Final_WGCNA_Analysis"
-file <- paste0(outputfigsdir, "/", "PPI_Network_properties.tiff")
-ggsave(file, table, width = 2, height = 2, units = "in", dpi = 300)
-
 # Mean path length.
 round(mean_distance(g, directed = FALSE), 2)
 
@@ -387,16 +337,10 @@ head(connectivity)
 # Evaluate scale free fit with WGCNA function scaleFreePlot()
 plot <- ggplotScaleFreePlot(connectivity, nBreaks = 10)$ggplot
 plot
-
 # The synaptic proteome exhibits a scale free topology!
 
-# Save as tiff.
-file <- paste0(outputfigsdir, "/", "PPI_Network_ScaleFreeFit.tiff")
-ggsave(file, plot, width = 3, height = 2.5, units = "in")
-
-
 # Histogram of k.
-plot <- qplot(connectivity,
+kplot <- qplot(connectivity,
   geom = "histogram",
   binwidth = 5,
   main = "Connectivity Histogram",
@@ -414,9 +358,19 @@ plot <- qplot(connectivity,
     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
     axis.title.y = element_text(color = "black", size = 11, face = "bold")
   )
+kplot
 
-plot
+# Store in plot list.
+file <- paste(Rdatadir,/res"1_All_plots.Rds", sep = "/")
+all_plots <- readRDS(file)
+all_plots[["PPI_graph_properties"]] <- grid.arrange(table)
+all_plots[["PPI_graph_Hist_k"]] <- kplot
+all_plots[["PPI_graph_ScaleFreeFit"]] <- plot
 
-# Save fig.
-file <- paste0(outputfigsdir, "/", outputMatName, "PPI_Histogram_Connectivity", ".tiff")
-ggsave(file, plot, width = 3, height = 2.5, units = "in", dpi = 300)
+# Save plot list. 
+file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
+saveRDS(all_plots, file)
+
+###############################################################################
+## ENDOFILE
+###############################################################################
