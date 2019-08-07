@@ -25,33 +25,33 @@
 #' ---
 
 ###############################################################################
-# # Load data for testing if no command line arguments passed.
- if (length(commandArgs(trailingOnly=TRUE)) == 0){
-   rm(list = ls())
-   if (.Device != "null device") { dev.off() }
-   cat("\f") 
-   options(stringsAsFactors = FALSE)
-   message("Using wtDat and saved params!")
-   if (as.character(Sys.info()[1]) == "Linux"){
-	   message("Working on Linux OS!")
-	   dir <- getwd()
-	   setwd(dir)
-   }else if (as.character(Sys.info()[1]) == "Windows"){
-	   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization/EI"
-	   message("Working on Windows OS!")
-	   setwd(dir)
-   }
-   data_file  <- paste(dir, "wtDat.Rds", sep="/")
-   params_file <- paste(dir, "default_parameters.txt", sep="/")
-   exprDat <- readRDS(data_file)
-   temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-   temp_params$Value[temp_params$Value == "True"] <- TRUE
-   temp_params$Value[temp_params$Value == "False"] <- FALSE
-   temp_params <- temp_params[!(temp_params$Value == "None"),]
-   user_params <- as.list(temp_params$Value)
-   names(user_params) <- temp_params$Parameter
- }
-
+## # Load data for testing if no command line arguments passed.
+# if (length(commandArgs(trailingOnly=TRUE)) == 0){
+#   rm(list = ls())
+#   if (.Device != "null device") { dev.off() }
+#   cat("\f") 
+#   options(stringsAsFactors = FALSE)
+#   message("Using wtDat and saved params!")
+#   if (as.character(Sys.info()[1]) == "Linux"){
+#	   message("Working on Linux OS!")
+#	   dir <- getwd()
+#	   setwd(dir)
+#   }else if (as.character(Sys.info()[1]) == "Windows"){
+#	   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization/EI"
+#	   message("Working on Windows OS!")
+#	   setwd(dir)
+#   }
+#   data_file  <- paste(dir, "wtDat.Rds", sep="/")
+#   params_file <- paste(dir, "default_parameters.txt", sep="/")
+#   exprDat <- readRDS(data_file)
+#   temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+#   temp_params$Value[temp_params$Value == "True"] <- TRUE
+#   temp_params$Value[temp_params$Value == "False"] <- FALSE
+#   temp_params <- temp_params[!(temp_params$Value == "None"),]
+#   user_params <- as.list(temp_params$Value)
+#   names(user_params) <- temp_params$Parameter
+# }
+#
 ###############################################################################
 
 #------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ args <- parse_args(p)
 
 # Load data as n x m normalized expression matrix. 
 dir <- getwd()
-project_dir <- dirname(dirname(dirname(dir)))
+project_dir <- dirname(dirname(dir))
 data_file <- paste(dir, args$data, sep="/")
 exprDat <- readRDS(data_file)
 
@@ -90,7 +90,8 @@ exprDat <- readRDS(data_file)
 if (!is.na(args$parameters)) {
   params_file <- paste(dir, args$parameters, sep="/")
   temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-  
+  unlink(params_file)
+
   # Replace True/False with TRUE/FALSE
   temp_params$Value[temp_params$Value == "True"] <- TRUE
   temp_params$Value[temp_params$Value == "False"] <- FALSE

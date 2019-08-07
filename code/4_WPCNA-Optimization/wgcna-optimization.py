@@ -122,12 +122,12 @@ def wgcna_evaluation(**space):
     # Get function arguments with locals() and write these to file.
     args = locals()
     user_params = args['space']
-    with open('parameters.txt', 'w') as f:
+    with open('inputparams.txt', 'w') as f:
         for key in sorted(user_params):
             f.write(key + "\t" + str(user_params[key]) + "\n")
     f.close()
     # Call wgcna.r to perform WGCNA and evaluate quality of partition..
-    cmd = ["./wgcna.r", data, "--parameters", "parameters.txt"]
+    cmd = ["./wgcna.r", data, "--parameters", "inputparams.txt"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     out = process.communicate()
     # Parse output of wgcna.r
@@ -156,6 +156,10 @@ result = gp_minimize(func = wgcna_evaluation, dimensions = space,
         verbose         = args['verbose']            
         )
 
+#------------------------------------------------------------------------------
+# Save the results and clean-up. 
+#------------------------------------------------------------------------------
+
 # Save the search results.
 import pandas as pd
 
@@ -173,4 +177,6 @@ with open(out_file, 'w') as f:
         f.write(key + "\t" + str(optimized_params[key]) + "\n")
     f.close()
 
-# DONE!
+# Clean-up.
+import os
+os.remove("parameters.txt")
