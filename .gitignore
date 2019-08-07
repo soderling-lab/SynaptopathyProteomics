@@ -13,4 +13,5 @@ venv/
 pyenv/
 renv/
 packrat/lib*/
+# Ignore temporary files in radalib directory.
 bin/radalib/file*
