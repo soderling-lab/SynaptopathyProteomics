@@ -648,7 +648,7 @@ TMT_exactTest <- function(data_in, geno) {
 
 #-------------------------------------------------------------------------------
 #' ## normalize_IRS
-#------------------------------------------------------------------------------- 
+#-------------------------------------------------------------------------------
 # Function for IRS normalization.
 # Supports geometric or robust mean.
 
@@ -1249,13 +1249,13 @@ ggplotBoxPlot <- function(data_in, colID, colors, title) {
   dm <- df2dm_TMT(data_in, colID)
   data_temp <- melt(log2(dm))
   colnames(data_temp) <- c("Accession", "Run", "Intensity")
-  data_temp$Run <- as.factor(data_temp$Run) 
+  data_temp$Run <- as.factor(data_temp$Run)
   data_temp <- na.omit(data_temp)
-  
+
   # Discrete x-axis labels.
   #v <- seq(1,44,1)
   #v <- v[rep(c(FALSE,TRUE), 22)] <- ""
-  
+
   plot <- ggplot(data_temp, aes(x = Run, y = Intensity, fill = Run)) +
     geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
     scale_fill_manual(
@@ -1265,7 +1265,7 @@ ggplotBoxPlot <- function(data_in, colID, colors, title) {
       labels = c("Syngap1", "Ube3a", "Shank2", "Shank3")
     ) +
     ggtitle(title) +
-    xlab("TMT Run") + 
+    xlab("TMT Run") +
     ylab("Log2 Intensity") +
     theme(
       plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
@@ -3088,7 +3088,7 @@ ggplotHistK <- function(connectivity) {
 #'
 #' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
 #' @references \url{https://gephi.org/users/supported-graph-formats/pajek-net-format/}
-#' @keywords network graph pajek write 
+#' @keywords network graph pajek write
 #'
 #' @examples
 #' write.pajek(adjm, "network.net")
@@ -3102,11 +3102,37 @@ write.pajek <- function(adjm, file, ...) {
   edge_list <- as.data.table(na.omit(melt(adjm)))
   colnames(edge_list) <- c("protA","protB","weight")
   v <- as.data.table(paste(seq(1,ncol(adjm)), " \"", seq(1,ncol(adjm)), "\"", sep = ""))
-  write.table(paste("*Vertices", dim(adjm)[1]), file, 
+  write.table(paste("*Vertices", dim(adjm)[1]), file,
               quote = FALSE, row.names = FALSE, col.names = FALSE)
   fwrite(v, file, quote = FALSE, sep = " ", row.names = FALSE, col.names = FALSE, append = TRUE)
   write.table("*Edges", file, quote = FALSE, row.names = FALSE, col.names = FALSE, append = TRUE)
   fwrite(edge_list, file, sep = " ", col.names = FALSE, append = TRUE)
+}
+
+#-------------------------------------------------------------------------------
+#' silently
+#'
+#' suppress any unwanted output from a function with sink().
+#'
+#' @param func (function) symmetric adjacency matrix representing the network graph.
+#' @param ... (string) additional arguments passed to func().
+#'
+#' @return None
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#' @references \url{}
+#' @keywords supress output silent quiet
+#'
+#' @examples
+#' silently(wgcna::bicor, exprDat)
+#'
+#' @export
+## Define a function that can suppress unwanted messages from a function.
+silently <- function(func, ...) {
+  sink(tempfile())
+  out <- func(...)
+  sink(NULL)
+  return(out)
 }
 
 #-------------------------------------------------------------------------------

@@ -26,34 +26,34 @@
 
 ###############################################################################
 # # Load data for testing if no command line arguments passed.
-if (length(commandArgs(trailingOnly=TRUE)) == 0){
-  rm(list = ls())
-  if (.Device != "null device") { dev.off() }
-  cat("\f")
-  options(stringsAsFactors = FALSE)
-  message("Using wtDat and saved params!")
-  if (as.character(Sys.info()[1]) == "Linux"){
-   message("Working on Linux OS!")
-   dir <- getwd()
-   setwd(dir)
-  }else if (as.character(Sys.info()[1]) == "Windows"){
-   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization"
-   message("Working on Windows OS!")
-   setwd(dir)
-  }
-  data_file  <- paste(dir, "wtDat.Rds", sep="/")
-  params_file <- paste(dir, "default_parameters.txt", sep="/")
-  exprDat <- readRDS(data_file)
-  temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-  temp_params$Value[temp_params$Value == "True"] <- TRUE
-  temp_params$Value[temp_params$Value == "False"] <- FALSE
-  temp_params <- temp_params[!(temp_params$Value == "None"),]
-  user_params <- as.list(temp_params$Value)
-  names(user_params) <- temp_params$Parameter
-}
-
-project_dir <- dirname(dirname(dir))
-
+#if (length(commandArgs(trailingOnly=TRUE)) == 0){
+#  rm(list = ls())
+#  if (.Device != "null device") { dev.off() }
+#  cat("\f")
+#  options(stringsAsFactors = FALSE)
+#  message("Using wtDat and saved params!")
+#  if (as.character(Sys.info()[1]) == "Linux"){
+#   message("Working on Linux OS!")
+#   dir <- getwd()
+#   setwd(dir)
+#  }else if (as.character(Sys.info()[1]) == "Windows"){
+#   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization"
+#   message("Working on Windows OS!")
+#   setwd(dir)
+#  }
+#  data_file  <- paste(dir, "wtDat.Rds", sep="/")
+#  params_file <- paste(dir, "default_parameters.txt", sep="/")
+#  exprDat <- readRDS(data_file)
+#  temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+#  temp_params$Value[temp_params$Value == "True"] <- TRUE
+#  temp_params$Value[temp_params$Value == "False"] <- FALSE
+#  temp_params <- temp_params[!(temp_params$Value == "None"),]
+#  user_params <- as.list(temp_params$Value)
+#  names(user_params) <- temp_params$Parameter
+#}
+#
+#project_dir <- dirname(dirname(dir))
+#
 ###############################################################################
 
 #------------------------------------------------------------------------------
