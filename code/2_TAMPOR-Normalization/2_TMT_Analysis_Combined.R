@@ -137,7 +137,7 @@ dim(traits)
 
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
-files <- paste(Rdatadir, 
+files <- paste(Rdatadir,
                c("1_Cortex_CleanDat_TAMPOR_Format.Rds", "1_Striatum_CleanDat_TAMPOR_Format.Rds"),
                sep = "/")
 data <- lapply(as.list(files), function(x) readRDS(x))
@@ -529,10 +529,10 @@ plot2 <- ggplot(data = iterationTrackingDF, aes(x = Iteration, y = log10(abs(Fro
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "Iteration_Tracking.tiff")
   ggsave(file, plot1, width = 3.0, height = 2.5, units = "in")
-  
+
   file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking_logscale.tiff")
   ggsave(file, plot2, width = 3.0, height = 2.5, units = "in")
-  
+
 }
 
 # Store plots in list.
@@ -1005,7 +1005,7 @@ sigGO <- lapply(GO, function(x) subset(x, FDR.Up < 0.1 | x$FDR.Down < 0.1))
 # # Write to excel.
 # file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_GO_Results.xlsx")
 # write.excel(GO, file)
-# 
+#
 # file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_sigGO_Results.xlsx")
 # write.excel(sigGO, file)
 
@@ -1167,7 +1167,7 @@ if (save_plots == TRUE){
 file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
 results <- readRDS(file)
 
-# Check that number of DE candidates looks correct. 
+# Check that number of DE candidates looks correct.
 lapply(results, function(x) sum(x$FDR < 0.05))
 
 # Combine by FDR.
@@ -1249,7 +1249,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
   )) +
   coord_fixed()
 
-# Store plot. 
+# Store plot.
 all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 
 # Extract legend and save seperately.
@@ -1384,7 +1384,7 @@ plot <- plot + theme(legend.position = "none")
 if (save_plots == TRUE) {
   file <- paste0(outputfigs, "/", outputMatName, "_Genotype_Overlap.tiff")
   ggsave(file, plot, width = 3, height = 3, units = "in")
-  
+
   file <- paste0(outputfigs, "/", outputMatName, "_Genotype_Overlap_legend.tiff")
   ggsave(file, legend, width = 3, height = 3, units = "in")
 }
@@ -1529,16 +1529,61 @@ if (save_plots == TRUE) {
   }
 }
 
-# Store plots in list. 
+# Store plots in list.
 all_plots[[paste(tissue,"Shank2_BP",sep="_")]]  <- p1
 all_plots[[paste(tissue,"Shank3_BP",sep="_")]]  <- p2
 all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
 all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
 
-# Save plot list. 
+# Save plot list.
 file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
 saveRDS(all_plots, file)
 
-###############################################################################
+## Write data to excel spreadsheet.
+files <- list(
+  traits = paste(Rdatadir, "2_Combined_traits.Rds", sep = "/"),
+  raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.Rds", sep = "/"),
+  raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.Rds", sep = "/"),
+  cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
+)
+
+data <- lapply(files, function(x) readRDS(x))
+
+# Clean up traits.
+traits <- data$traits
+rownames(traits) <- NULL
+colnames(traits)[1] <- "Batch.Channel"
+traits$Color <- NULL
+traits$Order <- NULL
+colnames(traits)[2] <- "LongName"
+
+# Gather raw data.
+raw_cortex <- data$raw_cortex
+raw_striatum <- data$raw_striatum
+idx <- grepl("Abundance",colnames(raw_cortex))
+colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], "Cortex", sep =", ")
+idx <- grepl("Abundance",colnames(raw_striatum))
+colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], "Striatum", sep =", ")
+
+# Gather normalized data.
+norm_data <- as.data.frame(log2(data$cleanDat))
+idx <- match(colnames(norm_data),traits$Batch.Channel)
+colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep=", ")
+norm_data <- add_column(norm_data,"Gene|Uniprot" = rownames(norm_data), .before = 1)
+rownames(norm_data) <- NULL
+
+# Write to excel workbook.
+wb <- createWorkbook()
+addWorksheet(wb, sheetName = "sample_info")
+addWorksheet(wb, sheetName = "raw_cortex")
+addWorksheet(wb, sheetName = "raw_striatum")
+addWorksheet(wb, sheetName = "combined_normalized_data")
+writeData(wb, sheet = 1, keepNA = TRUE, traits)
+writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
+writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
+writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
+file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx",sep="/")
+saveWorkbook(wb, file, overwrite = TRUE)
+
 ## ENDOFILE
-###############################################################################
+#-------------------------------------------------------------------------------
