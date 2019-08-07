@@ -13,3 +13,4 @@ venv/
 pyenv/
 renv/
 packrat/lib*/
+bin/radalib/file*

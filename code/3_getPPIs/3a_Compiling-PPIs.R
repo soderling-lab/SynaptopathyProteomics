@@ -3,7 +3,7 @@
 #' description: TAMPOR Normalization of preprocessed TMT data.
 #' authors: Tyler W Bradshaw
 #' ---
-#' 
+#'
 
 #-------------------------------------------------------------------------------
 #' ## Setup the workspace.
@@ -17,6 +17,7 @@ options(stringsAsFactors = FALSE)
 
 # Set the working directory
 dir <- "D:/Projects/Synaptopathy-Proteomics"
+Rdatadir <- "D:/projects/Synaptopathy-Proteomics/rdata"
 setwd(dir)
 
 # Load required custom functions.
@@ -38,7 +39,6 @@ suppressPackageStartupMessages({
 
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
-
 
 #-------------------------------------------------------------------------------
 #' ## Load HitPredict interactions.
@@ -234,16 +234,16 @@ names(prots) <- rownames(tmt_data)
 symbols <- sapply(prots,"[", 1)
 uniprot <- sapply(prots, "[", 2)
 
-# Map uniprot to entrez. 
-entrez <- mapIds(org.Mm.eg.db,keys = uniprot, column = "ENTREZID", 
+# Map uniprot to entrez.
+entrez <- mapIds(org.Mm.eg.db,keys = uniprot, column = "ENTREZID",
                  keytype = "UNIPROT", multiVals = "first")
 names(entrez) <- names(prots)
 
 # Map symbols of missing values to entrez.
-entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db,keys = symbols[is.na(entrez)], column = "ENTREZID", 
+entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db,keys = symbols[is.na(entrez)], column = "ENTREZID",
                                 keytype = "SYMBOL", multiVals = "first")
 
-# Remaining un-mapped IDS:       
+# Remaining un-mapped IDS:
 sum(is.na(entrez))
 
 # Map 3 un-mapped entrez IDs by hand.
@@ -367,7 +367,7 @@ all_plots[["PPI_graph_properties"]] <- grid.arrange(table)
 all_plots[["PPI_graph_Hist_k"]] <- kplot
 all_plots[["PPI_graph_ScaleFreeFit"]] <- plot
 
-# Save plot list. 
+# Save plot list.
 file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
 saveRDS(all_plots, file)
 
