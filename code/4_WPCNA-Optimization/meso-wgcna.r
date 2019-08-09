@@ -25,34 +25,34 @@
 #' ---
 
 # ##############################################################################
-# # Load data for testing if no command line arguments passed.
-# if (length(commandArgs(trailingOnly=TRUE)) == 0){
-#  rm(list = ls())
-#  if (.Device != "null device") { dev.off() }
-#  cat("\f")
-#  options(stringsAsFactors = FALSE)
-#  message("Using wtDat and saved params!")
-#  if (as.character(Sys.info()[1]) == "Linux"){
-#   message("Working on Linux OS!")
-#   dir <- getwd()
-#   setwd(dir)
-#  }else if (as.character(Sys.info()[1]) == "Windows"){
-#   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization"
-#   message("Working on Windows OS!")
-#   setwd(dir)
-#  }
-#  data_file  <- paste(dir, "wtDat.Rds", sep="/")
-#  params_file <- paste(dir, "default_parameters.txt", sep="/")
-#  exprDat <- readRDS(data_file)
-#  temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
-#  temp_params$Value[temp_params$Value == "True"] <- TRUE
-#  temp_params$Value[temp_params$Value == "False"] <- FALSE
-#  temp_params <- temp_params[!(temp_params$Value == "None"),]
-#  user_params <- as.list(temp_params$Value)
-#  names(user_params) <- temp_params$Parameter
-# }
-#
-# project_dir <- dirname(dirname(dir))
+# Load data for testing if no command line arguments passed.
+if (length(commandArgs(trailingOnly=TRUE)) == 0){
+ rm(list = ls())
+ if (.Device != "null device") { dev.off() }
+ cat("\f")
+ options(stringsAsFactors = FALSE)
+ message("Using wtDat and saved params!")
+ if (as.character(Sys.info()[1]) == "Linux"){
+  message("Working on Linux OS!")
+  dir <- getwd()
+  setwd(dir)
+ }else if (as.character(Sys.info()[1]) == "Windows"){
+  dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization"
+  message("Working on Windows OS!")
+  setwd(dir)
+ }
+ data_file  <- paste(dir, "wtDat.Rds", sep="/")
+ params_file <- paste(dir, "default_parameters.txt", sep="/")
+ exprDat <- readRDS(data_file)
+ temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
+ temp_params$Value[temp_params$Value == "True"] <- TRUE
+ temp_params$Value[temp_params$Value == "False"] <- FALSE
+ temp_params <- temp_params[!(temp_params$Value == "None"),]
+ user_params <- as.list(temp_params$Value)
+ names(user_params) <- temp_params$Parameter
+}
+
+project_dir <- dirname(dirname(dir))
 #
 ###############################################################################
 
@@ -405,6 +405,168 @@ wgcna <- function(exprDat, parameters) {
 results <- wgcna(exprDat, parameters)
 
 #------------------------------------------------------------------------------
+## Examine scale free fit.
+
+# Does addition resolution constant affect topology?
+
+ggplotScaleFreeFit <- function(sft) {
+  require(ggplot2, quietly = TRUE)
+  # Gather the data, calculate scale free fit.
+  data <- sft$fitIndices
+  data$fit <- -sign(data$slope) * data$SFT.R.sq
+  # Generate Scale free topology plot.
+  plot1 <- ggplot(data, aes(x = Power, y = fit)) +
+    geom_text(aes(label = Power), color = "red") +
+    ggtitle("Scale independence") +
+    xlab(expression(Soft ~ Threshold ~ Power ~ (beta))) +
+    ylab(expression(Scale ~ Free ~ Topology ~ (R^2))) +
+    geom_hline(yintercept = 0.9, linetype = "dashed", color = "red", size = 0.6) +
+    # geom_hline(yintercept = 0.8, linetype = "dashed", color = "gray", size = 0.6) +
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold")
+    )
+  # Generate mean connectivity plot.
+  plot2 <- ggplot(data, aes(x = Power, y = mean.k.)) +
+    geom_text(aes(label = Power), color = "red") +
+    ggtitle("Mean Connectivity") +
+    xlab(expression(Soft ~ Threshold ~ Power ~ (beta))) +
+    ylab(expression(Mean ~ Connectivity ~ (k))) +
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold")
+    )
+  data_return <- list(plot1, plot2)
+  names(data_return) <- c("ScaleFreeFit", "MeanConnectivity")
+  return(data_return)
+}
+
+ggplotScaleFreePlot <- function(
+  connectivity,
+  nBreaks = 10,
+  truncated = FALSE,
+  removeFirst = FALSE,
+  main = "",
+  ...) {
+  require(normalp,quietly = TRUE)
+  k <- connectivity
+  discretized.k <- cut(k, nBreaks)
+  dk <- tapply(k, discretized.k, mean)
+  p.dk <- as.vector(tapply(k, discretized.k, length) / length(k))
+  breaks1 <- seq(from = min(k), to = max(k), length = nBreaks + 1)
+  hist1 <- suppressWarnings(hist(k,
+                                 breaks = breaks1, equidist = FALSE,
+                                 plot = FALSE, right = TRUE
+  )) # ...
+  dk2 <- hist1$mids
+  dk <- ifelse(is.na(dk), dk2, dk)
+  dk <- ifelse(dk == 0, dk2, dk)
+  p.dk <- ifelse(is.na(p.dk), 0, p.dk)
+  log.dk <- as.vector(log10(dk))
+  if (removeFirst) {
+    p.dk <- p.dk[-1]
+    log.dk <- log.dk[-1]
+  }
+  log.p.dk <- as.numeric(log10(p.dk + 1e-09))
+  lm1 <- lm(log.p.dk ~ log.dk)
+  pvalue <- lmp(lm1)
+  print(pvalue)
+
+  title <- paste0(
+    main, " Scale Free R2 =", as.character(round(summary(lm1)$adj.r.squared, 2)),
+    ", slope =", round(lm1$coefficients[[2]], 2)
+  )
+
+  OUTPUT <- data.frame(
+    scaleFreeRsquared = round(summary(lm1)$adj.r.squared, 2),
+    slope = round(lm1$coefficients[[2]], 2)
+  )
+  # Generate ggplot.
+  df <- as.data.frame(cbind(log.dk, log.p.dk))
+  plot <- ggplot(df, aes(x = log.dk, y = log.p.dk)) + geom_point(size = 2) +
+    ggtitle(title) +
+    geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], color = "black", linetype = "dashed") +
+    labs(y = expression(Log[10](p(k)))) +
+    labs(x = expression(Log[10](k))) +
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(hjust = 0.5, color = "black", size = 11),
+      axis.title.y = element_text(hjust = 0.5, color = "black", size = 11)
+    )
+  out <- list(ggplot = plot, stats = OUTPUT)
+  return(out)
+}
+
+# Soft Power selection
+sft <- pickSoftThreshold(
+  exprDat,
+  powerVector = seq(4, 20, by = 1.0),
+  corFnc      = parameters$corType,
+  blockSize   = parameters$maxBlockSize,
+  verbose     = parameters$verbose,
+  networkType = parameters$networkType
+)
+
+# # Create table.
+# mytable <- round(sft$fitIndices, 2)
+# mytable$truncated.R.sq <- NULL
+# table <- tableGrob(mytable, rows = NULL)
+# grid.arrange(table)
+#
+# # Save table as tiff.
+# file <- paste0(outputfigsdir, "/", outputMatName, "ScaleFreeTopology_Table.tiff")
+# ggsave(file, table, width = 3, height = 2.5, units = "in")
+
+# Figure. ggplotScaleFreeFit() generates three plots.
+plots <- ggplotScaleFreeFit(sft)
+plots$ScaleFreeFit
+plots$MeanConnectivity
+
+# Calculate node connectivity in the Weighted co-expression network.
+connectivity <- softConnectivity(
+  datExpr = exprDat,
+  corFnc  = parameters$corType,
+  weights = parameters$weights,
+  type    = parameters$networkType,
+  power   = parameters$power,
+  blockSize = parameters$maxBlockSize,
+  verbose   = parameters$verbose,
+  indent    = parameters$indent
+)
+
+# Examine fit.
+fit <- ggplotScaleFreePlot(connectivity)
+plot <- fit$ggplot
+
+# Save fig.
+file <- paste0(outputfigsdir, "/", outputMatName, "ScaleFreeFit", ".tiff")
+ggsave(file, plot, width = 3, height = 2.5, units = "in")
+
+# Histogram of k.
+plot <- qplot(connectivity,
+              geom = "histogram",
+              binwidth = 5,
+              main = "Connectivity Histogram",
+              xlab = "Connectivity (k)",
+              ylab = "Frequency",
+              fill = I("black"),
+              col = I("black"),
+              alpha = 0.2
+) +
+  scale_x_continuous(limits = c(0, 50), expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
+    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+    axis.title.y = element_text(color = "black", size = 11, face = "bold")
+  )
+
+plot
+
+#------------------------------------------------------------------------------
 # ## Exctract key WGCNA results.
 #------------------------------------------------------------------------------
 
@@ -447,6 +609,68 @@ subadjm <- silently(bicor, exprDat[,!is_grey])
 ptve <- sum(subadjm^2) / sum(adjm^2)
 loss_ptve <- 1 - ptve
 message(paste("... Partition PVE :", round(ptve,3)))
+
+#------------------------------------------------------------------------------
+# Rescape topology of network!
+#------------------------------------------------------------------------------
+
+# Signed weighted adjacency matrix.
+adjm <- silently(bicor,exprDat)^parameters$power
+adjm[1:5,1:5]
+
+distm <- 1 - TOMsimilarity(
+  adjMat = adjm,
+  TOMType = parameters$TOMType,
+  TOMDenom = params$TOMDenom,
+  suppressTOMForZeroAdjacencies = parameters$suppressTOMForZeroAdjacencies,
+  useInternalMatrixAlgebra = params$useInternalMatrixAlgebra,
+  verbose = parameters$verbose,
+  indent = parameters$indent
+)
+
+# Calculate dendrogram from shifted distance matrix.
+out <- list()
+r <- seq(-0.1,0.1, 0.01)
+
+for (i in seq_along(r)) {
+  dendro <- hclust(as.dist(distm + r[i]), method = "complete")
+  v <- cutreeDynamic(
+    dendro,
+    cutHeight = parameters$detectCutHeight,
+    minClusterSize = parameters$minModuleSize,
+    # Basic tree cut options
+    method = "hybrid",
+    distM = distm,
+    deepSplit = parameters$deepSplit,
+    # Advanced options
+    maxCoreScatter = parameters$maxCoreScatter,
+    minGap = parameters$minGap,
+    maxAbsCoreScatter = parameters$maxAbsCoreScatter,
+    minAbsGap = parameters$minAbsGap,
+    minSplitHeight = parameters$minSplitHeight,
+    minAbsSplitHeight = parameters$minAbsSplitHeight,
+    # External (user-supplied) measure of branch split
+    externalBranchSplitFnc = NULL,
+    minExternalSplit = NULL,
+    externalSplitOptions = list(),
+    externalSplitFncNeedsDistance = NULL,
+    assumeSimpleExternalSpecification = TRUE,
+    # PAM stage options
+    pamStage = parameters$pamStage,
+    pamRespectsDendro = parameters$pamRespectsDendro,
+    useMedoids = FALSE,
+    maxDistToLabel = NULL,
+    maxPamDist = parameters$detectCutHeight,
+    respectSmallClusters = TRUE,
+    # Various options
+    verbose = parameters$verbose,
+    indent = parameters$indent
+    )
+  out[[i]] <- length(unique(v))
+}
+
+unlist(out)
+
 
 #------------------------------------------------------------------------------
 # ## Calculate WS Modularity, the quality of the partition.

@@ -1,9 +1,14 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
 
+#------------------------------------------------------------------------------
 ## Performing baesian hyperparameter optimization of the WGCNA function using  
-#  the skopt-optimizer module.
-# Usage:
-# ./wgcna-optimization.py data.Rds [acq_func]
+#  the skopt-optimizer module. Parameters for optimization are defined as a
+#  dictionary. Sensible defaults provide a starting point for the hyperparameter
+#  optimiation function by gaussian process minimization. The optimal parameters 
+#  and search space are saved as output.
+
+## Usage:
+#  $./wgcna-optimization.py data.Rds [acq_func]
 
 #------------------------------------------------------------------------------
 # ## Parse the command line input.
@@ -137,9 +142,9 @@ def wgcna_evaluation(**space):
 # EOF
 
 #------------------------------------------------------------------------------
-# Perform baesian optimizahyerparameterotion of the WGCNA function with gp_minimize.
+# ## Perform baesian hyperparameter optimization of the WGCNA function.
 #------------------------------------------------------------------------------
-# FIXME: It might be helpful if arguments were saved to file.
+# FIXME: It might be helpful if gp_minimization arguments were saved to file.
 
 from skopt import gp_minimize
 
@@ -157,12 +162,13 @@ result = gp_minimize(func = wgcna_evaluation, dimensions = space,
         )
 
 #------------------------------------------------------------------------------
-# Save the results and clean-up. 
+# ## Save the results and clean-up. 
 #------------------------------------------------------------------------------
 
 # Save the search results.
 import pandas as pd
 
+# Save the search space.
 params = [param.name for param in space]
 df = pd.DataFrame(data = result.x_iters, columns = params) 
 df['Quality'] = result.func_vals
@@ -177,6 +183,5 @@ with open(out_file, 'w') as f:
         f.write(key + "\t" + str(optimized_params[key]) + "\n")
     f.close()
 
-# Clean-up.
-import os
-os.remove("parameters.txt")
+# ENDOFILE
+#------------------------------------------------------------------------------
