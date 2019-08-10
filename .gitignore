@@ -5,12 +5,12 @@
 *.swp
 code/4_WPCNA-Optimization/wtAdjm.csv
 rdata
+pydata
 data
 .Ruserdata
 [Tt]emp/
 figures/
 reports/
-tables/
 venv/
 pyenv/
 renv/
