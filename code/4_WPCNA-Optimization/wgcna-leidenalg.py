@@ -11,12 +11,11 @@
 
 import os
 import sys
-import pickle
 
 import numpy as np
 import leidenalg as la
 
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 from igraph import Graph
 
 # Load Compiled PPIs
@@ -76,17 +75,12 @@ print(f"Network profile was examined at {len(profile)} different resolutions!")
 results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
-        'Summary'    : [partition.summary for partition in profile],
+        'Summary'    : [partition.summary() for partition in profile],
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
-# Define a function to save pickled object.
-def save_object(obj, filename):
-        with open(filename, 'wb') as output:  # Overwrites any existing file.
-                    pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
-
-# Save results to file.
-for obj in results:
-    save_object(obj, 'profile_' + str(obj) + '.pkl')
+# Save as csv.
+df = DataFrame.from_dict(results)
+df.to_csv("ppi_graph_partition_profile.csv")
 
 #------------------------------------------------------------------------------
 # ## Analysis of the Weighted Protein Co-expression Network.
@@ -94,12 +88,13 @@ for obj in results:
 
 import os
 import sys
-from pandas import read_csv, melt
+from pandas import read_csv, DataFrame
 
 # Read bicor adjacency matrix (not weighted).
 os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization')
-#df = read_csv('wtAdjm.csv', header = 0, index_col = 0)
-# Melt to create edge list.
+df = read_csv('wtAdjm.csv', header = 0, index_col = 0)
+
+# Create edge list.
 edges = df.stack().reset_index()
 edges.columns = ['protA','protB','weight']
 
@@ -121,21 +116,20 @@ g = Graph()
 g.add_vertices(len(nodes))
 g.vs['label'] = nodes.keys()
 
-# Add edges as list of tuples: (1,2) ~node 1 interacts with node 2.
+# Add edges as list of tuples: (1,2) = node 1 interacts with node 2.
 print("Adding edges to graph, this will take several minutes!", file = sys.stderr)
 g.add_edges(el)
 beta = 1.0 # Power for weighting the network.
 g.es['weight'] = edges['weight']**beta
 
-# Simplify graph (remove self loops).
+# Remove self loops.
 g = g.simplify(multiple = False, loops = True)
 
 #------------------------------------------------------------------------------
-## Community detection in the WPCNetwork with the leidenalg package.
+## Community detection in the WPCNetwork with the Leiden algorithm..
 #------------------------------------------------------------------------------
 
 import sys
-import pickle
 
 from ttictoc import TicToc
 
@@ -161,16 +155,19 @@ print(f"Examined network at {len(profile)} resolutions!")
 results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
-        'Summary'    : [partition.summary for partition in profile],
+        'Summary'    : [partition.summary() for partition in profile],
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
+# Save as csv.
+df = DataFrame.from_dict(results)
+df.to_csv("wtAdjm_partition_profile.csv")
 
-# Save results to file.
-for obj in results:
-    save_object(obj, 'profile_' + str(obj) + '.pkl')
+# Done!
+sys.exit()
 
 # ENDOFILE
 #------------------------------------------------------------------------------
+
 
 
 df = read_csv('wtDat.csv', header = 0, index_col = 0)
