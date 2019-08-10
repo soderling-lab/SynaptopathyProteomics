@@ -2,6 +2,8 @@
 
 #------------------------------------------------------------------------------
 ## Analysis of the WPCNetwork with the Leiden algorithm.
+#  Use the CPM to evaluate quality of the network at multiple resolutions.
+
 
 #------------------------------------------------------------------------------
 # ## Analysis of the Synaptic PPI graph.
@@ -9,8 +11,11 @@
 
 import os
 import sys
+import pickle
+
 import numpy as np
 import leidenalg as la
+
 from pandas import read_csv
 from igraph import Graph
 
@@ -54,7 +59,7 @@ print(f"Modularity: {partition.modularity:.4f}")
 optimiser = la.Optimiser()
 diff = optimiser.optimise_partition(partition, n_iterations=-1) # 0.0
 
-# Try with CPM algorithm:
+# Try again with CPM algorithm at a given resolution.
 partition = la.find_partition(g, la.CPMVertexPartition, resolution_parameter = 0.05)
 print(partition.summary())
 print(f"Resolution: {partition.resolution_parameter}")
@@ -62,15 +67,26 @@ print(f"Modularity: {partition.modularity:.4f}")
 
 # Examine clustering at multiple resolutions:
 # This will take some additional time...
-#print("Generating partition profile of Synaptic proteome...", file=sys.stderr)
-#optimiser = la.Optimiser()
-#profile = optimiser.resolution_profile(g, la.CPMVertexPartition, resolution_range=(0,1))
+print("Generating partition profile of Synaptic proteome...", file=sys.stderr)
+optimiser = la.Optimiser()
+profile = optimiser.resolution_profile(g, la.CPMVertexPartition, resolution_range=(0,1))
 
-# Examine result:
-#print(f"Network profile was examined at {len(profile)} different resolutions!") 
+# Collect key results.
+print(f"Network profile was examined at {len(profile)} different resolutions!") 
+results = {
+        'Modularity' : [partition.modularity for partition in profile],
+        'Membership' : [partition.membership for partition in profile],
+        'Summary'    : [partition.summary for partition in profile],
+        'Resolution' : [partition.resolution_parameter for partition in profile]}
 
-# Number of clusters at every resolution.
-#k = [len(p) for p in profile]
+# Define a function to save pickled object.
+def save_object(obj, filename):
+        with open(filename, 'wb') as output:  # Overwrites any existing file.
+                    pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
+# Save results to file.
+for obj in results:
+    save_object(obj, 'profile_' + str(obj) + '.pkl')
 
 #------------------------------------------------------------------------------
 # ## Analysis of the Weighted Protein Co-expression Network.
@@ -82,11 +98,7 @@ from pandas import read_csv, melt
 
 # Read bicor adjacency matrix (not weighted).
 os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization')
-df = read_csv('wtAdjm.csv', header = 0, index_col = 0)
-
-# Remove diagonal. 
-df.values[[np.arange(len(df))]*2] = np.nan
-
+#df = read_csv('wtAdjm.csv', header = 0, index_col = 0)
 # Melt to create edge list.
 edges = df.stack().reset_index()
 edges.columns = ['protA','protB','weight']
@@ -122,12 +134,15 @@ g = g.simplify(multiple = False, loops = True)
 ## Community detection in the WPCNetwork with the leidenalg package.
 #------------------------------------------------------------------------------
 
-from ttictoc import TicToc
 import sys
+import pickle
+
+from ttictoc import TicToc
+
 from leidenalg import Optimiser
 from leidenalg import CPMVertexPartition
 
-# Single resolution.
+# Examine network at single resolution.
 t = TicToc()
 t.tic()
 partition = la.find_partition(g, la.CPMVertexPartition, resolution_parameter = 0.05)
@@ -136,23 +151,19 @@ print(f"Time elapsed analysing network at single resolution: {t.elapsed}")
 
 # Examine resolution profile:
 print('''Generating partition profile for protein co-expression graph!
-        This will take several minutes!''', file = sys.stderr)
+        This will take several hours!''', file = sys.stderr)
 optimiser = Optimiser()
 profile = optimiser.resolution_profile(
         g, CPMVertexPartition, weights = 'weight', resolution_range=(0,1))
-print(f"Examined network at {len(profile)} resolutions!")
 
 # Collect key results.
+print(f"Examined network at {len(profile)} resolutions!")
 results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
         'Summary'    : [partition.summary for partition in profile],
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
-# Function to save pickled object.
-def save_object(obj, filename):
-        with open(filename, 'wb') as output:  # Overwrites any existing file.
-                    pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
 # Save results to file.
 for obj in results:
@@ -160,3 +171,23 @@ for obj in results:
 
 # ENDOFILE
 #------------------------------------------------------------------------------
+
+
+df = read_csv('wtDat.csv', header = 0, index_col = 0)
+
+import numpy as np
+dm = np.transpse(df.values)
+cormat = np.corrcoef(dm)
+cormat.shape
+
+from astropy.stats.biweight import biweight_midcorrelation as bicor
+
+x = dm[0]
+y = dm[1]
+bicor(x, y) # Value is the same as from WGCNA::bicor() in R!
+
+# how to compute for all pairs?
+
+# Remove diagonal. 
+df.values[[np.arange(len(df))]*2] = np.nan
+
