@@ -3,9 +3,9 @@
 .Rhistory
 *.Rproj
 *.swp
-foo/
 code/4_WPCNA-Optimization/wtAdjm.csv
 rdata
+data
 .Ruserdata
 [Tt]emp/
 figures/
