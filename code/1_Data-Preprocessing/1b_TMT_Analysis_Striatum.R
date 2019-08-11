@@ -77,14 +77,14 @@ rootdir <- "D:/projects/Synaptopathy-Proteomics"
 setwd(rootdir)
 
 # Set any other directories.
-functiondir <- paste(rootdir, "code", sep = "/")
+functiondir <- paste(rootdir, "code", "0_Functions", sep = "/")
 datadir <- paste(rootdir, "input", sep = "/")
-Rdatadir <- paste(rootdir, "rdata", sep = "/")
+Rdatadir <- paste(rootdir, "data", sep = "/")
 outputfigs <- paste(rootdir, "figures", tissue, sep = "/")
 outputtabs <- paste(rootdir, "tables", sep = "/")
 
 # Load required custom functions.
-my_functions <- paste(rootdir, "code", "0_Functions", "0_Functions.R", sep = "/")
+my_functions <- paste(functiondir, "0_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.

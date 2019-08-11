@@ -11,10 +11,8 @@
 
 import os
 import sys
-
 import numpy as np
 import leidenalg as la
-
 from pandas import read_csv, DataFrame
 from igraph import Graph
 
@@ -48,6 +46,13 @@ g = g.simplify()
 
 # Find partition that optimizes modularity.
 partition = la.find_partition(g, la.ModularityVertexPartition, n_iterations = -1)
+partition.modularity
+partition.summary()
+
+# Find the partition that optimizes CPM.
+partitionCPM = la.find_partition(g, la.CPMVertexPartition, n_iterations = -1)
+partitionCPM.modularity
+partitionCPM.summary() # Why do the two answers disagree so much?
 
 # Examine partition:
 print(partition.summary())
@@ -57,14 +62,16 @@ print(f"Modularity: {partition.modularity:.4f}")
 # If n_iter < 0, then optimiser continues until no improvement.
 optimiser = la.Optimiser()
 diff = optimiser.optimise_partition(partition, n_iterations=-1) # 0.0
+diff
 
-# Try again with CPM algorithm at a given resolution.
-partition = la.find_partition(g, la.CPMVertexPartition, resolution_parameter = 0.05)
-print(partition.summary())
-print(f"Resolution: {partition.resolution_parameter}")
-print(f"Modularity: {partition.modularity:.4f}")
+#FIXME: Why doesn't modularity optimization work?
+# Optimize modularity: Examine clustering at multiple resolutions:
+# This will take some additional time...
+#print("Generating partition profile of Synaptic proteome...", file=sys.stderr)
+optimiser = la.Optimiser()
+profile = optimiser.resolution_profile(g, la.ModularityVertexPartition, resolution_range=(0,1))
 
-# Examine clustering at multiple resolutions:
+# Optimize CPM: Examine clustering at multiple resolutions:
 # This will take some additional time...
 print("Generating partition profile of Synaptic proteome...", file=sys.stderr)
 optimiser = la.Optimiser()
@@ -78,6 +85,18 @@ results = {
         'Summary'    : [partition.summary() for partition in profile],
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
+
+# Convert dict to pandas df.
+df = DataFrame.from_dict(results)
+
+# Examine partition:
+bestQ = df.loc[df['Modularity'].idxmax(), 'Modularity']
+bestS = df.loc[df['Modularity'].idxmax(), 'Summary']
+bestR = df.loc[df['Modularity'].idxmax(), 'Resolution']
+print(f"Best Modularity: {bestQ}")
+print(f"Best Partition : {bestS}")
+print(f"Best Resolution: {bestR}")
+
 # Save as csv.
 df = DataFrame.from_dict(results)
 df.to_csv("ppi_graph_partition_profile.csv")
@@ -90,7 +109,7 @@ import os
 import sys
 from pandas import read_csv, DataFrame
 
-# Read bicor adjacency matrix (not weighted).
+# Read bicor adjacency matrix (no additional soft threshold)..
 os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization')
 df = read_csv('wtAdjm.csv', header = 0, index_col = 0)
 
@@ -116,13 +135,15 @@ g = Graph()
 g.add_vertices(len(nodes))
 g.vs['label'] = nodes.keys()
 
+# Power for weighting the network.
+beta = 13  # scale free fit ~ 13
+
 # Add edges as list of tuples: (1,2) = node 1 interacts with node 2.
 print("Adding edges to graph, this will take several minutes!", file = sys.stderr)
 g.add_edges(el)
-beta = 1.0 # Power for weighting the network.
 g.es['weight'] = edges['weight']**beta
 
-# Remove self loops.
+# Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
 
 #------------------------------------------------------------------------------
@@ -135,13 +156,6 @@ from ttictoc import TicToc
 
 from leidenalg import Optimiser
 from leidenalg import CPMVertexPartition
-
-# Examine network at single resolution.
-t = TicToc()
-t.tic()
-partition = la.find_partition(g, la.CPMVertexPartition, resolution_parameter = 0.05)
-t.toc()
-print(f"Time elapsed analysing network at single resolution: {t.elapsed}")
 
 # Examine resolution profile:
 print('''Generating partition profile for protein co-expression graph!
@@ -160,7 +174,7 @@ results = {
 
 # Save as csv.
 df = DataFrame.from_dict(results)
-df.to_csv("wtAdjm_partition_profile.csv")
+df.to_csv("wtAdjm_weighted_partition_profile.csv")
 
 # Done!
 sys.exit()
@@ -169,6 +183,7 @@ sys.exit()
 #------------------------------------------------------------------------------
 
 
+## Calculate bicor
 
 df = read_csv('wtDat.csv', header = 0, index_col = 0)
 
