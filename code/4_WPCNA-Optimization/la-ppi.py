@@ -44,38 +44,20 @@ g.add_edges(el)
 g = g.simplify()
 
 # Write graph to file.
-g.write_pajek("Synaptome.net")
-import sys
-sys.exit()
+#g.write_pajek("Synaptome.net")
+
 # Find partition that optimizes modularity.
 partition = la.find_partition(g, la.ModularityVertexPartition, n_iterations = -1)
-partition.modularity
-partition.summary()
-
-# Find the partition that optimizes CPM.
-partitionCPM = la.find_partition(g, la.CPMVertexPartition, n_iterations = -1)
-partitionCPM.modularity
-partitionCPM.summary() # Why do the two answers disagree so much?
 
 # Examine partition:
 print(partition.summary())
 print(f"Modularity: {partition.modularity:.4f}")
 
-# Fine tuning of the partition.
-# If n_iter < 0, then optimiser continues until no improvement.
-optimiser = la.Optimiser()
-diff = optimiser.optimise_partition(partition, n_iterations=-1) # 0.0
-diff
 
 #FIXME: Why doesn't modularity optimization work?
-# Optimize modularity: Examine clustering at multiple resolutions:
-# This will take some additional time...
-print("Generating partition profile of Synaptic proteome...", file=sys.stderr)
-optimiser = la.Optimiser()
-profile = optimiser.resolution_profile(g, la.ModularityVertexPartition, resolution_range=(0,1))
-
 # Optimize CPM: Examine clustering at multiple resolutions:
 # This will take some additional time...
+# Returns profile, a list of partitions...
 print("Generating partition profile of Synaptic proteome...", file=sys.stderr)
 optimiser = la.Optimiser()
 profile = optimiser.resolution_profile(g, la.CPMVertexPartition, resolution_range=(0,1))
