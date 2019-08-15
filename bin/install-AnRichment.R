@@ -3,6 +3,10 @@
 #------------------------------------------------------------------------------
 ## Installation of the anRichment library.
 #------------------------------------------------------------------------------
+# This script should serve as a guide to install the Horvarth lab's 
+# anRichment package which is useful for Gene Ontology analysis.
+
+# Adapted from: https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/
 
 # First install some additional dependencies. 
 dependencies <- as.list(
