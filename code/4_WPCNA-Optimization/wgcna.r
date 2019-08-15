@@ -249,34 +249,27 @@ parameters <- get_wgcna_params(exprDat, overrides = user_params)
 #------------------------------------------------------------------------------
 
 wgcna <- function(exprDat, parameters) {
+	
+	## Global options and imports.
+        options(stringsAsFactors=FALSE)
+        suppressPackageStartupMessages({
+		require(WGCNA)
+        	require(doParallel)
+        	require(parallel)
+	})
   # Use tryCatch to handle errors caused by parameters which return a single module.
   tryCatch(
     {
-      ## Global options and imports.
-      options(stringsAsFactors=FALSE)
-      suppressPackageStartupMessages({
-        require(WGCNA)
-        require(doParallel)
-        require(parallel)
-      })
       # Allow parallel WGCNA calculations if nThreads is > 0.
       if (parameters$nThreads > 0) {
         # Use sink to supress unwanted output.
-        temp <- tempfile()
-        sink(temp)
-        allowWGCNAThreads(nThreads = parameters$nThreads)
-        sink(NULL)
-        unlink(temp)
+        silently(allowWGCNAThreads, nThreads = parameters$nThreads)
         clusterLocal <- makeCluster(c(rep("localhost", parameters$nThreads)), type = "SOCK")
         registerDoParallel(clusterLocal)
       }
       # Function to get best power, suppressing unwanted output with sink.
       pickPower <- function(...){
-        temp <- tempfile()
-        sink(temp)
-        output <- WGCNA::pickSoftThreshold(...)
-        sink(NULL)
-        unlink(temp)
+        output <- silently(WGCNA::pickSoftThreshold, ...)
         return(output)
       }
       # If no power was provided, then determine the best power to achieve ~scale free toplogy.
@@ -306,11 +299,7 @@ wgcna <- function(exprDat, parameters) {
       ## Perform WGCNA by calling the blockwiseModules() function.
       # Function to supress unwanted output from the blockwiseModules with sink().
       blockwiseWGCNA <- function(...){
-        temp <- tempfile()
-        sink(temp)
-        output <- WGCNA::blockwiseModules(...)
-        sink(NULL)
-        unlink(temp)
+        output <- silently(WGCNA::blockwiseModules,...)
         return(output)
       }
       net <- blockwiseWGCNA(
@@ -392,7 +381,7 @@ wgcna <- function(exprDat, parameters) {
     # Otherwise stdout will be sopped up by sink.
     warning = function(cond) {
       sink(NULL)
-      unlink(temp)
+      #unlink(tempfile())
       message("Warning: unable to complete analysis! Likely cause: WGCNA returned 0 or 1 module.")
       print(100) # a bad score
       quit()
