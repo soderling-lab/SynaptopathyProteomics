@@ -1,0 +1,5 @@
+This directory (bin) contains executable scripts. For example, the radalib
+subdirectory contains compiled, executable Ada scripts from the radalib package
+for calculation of modularity. 
+
+

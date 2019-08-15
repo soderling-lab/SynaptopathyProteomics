@@ -1,0 +1,10 @@
+This directory (/input) contains files the raw input for the analysis.
+
+Peptide intensity data were exported as an excel document from Proteome 
+Discover. Please note that the default export from PD is a signal to noise
+ratio which should not be used for quantitative analysis.
+
+Sample information about mice used to prepare synaptosomes from cortex and 
+striatum are in the combined traits files.
+
+

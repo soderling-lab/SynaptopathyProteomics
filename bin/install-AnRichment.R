@@ -1,15 +1,8 @@
-## Installation of anRichment library.
+#!/usr/bin/env Rscript
 
 #------------------------------------------------------------------------------
-## Method 1.
-
-# Install AnRichment library. 
-#url <- "https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/installAnRichment.R"
-#source(url)
-#installAnRichment(forceReinstall=TRUE)
-
+## Installation of the anRichment library.
 #------------------------------------------------------------------------------
-## Method 2.
 
 # First install some additional dependencies. 
 dependencies <- as.list(
