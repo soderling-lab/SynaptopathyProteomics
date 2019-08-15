@@ -6,15 +6,19 @@
 
 # Global options and imports.
 options(stringsAsFactors = FALSE)
-suppressPackageStartupMessages({
 	library(ggplot2)
 	library(reshape2)
-})
 
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
 figs <- paste(root,"figures","WPCNA-Optimization",sep="/")
+data <- paste(root,"data",sep="/")
+fun  <- paste(root,"functions",sep="/")
+
+# Load custom functions.
+functions <- paste(fun,"clean_fun.R",sep="/")
+source(functions)
 
 # Load the HPO search space.
 file <- "search_space.csv"
@@ -45,8 +49,9 @@ ggsave(file,plot)
 #------------------------------------------------------------------------------
 
 # Load partition profile.
+
 profile <- read.csv("wtAdjm_partition_profile_01.csv")
-#profile <- read.csv("wtAdjm_weighted_partition_profile.csv")
+#profile <- read.csv("koAdjm_partition_profile.csv")
 colnames(profile)[1] <- "Partition"
 
 # Add number of modules.
@@ -78,7 +83,7 @@ ggsave(f2, p2)
 #--------------------------------------------------------------------------------------
 
 # Load permutation test results.
-perm_data <- readRDS("preserved_partitions.Rds")
+perm_data <- readRDS("wt_preserved_partitions.Rds")
 nGenes <- length(perm_data[[1]])
 
 # Percent grey after removing unpreserved modules.
@@ -102,7 +107,7 @@ names(map) <- symbol
 
 # For a given partition/resolution, which module is my GOI in?
 goi = "Rogdi"
-r = 1 
+r = 110 
 
 # Get modules associated with a given partition/resolution
 partition <- perm_data[[r]]
@@ -115,7 +120,71 @@ kModule <- modules[[k]]
 kGenes <- length(kModule)
 kGenes
 
-####
+## Biological enrichment!
+library(anRichment)
+library(org.Mm.eg.db)
+
+# If it doesn't exist, build a GO annotation collection:
+if (!exists(deparse(substitute(musGOcollection)))) {
+	musGOcollection <- buildGOcollection(organism = "mouse")
+}
+
+# Load protein identifier map.
+map <- read.csv(paste(here,"map.csv",sep="/"))
+
+# Loop through all partitions calculating GO enrichemnt.
+for (i in seq_along(perm_data)) {
+	# Get partition.
+	partition <- perm_data[[i]]
+	# List of modules.
+	modules <- split(partition, partition)
+	# Remove unclustered nodes.
+	modules <- modules[c(1:length(modules))[!names(modules) == "0"]]
+	# Build a matrix of labels.
+	entrez <- map$entrez[match(names(partition),map$prots)]
+	idx <- lapply(modules, function(x) names(partition) %in% names(x))
+	labels_dm <- apply(as.matrix(do.call(cbind,idx)),2, function(x) as.numeric(x))
+	# Perform GO Enrichment analysis with the anRichment library.
+	GOenrichment <- enrichmentAnalysis(
+					   classLabels = labels_dm,
+					   identifiers = entrez,
+					   refCollection = musGOcollection,
+					   useBackground = "given",
+					   threshold = 0.05,
+					   thresholdType = "Bonferroni",
+					   getOverlapEntrez = TRUE,
+					   getOverlapSymbols = TRUE,
+					   ignoreLabels = 0
+					   )
+	# Extract and examine the results.
+	GOresults <- lapply(GOenrichment$setResults, function(x) x[[2]])
+	# How many modules exhibit sig go terms?
+	nSigGO <- lapply(GOresults, function(x) sum(x$FDR<0.05))
+	sigFraction <- sum(unlist(nSigGO) > 0) / length(modules)
+	totalSig <- sum(unlist(nSigGO))
+	message(paste("Percent Modules with any sig GO terms:", sigFraction))
+	message(paste("Total significant GO terms (FDR<0.05):", totalSig))
+	# Return GO results.
+	goDat[[i]] <- GOresults
+}
+
+## Which partition maximizes GO enrichment?
+nsig <- list()
+fsig <- list()
+for (i in 1:length(goDat)){
+	data <- goDat[[i]]
+	fsig[[i]] <- sum(unlist(lapply(data, function(x) any(x$FDR<0.05))))/length(data)
+	nsig[[i]] <- sum(unlist(lapply(data, function(x) sum(x$FDR<0.05))))
+}
+
+normSig <- unlist(nsig) * unlist(fsig)
+idx <- c(1:length(normSig))[normSig == max(normSig)]
+
+# Best partition may be #35.
+length(unique(perm_data[[idx]]))
+
+#------------------------------------------------------------------------------
+###
 # Clusters are preserved, but are they highly coorelated with each other?
 cordat <- reshape2::melt(adjm)
 colnames(cordat) <- c("protA","protB","bicor")

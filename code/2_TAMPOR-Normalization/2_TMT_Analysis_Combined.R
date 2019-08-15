@@ -22,13 +22,11 @@ JGmisc::detachAllPackages(keep = NULL)
 
 #  Load required packages.
 suppressPackageStartupMessages({
-  library(JGmisc)
   library(readxl)
   library(knitr)
   library(readr)
   library(dplyr)
   library(reshape2)
-  library(DEP)
   library(tibble)
   library(SummarizedExperiment)
   library(ggplot2)
