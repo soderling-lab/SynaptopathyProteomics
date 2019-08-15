@@ -34,15 +34,15 @@
 #  message("Using wtDat and saved params!")
 #  if (as.character(Sys.info()[1]) == "Linux"){
 #   message("Working on Linux OS!")
-#   dir <- getwd()
-#   setwd(dir)
+#   here <- getwd()
+#   setwd(here)
 #  }else if (as.character(Sys.info()[1]) == "Windows"){
-#   dir <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization"
+#   here <- "D:/Projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization"
 #   message("Working on Windows OS!")
-#   setwd(dir)
+#   setwd(here)
 #  }
-#  data_file  <- paste(dir, "wtDat.Rds", sep="/")
-#  params_file <- paste(dir, "default_parameters.txt", sep="/")
+#  data_file  <- paste(here, "wtDat.Rds", sep="/")
+#  params_file <- paste(here, "default_parameters.txt", sep="/")
 #  exprDat <- readRDS(data_file)
 #  temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
 #  temp_params$Value[temp_params$Value == "True"] <- TRUE
@@ -52,7 +52,7 @@
 #  names(user_params) <- temp_params$Parameter
 # }
 #
-# project_dir <- dirname(dirname(dir))
+# project_dir <- dirname(dirname(here))
 #
 ###############################################################################
 
@@ -60,11 +60,22 @@
 # ## Parse the command line arguments.
 #------------------------------------------------------------------------------
 
-# Global options:
+## Global options and imports.
 options(stringsAsFactors = FALSE)
 suppressPackageStartupMessages({
 	require(argparser, quietly = TRUE)
+	require(data.table, quietly = TRUE)
+	require(WGCNA, quietly = TRUE)
+	require(doParallel, quietly = TRUE)
+	require(parallel, quietly = TRUE)
+	require(reshape2, quietly = TRUE)
+        require(igraph, quietly = TRUE)
+	require(dplyr, quietly = TRUE)
 })
+
+# Directories.
+here <- getwd()
+project_dir <- dirname(dirname(here))
 
 # Check for input data before proceeding.
 if(length(commandArgs(trailingOnly=TRUE)) == 0) {
@@ -76,23 +87,25 @@ if(length(commandArgs(trailingOnly=TRUE)) == 0) {
 # Parse the command line arguments.
 p <- arg_parser("Perform WGCNA given a normalized n x m matrix of protein or gene expression data. ")
 p <- add_argument(p, "data",
-                  help = paste("normalized n (sample) x m (gene) expression matrix",
+                  help = paste("Normalized n (sample) x m (gene) expression matrix",
                                "provided as a .Rds file in the same directory as this script"),
                   default = NULL)
 p <- add_argument(p, "--parameters", short = "-p",
-                  help = "optional parameters for WGCNA algorithm",
+                  help = "Optional parameters for the WGCNA algorithm.",
                   default = NULL)
+# Optional arguments:
+p <- add_argument(p, "--output", short = "-o",
+		  help = "Output filename for WGCNA partition (colors). If none specified, then it will not be saved.",
+		  default = NULL)
 args <- parse_args(p)
 
 # Load data as n x m normalized expression matrix.
-dir <- getwd()
-project_dir <- dirname(dirname(dir))
-data_file <- paste(dir, args$data, sep="/")
+data_file <- args$data
 exprDat <- readRDS(data_file)
 
 # If provided, parse the user's hyperparameters.
 if (!is.na(args$parameters)) {
-  params_file <- paste(dir, args$parameters, sep="/")
+  params_file <- paste(root, args$parameters, sep="/")
   temp_params <- read.delim(params_file, header = FALSE, col.names = c("Parameter","Value"))
   unlink(params_file)
 
@@ -214,12 +227,6 @@ get_wgcna_params <- function(exprDat, overrides = NULL){
   default_params$useCorOptionsThroughout  <- TRUE
   default_params$verbose                  <- 0
   default_params$indent                   <- 0
-  # # Save defaults to file.
-  # if (!"default_parameters.txt" %in% list.files(dir)) {
-  #   message("Saving default parameters!")
-  #   write.table(as.matrix(unlist(default_params)),
-  #               "default_parameters.txt", quote = FALSE, sep ="\t", col.names = FALSE)
-  # }
   # If provided, overwrite default parameters with user provided ones.
   if (inherits(overrides, "list")) {
     idx <- match(names(overrides), names(default_params))
@@ -250,13 +257,6 @@ parameters <- get_wgcna_params(exprDat, overrides = user_params)
 
 wgcna <- function(exprDat, parameters) {
 	
-	## Global options and imports.
-        options(stringsAsFactors=FALSE)
-        suppressPackageStartupMessages({
-		require(WGCNA)
-        	require(doParallel)
-        	require(parallel)
-	})
   # Use tryCatch to handle errors caused by parameters which return a single module.
   tryCatch(
     {
@@ -393,13 +393,15 @@ wgcna <- function(exprDat, parameters) {
 ## Perform WGCNA!
 results <- wgcna(exprDat, parameters)
 
-#------------------------------------------------------------------------------
-# ## Exctract key WGCNA results.
-#------------------------------------------------------------------------------
+# If output filename is specified, then save partition.
+if (!is.na(args$output)) {
+	fwrite(as.data.table(results$network$colors, keep.rownames = TRUE), 
+	       args$output)
+}
 
-suppressPackageStartupMessages({
-  require(data.table, quietly = TRUE)
-})
+#------------------------------------------------------------------------------
+# ## Extract key WGCNA results.
+#------------------------------------------------------------------------------
 
 # Extract WGCNA results.
 exprDat <- results$data
@@ -444,11 +446,6 @@ message(paste("... Partition PVE :", round(ptve,3)))
 # Modularity for signed graphs: Gomez et al., 2018
 # REF: (https://arxiv.org/abs/0812.3030)
 
-suppressPackageStartupMessages({
-  require(reshape2, quietly = TRUE)
-  require(igraph, quietly = TRUE)
-  require(data.table, quietly = TRUE)
-})
 
 # Function to check if value is even.
 # If params$power is even then we will need to enforce sign of adjm.
@@ -503,7 +500,7 @@ cmd <- paste(script, basename(network_file), basename(cluster_file), type)
 # Need to be in radalib/tools directory!
 setwd(script_dir)
 result <- system(cmd, intern = TRUE, ignore.stderr = TRUE)
-setwd(dir)
+setwd(here)
 
 # Parse the result.
 x <- trimws(result[grep(" Q = ", result)])
@@ -593,10 +590,6 @@ quit()
 # Similarity between grey for all clusters should be minimized!
 # si and sj are average of distance to module center (1-kME).
 
-suppressPackageStartupMessages({
-  require(reshape2, quietly = TRUE)
-  require(dplyr, quietly = TRUE)
-})
 
 # Calculate percent total variation explained by the clustering.
 adjm <- silently(bicor, exprDat)
@@ -783,10 +776,6 @@ message(paste("... Total VarEx(%):", PVE))
 
 # Sum of total within cluster variance explained.
 # Does not account for distances between clusters!
-
-suppressPackageStartupMessages({
-  require(igraph, quietly = TRUE)
-})
 
 # Calculate total amount of information in the network as the sum of its adjm.
 # Raise to the power of two so that all adjacencies are positive.
