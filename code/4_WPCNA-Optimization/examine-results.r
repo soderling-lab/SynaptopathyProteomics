@@ -5,24 +5,25 @@
 #------------------------------------------------------------------------------
 
 # Global options and imports.
-options(stringsAsFactors = FALSE)
+suppressPackageStartupMessages({
 	library(ggplot2)
 	library(reshape2)
+})
 
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-figs <- paste(root,"figures","WPCNA-Optimization",sep="/")
-data <- paste(root,"data",sep="/")
-fun  <- paste(root,"functions",sep="/")
+figs <- file.path(root,"figures","WPCNA-Optimization")
+data <- file.path(root,"data")
+fun  <- file.path(root,"functions")
 
 # Load custom functions.
-functions <- paste(fun,"clean_fun.R",sep="/")
+functions <- file.path(fun,"clean_fun.R")
 source(functions)
 
 # Load the HPO search space.
-file <- "search_space.csv"
-space <- read.csv(file)
+myfile <- file.path(data,"search_space.csv")
+space <- read.csv(myfile, as.is = TRUE)
 
 # Create a theme for applying to plots.
 plot_theme <- theme(
@@ -41,17 +42,17 @@ plot <- ggplot(data=df, aes(Epoch, min)) + geom_line()+ geom_point()
 plot <- plot + ggtitle("WPCNA Optimization") + plot_theme
 
 # Save the result.
-file <- paste(figs,"HPO_Convergence_Plot.tiff", sep ="/")
-ggsave(file,plot)
+myfile <- file.path(figs,"HPO_Convergence_Plot.tiff")
+ggsave(myfile,plot)
 
 #------------------------------------------------------------------------------
 # ## Examine partition profile
 #------------------------------------------------------------------------------
 
 # Load partition profile.
-
-profile <- read.csv("wtAdjm_partition_profile_01.csv")
-#profile <- read.csv("koAdjm_partition_profile.csv")
+#file <- file.path(data,"wtAdjm_partition_profile.csv")
+myfile <- file.path(data,"koAdjm_partition_profile.csv")
+profile <- read.csv(myfile)
 colnames(profile)[1] <- "Partition"
 
 # Add number of modules.
@@ -73,8 +74,8 @@ p2 <- ggplot(data=profile, aes(Resolution, Modularity)) + geom_line()+ geom_poin
 p2 <- p2 + ggtitle("nModules (k)") + plot_theme
 
 # Save the result.
-f1 <- paste(figs,"HPO_nModules_Plot.tiff", sep ="/")
-f2 <- paste(figs,"HPO_Modularity_Plot.tiff", sep ="/")
+f1 <- file.path(figs,"HPO_nModules_Plot.tiff")
+f2 <- file.path(figs,"HPO_Modularity_Plot.tiff")
 ggsave(f1, p1)
 ggsave(f2, p2)
 
@@ -83,18 +84,20 @@ ggsave(f2, p2)
 #--------------------------------------------------------------------------------------
 
 # Load permutation test results.
-perm_data <- readRDS("wt_preserved_partitions.Rds")
+#myfile <- file.path(data,"wt_preserved_partitions.Rds")
+# FIXME: Why is ko perm_data of length 68!?
+myfile <- file.path(data,"ko_preserved_partitions.Rds")
+perm_data <- readRDS(myfile)
 nGenes <- length(perm_data[[1]])
 
 # Percent grey after removing unpreserved modules.
 percent_grey <- unlist(lapply(perm_data, function(x) sum(x==0)))/nGenes # range(0,44)
 
 # number of modules preserved in each partition.
-nModules_preserved <- unlist(lapply(perm_data, function(x) length(unique(x))))
-profile$nModules_preserved <- nModules_preserved 
+nModules <- unlist(lapply(perm_data, function(x) length(unique(x))))-1
 
 # Plot to examine resolution versus nModules.
-df <- as.data.frame(cbind(x = profile$Resolution, y = nModules_preserved))
+df <- as.data.frame(cbind(x = profile$Resolution, y = nModules))
 plot <- ggplot(data=df, aes(x, y)) + geom_line()+ geom_point() 
 plot <- plot + ggtitle("Quality (CPM)") + plot_theme
 
@@ -107,16 +110,18 @@ names(map) <- symbol
 
 # For a given partition/resolution, which module is my GOI in?
 goi = "Rogdi"
-r = 110 
+r = 68 
 
 # Get modules associated with a given partition/resolution
 partition <- perm_data[[r]]
 modules <- split(partition, partition)
+
 # Remove unclustered nodes.
-modules <- modules[c(1:length(modules))[!names(modules) == "0"]]
+#modules <- modules[c(1:length(modules))[!names(modules) == "0"]]
+
 # Get cluster containing goi.
 k <- partition[map[[goi]]]
-kModule <- modules[[k]]
+kModule <- modules[[as.character(k)]]
 kGenes <- length(kModule)
 kGenes
 

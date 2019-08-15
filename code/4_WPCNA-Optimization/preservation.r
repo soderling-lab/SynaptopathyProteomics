@@ -10,7 +10,6 @@
 #-------------------------------------------------------------------------------
 
 # Global options and imports.
-options(stringsAsFactors = FALSE)
 suppressPackageStartupMessages({
 	library(NetRep)
 	library(ggplot2)
@@ -33,15 +32,15 @@ message(msg2)
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-data <- paste(root,"data",sep="/")
-fun  <- paste(root, "functions", sep="/")
-tabs <- paste(root,"tables",sep="/") 
+data <- file.path(root,"data")
+fun  <- file.path(root, "functions")
+tabs <- file.path(root,"tables") 
 
 # Directory for output of the permutation test.
-subdir <- paste(data, "Preservation_Results", experiment, sep = "/")
+subdir <- file.path(data, "Preservation_Results", experiment, toupper(H0))
 
 # Load functions.
-functions <- paste(fun,"clean_fun.R",sep="/")
+functions <- file.path(fun,"clean_fun.R")
 source(functions)
 
 #-------------------------------------------------------------------------------
@@ -57,7 +56,7 @@ ko_adjm <- silently(WGCNA::bicor, koDat)
 # Read network partition info.
 files <- c("wt_preserved_partitions.Rds",
 	   "ko_preserved_partitions.Rds")[type]
-clufile <- paste(here, files, sep = "/")
+clufile <- file.path(data, files)
 partitions <- readRDS(clufile)  # len(WT partitions) == 110 
 
 # Checks:
@@ -124,7 +123,7 @@ perm_tests <- perm_tests[idx]
 output <- list()
 for (i in seq_along(perm_tests)) {
 	# Get permutation test data.
-	ptest <- readRDS(paste(subdir,perm_tests[i], sep = "/"))
+	ptest <- readRDS(file.path(subdir,perm_tests[i]))
 	pvalues <- ptest$p.values
 	# If background labels were not set correctly, 
 	#    then we need to be sure to ignore background modules.

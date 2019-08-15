@@ -5,14 +5,11 @@
 #  algorithm (e.g. partitions.csv) are provided as input. 
 #  Modules that are not preserved agains the null (random) model are set to zero.
 
-# FIXME: insure input and output are loaded from correct directories.
-
 #-------------------------------------------------------------------------------
 ## # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
 # Global options and imports.
-options(stringsAsFactors = FALSE)
 suppressPackageStartupMessages({
 	library(igraph)
 	library(NetRep)
@@ -21,20 +18,28 @@ suppressPackageStartupMessages({
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-fun  <- paste(root,"functions", sep="/") 
-tables <- paste(root,"tables", sep="/") 
+fun  <- file.path(root,"functions") 
+data <- file.path(root,"data")
+tables <- file.path(root,"tables") 
+
+# Custom functions.
+source(file.path(fun,"clean_fun.R"))
+
+# Which analysis are we performing?
+type <- 2 # WT or KO
+exp <- c("WT", "KO")[type]
+msg <- paste("Testing self-preservation of",exp,"modules!") 
+message(msg)
 
 # Load expression data and compute adjmatrix:
-type <- 2 # WT or KO
-data <- c("wtDat.Rds","koDat.Rds")[type]
-cleanDat <- readRDS(data)
+myfile <- file.path(data, c("wtDat.Rds","koDat.Rds")[type])
+cleanDat <- readRDS(myfile)
 adjm <- silently(WGCNA::bicor, cleanDat)
 
 # Read network partition info.
 # Module labels are int. Add 1 so that all module membership > 0.
-partition_file <- c("wtAdjm_partitions.csv", "koAdjm_partitions.csv")[type]
-clufile <- paste(tables, partition_file, sep = "/")
-cluDat <- read.csv(clufile) + 1 
+clufile <- file.path(tables, c("wtAdjm_partitions.csv", "koAdjm_partitions.csv")[type])
+cluDat <- read.csv(clufile, header = FALSE, as.is = TRUE) + 1 
 partitions <- split(cluDat, seq(nrow(cluDat)))
 
 #-------------------------------------------------------------------------------
@@ -46,8 +51,8 @@ partitions <- split(cluDat, seq(nrow(cluDat)))
 
 # Input for NetRep:
 data_list        <- list(data = cleanDat) # The protein expression data.
-correlation_list <- list(data = adjm) # The bicor correlation matrix.
-network_list     <- list(data = adjm)  # The weighted, signed co-expresion network.
+correlation_list <- list(data = adjm)     # The bicor correlation matrix.
+network_list     <- list(data = adjm)     # The weighted, signed co-expresion network.
 
 # Empty list for output of loop.
 preserved_partitions <- list()
@@ -92,7 +97,8 @@ for (i in seq_along(partitions)){
 }
 
 # Save output as RDS.
-saveRDS(preserved_partitions, "ko_preserved_partitions.Rds")
+myfile <- file.path(data, paste0(exp,"_preserved_partitions.Rds"))
+saveRDS(preserved_partitions, myfile)
 
 # ENDOFILE
 #------------------------------------------------------------------------------
