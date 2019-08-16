@@ -1,5 +1,69 @@
 #!/usr/bin/env Rscript
 
+#------------------------------------------------------------------------------
+library(dendextend)
+here <- getwd()
+rootdir <- dirname(dirname(here))
+datadir <- file.path(rootdir,"data")
+myfile <- file.path(datadir,"wt_preserved_partitions.Rds")
+data <- readRDS(myfile)
+
+# Generate a list of all contrasts.
+contrasts <- expand.grid(seq_along(data),seq_along(data))
+colnames(contrasts) <- c("a1","a2")
+contrasts_list <- apply(contrasts,1,function(x) list(a1=x[1],a2=x[2]))
+
+# Loop through contrasts list, comparing partitions in data.
+# This will take several minutes! 
+# FIXME: Its really doing >2x the necessary work as self comparisons are 1 and matrix is symmetric.
+fm <- lapply(contrasts_list, function(x) FM_index_R(data[[x$a1]],data[[x$a2]]))
+
+# Extract the FM similarity statistic and convert this into a matrix. Labels are (P)artition(Number)
+dm <- matrix(unlist(fm), nrow=length(data),ncol=length(data))
+rownames(dm) <- colnames(dm) <- paste0("P",seq(dim(dm)[1]))
+
+# Convert to distance matrix and hclust.
+hc <- hclust(as.dist(1-dm), method = "ward.D2")
+
+# Examine tree.
+library(ggdendro)
+ggdendrogram(hc)
+
+# Generate groups.
+k <- cutree(hc,k=4)
+groups <- split(k,k)
+
+# Get representative paritition from each group, its medoid.
+# The medoid is the partition which is most similar (closest) to all others in its group.
+# The distance between the medoid and all other partitions in its group should be minimized.
+# Loop to get the medoid of each group:
+medoid <- list()
+for (i in 1:length(groups)){
+	v <- names(groups[[i]])
+	idx <- idy <- colnames(dm) %in% v
+	subdm <- 1 - dm[idx,idy]
+	diag(subdm) <- NA
+	col_sums <- apply(subdm,2,function(x) sum(x,na.rm=TRUE))
+	medoid[[i]] <- names(col_sums[col_sums == min(col_sums)])
+}
+
+# Examine these partitions....
+unlist(medoid)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Which parition maximizes modularity of the ppi graph?
 here <- getwd()
 root <- dirname(dirname(here))

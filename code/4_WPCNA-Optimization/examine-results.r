@@ -12,17 +12,17 @@ suppressPackageStartupMessages({
 
 # Directories.
 here <- getwd()
-root <- dirname(dirname(here))
-figs <- file.path(root,"figures","WPCNA-Optimization")
-data <- file.path(root,"data")
-fun  <- file.path(root,"functions")
+rootdir <- dirname(dirname(here))
+figsdir <- file.path(rootdir,"figures","WPCNA-Optimization")
+datadir <- file.path(rootdir,"data")
+funcdir  <- file.path(rootdir,"functions")
 
 # Load custom functions.
-functions <- file.path(fun,"clean_fun.R")
+functions <- file.path(funcdir,"clean_fun.R")
 source(functions)
 
 # Load the HPO search space.
-myfile <- file.path(data,"search_space.csv")
+myfile <- file.path(datadir,"search_space.csv")
 space <- read.csv(myfile, as.is = TRUE)
 
 # Create a theme for applying to plots.
@@ -42,7 +42,7 @@ plot <- ggplot(data=df, aes(Epoch, min)) + geom_line()+ geom_point()
 plot <- plot + ggtitle("WPCNA Optimization") + plot_theme
 
 # Save the result.
-myfile <- file.path(figs,"HPO_Convergence_Plot.tiff")
+myfile <- file.path(figsdir,"HPO_Convergence_Plot.tiff")
 ggsave(myfile,plot)
 
 #------------------------------------------------------------------------------
@@ -50,9 +50,9 @@ ggsave(myfile,plot)
 #------------------------------------------------------------------------------
 
 # Load partition profile.
-#file <- file.path(data,"wtAdjm_partition_profile.csv")
-myfile <- file.path(data,"koAdjm_partition_profile.csv")
-profile <- read.csv(myfile)
+myfile <- file.path(datadir,"wtAdjm_partition_profile_01.csv")
+#myfile <- file.path(datadir,"koAdjm_partition_profile.csv")
+profile <- read.csv(myfile, as.is = TRUE)
 colnames(profile)[1] <- "Partition"
 
 # Add number of modules.
@@ -84,9 +84,8 @@ ggsave(f2, p2)
 #--------------------------------------------------------------------------------------
 
 # Load permutation test results.
-#myfile <- file.path(data,"wt_preserved_partitions.Rds")
-# FIXME: Why is ko perm_data of length 68!?
-myfile <- file.path(data,"ko_preserved_partitions.Rds")
+myfile <- file.path(datadir,"wt_preserved_partitions.Rds")
+#myfile <- file.path(datadir,"ko_preserved_partitions.Rds")
 perm_data <- readRDS(myfile)
 nGenes <- length(perm_data[[1]])
 
@@ -109,21 +108,20 @@ map <- as.list(prots)
 names(map) <- symbol
 
 # For a given partition/resolution, which module is my GOI in?
-goi = "Rogdi"
-r = 68 
+goi = "Dmd"
+r = length(perm_data) # highest resolution. 
 
 # Get modules associated with a given partition/resolution
 partition <- perm_data[[r]]
 modules <- split(partition, partition)
 
-# Remove unclustered nodes.
-#modules <- modules[c(1:length(modules))[!names(modules) == "0"]]
-
 # Get cluster containing goi.
 k <- partition[map[[goi]]]
+k # Which module?
 kModule <- modules[[as.character(k)]]
+kModule
 kGenes <- length(kModule)
-kGenes
+kGenes # Number of genes in the cluster.
 
 ## Biological enrichment!
 library(anRichment)
