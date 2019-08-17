@@ -240,7 +240,7 @@ get_wgcna_params <- function(exprDat, overrides = NULL){
     return(parameters)
     # Otherwise, use the defaults.
   } else if (is.null(user_params) | is.na(user_params)) {
-    message("No user defined parameters. Using default parameters!")
+    message("No user defined parameters. Using defaults!")
     parameters <- default_params
     return(parameters)
   } else {
@@ -446,6 +446,8 @@ message(paste("... Partition PVE :", round(ptve,3)))
 # Modularity for signed graphs: Gomez et al., 2018
 # REF: (https://arxiv.org/abs/0812.3030)
 
+
+message("Calculating weighted, signed modularity (Q), this will take several moments...")
 
 # Function to check if value is even.
 # If params$power is even then we will need to enforce sign of adjm.

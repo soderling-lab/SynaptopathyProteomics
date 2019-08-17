@@ -1170,7 +1170,7 @@ wrs <- wilcox.test(y[, 1], x[, 1], alternative = "greater")
 pval <- paste("P =", formatC(wrs$p.value, format = "e", digits = 2))
 
 # Generate a plot.
-plot <- ggplot(df, aes(x = group, y = bicor, fill = group)) +
+plot <- ggplot(df, aes(x = group, y = bicor, fill = groucleanDatp)) +
   geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
   scale_x_discrete(labels = c("non-interacting\nproteins", "known interacting\nproteins")) +
   ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +

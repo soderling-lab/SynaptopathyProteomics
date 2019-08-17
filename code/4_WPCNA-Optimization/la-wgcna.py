@@ -9,11 +9,13 @@ import sys
 from igraph import Graph
 from pandas import read_csv, DataFrame
 
-# Specify which network to be analyzed (wt or ko):
-net = ['wtAdjm.csv', 'koAdjm.csv'][1]
+# Specify which network to be analyzed (wt,ko,combined):
+data_type = 1
+net = ['wtAdjm.csv', 'koAdjm.csv', 'combinedAdjm.csv'][data_type]
+
 
 # Read bicor adjacency matrix (no additional soft threshold)..
-os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization')
+os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/data')
 df = read_csv(net, header = 0, index_col = 0)
 
 # Create edge list.
@@ -70,12 +72,14 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save membership info.
-DataFrame(results['Membership']).to_csv("koAdjm_partitions.csv")
+out = ["wtAdjm_partitions.csv", "koAdjm_partitions.csv", "combinedAdjm_partitions.csv"]
+DataFrame(results['Membership']).to_csv(out[data_type])
 
 # Save other info as csv.
 #FIXME: NEED TO remove row index and columsn for proper import into self-preservation.r script.
 df = DataFrame.from_dict(results)
-df.to_csv("koAdjm_partition_profile.csv")
+out = ["wtAdjm_partition_profile.csv", "koAdjm_partition_profile.csv", "combinedAdjm_partition_profile.csv"]
+df.to_csv(out[data_type])
 
 # ENDOFILE
 #------------------------------------------------------------------------------
