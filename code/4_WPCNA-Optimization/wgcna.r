@@ -26,6 +26,8 @@
 #' ---
 
 ##############################################################################
+#FIXME: add flag for saving output properly 
+
 # Load data for testing if no command line arguments passed.
 if (length(commandArgs(trailingOnly=TRUE)) == 0){
  rm(list = ls())
@@ -68,8 +70,9 @@ suppressPackageStartupMessages({
 	require(doParallel, quietly = TRUE)
 	require(parallel, quietly = TRUE)
 	require(reshape2, quietly = TRUE)
-        require(igraph, quietly = TRUE)
+  require(igraph, quietly = TRUE)
 	require(dplyr, quietly = TRUE)
+  require(openxlsx, quietly = TRUE)
 })
 
 # Directories.
@@ -389,12 +392,6 @@ wgcna <- function(exprDat, parameters) {
 ## Perform WGCNA!
 results <- wgcna(exprDat, parameters)
 
-# If output filename is specified, then save partition.
-if (!is.na(args$output)) {
-	fwrite(as.data.table(results$network$colors, keep.rownames = TRUE), 
-	       args$output)
-}
-
 #------------------------------------------------------------------------------
 # ## Extract key WGCNA results.
 #------------------------------------------------------------------------------
@@ -403,11 +400,6 @@ if (!is.na(args$output)) {
 exprDat <- results$data
 net <- results$network
 params <- results$hyperparameters
-
-print(params)
-
-#data.table::fwrite(params,"params.csv")
-quit()
 
 # The number of modules and percent grey.
 nmodules <- length(unique(results$network$colors)) - 1 # exclude grey
@@ -441,7 +433,7 @@ loss_ptve <- 1 - ptve
 message(paste("... Partition PVE :", round(ptve,3)))
 
 # Calculate Module membership, kME.
-kMEdat <- signedKME(t(cleanDat), tmpMEs, corFnc = "bicor")
+kMEdat <- signedKME(exprDat, net$MEs, corFnc = params$corType)
 
 #------------------------------------------------------------------------------
 # ## Calculate WS Modularity, the quality of the partition.
@@ -524,9 +516,38 @@ unlink(cluster_file)
 #------------------------------------------------------------------------------
 ## Return results as excel workbook.
 #------------------------------------------------------------------------------
+quit()
 
-#input data, network partition, parameters, ME, kME, summary.
+# Clean up data for writting to excel.
+# Write over null hyperparameters.
+idx <- c(1:length(results$hyperparameters))[unlist(lapply(results$hyperparameters,is.null))]
+results$hyperparameters[idx] <- "NULL"
+df1 <- data.frame(Parameter = names(results$hyperparameters),
+                  Value = unlist(results$hyperparameters))
+rownames(df1) <- NULL
+df2 <- data.frame(Protein = names(results$network$colors), 
+                  Module = results$network$colors)
+rownames(df2) <- NULL
 
+# Collect in a list.
+wgcna_results <- list(
+  "data" = results$data,
+  "parameters" = df1,
+  "partition" = df2,
+  "MEs" = results$network$MEs,
+  "kMEs" = kMEdat
+)
+
+# Save workbook.
+wb <- createWorkbook()
+for (i in 1:length(wgcna_results)) {
+  df <- as.data.frame(wgcna_results[[i]])
+  addWorksheet(wb, sheetName = names(wgcna_results[i]))
+  writeData(wb, sheet = i, df, rowNames = TRUE, colNames = TRUE,
+            keepNA = FALSE)
+}
+file <- file.path(here,"WGCNA_Results.xlsx")
+saveWorkbook(wb, file, overwrite = TRUE)
 
 quit()
 
