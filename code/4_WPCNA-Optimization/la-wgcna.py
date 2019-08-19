@@ -10,9 +10,8 @@ from igraph import Graph
 from pandas import read_csv, DataFrame
 
 # Specify which network to be analyzed (wt,ko,combined):
-data_type = 1
+data_type = 2
 net = ['wtAdjm.csv', 'koAdjm.csv', 'combinedAdjm.csv'][data_type]
-
 
 # Read bicor adjacency matrix (no additional soft threshold)..
 os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/data')
@@ -49,14 +48,12 @@ g.es['weight'] = edges['weight']
 g = g.simplify(multiple = False, loops = True)
 
 #------------------------------------------------------------------------------
-## Community detection in the WPCNetwork with the Leiden algorithm..
+## Community detection in the co-expression graph with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
 import sys
 from leidenalg import Optimiser
 from leidenalg import CPMVertexPartition
-
-# Examine resolution profile:
 print('''Generating partition profile for protein co-expression graph!
         This will take several hours!''', file = sys.stderr)
 optimiser = Optimiser()
@@ -72,12 +69,15 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save membership info.
-out = ["wtAdjm_partitions.csv", "koAdjm_partitions.csv", "combinedAdjm_partitions.csv"]
+out = ["wtAdjm_partitions.csv", "koAdjm_partitions.csv", "combinedAdjm_partitions.csv"][data_type]
 DataFrame(results['Membership']).to_csv(out[data_type])
 
 # Save other info as csv.
-#FIXME: NEED TO remove row index and columsn for proper import into self-preservation.r script.
+#FIXME: NEED TO remove row index and columns for proper import into self-preservation.r
 df = DataFrame.from_dict(results)
+
+df.drop(index='Membership', axis = 1) 
+
 out = ["wtAdjm_partition_profile.csv", "koAdjm_partition_profile.csv", "combinedAdjm_partition_profile.csv"]
 df.to_csv(out[data_type])
 

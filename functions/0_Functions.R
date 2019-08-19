@@ -3137,3 +3137,137 @@ silently <- function(func, ...) {
 }
 
 #-------------------------------------------------------------------------------
+#' ggplotVerboseBoxPlot
+#'
+#' suppress any unwanted output from a function with sink().
+#'
+#' @param func (function) symmetric adjacency matrix representing the network graph.
+#' @param ... (string) additional arguments passed to func().
+#'
+#' @return None
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#' @references \url{}
+#' @keywords supress output silent quiet
+#'
+#' @examples
+#' silently(wgcna::bicor, exprDat)
+#'
+#' @export
+## Define a function that can suppress unwanted messages from a function.
+
+#-------------------------------------------------------------------------------
+# Function ggplotVerboseBoxplot
+ggplotVerboseBoxplot <- function(x, 
+				 g, 
+				 levels, 
+				 contrasts, 
+				 color, 
+				 stats = FALSE,
+                                 method = "dunnett", 
+				 correction_factor = 8) {
+  # Bind data as data frame for ggplot.
+  df <- as.data.frame(cbind(x, g))
+  df$g <- factor(df$g, levels = levels)
+
+  # Calculate Kruskal Wallis pvalue.
+  KWtest <- kruskal.test(as.numeric(x), as.factor(g))
+  pvalue <- round(KWtest$p.value, 3)
+
+  # If p-value is significant, print the title in red.
+  if (as.numeric(KWtest$p.value) < 0.05) {
+    sigcolor <- "red"
+  } else {
+    sigcolor <- "black"
+  }
+
+  # Post-hoc comparisons module. Dunn or Dunnett.
+  if (method == "dunn") {
+    # print("Dunn's test used.")
+    # Dunn's post-hoc test.
+    Dtest <- dunnTest(as.numeric(x) ~ as.factor(g), kw = FALSE, method = "none")$res
+    # Duplicate comparisons in reverse order. Keep rows that have comparison of interest.
+    dupDtest <- Dtest
+    dupDtest$Comparison <- do.call(
+      rbind,
+      lapply(
+        strsplit(Dtest$Comparison, " - "),
+        function(x) paste(c(x[2], x[1]), collapse = " - ")
+      )
+    )
+    Dtest <- rbind(Dtest, dupDtest)
+    # Keep only contrasts of interest.
+    Dtest <- Dtest[Dtest$Comparison %in% contrasts, ]
+  } else if (method == "dunnett") {
+    # print("Dunnett's test used.")
+    # Dunnett's post-hoc test for comparison to controls.
+    Dtest <- DunnettTest(as.numeric(x), as.factor(g), control = c("WT.Cortex", "WT.Striatum"))
+    Dtest_list <- list()
+    # Extract results from PostHocTest object.
+    for (i in 1:length(Dtest)) {
+      Dtest_list[[names(Dtest)[i]]] <- Dtest[[i]]
+    }
+    Dtest <- as.data.frame(do.call(rbind, Dtest_list))
+    # Reverse order of contrasts.
+    Dtest <- add_column(Dtest,
+      Comparison = paste(sapply(strsplit(rownames(Dtest), "-"), "[", 2),
+        sapply(strsplit(rownames(Dtest), "-"), "[", 1),
+        sep = " - "
+      ), .before = 1
+    )
+    # Discard row names.
+    rownames(Dtest) <- NULL
+
+    # keep only contrasts of interest.
+    Dtest <- Dtest[Dtest$Comparison %in% contrasts, ]
+    # Add p.adj
+    Dtest$P.adj <- p.adjust(Dtest$pval, method = "BH")
+  } else {
+    print("Please specify a post-hoc test (posthoc = dunn or dunnett).")
+  }
+
+  # Prepare annotation df.
+  stats.df <- Dtest
+  stats.df$P.adj <- as.numeric(stats.df$P.unadj) * correction_factor # BH adjustment for 8 comparisons.
+  stats.df$symbol <- ""
+  stats.df$symbol[stats.df$P.adj < 0.05] <- "*"
+  stats.df$symbol[stats.df$P.adj < 0.01] <- "**"
+  stats.df$symbol[stats.df$P.adj < 0.001] <- "***"
+  stats.df$group1 <- gsub(" ", "", sapply(strsplit(stats.df$Comparison, "-"), "[", 1))
+  stats.df$group2 <- gsub(" ", "", sapply(strsplit(stats.df$Comparison, "-"), "[", 2))
+  stats.df$ypos <- 1.05 * max(as.numeric(df$x))
+
+  # Generate boxplot.
+  plot <- ggplot(df, aes(x = g, y = as.numeric(x), fill = g)) +
+    geom_boxplot() +
+    scale_fill_manual(values = rep(color, length(unique(g)))) + geom_point(color = "white", size = 1, pch = 21, fill = "black") +
+    ggtitle(paste(color, " (P = ", pvalue, ")", sep = "")) + xlab(NULL) +
+    ylab("Summary Expression") +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 10, face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+
+  # Extract ggplot build information to adjust y axis.
+  build <- ggplot_build(plot)
+  y_lims <- build$layout$panel_scales_y[[1]]$range$range
+  y_lims[2] <- 1.15 * y_lims[2]
+  plot <- plot + ylim(y_lims)
+
+  # Add asterisks indicating significance.
+  plot <- plot + annotate("text",
+    x = stats.df$group2, y = stats.df$ypos,
+    label = stats.df$symbol, size = 6
+  )
+
+  results <- list(plot, KWtest, stats.df)
+  names(results) <- c("plot", "Kruskal-Wallis", method)
+  if (stats == TRUE) {
+    return(results)
+  } else {
+    return(plot)
+  }
+}

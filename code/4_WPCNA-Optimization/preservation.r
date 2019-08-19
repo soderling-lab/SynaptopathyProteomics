@@ -19,7 +19,7 @@ suppressPackageStartupMessages({
 
 # Which type of analysis are we doing?
 type <- 1
-H0 <- "less" 
+H0 <- "greater" 
 
 experiment <- c("WT_in_KO","KO_in_WT")[type]
 discovery <- c("wt","ko")[type]
@@ -32,31 +32,28 @@ message(msg2)
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-data <- file.path(root,"data")
-fun  <- file.path(root, "functions")
-tabs <- file.path(root,"tables") 
-
-# Directory for output of the permutation test.
-subdir <- file.path(data, "Preservation_Results", experiment, toupper(H0))
+figsdir <- file.path(root,"figures")
+datadir <- file.path(root,"data")
+funcdir <- file.path(root, "functions")
+tabsdir <- file.path(root,"tables") 
 
 # Load functions.
-functions <- file.path(fun,"clean_fun.R")
-source(functions)
+functions <- source(file.path(funcdir,"clean_fun.R"))
 
 #-------------------------------------------------------------------------------
 ## Parse the users input.
 #-------------------------------------------------------------------------------
 
 # Load expression data and compute adjmatrix:
-wtDat <- readRDS(paste(data,"wtDat.Rds",sep="/"))
-koDat <- readRDS(paste(data,"koDat.Rds",sep="/"))
+wtDat <- readRDS(file.path(datadir,"wtDat.Rds"))
+koDat <- readRDS(file.path(datadir,"koDat.Rds"))
 wt_adjm <- silently(WGCNA::bicor, wtDat)
 ko_adjm <- silently(WGCNA::bicor, koDat)
 
 # Read network partition info.
 files <- c("wt_preserved_partitions.Rds",
 	   "ko_preserved_partitions.Rds")[type]
-clufile <- file.path(data, files)
+clufile <- file.path(datadir, files)
 partitions <- readRDS(clufile)  # len(WT partitions) == 110 
 
 # Checks:
@@ -65,7 +62,7 @@ if (!all(colnames(wt_adjm) == colnames(ko_adjm))) { stop("Input data don't match
 if (!all(names(partitions[[1]]) %in% colnames(wtDat))) { stop("Input data don't match!") }
 
 #-------------------------------------------------------------------------------
-## Enforce module preservation.
+## Examine module preservation.
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
@@ -73,9 +70,12 @@ data_list        <- list(wt = wtDat,   ko = koDat)   # The protein expression da
 correlation_list <- list(wt = wt_adjm, ko = ko_adjm) # The bicor correlation matrix.
 network_list     <- list(wt = wt_adjm, ko = ko_adjm) # The weighted, signed co-expresion network.
 
+# Which partitions to analyse?
+parts <- c(110)
+
 # Loop to examine module preservation at all partition resolutions.
 output <- list()
-for (i in seq_along(partitions)){
+for (i in parts){
 	message(paste("\nWorking on partition", i ,"..."))
 	# Get partition
 	module_labels <- partitions[[i]] 
@@ -100,9 +100,27 @@ for (i in seq_along(partitions)){
 						   verbose = TRUE
 						   )
 	# Save output.
-	file <- paste(subdir, paste(i,"preservation", H0, "results.Rds",sep="_"), sep="/")
-	saveRDS(preservation,file) 
-}
+	output[[i]] <- preservation
+} # ends loop
+
+# Colllect results.
+permutation_results <- output[parts]
+
+# What percentage of modules exhibit evidence of preservation?
+p <- partitions[[110]]
+modules <- split(p,p)
+names(modules) <- paste0("M",names(modules))
+nModules <- length(modules) - 1
+pvals <- permutation_results[[1]]$p.values
+maxp <- apply(pvals*nModules, 1, max)
+names(maxp) <- names(modules)[-1]
+percent_preserved <- sum(maxp<0.05)/nModules
+print(percent_preserved)
+# Modules that exhibit strong evidence of preservation:
+preserved_modules <- names(maxp)[maxp<0.05]
+preserved_modules
+
+modules$M1
 
 # Exit.
 quit()
