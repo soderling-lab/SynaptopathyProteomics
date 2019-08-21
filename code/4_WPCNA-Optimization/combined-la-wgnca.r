@@ -92,7 +92,7 @@ best_partitions <- unlist(medoid)
 print(best_partitions)
 
 # Save best partitions.
-myfile <- file.path(datadir, "Combined_best_partitions.Rds"))
+myfile <- file.path(datadir, "Combined_best_partitions.Rds")
 saveRDS(best_partitions, myfile)
 
 #------------------------------------------------------------------------------
@@ -105,6 +105,10 @@ saveRDS(best_partitions, myfile)
 myfile <- file.path(datadir, "cleanDat.Rds")
 cleanDat <- readRDS(myfile)
 adjm <- silently(WGCNA::bicor, cleanDat)
+
+# Best partitions.
+myfile <- file.path(datadir, "Combined_best_partitions.Rds")
+best_partitions <- readRDS(myfile)
 
 # Get subset of partitions.
 profile <- partitions[best_partitions]
@@ -167,26 +171,36 @@ saveRDS(preserved_partitions, myfile)
 # Given a Network Graph partition, calculate module summary expression (ME),
 # module membership (kME), and generate verbose boxplots.
 
+library(WGCNA)
+
+# Load expression data and compute adjmatrix:
+myfile <- file.path(datadir, "cleanDat.Rds")
+cleanDat <- readRDS(myfile)
+
+# Compute bicor adjacency matrix.
+adjm <- silently(bicor,cleanDat)
+
 # Load traits data.
 traits <- readRDS(file.path(datadir,"2_Combined_traits.Rds"))
 traits$Sample.Model.Tissue <- paste(traits$Sample.Model,traits$Tissue,sep=".")
 
-# Load graph partitions.
-myfile <- paste0(c("WT","KO")[type],"_representative_partitions_permutation_results.Rds")
-permutation_results <- readRDS(file.path(datadir, myfile))
-
-# Load best partitions.
+# Load partition data..
 myfile <- file.path(datadir,"Combined_preserved_partitions.Rds")
+preserved_partitions <- readRDS(myfile)
+
+# Best partitions.
+myfile <- file.path(datadir, "Combined_best_partitions.Rds")
 best_partitions <- readRDS(myfile)
 
 # Examine a single partition...
-resolution = 5
+resolution = 4
+part_name <- names(preserved_partitions)[resolution]
 results <- preserved_partitions[[resolution]]
 partition <- results$partition
 modules <- split(partition,partition)
+names(modules) <- paste0("M",names(modules))
 nModules <- length(modules) - 1
 message(paste("... nModules identified:",nModules))
-names(modules) <- paste0("M",names(modules))
 
 # Check:
 if (!all(names(partition) == colnames(cleanDat))) { 
@@ -214,35 +228,47 @@ g <- traits$Sample.Model.Tissue[match(rownames(MEs),traits$SampleID)]
 g[grepl("WT.*.Cortex",g)] <- "WT.Cortex"
 g[grepl("WT.*.Striatum",g)] <- "WT.Striatum"
 g <- as.factor(g)
+geno <- c("KO.Shank2","KO.Shank3","HET.Syngap1","KO.Ube3a")
+tissue <- c("Cortex","Striatum")
+g1 <- apply(expand.grid(geno, tissue), 1, paste, collapse=".")
+g2 <- c("WT.Cortex","WT.Striatum")
+contrasts <- apply(expand.grid(g1,g2),1,paste,collapse=" - ")
+order <- c("WT.Cortex", "WT.Striatum",
+	   "KO.Shank2.Cortex","KO.Shank3.Cortex","HET.Syngap1.Cortex","KO.Ube3a.Cortex",
+	   "KO.Shank3.Striatum","KO.Shank3.Striatum","HET.Syngap1.Striatum","KO.Ube3a.Striatum")
 
-# Combine cortex and striatum WT.
+# Option: Combine cortex and striatum WT.
 g <- traits$Sample.Model.Tissue[match(rownames(MEs),traits$SampleID)]
 g[grepl("WT.*.Cortex",g)] <- "WT.Cortex"
 g[grepl("WT.*.Striatum",g)] <- "WT.Striatum"
 g[grepl("WT.Cortex",g)] <- "WT"
 g[grepl("WT.Striatum",g)] <- "WT"
 g <- as.factor(g)
-
-# Make contrasts.
-# Format is: KO.Ube3a.Cortex - WT.Cortex
 geno <- c("KO.Shank2","KO.Shank3","HET.Syngap1","KO.Ube3a")
 tissue <- c("Cortex","Striatum")
 g1 <- apply(expand.grid(geno, tissue), 1, paste, collapse=".")
-g2 <- c("WT.Cortex", "WT.Striatum")
 g2 <- c("WT")
 contrasts <- apply(expand.grid(g1,g2),1,paste,collapse=" - ")
-
-# Order of the boxes:
-order <- c("WT.Cortex", "WT.Striatum",
-	   "KO.Shank2.Cortex","KO.Shank3.Cortex","HET.Syngap1.Cortex","KO.Ube3a.Cortex",
-	   "KO.Shank3.Striatum","KO.Shank3.Striatum","HET.Syngap1.Striatum","KO.Ube3a.Striatum")
-
 order <- c("WT",
-	   "KO.Shank2.Cortex","KO.Shank3.Cortex","HET.Syngap1.Cortex","KO.Ube3a.Cortex",
-	   "KO.Shank3.Striatum","KO.Shank3.Striatum","HET.Syngap1.Striatum","KO.Ube3a.Striatum")
+	   "KO.Shank2.Cortex","KO.Shank2.Striatum","KO.Shank3.Cortex","KO.Shank3.Striatum",
+	   "HET.Syngap1.Cortex","HET.Syngap1.Striatum","KO.Ube3a.Cortex","KO.Ube3a.Striatum")
 
 # Lapply to generate plots.
 plots <- lapply(ME_list,function(x) ggplotVerboseBoxplot(x,g,contrasts,order))
+names(plots) <- names(modules)
+
+# Add PVE to plot titles.
+for (i in seq_along(plots)){
+	p <- plots[[i]]
+	namen <- names(plots)[i]
+	txt <- paste("PVE:", round(pve[names(plots)[i]],3))
+	p$labels$title <- paste0(namen," (", txt, "; ", p$labels$title, ")")
+	plots[[i]] <- p
+}
+
+# Add custom colors to plots.
+colors <- c("gray",rep(c("yellow","blue","green","purple"),each = 2))
+plots <- lapply(plots, function(x) x + scale_fill_manual(values = colors))
 
 # Perform KW tests.
 KWtest <- lapply(ME_list,function(x) kruskal.test(x ~ g))
@@ -250,12 +276,12 @@ KWtest <- lapply(ME_list,function(x) kruskal.test(x ~ g))
 # Correct KWtest pvalues for nModule multiple comparisons.
 KWpval <- unlist(sapply(KWtest, "[", 3))[-1]
 KWpadj <- p.adjust(KWpval, method = "bonferroni")
-names(KWpadj) <- names(KWpval) <- names(KWtest)[-1]
+names(KWpadj) <- names(KWpval) <- names(modules)[-1]
 
 # KWsig?
 alpha = 0.1
-sigKW <- names(KWpadj)[KWpadj < alpha]
-message(paste("... nModules with significant KW test:", length(sigKW)))
+KWsig <- names(KWpadj)[KWpadj < alpha]
+message(paste("... nModules with significant KW test:", length(KWsig)))
 
 # Perform Dunn tests (for unequal sample size).
 Dtest <- lapply(ME_list, function(x) FSA::dunnTest(x ~ g, kw = FALSE, method = "none"))
@@ -274,16 +300,122 @@ alpha = 0.05
 sigDT <- unlist(lapply(Dtest,function(x) sum(x$P.adj<alpha)))
 message(paste("... nModules with significant Dunn test:", sum(sigDT>0)))
 
+# Save sig. plots.
+save_plots = FALSE
+if (save_plots) {
+	plots <- plots[KWsig]
+	for (i in 1:length(plots)){
+		f <- file.path(figsdir,paste0(part_name,"_",names(plots)[i],".tiff"))
+		ggsave(f,plots[[i]])
+	}
+}
 
-# Save.
-for (p in seq_along(sigKW)){
-	f <- file.path(figsdir,paste0(sigKW[i],".tiff"))
-	p <- 
-	ggsave(f, plots[p])
+#-------------------------------------------------------------------------------
+## Inspect correlation coefficients.
 
-#------------------------------------------------------------------------------
-## Gene ontology analysis.
-#------------------------------------------------------------------------------
+# Save WGCNA Results.
+
+# Module membership.
+df <- data.frame("Protein" = names(partition),
+		 "Module"  = partition)
+
+results <- list(
+		data = cleanDat,
+		adjm = adjm,
+		partition = partition,
+		MEs = MEdata,
+		kMEs = kmeData,
+		PVE = pve
+		)
+
+# Save workbook.
+library
+wb <- createWorkbook()
+for (i in seq_along(results)) {
+	df <- as.data.frame(results[[i]])
+	addWorksheet(wb, sheetName = names(results[i]))
+	writeData(wb, sheet = i, df, rowNames = TRUE, colNames = TRUE,
+		  keepNA = FALSE)
+}
+file <- file.path(tabsdir,"mesoWPCNA_Results.xlsx")
+aveWorkbook(wb,file,overwrite = TRUE)
+
+#-------------------------------------------------------------------------------
+## Examine biological enrichment of changing clusters.
+#-------------------------------------------------------------------------------
+
+suppressPackageStartupMessages({
+	library(anRichment)
+	library(org.Mm.eg.db)
+})
+
+# If it doesn't exist, build a GO annotation collection:
+# Load previously compiled GO annotation collection:
+musGOcollection <- readRDS(file.path(datadir,"musGOcollection.Rds"))
+
+# Load protein identifier map for mapping protein names to entrez.
+map <- read.csv(file.path(datadir,"map.csv"))
+
+# Loop through profile calculating GO enrichemnt.
+# GOresults is a list containing GO enrichment results for each partition. 
+# Each item in the list a list of GO results for each module identified in that partition.
+GOresults <- list()
+for (i in seq_along(preserved_partitions)) {
+	# Get partition.
+	partition <- preserved_partitions[[i]]$partition
+	modules <- split(partition, partition)
+	names(modules) <- paste0("M",names(modules))
+	# Remove unclustered nodes.
+	modules <- modules[c(1:length(modules))[!names(modules) == "M0"]]
+	# Build a matrix of labels.
+	entrez <- map$entrez[match(names(partition),map$prots)]
+	idx <- lapply(modules, function(x) names(partition) %in% names(x))
+	labels_dm <- apply(as.matrix(do.call(cbind,idx)),2, function(x) as.numeric(x))
+	# Perform GO Enrichment analysis with the anRichment library.
+	GOenrichment <- enrichmentAnalysis(
+					   classLabels = labels_dm,
+					   identifiers = entrez,
+					   refCollection = musGOcollection,
+					   useBackground = "given",
+					   threshold = 0.05,
+					   thresholdType = "Bonferroni",
+					   getOverlapEntrez = TRUE,
+					   getOverlapSymbols = TRUE,
+					   ignoreLabels = 0
+					   )
+	# Extract the results.
+	if (length(modules)==1) { 
+		GOdata <- list(GOenrichment$enrichmentTable) 
+	}else {
+		GOdata <- lapply(GOenrichment$setResults, function(x) x[[2]])
+	}
+	names(GOdata) <- names(modules)
+	# Return GO results.
+	GOresults[[i]] <- GOdata
+}
+names(GOresults) <- names(preserved_partitions)
+
+# Write to file.
+for (i in 1:length(GOresults)){
+	write.excel(GOresults[[i]],
+		    file.path(tabsdir,paste0(names(GOresults)[i],"MesoWGCNA_GOresults.xlsx")))
+}
+
+# Get TopGO for each module.
+get_topGO <- function(GOresult){
+	lapply(GOresult, function(x) x$shortDataSetName[1])
+}
+topGO <- lapply(GOresults, function(x) get_topGO(x))
+
+
+df <- topGO$P126
+
+# Save table.
+library(gridExtra)
+tab <- tableGrob(df,rows=NULL)
+
+ggsave(file.path(figsdir,"5_KO_P61_DivergentModulesSummary.tiff"),tab,
+		 width = grobsize(tab)[1], height = grobsize(tab)[2])
 
 # ENDOFILE
 #-------------------------------------------------------------------------------

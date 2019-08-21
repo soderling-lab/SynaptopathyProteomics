@@ -10,15 +10,19 @@ from igraph import Graph
 from pandas import read_csv, DataFrame
 
 # Specify which network to be analyzed (wt or ko):
-net = ['wtAdjm.csv', 'koAdjm.csv'][1]
+net = ['wtAdjm.csv', 'koAdjm.csv', 'combinedAdjm.csv'][2]
 
 # Read bicor adjacency matrix (no additional soft threshold)..
-os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/code/4_WPCNA-Optimization')
+os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/data')
 df = read_csv(net, header = 0, index_col = 0)
 
 # Create edge list.
 edges = df.stack().reset_index()
 edges.columns = ['protA','protB','weight']
+
+# Add weighted edges.
+power = 9 # If even enforce sign!
+edges['weighted'] = edges['weight'] ** power
 
 # Define dictionary of nodes.
 nodes = dict(zip(df.columns, range(len(df.columns))))
@@ -41,7 +45,8 @@ g.vs['label'] = nodes.keys()
 # Add edges as list of tuples: (1,2) = node 1 interacts with node 2.
 print("Adding edges to graph, this will take several minutes!", file = sys.stderr)
 g.add_edges(el)
-g.es['weight'] = edges['weight']
+g.es['weight'] = edges['weight'] 
+g.es['weighted'] = edges['weighted'] 
 
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
@@ -52,9 +57,19 @@ g = g.simplify(multiple = False, loops = True)
 
 import sys
 from leidenalg import Optimiser
+from leidenalg import find_partition
 from leidenalg import CPMVertexPartition
 
-# Examine resolution profile:
+# Perform clustering at a single resolution.
+# Does adding edge weight improve cluster detection?
+p1 = find_partition(g, CPMVertexPartition, weights = 'weight', resolution_parameter = 0.0)
+p1.summary
+
+p2 = find_partition(g, CPMVertexPartition, weights = 'weighted', resolution_parameter = 0.0)
+p2.summary
+
+
+# Calculate resolution profile:
 print('''Generating partition profile for protein co-expression graph!
         This will take several hours!''', file = sys.stderr)
 optimiser = Optimiser()
