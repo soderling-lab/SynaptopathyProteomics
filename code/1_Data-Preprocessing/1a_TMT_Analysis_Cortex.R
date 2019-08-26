@@ -26,6 +26,7 @@ suppressPackageStartupMessages({
 	library(readxl)
 	library(data.table)
 	library(reshape2)
+	library(dplyr)
 	library(gridExtra)
 	library(grid)
 	library(gtable)
