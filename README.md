@@ -1,7 +1,8 @@
 # Synaptopathy-Proteomics
 
 Analysis of synaptosome TMT proteomics from __Shank2__, __Shank3__, 
-__Syngap1__, and __Ube3a__ mouse models of neurodevelopmental disorders.
+__Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders 
+(ASD), intellectual disability (ID), and epilpsy Neurodevelopmental disorders.
 
 | Mouse Model | Disorder | Reference |
 | ---         | ---      | --- |
@@ -18,16 +19,14 @@ __Syngap1__, and __Ube3a__ mouse models of neurodevelopmental disorders.
 * [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - directory for table output from scripts. 
 
 ## Additional directories
-Several other directories are used to store oup:
-* data - directory for storing intermediate data files.
-* figures - directory for figure output from scripts.
+Several other directories are used to store output generated during the analysis:
+* data/ - directory for storing intermediate data files.
+* figures/ - directory for figure output from scripts.
 Due to the potential for these directories to get really big, they are not 
 managed by git (see `.gitignore`).
 
-* [2_TMT_Analysis_Combined.R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/Code/2_TMT_Analysis_Combined.R)
-
-## Supplemental Information.
-For a detailed overview of tha analysis, see [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/Manuscript/Supplement).
+## Supplemental Information
+For a detailed overview of the analysis, see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
 
 #### System Info:
 The analysis was done using the Windows Substem for Linux (WSL) on Windows 10.  
