@@ -1,5 +1,3 @@
-#' ---
-#' title: 0_Functions.R
 #' description: functions for TMT analysis
 #' authors: Tyler W Bradshaw
 #' ---
