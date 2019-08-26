@@ -847,7 +847,7 @@ ggplotSampleConnectivityv2 <- function(data_in, log = TRUE, colID, threshold = -
     dm <- dm
   }
   # Calcualte adjacency matrix.
-  adjm <- (0.5 + 0.5 * bicor(dm, use = "pairwise.complete.obs")^2)
+  adjm <- (0.5 + 0.5 * WGCNA::bicor(dm, use = "pairwise.complete.obs")^2)
 
   # Generate a dendrogram.
   sampleTree <- hclust(as.dist(1 - adjm), method = "average")

@@ -5,10 +5,10 @@ __Syngap1__, and __Ube3a__ mouse models of neurodevelopmental disorders.
 
 | Mouse Model | Disorder | REF |
 | ---         | ---      | --- |
-| Shank2      | ASD      | []    |
-| Shank3      | ASD      |     |
-| Syngap1     | ASD      |     |
-| Ube3a       | ASD      |     |
+| Shank2      | ASD      | [REF](url) |
+| Shank3      | ASD      | [Wang et al.,2016](https://www.ncbi.nlm.nih.gov/pubmed/27161151) |
+| Syngap1     | ID,ASD,epilepsy |[Kim et al., 2003](https://www.ncbi.nlm.nih.gov/pubmed/12598599)|
+| Ube3a       | Angelman Syndrome | [Jiang et al. 1998,](https://www.ncbi.nlm.nih.gov/pubmed/9808466) |
 
 ## Project Organization
 * Bin/ - executable scripts for the project.
