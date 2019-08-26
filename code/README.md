@@ -1,5 +1,8 @@
-This directory (code) contains the R and Python scripts used to perform the 
-analysis. The scripts are named in the order in which they should be executed.
+# Code
+-------------------------------------------------------------------------------
+This directory contains the R and Python scripts used to perform the 
+"synaptopathy proteomics"analysis. The scripts are named in the order in which 
+they should be executed.
 
 * 1_Data-Preprocessing/ Preprocessing of the cortex and striatum data including 
 simple normalization within batches, normalization across tissue specific batches 

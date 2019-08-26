@@ -1,6 +1,14 @@
 # Synaptopathy-Proteomics
+
 Analysis of synaptosome TMT proteomics from __Shank2__, __Shank3__, 
 __Syngap1__, and __Ube3a__ mouse models of neurodevelopmental disorders.
+
+| Mouse Model | Disorder | REF |
+| ---         | ---      | --- |
+| Shank2      | ASD      | []    |
+| Shank3      | ASD      |     |
+| Syngap1     | ASD      |     |
+| Ube3a       | ASD      |     |
 
 ## Project Organization
 * Bin/ - executable scripts for the project.

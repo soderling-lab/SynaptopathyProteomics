@@ -383,7 +383,7 @@ filterQC <- function(data_in, groups, nbins, threshold) {
     #  Filter based on 3 SDs away from mean SD of bins (5x)
     #  Get intensity bins
     rows_ignore <- is.nan(data_sub$QC_Average)
-    data_sub$Intensity_bin[!rows_ignore] <- ntile(data_sub$QC_Average[!rows_ignore], nbins,
+    data_sub$Intensity_bin[!rows_ignore] <- BurStMisc::ntile(data_sub$QC_Average[!rows_ignore], nbins,
       na.rm = TRUE,
       checkBleed = FALSE, result = "numeric"
     )
@@ -480,7 +480,7 @@ filterQCv2 <- function(data_in, groups, nbins, threshold) {
 
     # Calculate bins based on mean intensity of QC replicates.
     rows_ignore <- is.nan(data_work$avgQC)
-    data_work$bins[!rows_ignore] <- ntile(data_work$avgQC[!rows_ignore], nbins,
+    data_work$bins[!rows_ignore] <- BurStMisc::ntile(data_work$avgQC[!rows_ignore], nbins,
       na.rm = TRUE,
       checkBleed = FALSE, result = "numeric"
     )
