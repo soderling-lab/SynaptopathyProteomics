@@ -9,6 +9,8 @@ __Syngap1__, and __Ube3a__ mouse models of neurodevelopmental disorders.
 | Shank3      | ASD      | [Wang et al., 2016](https://www.ncbi.nlm.nih.gov/pubmed/27161151) |
 | Syngap1     | ID, ASD, epilepsy |[Kim et al., 2003](https://www.ncbi.nlm.nih.gov/pubmed/12598599)|
 | Ube3a       | Angelman Syndrome | [Jiang et al. 1998,](https://www.ncbi.nlm.nih.gov/pubmed/9808466) |
+| ---         | ---      | --- |
+
 _Note: ASD = Autism spectrum disorder, ID = intellectual disability._
 
 ## Project Organization
