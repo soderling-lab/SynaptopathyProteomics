@@ -2,7 +2,7 @@
 
 Analysis of synaptosome TMT proteomics from __Shank2__, __Shank3__, 
 __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders 
-(ASD), intellectual disability (ID), and epilpsy Neurodevelopmental disorders.
+(ASD), intellectual disability (ID), and epilepsy. 
 
 | Mouse Model | Disorder | Reference |
 | ---         | ---      | --- |
@@ -27,6 +27,9 @@ managed by git (see `.gitignore`).
 
 ## Supplemental Information
 For a detailed overview of the analysis, see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
+
+## Acknowledgements
+This work is en
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on Windows 10. 
