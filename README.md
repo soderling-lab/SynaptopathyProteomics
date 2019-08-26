@@ -30,10 +30,11 @@ For a detailed overview of the analysis, see the supplemental information [here]
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on Windows 10. 
-|   |   |
-|---|---|
-|sysname| Windows |
-|release| 10 x64 |
-|version| build 18362 |
-|nodename| WINDOWS10 | 
-|machine | x86-64 | 
+
+|<!-- --> |<!-- --> |
+| --- | --- |
+| sysname | Windows |
+| release | 10 x64 |
+| version | build 18362 |
+| nodename | WINDOWS10 | 
+| machine | x86-64 | 
