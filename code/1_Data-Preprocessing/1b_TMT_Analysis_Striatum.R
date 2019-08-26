@@ -23,8 +23,14 @@ JGmisc::detachAllPackages(keep = NULL)
 
 # Load required packages.
 suppressPackageStartupMessages({
+	library(readxl)
+	library(data.table)
+	library(reshape2)
+	library(WGCNA)
+	library(dplyr)
 	library(gridExtra)
 	library(grid)
+	library(gtable)
 	library(ggplot2)
 	library(cowplot)
 	library(impute)
