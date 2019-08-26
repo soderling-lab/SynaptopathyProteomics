@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 #------------------------------------------------------------------------------
-## Multiresolution partitioning of the WPCNetwork using the Leiden algorithm.
+## Multiresolution partitioning of the protein co-expression network using the 
+#  Leiden algorithm.
 #------------------------------------------------------------------------------
 
 import os
@@ -13,8 +14,6 @@ here = os.getcwd()
 os.chdir(here)
 
 g1 = Graph.Read_Adjacency("bicor_adjm.csv", sep=",", attribute="weight") 
-
-
 g2 = Graph.Read_Adjacency("ppi_adjm.csv", sep=",", attribute="weight") 
 
 # Try modularity calculation on single graphs.

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 #------------------------------------------------------------------------------
-## Multiresolution partitioning of the WPCNetwork using the Leiden algorithm.
+## Multiresolution partitioning of the protein co-expression network using the 
+#  Leiden algorithm.
 #------------------------------------------------------------------------------
 
 import os
@@ -9,8 +10,9 @@ import sys
 from igraph import Graph
 from pandas import read_csv, DataFrame
 
-# Specify which network to be analyzed (wt or ko):
+# Specify which network to be analyzed (wt, ko, or combined):
 net = ['wtAdjm.csv', 'koAdjm.csv', 'combinedAdjm.csv'][2]
+print(f'Analyzing the {net.split(".")[0]} network!', file = sys.stderr)
 
 # Read bicor adjacency matrix (no additional soft threshold)..
 os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/data')
@@ -21,7 +23,7 @@ edges = df.stack().reset_index()
 edges.columns = ['protA','protB','weight']
 
 # Add weighted edges.
-power = 9 # If even enforce sign!
+power = 9 # If even, you should enforce sign!
 edges['weighted'] = edges['weight'] ** power
 
 # Define dictionary of nodes.
@@ -62,19 +64,17 @@ from leidenalg import CPMVertexPartition
 
 # Perform clustering at a single resolution.
 # Does adding edge weight improve cluster detection?
-p1 = find_partition(g, CPMVertexPartition, weights = 'weight', resolution_parameter = 0.0)
-p1.summary
-
-p2 = find_partition(g, CPMVertexPartition, weights = 'weighted', resolution_parameter = 0.0)
-p2.summary
-
+#p1 = find_partition(g, CPMVertexPartition, weights = 'weight', resolution_parameter = 0.0)
+#p1.summary
+#p2 = find_partition(g, CPMVertexPartition, weights = 'weighted', resolution_parameter = 0.0)
+#p2.summary
 
 # Calculate resolution profile:
 print('''Generating partition profile for protein co-expression graph!
         This will take several hours!''', file = sys.stderr)
 optimiser = Optimiser()
 profile = optimiser.resolution_profile(
-        g, CPMVertexPartition, weights = 'weight', resolution_range=(0,1))
+        g, CPMVertexPartition, weights = 'weighted', resolution_range=(0,0.1))
 
 # Collect key results.
 print(f"Examined network at {len(profile)} resolutions!")
@@ -88,7 +88,7 @@ results = {
 DataFrame(results['Membership']).to_csv("koAdjm_partitions.csv")
 
 # Save other info as csv.
-#FIXME: NEED TO remove row index and columsn for proper import into self-preservation.r script.
+#FIXME: NEED TO remove row index and columns for proper import into self-preservation.r script.
 df = DataFrame.from_dict(results)
 df.to_csv("koAdjm_partition_profile.csv")
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 #------------------------------------------------------------------------------
-## Multiresolution partitioning of the WPCNetwork using the Leiden algorithm.
+## Multiresolution partitioning of the protein co-expression network using the 
+#  Leiden algorithm.
 #------------------------------------------------------------------------------
 
 import os
@@ -12,6 +13,7 @@ from pandas import read_csv, DataFrame
 # Specify which network to be analyzed (wt,ko,combined):
 data_type = 2
 net = ['wtAdjm.csv', 'koAdjm.csv', 'combinedAdjm.csv'][data_type]
+print(f'Analyzing the {net.split(".")[0]} network!')
 
 # Read bicor adjacency matrix (no additional soft threshold)..
 os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/data')

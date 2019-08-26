@@ -164,7 +164,7 @@ ggplotcorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
     data <- as.data.frame(do.call(rbind, data_list))
     # Bin by mean intensity.
     mu <- rowMeans(data_work)
-    data$bins <- rep(ntile(mu, nbins, na.rm = TRUE, checkBleed = FALSE, result = "numeric"), num_iter)
+    data$bins <- rep(BurStMisc::ntile(mu, nbins, na.rm = TRUE, checkBleed = FALSE, result = "numeric"), num_iter)
     # Determine best fit line.
     fit <- lm(data$Log2QC1 ~ data$Log2QC2)
     # Calculate Pearson P-Value.
@@ -212,34 +212,6 @@ ggplotcorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
     names(plot_list)[[i]] <- groups[[i]]
   }
   return(plot_list)
-}
-
-#-------------------------------------------------------------------------------
-# ## plotExp_MDS
-#-------------------------------------------------------------------------------
-# This function plots MDS with covariates as labels. For examing clustering
-# of data an effect of covariates.
-
-plotExp_MDS <- function(data_in, exp) {
-  dm <- df2dm_TMT(data_in, exp)
-  # Clean up the column names for MDS plot.
-  cols <- grep(exp, colnames(data_in))
-  long_cols <- colnames(data_in)[cols]
-  vars <- colsplit(long_cols, ",", c("Channel", "Sample", "Genotype", "Condition", "ProteomicsID"))
-  simple_cols <- vars$Genotype
-  simple_cols <- gsub(" ", "", simple_cols)
-  # Map sample ID to covariates.
-  idx <- match(vars$ProteomicsID, sample_info$ProteomicsID)
-  sex <- sample_info$Sex[idx]
-  age <- sample_info$Age[idx]
-  geno <- sample_info$Condition[idx]
-  colnames(dm) <- paste(geno, age, sex, sep = "_")
-  title <- gsub(" ", "", unique(vars$Genotype))
-  p %<a-% plotMDS(log2(dm),
-    col = c(rep("gray", 3), rep("blue", 4), rep("red", 4)),
-    main = title
-  )
-  p
 }
 
 #-------------------------------------------------------------------------------
@@ -1006,6 +978,7 @@ ggplotMDS <- function(data_in,
                       title,
                       sample_info,
                       labels = FALSE) {
+	require(limma, quietly = TRUE)
   # get the data
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
