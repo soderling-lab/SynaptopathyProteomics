@@ -29,12 +29,20 @@ managed by git (see `.gitignore`).
 For a detailed overview of the analysis, see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
 
 ## Acknowledgements
-This work is en
+This work is indebted to numerous others who have shared their ideas, software,
+and time. In particular, the following open source packages were essential in 
+completion of this work:
+WGCNA, Peter Langfelder and Steven Horvarth
+EdgeR, 
+NetRep, 
+
+The Python package:
+Leidenalg
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on Windows 10. 
 
-|<!-- --> |<!-- --> |
+|     |     |
 | --- | --- |
 | sysname | Windows |
 | release | 10 x64 |
