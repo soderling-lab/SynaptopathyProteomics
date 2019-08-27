@@ -10,15 +10,17 @@ __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders
 | Shank3      | ASD      | [Wang et al., 2016](https://www.ncbi.nlm.nih.gov/pubmed/27161151) |
 | Syngap1     | ID, ASD, epilepsy |[Kim et al., 2003](https://www.ncbi.nlm.nih.gov/pubmed/12598599) |
 | Ube3a       | Angelman Syndrome | [Jiang et al. 1998,](https://www.ncbi.nlm.nih.gov/pubmed/9808466) |
-
+-------------------------------------------------------------------------------
 ## Project Organization
+
+### Main Directories
 * [bin/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/bin) - executable scripts for the project.
 * [code/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code) - the code that performs the projects analysis.
 * [functions](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/functions) - functions used in the anallysis.
 * [input/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - the raw data used as a starting point for the analysis.
 * [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/tables) - directory for table output from scripts. 
 
-#### Additional directories
+### Additional directories
 Several other directories are used to store output generated during the analysis. 
 Due to the potential for these directories to get really big, they are not 
 managed by git (see `.gitignore`).
@@ -28,7 +30,7 @@ managed by git (see `.gitignore`).
 ## Supplemental Information
 For a detailed overview of the analysis, please see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
 
-## Acknowledgements
+## Dependencies
 This work is indebted to numerous others who have shared their ideas, software,
 and time. In particular, the following open source packages were essential in 
 completion of this work:
@@ -38,6 +40,7 @@ completion of this work:
 * __leidenalg__: [package](https://pypi.org/project/leidenalg/) | [pre-print publication](https://arxiv.org/abs/1810.08473)  
 
 For more information about these packages, please see their respective publications. 
+For a complete list of dependencies, please see [here](). 
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on a Windows 10 PC. 

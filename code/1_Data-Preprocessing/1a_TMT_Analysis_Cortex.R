@@ -17,10 +17,6 @@ if (!is.null(dev.list())) { dev.off() }
 cat("\f")
 options(stringsAsFactors = FALSE)
 
-# You may encouter problems if you have not cleared the workspace of all loaded 
-# packages. To remove all packages, use the following:
-JGmisc::detachAllPackages(keep = NULL)
-
 # Load required packages.
 suppressPackageStartupMessages({
 	library(readxl)
