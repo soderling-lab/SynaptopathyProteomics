@@ -17,10 +17,6 @@ if (!is.null(dev.list())) { dev.off() }
 cat("\f")
 options(stringsAsFactors = FALSE)
 
-# You may encouter problems if you have not cleared the workspace of all loaded 
-# packages. To remove all packages, use the following:
-JGmisc::detachAllPackages(keep = NULL)
-
 # Load required packages.
 suppressPackageStartupMessages({
 	library(readxl)
@@ -44,6 +40,7 @@ suppressPackageStartupMessages({
 })
 
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
+# This is the only difference between 1a and 1b!
 type <- 2
 tissue <- c("Cortex", "Striatum")[type]
 

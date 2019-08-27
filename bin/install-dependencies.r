@@ -73,6 +73,11 @@ rip("annotate", method = "BiocManager")
 rip("sva", method = "BiocManager")
 rip("genefilter", method = "BiocManager")
 rip("WGCNA", method = "BiocManager")
+rip("vsn", method = "BiocManager")
+
+# Misc.
+rip("hexbin")
+rip("BurStMisc")
 
 # ENDOFILE
 #------------------------------------------------------------------------------
