@@ -32,12 +32,10 @@ For a detailed overview of the analysis, see the supplemental information [here]
 This work is indebted to numerous others who have shared their ideas, software,
 and time. In particular, the following open source packages were essential in 
 completion of this work:
-WGCNA, Peter Langfelder and Steven Horvarth
-EdgeR, 
-NetRep, 
-
-The Python package:
-Leidenalg
+[WGCNA](https://cran.r-project.org/web/packages/WGCNA/index.html)
+[EdgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html) 
+[NetRep](https://cran.rstudio.com/web/packages/NetRep/index.html)
+[leidenalg](https://pypi.org/project/leidenalg/)
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on Windows 10. 
