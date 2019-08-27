@@ -1,6 +1,3 @@
-#' description: functions for TMT analysis
-#' authors: Tyler W Bradshaw
-#' ---
 
 ################################################################################
 # Note:
@@ -839,6 +836,9 @@ checkNormalization <- function(data_in, traits, colors, title) {
 #-------------------------------------------------------------------------------
 # Function for plotting sample connectivity.
 ggplotSampleConnectivityv2 <- function(data_in, log = TRUE, colID, threshold = -2.5) {
+	require(ggdendro)
+	require(WGCNA)
+	require(ggrepel)
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
   if (log == TRUE) {
@@ -1965,6 +1965,8 @@ edgeR_GSE <- function(qlf, FDR = 0.05, filter = TRUE) {
 #-------------------------------------------------------------------------------
 # Function to annotate DE candidates:
 annotateTopTags <- function(y_TT) {
+	require(AnnotationDbi)
+	require(org.Mm.eg.db)
   y_TT$logCPM <- 100 * (2^y_TT$logFC)
   colnames(y_TT)[2] <- "%WT"
   y_TT$candidate <- "no"

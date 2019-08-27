@@ -854,8 +854,8 @@ all_plots[[paste(tissue,"pca_pre_eblm",sep="_")]] <- plot1
 all_plots[[paste(tissue,"pca_pre_eblm",sep="_")]] <- plot2
 
 # Save plot list.
-file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
-saveRDS(all_plots, file)
+myfile <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
+saveRDS(all_plots, myfile)
 
 #-------------------------------------------------------------------------------
 ## Reformat final normalized, regressed data for TAMPOR Normalization.

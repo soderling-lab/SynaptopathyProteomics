@@ -74,10 +74,13 @@ rip("sva", method = "BiocManager")
 rip("genefilter", method = "BiocManager")
 rip("WGCNA", method = "BiocManager")
 rip("vsn", method = "BiocManager")
+rip("org.Mm.eg.db", method = "BiocManager")
 
 # Misc.
 rip("hexbin")
 rip("BurStMisc")
+rip("ggpubr")
+rip("statmod")
 
 # ENDOFILE
 #------------------------------------------------------------------------------
