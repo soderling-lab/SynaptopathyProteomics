@@ -16,17 +16,17 @@ __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders
 * [code/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code) - the code that performs the projects analysis.
 * [functions](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/functions) - functions used in the anallysis.
 * [input/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - the raw data used as a starting point for the analysis.
-* [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - directory for table output from scripts. 
+* [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/tables) - directory for table output from scripts. 
 
-## Additional directories
-Several other directories are used to store output generated during the analysis:
-* data/ - directory for storing intermediate data files.
-* figures/ - directory for figure output from scripts.
+#### Additional directories
+Several other directories are used to store output generated during the analysis. 
 Due to the potential for these directories to get really big, they are not 
 managed by git (see `.gitignore`).
+* [data/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/data) - directory for storing intermediate data files.
+* [figures/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/figures) - directory for figure output from scripts.
 
 ## Supplemental Information
-For a detailed overview of the analysis, see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
+For a detailed overview of the analysis, please see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
 
 ## Acknowledgements
 This work is indebted to numerous others who have shared their ideas, software,
@@ -36,10 +36,11 @@ completion of this work:
 * __EdgeR__: [package](https://bioconductor.org/packages/release/bioc/html/edgeR.html) | [publication](https://www.ncbi.nlm.nih.gov/pubmed/19910308)
 * __NetRep__: [package](https://cran.rstudio.com/web/packages/NetRep/index.html) | [publication](https://www.ncbi.nlm.nih.gov/pubmed/27467248)
 * __leidenalg__: [package](https://pypi.org/project/leidenalg/) | [pre-print publication](https://arxiv.org/abs/1810.08473)  
+
 For more information about these packages, please see their respective publications. 
 
 ## System Info
-The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on Windows 10. 
+The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on a Windows 10 PC. 
 
 |     |     |
 | --- | --- |
