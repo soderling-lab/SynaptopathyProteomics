@@ -29,6 +29,7 @@ suppressPackageStartupMessages({
   library(gtable)
   library(grid)
   library(anRichment)
+  library(openxlsx)
 })
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined.
@@ -112,17 +113,14 @@ data_fort <- lapply(
 
 # Bind by Accession
 data_merge <- data_fort %>% purrr::reduce(left_join, by = "ID")
+rownames(data_merge) <- data_merge$ID
+data_merge$ID <- NULL
 
 # Remove rows with missing values.
 data_clean <- na.omit(data_merge)
-
-# SL across all columns.
-data_norm <- normalize_SL(data_clean, "b", "b")
+data_norm <- data_clean
 
 ## Clean-up formatting for TAMPOR.
-rownames(data_norm) <- data_norm$info_cols
-data_norm$info_cols <- NULL
-
 # Batch b1-b4 are cortex. Batches b5-b8 are straitum.
 col_names <- colnames(data_norm)
 # Cortex = group1...
@@ -171,7 +169,7 @@ results <- TAMPOR(dat = cleanDat,
 		  )
 
 # Collect normalize relative abundance data.
-normDat <- results$cleanRelAbun
+cleanDat <- results$cleanRelAbun
 
 #-------------------------------------------------------------------------------
 ## Remove any sample outliers.
@@ -179,8 +177,8 @@ normDat <- results$cleanRelAbun
 
 # Data is...
 # Remove QC samples.
-out <- colnames(normDat) %in% rownames(traits)[traits$SampleType=="QC"]
-data_in <- log2(normDat[,!out])
+out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType=="QC"]
+data_in <- log2(cleanDat[,!out])
 
 # Illustrate Oldham's sample connectivity.
 sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
@@ -208,11 +206,10 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-traits$Sample.Model[rownames(traits) %in% bad_samples]
+message(paste("Outlier samples:", traits$Sample.Model[rownames(traits) %in% bad_samples]))
 
 # Save data to file.
-cleanDat <- 2^data_in
-
+cleanDat <- cleanDat[,!colnames(cleanDat) %in% bad_samples]
 myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds")
 saveRDS(cleanDat, myfile)
 
@@ -248,14 +245,18 @@ all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 ## EdgeR statistical comparisons post-TAMPOR.
 #-------------------------------------------------------------------------------
 
+# Remove QC samples prior to passing data to EdgeR.
+out <- traits$SampleType[match(colnames(cleanDat),rownames(traits))] == "QC"
+data_in <- cleanDat[,!out]
+
 # Create DGEList object...
-y_DGE <- DGEList(counts = cleanDat)
+y_DGE <- DGEList(counts = data_in)
 
 # Create sample mapping to Tissue.Genotype. Group WT Cortex and WT Striatum..
 traits$ColumnName <- traits$SampleID
-traits <- subset(traits, rownames(traits) %in% colnames(cleanDat))
-traits <- traits[match(colnames(cleanDat), rownames(traits)), ]
-all(traits$ColumnName == colnames(normDat))
+traits <- subset(traits, rownames(traits) %in% colnames(data_in))
+traits <- traits[match(colnames(data_in), rownames(traits)), ]
+all(traits$ColumnName == colnames(data_in))
 group <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 group[grepl("Cortex.WT", group)] <- "Cortex.WT"
 group[grepl("Striatum.WT", group)] <- "Striatum.WT"
@@ -361,7 +362,7 @@ glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
 
 # Write to RDS.
 myfile <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
-saveRDS(results, myfile)
+saveRDS(glm_results, myfile)
 
 #-------------------------------------------------------------------------------
 ## Volcano plots for each genotype.
@@ -452,11 +453,7 @@ all_plots[["Ube3a_VP"]] <- vp4
 #-------------------------------------------------------------------------------
 
 # Build a df with the combined statistical results.
-stats <- lapply(glm_results, function(x)
-  data.frame(
-    Uniprot = x$Uniprot,
-    FDR = x$FDR
-  ))
+stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
 names(stats) <- names(glm_results)
 df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 colnames(df)[c(2:ncol(df))] <- names(stats)
@@ -535,6 +532,7 @@ results <- glm_results
 # Combine by FDR.
 stats <- lapply(results, function(x)
   data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR))
+
 names(stats) <- names(results)
 df <- stats %>% purrr::reduce(left_join, by = c("Uniprot", "Gene"))
 colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
@@ -633,8 +631,8 @@ lvls <- c("Cortex.WT",          "Striatum.WT",
 
 # Generate plots.
 plot_list <- ggplotProteinBoxes(
-  data_in = log2(normDat),
-  interesting.proteins = rownames(normDat),
+  data_in = log2(cleanDat),
+  interesting.proteins = rownames(cleanDat),
   traits = traits,
   order = lvls,
   scatter = TRUE
@@ -683,17 +681,21 @@ all_plots[[paste(tissue,"Shank3_BP",sep="_")]]  <- p2
 all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
 all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
 
+# Save plots.
+myfile <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
+saveRDS(all_plots, myfile)
+
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.
 #-------------------------------------------------------------------------------
 
+# Load data.
 files <- list(
   traits = paste(Rdatadir, "2_Combined_traits.Rds", sep = "/"),
   raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.Rds", sep = "/"),
   raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.Rds", sep = "/"),
   cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
 )
-
 data <- lapply(files, function(x) readRDS(x))
 
 # Clean up traits.
@@ -718,6 +720,12 @@ idx <- match(colnames(norm_data),traits$Batch.Channel)
 colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep=", ")
 norm_data <- add_column(norm_data,"Gene|Uniprot" = rownames(norm_data), .before = 1)
 rownames(norm_data) <- NULL
+
+# Write statistical results.
+# FIXME: Change order!
+stats <- readRDS(file.path(Rdatadir,"2_Combined_TAMPOR_GLM_Results.RDS"))
+myfile <- file.path(rootdir,"tables","2_Supplementary_TMT_GLM_Results.xlsx")
+write.excel(stats,myfile)
 
 # Write to excel workbook.
 wb <- createWorkbook()
