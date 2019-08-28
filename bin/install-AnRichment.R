@@ -21,16 +21,34 @@ dependencies <- as.list(
 )
 
 # A Function to install dependencies. 
-install_dependencies <- function(package){
-   if (!requireNamespace("BiocManager", quietly = TRUE)) {
-      install.packages("BiocManager")
-   }
-   if (!requireNamespace(package, quietly = TRUE)) { 
-      BiocManager::install(package) 
-      }
+rip <- function(package, method = "utils", ...) {
+	# Install a R package. Supports the following methods:
+	#     utils::install.packages()
+	#     BiocManager::install()
+	#     devtools::install_github()
+	#     source - installs the package from Cran provided its source url, 
+	#              this method depends upon the Linux bash utility, rip..
+	# If method is source, parse the package name from its url.
+	if (method == "source") {
+		url <- package
+		package <- strsplit(strsplit(url,"/")[[1]][6],"_")[[1]][1] 
+	}
+	# Insure that the package is not already installed.
+	if (requireNamespace(package, quietly = TRUE)) {
+		message(paste(package,"is already installed!"))
+	} else if (method == "BiocManager") {
+		BiocManager::install(package, ...)
+	} else if (method == "utils") {
+		utils::install.packages(package, ...)
+	} else if (method == "devtools") {
+		devtools::install_github(package, ...)
+	} else if (method == "source") {
+		cmd <- paste("rip", url, ...)
+		system(cmd)
+	} else stop("problem installing package")
 }
 
-lapply(dependencies,function(x) install_dependencies(x))
+lapply(dependencies,function(x) rip(x, method = "BiocManager"))
 
 # Download AnRichment source code.
 urls <- c("https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichmentMethods_0.90-1.tar.gz",

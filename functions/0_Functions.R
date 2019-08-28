@@ -1614,23 +1614,22 @@ ggplotVolcanoPlot <- function(data_in, title, cutoff = log2(1.25)) {
 
 #-------------------------------------------------------------------------------
 # Function to make boxplots for proteins of interst.
-ggplotProteinBoxes <- function(data_in, interesting.proteins, dataType, traits, order = NULL, scatter = FALSE) {
+ggplotProteinBoxes <- function(data_in, interesting.proteins, traits, order = NULL, scatter = FALSE) {
   proteinBoxes <- list()
   for (protein in interesting.proteins) {
     # Subset the data.
     idx <- match(protein, rownames(data_in))
-    data_sub <- as.data.frame(data_in[idx, ])
-    colnames(data_sub) <- "Intensity"
-    data_sub$Group <- traits$Sample.Model[match(rownames(data_sub), rownames(traits))]
-    if (is.numeric(order)) {
-      levels <- unique(data_sub$Group)[order]
-      data_sub$Group <- factor(data_sub$Group, levels = levels)
+    data_sub <- data.frame("Intensity" = data_in[idx, ])
+    data_sub$Group <- traits$Condition[match(rownames(data_sub), rownames(traits))]
+    # If provided, enforce order.
+    if (is.character(order)) {
+	    data_sub$Group <- factor(data_sub$Group, levels = order)
     } else {
-      data_sub$Group <- factor(data_sub$Group)
+	    data_sub$Group <- factor(data_sub$Group, levels = unique(data_sub$Group))
     }
     plot <- ggplot(data_sub, aes(x = Group, y = Intensity, fill = Group)) +
       geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
-      ggtitle(protein) + ylab(paste0("Log2", "(", dataType, ")")) + xlab("") +
+      ggtitle(protein) + ylab("Log2(Relative Abundance)") + xlab("") +
       theme(
         plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
         axis.title.x = element_text(color = "black", size = 10),
@@ -1651,6 +1650,7 @@ ggplotProteinBoxes <- function(data_in, interesting.proteins, dataType, traits, 
 #-------------------------------------------------------------------------------
 ## A function to Write to excel.
 write.excel <- function(data, file, rowNames = FALSE, colNames = TRUE) {
+  require(openxlsx, quietly = TRUE)
   if (class(data) == "list") {
     list <- data
   } else {
@@ -2802,24 +2802,24 @@ ggplotModuleSignificanceBoxplot <- function(x, g, trait, stats = TRUE) {
 # Function to add significance stars given a protein boxplot,
 # stats with FDR column and the column to be labeled.
 annotate_stars <- function(plot, stats) {
-  data <- plot$data
-  # Add symbols.
-  idx <- match(plot$labels$title, rownames(stats))
-  label.df <- as.data.frame(t(stats[idx, ]))
-  colnames(label.df) <- "FDR"
-  label.df$FDR <- as.numeric(label.df$FDR)
-  label.df$symbol <- ""
-  label.df$symbol[label.df$FDR < 0.1] <- "*"
-  label.df$symbol[label.df$FDR < 0.05] <- "**"
-  label.df$symbol[label.df$FDR < 0.001] <- "***"
-  label.df$Group <- rownames(label.df)
-  # Add ypos.
-  label.df$ypos <- 1.01 * max(plot$data$Intensity)
-  # Add asterisks indicating significance.
-  plot <- plot + annotate("text",
-    x = label.df$Group, y = label.df$ypos,
-    label = label.df$symbol, size = 4
-  )
+	data <- plot$data
+	df <- as.data.frame(data %>% group_by(Group) %>%
+			    summarise(Intensity = mean(Intensity))) 
+	# Get FDR from stats.
+	uniprot <- strsplit(plot$labels$title,"\\|")[[1]][2]
+	idx <- match(uniprot,rownames(stats))
+	stats.df <- data.frame(t(stats[idx, ]))
+	df$FDR <- stats.df[match(df$Group,rownames(stats.df)),]
+	# Add symbols.
+	df$symbol <- ""
+	df$symbol[df$FDR < 0.1] <- "*"
+	df$symbol[df$FDR < 0.05] <- "**"
+	df$symbol[df$FDR < 0.001] <- "***"
+	# Add ypos.
+	df$ypos <- 1.01 * max(data$Intensity)
+	# Add asterisks indicating significance to plot.
+	plot <- plot + annotate("text",x = df$Group, y = df$ypos,
+				label = df$symbol, size = 4)
   return(plot)
 }
 

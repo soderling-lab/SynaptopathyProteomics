@@ -81,6 +81,7 @@ rip("hexbin")
 rip("BurStMisc")
 rip("ggpubr")
 rip("statmod")
+rip("openxlsx")
 
 # ENDOFILE
 #------------------------------------------------------------------------------

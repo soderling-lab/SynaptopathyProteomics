@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 #' ---
 #' title: 2_TMT_Analysis_Combined.R
 #' description: TAMPOR Normalization of preprocessed TMT data.
@@ -5,7 +7,7 @@
 #' ---
 
 #-------------------------------------------------------------------------------
-#' ## Prepare the workspace.
+## Prepare the workspace.
 #-------------------------------------------------------------------------------
 #' Prepare the R workspace for the analysis. Load custom functions and prepare
 #' the project directory for saving output files.
@@ -15,54 +17,18 @@ if (!is.null(dev.list())) { dev.off() }
 cat("\f")
 options(stringsAsFactors = FALSE)
 
-# Sometimes, if you have not cleared the workspace of all loaded packages,
-# you man incounter problems.
-# To remove all packages, you can call the following:
-JGmisc::detachAllPackages(keep = NULL)
-
-#  Load required packages.
+# Load required packages.
 suppressPackageStartupMessages({
-  library(readxl)
-  library(knitr)
-  library(readr)
   library(dplyr)
   library(reshape2)
   library(tibble)
-  library(SummarizedExperiment)
   library(ggplot2)
-  library(hexbin)
-  library(vsn)
-  library(BurStMisc)
-  library(dplyr)
-  library(AnnotationDbi)
-  library(org.Mm.eg.db)
-  library(edgeR)
-  library(openxlsx)
-  library(stringr)
-  library(imp4p)
-  library(Cairo)
-  library(pryr)
-  library(qvalue)
-  library(gridExtra)
-  library(cowplot)
-  library(WGCNA)
-  library(impute)
-  library(ggrepel)
-  library(sva)
-  library(anRichment)
-  library(ggdendro)
-  library(flashClust)
   library(purrr)
-  library(ggpubr)
-  library(doParallel)
-  library(NMF)
-  library(FSA)
-  library(plyr)
-  library(RColorBrewer)
+  library(edgeR)
+  library(gridExtra)
   library(gtable)
   library(grid)
-  library(ggplotify)
-  library(TBmiscr)
+  library(anRichment)
 })
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined.
@@ -70,18 +36,18 @@ type <- 3
 tissue <- c("Cortex", "Striatum", "Combined")[type]
 
 # Set the working directory.
-rootdir <- "D:/Projects/Synaptopathy-Proteomics"
-setwd(rootdir)
+here <- getwd()
+rootdir <- dirname(dirname(here))
 
 # Set any other directories.
-functiondir <- paste(rootdir, "code", sep = "/")
+functiondir <- paste(rootdir, "functions", sep = "/")
 datadir <- paste(rootdir, "input", sep = "/")
-Rdatadir <- paste(rootdir, "rdata", sep = "/")
+Rdatadir <- paste(rootdir, "data", sep = "/")
 outputfigs <- paste(rootdir, "figures", tissue, sep = "/")
 outputtabs <- paste(rootdir, "tables", sep = "/")
 
 # Load required custom functions.
-my_functions <- paste(functiondir, "0_Functions", "0_Functions.R", sep = "/")
+my_functions <- paste(functiondir, "0_Functions.R", sep = "/")
 source(my_functions)
 
 # Define prefix for output figures and tables.
@@ -90,15 +56,11 @@ outputMatName <- paste0("2_", tissue)
 # Globally set ggplots theme.
 ggplot2::theme_set(theme_gray())
 
-# Should plots be saved?
-save_plots = FALSE
-
-# Load plot list.
-file <- paste(Rdatadir,"1_All_plots.Rds", sep = "/")
-all_plots <- readRDS(file)
+# Store any plots in list.
+all_plots <- list()
 
 #-------------------------------------------------------------------------------
-#' ## Merge cortex and striatum data.
+## Merge cortex and striatum data.
 #-------------------------------------------------------------------------------
 #' We will utilize TAMPOR to combine the Cortex and Striatum datasets. Merge the
 #' preprocessed data and traits files.
@@ -124,20 +86,21 @@ new_batch <- c(rep("b5", 11), rep("b6", 11), rep("b7", 11), rep("b8", 11))
 channel <- sapply(vars, "[", 2)
 ids <- paste(new_batch, channel, sep = ".")
 traits$SampleID[idx] <- ids
-traits[1:5, 1:5]
 
 # Insure that rownames are new sampleIDS
 rownames(traits) <- traits$SampleID
 
 # Add column for tissue type.
 traits$Tissue <- c(rep("Cortex", 44), rep("Striatum", 44))
-dim(traits)
+
+# Add column for batch.
+traits$Batch <- sapply(strsplit(rownames(traits),"\\."),"[",1)
 
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
 files <- paste(Rdatadir,
-               c("1_Cortex_CleanDat_TAMPOR_Format.Rds", "1_Striatum_CleanDat_TAMPOR_Format.Rds"),
-               sep = "/")
+               c("1_Cortex_CleanDat_TAMPOR_Format.Rds", 
+		 "1_Striatum_CleanDat_TAMPOR_Format.Rds"), sep = "/")
 data <- lapply(as.list(files), function(x) readRDS(x))
 names(data) <- c("Cortex", "Striatum")
 
@@ -148,8 +111,7 @@ data_fort <- lapply(
 )
 
 # Bind by Accession
-# Warning that ID has different attributes is okay... I think.
-data_merge <- data_fort %>% reduce(left_join, by = "ID")
+data_merge <- data_fort %>% purrr::reduce(left_join, by = "ID")
 
 # Remove rows with missing values.
 data_clean <- na.omit(data_merge)
@@ -179,386 +141,53 @@ colnames(data_norm) <- c(group1, group2)
 
 # Write as cleanDat
 cleanDat <- data_norm
-cleanDat[1:5, 1:5]
-dim(cleanDat) # one sample has been removed.
 
 # GIS index is all WT samples.
-controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", c("batch", "channel"))
-controls
+controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", 
+		     c("batch", "channel"))
+
+controls <- traits$SampleID[grepl("WT", traits$SampleType)] 
 
 # Save merged data and traits to file.
 file <- paste0(Rdatadir, "/", outputMatName, "_cleanDat.Rds")
 saveRDS(cleanDat, file)
-
 file <- paste0(Rdatadir, "/", outputMatName, "_traits.Rds")
 saveRDS(traits, file)
 
 #-------------------------------------------------------------------------------
-#' ## User Parameters to change for TAMPOR Normalization strategy.
+## Perform TAMPOR normalization.
 #-------------------------------------------------------------------------------
 
-# Load traits and data from file.
-datafile <- paste(Rdatadir, "2_Combined_cleanDat.Rds", sep = "/")
-traitsfile <- paste(Rdatadir, "2_Combined_traits.Rds", sep = "/")
+# Insure that QC data have been removed from traits.
+traits <- traits[rownames(traits) %in% colnames(cleanDat),]
 
-cleanDat <- readRDS(datafile)
-traits <- readRDS(traitsfile)
-rownames(traits) <- traits$SampleID
+# Load TAMPOR function.
+source(file.path(functiondir,"TAMPOR.R"))
 
-cleanDat.original <- cleanDat
-cleanDat[1:5, 1:5]
-dim(cleanDat)
-dim(traits)
+# Perform TAMPOR.
+results <- TAMPOR(dat = cleanDat,
+		  traits = traits,
+		  batchPrefixInSampleNames = TRUE, 
+		  samplesToIgnore = "None",
+		  GISchannels = controls, 
+		  parallelThreads = 8 
+		  )
 
-# Define batch and sampleIndex:
-sampleIndex <- as.data.frame(do.call(rbind, strsplit(colnames(cleanDat), "\\.")))
-colnames(sampleIndex) <- c("batch", "channel")
-batchIndex <- unique(sampleIndex$batch)
-
-# Parameters for normalization:
-# if TRUE, all randomized samples in the batch are used.
-# if FALSE, only GIS channels are used
-useALLnonGIS <- FALSE
-
-# Define columns for used as GIS for TAMPOR normalization:
-# GIS index is all WT samples.
-controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", c("batch", "channel"))
-dim(controls)
-GISchannels <- controls$channel # WT control samples.
-iterations <- 250
-samplesToIgnore <- c("NONE")
-# samplesToIgnore <- c('b1.126','b1.129N','b1.131C',
-#                     'b2.126','b2.129N','b2.131C',
-#                     'b3.126','b3.129N','b3.131C',
-#                     'b4.126','b4.129N','b4.131C') # All QC samples.
-inputMatName <- "TMT_Analysis" # prefix for output, should be similar to prefix of inputTraitsCSV.
-meanORmedian <- "median" # must be a valid R function, e.g. mean or median --this text to call the function is substituted in eval(parse(text=... wrapped code at these positions ***
-removeGISafter <- FALSE # Should samples designated as GIS be removed before network-related code runs?
-
-# Set threshold for convergence:
-FNthreshold <- 1e-8
+# Collect normalize relative abundance data.
+normDat <- results$cleanRelAbun
 
 #-------------------------------------------------------------------------------
-#' ## Initiate loop for normalization.
+## Remove any sample outliers.
 #-------------------------------------------------------------------------------
-
-################################################################################
-## Note: Skip ahead to "Start WGCNA" if you have already run TAMPOR           ##
-################################################################################
-
-# Ignore samples in samplesToIgnore vector
-if (length(na.omit(match(samplesToIgnore, colnames(cleanDat)))) == length(samplesToIgnore)) {
-  for (i in 1:length(samplesToIgnore)) {
-    cleanDat[, samplesToIgnore[i]] <- as.vector(rep(NA, nrow(cleanDat)))
-  }
-} else {
-  cat("NOTE: one or more samplesToIgnore do not match sample names (colnames) in input abundance data.\nNot ignoring any samples.\n")
-}
-
-GISchannels <- as.character(GISchannels) #**** make sure channels is a vector of strings
-sampleIndex <- as.data.frame(do.call(rbind, strsplit(colnames(cleanDat), "\\.")))[, 1:2]
-colnames(sampleIndex) <- c("batch", "channel")
-traits <- traits[match(colnames(cleanDat), rownames(traits)), ] # insure trait rows match abundance columns
-# sampleIndex$channel <- as.character(traits$Group) #**** added as.character, since GISchannels is specified as a character vector
-batchIndex <- unique(sampleIndex$batch)
-
-## NOTE: Normalization 'channels' are specified for mean or median initial denominator in below code chunk:
-## *Now allows setting GISindices even if your GIS is on different channels in different batches, essentially if channel order is not the same in each batch.
-## This enables using TAMPOR for batched LFQ or LFQ of different cohorts.
-GISindices <- list() # *GISindices as a list added THIS VERSION 2/5/2019
-i.prev <- 0
-offset <- 0
-iter <- 0
-for (i in batchIndex) {
-  GISindices[[i]] <- vector()
-  iter <- iter + 1
-  for (denomChannel in GISchannels) {
-    GISindices[[i]] <- c(GISindices[[i]], which(sampleIndex$batch == unique(sampleIndex$batch)[iter] & sampleIndex$channel == denomChannel))
-  }
-  if (!i.prev == 0) {
-    offset <- offset + length(which(sampleIndex$batch == i.prev))
-  }
-  GISindices[[i]] <- unique(GISindices[[i]]) - offset # prior code assuming 'channel' names occur once per a batch: [match(unique(GISchannels), GISchannels)]
-  i.prev <- i
-}
-
-iterationTrackingDF <- data.frame(Iteration = 1:iterations, FrobeniusNorm = NA, FrobenPrev = NA, FrobenDiff = NA, FrobenOverFirstFroben = NA)
-cat(paste0("Starting # of Rows in data: ", nrow(cleanDat), ".\n"))
-
-# START TAMPOR:
-for (repeats in 1:iterations) {
-  #-------------------------------------------------------------------------------
-  # STEP 1a. Ratio data and prepare to row-normalize
-  ratioedBatches <- batchGISavgs <- list()
-  ratioCleanDatUnnorm <- data.frame(row.names = rownames(cleanDat))
-  withinBatchGISgeomeans <- withinBatchRowGeomeans <- data.frame(row.names = rownames(cleanDat))
-
-  for (batch in batchIndex) {
-    tempForAvg <- matrix()
-    tempForAvg <- as.data.frame(as.matrix(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]] ], nrow = nrow(cleanDat), ncol = dim(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]] ])[2])) # GISindices as list added THIS VERSION 2/5/2019
-    batchGISavgs[[batch]] <- apply(tempForAvg, 1, function(x) eval(parse(text = paste0(meanORmedian, "(x,na.rm=TRUE)")))) # ADDED na.rm v04 ##MEAN/MEDIAN FUNCTION CHOICE***
-    ratioedBatches[[batch]] <- cleanDat[, which(sampleIndex$batch == batch)] / batchGISavgs[[batch]]
-
-    ## Below unnormed ratio data are only assembled for graphing purposes, for comparison to step 1b and final step 2 output
-    ratioCleanDatUnnorm <- cbind(ratioCleanDatUnnorm, ratioedBatches[[batch]])
-    ## If batches are randomized channels distributing cases and controls evenly across all batches, useALLnonGIS==TRUE
-    if (useALLnonGIS) {
-      withinBatchRowGeomeans <- withinBatchGISgeomeans <- as.data.frame(cbind(withinBatchRowGeomeans, as.data.frame(as.matrix(apply(ratioedBatches[[batch]][, -GISindices[[batch]] ], 1, function(x) eval(parse(text = paste0("2^", meanORmedian, "(log2(na.omit(x)))")))), ncol = dim(ratioedBatches[[batch]])[2], nrow = dim(ratioedBatches[[batch]])[1])))) ## MEAN/MEDIAN FUNCTION CHOICE***
-      # as.matrix(), NOT matrix()
-    } else {
-      ## If we cannot rely on the robust assumption of batch-to-batch biological equivalence (with randomized sample order across all avalable channels in all batches), then use robust mean of GIS samples only
-      withinBatchGISgeomeans <- withinBatchRowGeomeans <- as.data.frame(cbind(withinBatchRowGeomeans, as.data.frame(as.matrix(apply(ratioedBatches[[batch]], 1, function(x) eval(parse(text = paste0("2^", meanORmedian, "(log2(na.omit(x[GISindices[[batch]] ])))")))), ncol = dim(ratioedBatches[[batch]])[2], nrow = dim(ratioedBatches[[batch]])[1]))))
-      # as.matrix(), NOT matrix()
-    } ## MEAN/MEDIAN FUNCTION CHOICE***
-  }
-
-  #-------------------------------------------------------------------------------
-  ## Step 1b. Complete row-normalization. This step normalizes rows within batch by batchCorrFactors; ratioCleanDatUnnorm does not go through this step
-  meanBatchGeomeans <- apply(withinBatchRowGeomeans, 1, function(x) eval(parse(text = paste0(meanORmedian, "(na.omit(x))")))) ## MEAN/MEDIAN FUNCTION CHOICE***
-
-  ## Rowwise (RW) relative abundances from GIS (or representative samples),
-  # if we want to take the whole protein row (across batches) back to abundance after normalization step2 is complete**
-  RW.relAbunFactors <- RW.GISavgs <- data.frame(row.names = rownames(cleanDat))
-  RW.GISavgs <- cbind(apply(data.frame(column = batchIndex), 1, function(x) batchGISavgs[[x]]))
-  colnames(RW.GISavgs) <- batchIndex
-  RW.relAbunFactors <- apply(RW.GISavgs, 1, function(x) eval(parse(text = paste0("2^", meanORmedian, "(log2(na.omit(x)))")))) #** relative abundance multipliers for recovery of relative abundance (all rows from input cleanDat) ##MEAN/MEDIAN FUNCTION CHOICE***
-  rownames(RW.GISavgs) <- names(RW.relAbunFactors) <- rownames(cleanDat)
-
-  ## Calculate Step 1b multipliers to complete RW normalization
-  batchCorrFactors <- meanBatchGeomeans / withinBatchRowGeomeans ## Tried FLIPPING, but modules changed somewhat.. ratio for LV analysis using PBS+Monomer for step 1a ratio***
-  colnames(batchCorrFactors) <- colnames(withinBatchRowGeomeans) <- batchIndex
-
-  normedBatches <- list()
-  ratioCleanDatNorm <- as.matrix(data.frame(row.names = rownames(cleanDat)))
-  for (batch in batchIndex) {
-    normedBatches[[batch]] <- ratioedBatches[[batch]] * batchCorrFactors[, batch] # rowwise correct by multiplers (batchCorrFactors)
-    ratioCleanDatNorm <- cbind(ratioCleanDatNorm, normedBatches[[batch]])
-  }
-  #-------------------------------------------------------------------------------
-
-  ## log2 transform ratios output from step 1a, and 1b
-  cleanDat.log2.ratioUnnorm <- log2(ratioCleanDatUnnorm)
-  cleanDatNormNoColScaling <- log2(ratioCleanDatNorm)
-
-
-  ## For cleanDat.log2.ratioUnnorm:
-  ## Enforce <50% missingness (1 less than half of columns (or round down half if odd number of columns))
-  LThalfSamples <- length(colnames(cleanDat.log2.ratioUnnorm)) / 2
-  LThalfSamples <- LThalfSamples - if ((length(colnames(cleanDat.log2.ratioUnnorm)) %% 2) == 1) {
-    0.5
-  } else {
-    1.0
-  }
-
-  removedRownames1 <- rownames(cleanDat.log2.ratioUnnorm[which(rowSums(as.matrix(is.na(cleanDat.log2.ratioUnnorm))) > LThalfSamples), ]) # list rows to be removed
-  removedRownames1
-
-  # remove rows with >=50% missing values (only if there are some rows to be removed)
-  if (length(na.omit(match(removedRownames1, rownames(cleanDat.log2.ratioUnnorm)))) == length(removedRownames1) & length(removedRownames1) > 0) {
-    cleanDat.log2.ratioUnnorm <- cleanDat.log2.ratioUnnorm[-match(removedRownames1, rownames(cleanDat.log2.ratioUnnorm)), ]
-  } else {
-    cat("")
-  } # "no rows removed.\n"); }
-  # can be error prone:  if ( !is.null(rownames(cleanDat.log2.ratioUnnorm[which(rowSums(as.matrix(is.na(cleanDat.log2.ratioUnnorm)))>LThalfSamples),])) ) { if( !length(rownames(cleanDat.log2.ratioUnnorm[which(rowSums(as.matrix(is.na(cleanDat.log2.ratioUnnorm)))>LThalfSamples),]))==0) { IndexHighMissing=which(rowSums(as.matrix(is.na(cleanDat.log2.ratioUnnorm)))>LThalfSamples); cleanDat.log2.ratioUnnorm<-cleanDat.log2.ratioUnnorm[-IndexHighMissing,]; } }
-  dim(cleanDat.log2.ratioUnnorm) # 3166 rows.
-
-
-
-  ## For cleanDatNormNoColScaling and companion relative abundance factors:
-  ## Enforce <50% missingness (1 less than half of cleanDatNormNoColScaling columns (or round down half if odd number of columns))
-  LThalfSamples <- length(colnames(cleanDatNormNoColScaling)) / 2
-  LThalfSamples <- LThalfSamples - if ((length(colnames(cleanDatNormNoColScaling)) %% 2) == 1) {
-    0.5
-  } else {
-    1.0
-  }
-
-  removedRownames <- rownames(cleanDatNormNoColScaling[which(rowSums(as.matrix(is.na(cleanDatNormNoColScaling))) > LThalfSamples), ]) # list rows to be removed
-  #  removedRownames
-
-  # remove rows with >=50% missing values (only if there are some rows to be removed)
-  if (length(as.vector(na.omit(match(removedRownames, rownames(cleanDatNormNoColScaling))))) == length(removedRownames) & length(removedRownames) > 0) {
-    cleanDatNormNoColScaling <- cleanDatNormNoColScaling[-match(removedRownames, rownames(cleanDatNormNoColScaling)), ]
-    RW.relAbunFactors.HiMissRmvd <- RW.relAbunFactors[-match(removedRownames, names(RW.relAbunFactors))]
-    cat(paste0("[iter_", repeats, "] Removed ", length(removedRownames), " high missingness rows. ", nrow(cleanDatNormNoColScaling), " rows remaining."))
-  } else {
-    cat(paste0("[iter_", repeats, "] No rows removed with >=50% missing values."))
-    RW.relAbunFactors.HiMissRmvd <- RW.relAbunFactors
-  }
-  dim(cleanDatNormNoColScaling) # 2875 rows.
-
-
-
-  prevIterCleanDatNorm2 <- data.frame(matrix(0, nrow = nrow(cleanDatNormNoColScaling), ncol = ncol(cleanDatNormNoColScaling)))
-  if (exists("cleanDatNorm2")) {
-    prevIterCleanDatNorm2 <- cleanDatNorm2
-  }
-
-  #-------------------------------------------------------------------------------
-  ## Step 2, Enforce equal loading assumption on output of step 1b (all well-quantified proteins equally considered/weighted)
-  colMeans(ratioCleanDatUnnorm, na.rm = TRUE)
-  # should be zero, but they are usually not. E.g. here, we see b2 channels 130N, 130C, 131N are >5% away from even 1:1, and b4 channels 127N-128C are >10% away
-
-  ## Set all column means to ~0 (10^-16 or less), essentially 0=log2(ratio/GIS) for all column means or an average ratio/GIS=1
-  cleanDatNorm <- scale(cleanDatNormNoColScaling, scale = FALSE)
-  colMeans(cleanDatNorm, na.rm = TRUE)
-
-  ## alternative equivalent operation (if colAvg=mean(x,na.rm=TRUE))
-  cleanDatNorm2 <- apply(cleanDatNormNoColScaling, 2, function(x) {
-    colAvg <- eval(parse(text = paste0(meanORmedian, "(x,na.rm=TRUE)"))) ## MEAN/MEDIAN FUNCTION CHOICE***
-    outputCol <- x - colAvg # rep(colAvg,length(x));
-    outputCol
-  })
-
-  ## show columnwise normalization/scaling methods are equivalent (with rounding to a few decimals, at least)
-  colMeans(cleanDatNorm, na.rm = TRUE) == colMeans(cleanDatNorm2, na.rm = TRUE) # TRUE if meanORmedian="mean"
-
-  ## GIS-derived relative RW abundances can be applied back to the Step2 RW & CW-normalized data's rows.
-  ## values of cleanDatNorm2 are log2(measurement/batch-stabilized GIS abundance).
-  if (paste(names(RW.relAbunFactors.HiMissRmvd), collapse = ",") == paste(rownames(cleanDatNorm2), collapse = ",")) {
-    relAbundanceNorm2 <- RW.relAbunFactors.HiMissRmvd * 2^cleanDatNorm2
-  } else {
-    cat(paste0("[iter_", repeats, "] ERROR: step 2 data with removed high missingness rows does not match relative abundance factors after trying to remove same rows.\n"))
-  }
-
-
-  #-------------------------------------------------------------------------------
-  ## Step 2, revisited considering only top proteins by relative abundance rank and housekeeping (HKG) status
-
-  ## Which among the top x genes are housekeeping? By use as loading controls...
-  percentTopProteins <- 12.5 # 7.5-15 is reasonable for unsupervised; 15 percent ok if you choose your (small list of) HKG candidates manually
-  topProteinCount <- as.integer(nrow(cleanDatNorm2) * percentTopProteins / 100)
-
-  proteinsRankedByRelAbundance <- RW.relAbunFactors.HiMissRmvd[order(RW.relAbunFactors.HiMissRmvd, decreasing = TRUE)]
-  proteinsRankedByRelAbundance[1:topProteinCount] # prior to v4, only top 60 were considered for manual check
-
-  ## One could choose HKG candidates (for synaptosome preps) from above top 60 most abundant proteins list (fit 10/line)
-  # HKGindex<-c(3,4,5,7,8,10,11,12,13,16,17,19,22,24,25,26,27,28,29,30,31:39,41,43,45,46,47,49,51,52,54,55,59,60) #promising known HKGs
-  ## One could search for any HKG:
-  # names(proteinsRankedByRelAbundance)[which(grepl("HPRT",names(proteinsRankedByRelAbundance)))] #not found
-  # but we will use automatic HKG selection, so:
-  HKGindex <- vector()
-
-  ## Which are the top x genes by CV in the existing step 2 relative abundance normalized data?
-  step2ProteinCVs <- apply(relAbundanceNorm2, 1, function(x) sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE))
-  normProteinsRankedByIncrCV <- step2ProteinCVs[order(step2ProteinCVs, decreasing = FALSE)]
-  data.frame(CV.rankOrder = normProteinsRankedByIncrCV[1:topProteinCount], RelAbunRank = match(names(normProteinsRankedByIncrCV)[1:topProteinCount], names(proteinsRankedByRelAbundance)))
-
-  # Must be in HKGindex from any hand-picked pre-specific or general HKGs AND in top [percentTopProteins]% by lowest CV
-  if (length(HKGindex) > 0) {
-    HKGindex <- intersect(HKGindex, na.omit(match(names(normProteinsRankedByIncrCV)[1:topProteinCount], names(proteinsRankedByRelAbundance)[1:topProteinCount])))
-  } else {
-    HKGindex <- as.vector(na.omit(match(names(normProteinsRankedByIncrCV)[1:topProteinCount], names(proteinsRankedByRelAbundance)[1:topProteinCount])))
-  }
-
-  ## Look at CV, CV rank, and Abundance rank of these candidate HKGs for redoing step 2 normalization using these robust rows only.
-  HKGlist1 <- data.frame(Protein = names(proteinsRankedByRelAbundance)[HKGindex], CV.rank = match(names(proteinsRankedByRelAbundance)[HKGindex], names(normProteinsRankedByIncrCV)), CVpct = round(100 * normProteinsRankedByIncrCV[match(names(proteinsRankedByRelAbundance)[HKGindex], names(normProteinsRankedByIncrCV))], 1), RelAbunRank = HKGindex)
-  HKGlist1 <- HKGlist1[order(HKGlist1$RelAbunRank, decreasing = FALSE), ]
-  HKGlist1
-
-  HKGlist2 <- rownames(HKGlist1)
-  HKGindex2 <- match(HKGlist2, rownames(cleanDatNormNoColScaling))
-  cleanDatNorm2.HKG <- apply(cleanDatNormNoColScaling, 2, function(x) {
-    colAvg <- eval(parse(text = paste0(meanORmedian, "(x[HKGindex2],na.rm=TRUE)"))) ## MEAN/MEDIAN FUNCTION CHOICE***
-    outputCol <- x - colAvg
-    outputCol
-  })
-
-  cleanDat <- relAbundanceNorm2
-  DFforFrobCurrent <- apply(cleanDatNorm2, 2, as.numeric)
-  DFforFrobPrev <- apply(prevIterCleanDatNorm2, 2, as.numeric)
-  removeColumnsCurrent <- which(apply(DFforFrobCurrent, 2, function(x) sum(is.na(x))) == nrow(DFforFrobCurrent))
-  removeColumnsPrev <- which(apply(DFforFrobPrev, 2, function(x) sum(is.na(x))) == nrow(DFforFrobPrev))
-
-  if (length(removeColumnsCurrent) > 0) {
-    frobeniusNormCurrent <- norm(na.omit(DFforFrobCurrent[, -removeColumnsCurrent]), type = "F")
-  } else {
-    frobeniusNormCurrent <- norm(matrix((na.omit(DFforFrobCurrent))), type = "F")
-  }
-  if (length(removeColumnsPrev) > 0) {
-    frobeniusNormPrev <- norm(na.omit(DFforFrobPrev[, -removeColumnsPrev]), type = "F")
-  } else {
-    frobeniusNormPrev <- norm(na.omit(DFforFrobPrev), type = "F")
-  }
-  initialFrobeniusNorm <- if (repeats == 1) {
-    frobeniusNormCurrent
-  } else {
-    initialFrobeniusNorm
-  }
-  iterationTrackingDF[repeats, ] <- c(repeats, frobeniusNormCurrent, frobeniusNormPrev, frobeniusNormPrev - frobeniusNormCurrent, frobeniusNormCurrent / initialFrobeniusNorm)
-  cat(paste0("       iteration convergence tracking (Frobenius Norm Difference):  ", signif(iterationTrackingDF[repeats, 4], 3), "\n"))
-  if (abs(iterationTrackingDF[repeats, 4]) < FNthreshold) {
-    cat("...Reached convergence criterion (Frobenius Norm Difference)<1e-8!\n")
-    break
-  }
-} ## ENDS TAMPOR NORMALIZATION.
-
-#-------------------------------------------------------------------------------
-#' ## Plots to check the normalization progress.
-#-------------------------------------------------------------------------------
-
-# Should plots be saved?
-save_plots <- FALSE
-
-iterations.intended <- iterations
-iterations <- repeats
-
-plot1 <- ggplot(data = iterationTrackingDF, aes(x = Iteration, y = abs(FrobenDiff), group = 1)) +
-  geom_line() + geom_point() +
-  geom_hline(yintercept = FNthreshold, linetype = "dashed", color = "red", size = 0.25) +
-  ggtitle("Iteration Tracking") + xlab("Iteration") + ylab("Frobenius Norm Diff from Previous") +
-  theme(
-    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold")
-  )
-
-plot2 <- ggplot(data = iterationTrackingDF, aes(x = Iteration, y = log10(abs(FrobenDiff)), group = 1)) +
-  geom_line() + geom_point() +
-  geom_hline(yintercept = log10(FNthreshold), linetype = "dashed", color = "red", size = 0.25) +
-  ggtitle("Iteration Tracking (log scale)") + xlab("Iteration") + ylab("Log10(Frobenius Norm Diff from Previous)") +
-  theme(
-    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold")
-  )
-
-# Save as tiff.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "Iteration_Tracking.tiff")
-  ggsave(file, plot1, width = 3.0, height = 2.5, units = "in")
-
-  file <- paste0(outputfigsdir, "/", outputMatName, "Iteration_Tracking_logscale.tiff")
-  ggsave(file, plot2, width = 3.0, height = 2.5, units = "in")
-
-}
-
-# Store plots in list.
-all_plots[["TAMPOR_Iteration_Tracking"]] <- plot1
-all_plots[["TAMPOR_Iteration_Tracking_logscale"]] <- plot2
-
-#-------------------------------------------------------------------------------
-#' ## Remove any sample outliers.
-#-------------------------------------------------------------------------------
-
-# Should plots be saved?
-save_plots <- FALSE
 
 # Data is...
-data_in <- relAbundanceNorm2
-data_in[1:5, 1:5]
+data_in <- log2(normDat)
 
 # Illustrate Oldham's sample connectivity.
 sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
-sample_connectivity$table
 plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
 
-# Save as figure.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "TAMPOR_Outliers.tiff")
-  ggsave(file, plot, width = 3, height = 2.5, units = "in")
-}
-
+# Store plot
 all_plots[["TAMPOR_Oldham_Outliers"]] <- plot
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
@@ -583,21 +212,19 @@ bad_samples <- unlist(out_samples)
 traits$Sample.Model[rownames(traits) %in% bad_samples]
 
 # Save data to file.
-cleanDat <- data_in
-dim(cleanDat)
-datafile <- paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
-saveRDS(cleanDat, datafile)
+cleanDat <- 2^data_in
+myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_OutlierRemoved.Rds")
+saveRDS(cleanDat, myfile)
 
 #-------------------------------------------------------------------------------
-#' ## Examine sample clustering with MDS and PCA post-TAMPOR Normalization.
+## Examine sample clustering with MDS and PCA post-TAMPOR Normalization.
 #-------------------------------------------------------------------------------
-
-save_plots <- FALSE
 
 # Insure that any outlier samples have been removed.
 traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
 
 # Check, traits and cleanDat should match data.
+traits <- traits[match(colnames(cleanDat),rownames(traits)),]
 all(rownames(traits) == colnames(cleanDat))
 
 ## PCA Plots.
@@ -610,108 +237,51 @@ idx <- traits$Tissue == "Cortex"
 idy <- traits$Tissue == "Striatum"
 plot1 <- ggplotPCA(log2(cleanDat[, idx]), traits, colors[idx], title = "Cortex")
 plot2 <- ggplotPCA(log2(cleanDat[, idy]), traits, colors[idy], title = "Striatum")
+plot3 <- ggplotPCA(log2(cleanDat), traits, colors, title = "Combined")
 
-# plots
-# plot1 # cortex
-# plot2 # striatum
-
-# Save as figure.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "Cortex_TAMPOR_PCA.tiff")
-  ggsave(file, plot1, width = 3, height = 3, units = "in")
-
-  file <- paste0(outputfigs, "/", outputMatName, "Striatum_TAMPOR_PCA.tiff")
-  ggsave(file, plot2, width = 3, height = 3, units = "in")
-}
-
-# Customize colors.
-# colors <- c("#FFF200", "#FFF200",    #22B14C
-#            "#00A2E8", "#00A2E8",    #A349A4
-#            "#22B14C", "#22B14C",  #FFF200
-#            "#A349A4", "#A349A4")    #00A2E8
-# plot1 + scale_color_manual(values = colors) + theme(legend.position = "none")
-# plot2 + scale_color_manual(values = colors) + theme(legend.position = "none")
-
-# Figure
-# fig <- plot_grid(plot1, plot2)
-# fig
-
-## MDS Plots.
-# Relative abundance.
-# plots <- ggplotMDSv2(log2(cleanDat), colID="b", traits, title = "Normalized Abundance")
-# plot1 <- plots$plot + theme(legend.position = "none")
-# plot2 <- plots$dendro
-# plot1
-
-# Save as tiff.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "_PCA_Post_TAMPOR.tiff")
-  ggsave(file, fig)
-}
-
+# Store in list.
 all_plots[["Cortex_postTAMPOR_PCA"]] <- plot1
 all_plots[["Striatum_postTAMPOR_PCA"]] <- plot2
+all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 
 #-------------------------------------------------------------------------------
-#' ## Statistical comparisons post-TAMPOR.
+## EdgeR statistical comparisons post-TAMPOR.
 #-------------------------------------------------------------------------------
-
-# Data is...
-file <- paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
-cleanDat <- readRDS(file)
-
-# Insure traits are loaded.
-traitsfile <- paste(Rdatadir, "2_Combined_traits.Rds", sep = "/")
-sample_info <- readRDS(traitsfile)
 
 # Create DGEList object...
-data <- cleanDat # Data should not be log transformed!
-data[1:5, 1:5]
-dim(data)
-y_DGE <- DGEList(counts = data)
+y_DGE <- DGEList(counts = normDat)
 
-# Example, checking the the normalization with plotMD.
-# plotMD(cpm(y_DGE, log = TRUE), column = 2)
-# abline(h = 0, col = "red", lty = 2, lwd = 2)
-
-# Create sample mapping.
-traits <- sample_info
+# Create sample mapping to Tissue.Genotype. Group WT Cortex and WT Striatum..
 traits$ColumnName <- traits$SampleID
-traits <- subset(traits, rownames(traits) %in% colnames(data))
-traits <- traits[match(colnames(data), rownames(traits)), ]
-all(traits$ColumnName == colnames(data))
+traits <- subset(traits, rownames(traits) %in% colnames(cleanDat))
+traits <- traits[match(colnames(normDat), rownames(traits)), ]
+all(traits$ColumnName == colnames(normDat))
 group <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
-unique(group)
 group[grepl("Cortex.WT", group)] <- "Cortex.WT"
 group[grepl("Striatum.WT", group)] <- "Striatum.WT"
-unique(group)
 y_DGE$samples$group <- as.factor(group)
 
 # Basic design matrix for GLM.
 design <- model.matrix(~ 0 + group, data = y_DGE$samples)
 colnames(design) <- levels(y_DGE$samples$group)
-#design
 
 # Estimate dispersion:
 y_DGE <- estimateDisp(y_DGE, design, robust = TRUE)
 
 # PlotBCV
 plot <- ggplotBCV(y_DGE)
-# plot
+all_plots[["TAMPOR_BCV"]] <- plot
 
 # Fit a general linear model.
 fit <- glmQLFit(y_DGE, design, robust = TRUE)
 
-# Examine the QL fitted dispersion.
-# plotQLDisp(fit)
-
 # Generate contrasts.
 g1 <- colnames(design)[grepl("Cortex", colnames(design))][-5]
 g2 <- colnames(design)[grepl("Striatum", colnames(design))][-5]
-
 cont1 <- makePairwiseContrasts(list(g1), list("Cortex.WT"))
 cont2 <- makePairwiseContrasts(list(g2), list("Striatum.WT"))
 
+# Make contrasts for EdgeR.
 # For some reason loops or lapply dont work with the makeContrasts function.
 contrasts <- list(
   makeContrasts(cont1[1], levels = design),
@@ -723,10 +293,9 @@ contrasts <- list(
   makeContrasts(cont2[3], levels = design),
   makeContrasts(cont2[4], levels = design)
 )
-
-names(contrasts) <- unlist(
-  lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
-)
+names(contrasts) <- unlist({
+	lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
+})
 
 # Call glmQLFTest() to evaluate differences in contrasts.
 qlf <- lapply(contrasts, function(x) glmQLFTest(fit, contrast = x))
@@ -755,100 +324,68 @@ mytheme <- gridExtra::ttheme_default(
 )
 
 # Create table and add borders.
-table <- tableGrob(overall, rows = NULL, theme = mytheme)
-table <- gtable_add_grob(table,
+mytable <- tableGrob(overall, rows = NULL, theme = mytheme)
+mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 2, b = nrow(table), l = 1, r = ncol(table)
+  t = 2, b = nrow(mytable), l = 1, r = ncol(mytable)
 )
-table <- gtable_add_grob(table,
+mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 1, l = 1, r = ncol(table)
+  t = 1, l = 1, r = ncol(mytable)
 )
-grid.arrange(table)
 
-# Save table as tiff.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "_TAMPOR_DE_Table.tiff")
-  ggsave(file, table, height = 2.75, width = 3.75, units = "in", dpi = 300)
-}
-all_plots[["TAMPOR_DE_Table"]] <- table
+# Store in list.
+all_plots[["TAMPOR_DE_Table"]] <- mytable
 
-# Call topTags to add FDR. Gather tablurized results.
-results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
-
-# Function to annotate DE candidates:
-annotateTopTags <- function(y_TT) {
-  y_TT$logCPM <- 100 * (2^y_TT$logFC)
-  colnames(y_TT)[2] <- "%WT"
-  colnames(y_TT)[3] <- "F Value"
-  y_TT$candidate <- "no"
-  y_TT[which(y_TT$FDR <= 0.10 & y_TT$FDR > 0.05), dim(y_TT)[2]] <- "low"
-  y_TT[which(y_TT$FDR <= 0.05 & y_TT$FDR > 0.01), dim(y_TT)[2]] <- "med"
-  y_TT[which(y_TT$FDR <= 0.01), dim(y_TT)[2]] <- "high"
-  y_TT$candidate <- factor(y_TT$candidate, levels = c("high", "med", "low", "no"))
-  return(y_TT)
-}
-
-# Rows should just be Uniprot for working with some of my old functions.
-my_func <- function(x) {
-  rownames(x) <- sapply(strsplit(rownames(x), "\\|"), "[", 2)
-  return(x)
-}
-results <- lapply(results, function(x) my_func(x))
+# Call topTags to add FDR. Gather tabularized results.
+glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
 
 # Convert logCPM column to percent WT.
 # Annotate with candidate column.
-results <- lapply(results, function(x) annotateTopTags(x))
+glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
 
 # Annotate with Gene names and Entrez IDS.
-results <- lapply(results, function(x) annotate_Entrez(x))
+prot_map <- data.table::fread(file.path(outputtabs,"ProtMap.csv"))
+
+f <- function(x) {
+
+	uniprot <- sapply(strsplit(rownames(x),"\\|"),"[",2)
+	idx <- match(x$Uniprot,prot_map$uniprot)
+
+	x <- add_column(x,uniprot,.before=1)
+	x <- add_column(x,,.before=1)
+
+	x$Gene <- prot_map$symbol[idx]
+	x$Entrez <- prot_map$entrez[idx]
+
+	return(x)
+}
+glm_results <- lapply(glm_results,function(x) f(x))
+
 
 # Sort by pvalue.
-results <- lapply(results, function(x) x[order(x$PValue), ])
-
-# Attempt to map any remaining unmapped ids.
-not_mapped <- lapply(results, function(x) sum(is.na(x$Entrez)))
-symbols <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 1)
-uniprot <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 2)
-for (i in 1:length(results)) {
-  df <- results[[i]]
-  not_mapped <- symbols[match(df$Uniprot[is.na(df$Entrez)], uniprot)]
-  df$Entrez[is.na(df$Entrez)] <- mapIds(org.Mm.eg.db,
-    keys = not_mapped,
-    column = "ENTREZID",
-    keytype = "SYMBOL",
-    multiVals = "first"
-  )
-  results[[i]] <- df
-}
-# Check.
-not_mapped <- lapply(results, function(x) sum(is.na(x$Entrez)))
-head(not_mapped) # good.
-
-# # Write results to excel.
-# file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_GLM_Results.xlsx")
-# write.excel(results, file)
+glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
 
 # Write to RDS.
-file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
-saveRDS(results, file)
+myfile <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
+saveRDS(results, myfile)
 
 #-------------------------------------------------------------------------------
-#' ## Volcano plots for each genotype.
+## Volcano plots for each genotype.
 #-------------------------------------------------------------------------------
 
 # Add column for genotype and unique ID to results in list.
-for (i in 1:length(results)) {
-  Experiment <- names(results)[i]
-  df <- results[[i]]
+for (i in 1:length(glm_results)) {
+  Experiment <- names(glm_results)[i]
+  df <- glm_results[[i]]
   df <- add_column(df, Experiment, .before = 1)
   # ID <- paste(df$Experiment,df$Uniprot, sep = "_")
   # df <- add_column(df, ID, .after = 1)
-  results[[i]] <- df
+  glm_results[[i]] <- df
 }
 
 # Merge the results.
-df <- do.call(rbind, results)
+df <- do.call(rbind, glm_results)
 
 # Add column for genotype specific colors.
 colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
@@ -889,7 +426,6 @@ ggplotVolcanoPlot2 <- function(df) {
     y = y_int + 0.04 * (ypos[2] - ypos[1]),
     label = "FDR < 0.05", size = 4
   )
-
   return(plot)
 }
 
@@ -918,116 +454,19 @@ all_plots[["Shank3_VP"]] <- vp2
 all_plots[["Syngap1_VP"]] <- vp3
 all_plots[["Ube3a_VP"]] <- vp4
 
-# fig <- plot_grid(vp1,vp2,vp3,vp4, nrow = 2, ncol = 2, labels = "auto")
-# ggsave("foo.tiff", fig, width = 7.5, units = "in", dpi = 300)
-
-# Save plots.
-if (save_plots == TRUE) {
-  for (i in 1:length(plots)) {
-    plot <- plots[[i]]
-    file <- paste0(outputfigs, "/", outputMatName, "_", names(plots)[i], "_VolcanoPlot.tiff")
-    ggsave(file, plot, width = 1.8, height = 1.5, units = "in", dpi = 300)
-  }
-}
-
 #-------------------------------------------------------------------------------
-#' ## GO Enrichment analysis of DEPs.
+## GO enrichment analaysis for DEPs from each genotype.
 #-------------------------------------------------------------------------------
 
-# GO testing with the EdgeR qlf object...
-# Extract rownames and map to entrez ids.
-uniprot <- sapply(strsplit(rownames(qlf[[1]]), "\\|"), "[", 2)
-symbols <- sapply(strsplit(rownames(qlf[[1]]), "\\|"), "[", 1)
-
-# Map Uniprot IDs to Entrez IDs:
-entrez <- mapIds(org.Mm.eg.db,
-  keys = uniprot,
-  column = "ENTREZID",
-  keytype = "UNIPROT",
-  multiVals = "first"
-)
-
-# Number of missing entrez ids.
-sum(is.na(entrez))
-
-# Map unmapped gene symbols to Entrez IDs:
-entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db,
-  keys = symbols[is.na(entrez)],
-  column = "ENTREZID",
-  keytype = "SYMBOL",
-  multiVals = "first"
-)
-
-# Number of remaining missing entrez ids.
-sum(is.na(entrez))
-
-# Perform GO and KEGG enrichment testing (using proteins with FDR<0.1).
-GO <- lapply(qlf, function(x) goana(x, geneid = entrez, species = "Mm", FDR = 0.1))
-KEGG <- lapply(qlf, function(x) kegga(x, geneid = entrez, species = "Mm", FDR = 0.1))
-
-# Add names.
-contrasts <- unlist(lapply(qlf, function(x) x$comparison))
-contrasts <- gsub(" -1", "", sapply(strsplit(contrasts, "\\*"), "[", 2))
-names(GO) <- contrasts
-names(KEGG) <- contrasts
-
-# Calculate adjusted p.values.
-my_func <- function(x) {
-  x$P.adj.Up <- p.adjust(x$P.Up, method = "bonferroni")
-  x$P.adj.Down <- p.adjust(x$P.Down, method = "bonferroni")
-  x$FDR.Up <- p.adjust(x$P.Up, method = "BH")
-  x$FDR.Down <- p.adjust(x$P.Down, method = "BH")
-  return(x)
-}
-
-GO <- lapply(GO, function(x) my_func(x))
-KEGG <- lapply(KEGG, function(x) my_func(x))
-
-# Combined result
-GO_result <- do.call(rbind, GO)
-GO_result <- add_column(
-  GO_result,
-  class = sapply(strsplit(rownames(GO_result), ".GO"), "[", 1),
-  .before = 1
-)
-GO_result <- add_column(
-  GO_result,
-  GOID = sapply(strsplit(rownames(GO_result), "\\."), "[", 4),
-  .after = 1
-)
-rownames(GO_result) <- NULL
-
-# Subset sig results.
-sigGO <- lapply(GO, function(x) subset(x, FDR.Up < 0.1 | x$FDR.Down < 0.1))
-
-# # Write to excel.
-# file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_GO_Results.xlsx")
-# write.excel(GO, file)
-#
-# file <- paste0(outputtabs, "/", "2_Combined_TAMPOR_sigGO_Results.xlsx")
-# write.excel(sigGO, file)
-
-#-------------------------------------------------------------------------------
-#' ## GO enrichment analaysis for DEPs from each genotype.
-#-------------------------------------------------------------------------------
-
-# Load the GLM statistical results.
-file <- paste(outputtabs, "2_Combined_TAMPOR_GLM_Results.xlsx",
-  sep = "/"
-)
-results <- lapply(as.list(c(1:8)), function(x) read_excel(file, x))
-names(results) <- excel_sheets(file)
-
-# Build a df with statistical results.
-stats <- lapply(results, function(x)
+# Build a df with the combined statistical results.
+stats <- lapply(glm_results, function(x)
   data.frame(
     Uniprot = x$Uniprot,
-    Gene = x$Gene,
     FDR = x$FDR
   ))
-names(stats) <- names(results)
-df <- stats %>% reduce(left_join, by = c("Uniprot", "Gene"))
-colnames(df)[c(3:ncol(df))] <- names(stats)
+names(stats) <- names(glm_results)
+df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
+colnames(df)[c(2:ncol(df))] <- names(stats)
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
 labels <- data.frame(
@@ -1036,6 +475,7 @@ labels <- data.frame(
   Syngap1 = df$Cortex.HET.Syngap1 < 0.05 | df$Striatum.HET.Syngap1 < 0.05,
   Ube3a3 = df$Cortex.KO.Ube3a < 0.05 | df$Striatum.KO.Ube3a < 0.05
 )
+
 rownames(labels) <- df$Uniprot
 
 # Convert TRUE to column names.
@@ -1047,36 +487,10 @@ for (i in 1:ncol(logic)) {
 }
 
 # Map Uniprot IDs to Entrez.
-# Get Uniprot IDs and gene symbols from rownames
-# Uniprot_IDs <- as.character(rownames(colors))
-
-# Go back and get Symbol|Uniprot rownames.
-genes <- as.list(sapply(strsplit(rownames(cleanDat), "\\|"), "[", 1))
-names(genes) <- sapply(strsplit(rownames(cleanDat), "\\|"), "[", 2)
-
-uniprot <- rownames(labels)
-
-# Map Uniprot IDs to Entrez IDs:
-entrez <- mapIds(org.Mm.eg.db,
-  keys = uniprot,
-  column = "ENTREZID",
-  keytype = "UNIPROT",
-  multiVals = "first"
-)
-
-# Map unmapped IDs...
-not_mapped <- unlist(genes[uniprot[is.na(entrez)]])
-entrez[is.na(entrez)] <- mapIds(org.Mm.eg.db,
-  keys = not_mapped,
-  column = "ENTREZID",
-  keytype = "SYMBOL",
-  multiVals = "first"
-)
-sum(is.na(entrez))
+entrez <- prot_map$entrez[match(rownames(labels), prot_map$uniprot)]
 
 # Insure that labels is a matrix.
 labels <- as.matrix(labels)
-head(labels)
 
 # look at the number of genes assigned to each cluster.
 table(labels)
@@ -1088,9 +502,6 @@ table(labels)
 if (!exists(deparse(substitute(musGOcollection)))) {
   musGOcollection <- buildGOcollection(organism = "mouse")
 }
-
-# Creates some space by clearing some memory.
-collectGarbage()
 
 # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
 # As implmented by the WGCNA function enrichmentAnalysis().
@@ -1111,9 +522,6 @@ GOenrichment <- enrichmentAnalysis(
   ignoreLabels = "FALSE"
 )
 
-# Create some space by clearing some memory.
-collectGarbage()
-
 # Collect the results.
 results_GOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)) {
@@ -1122,17 +530,8 @@ for (i in 1:length(GOenrichment$setResults)) {
 length(results_GOenrichment)
 names(results_GOenrichment) <- colnames(labels)
 
-a <- results_GOenrichment[[1]]
-b <- results_GOenrichment[[2]]
-c <- results_GOenrichment[[3]]
-d <- results_GOenrichment[[4]]
-
-# # Write results to file.
-# file <- paste0(outputtabs, "/", "2_Combined_Genotypes_GO_Analysis.xlsx")
-# write.excel(results_GOenrichment, file)
-
 #-------------------------------------------------------------------------------
-#' ## Generate GO scatter plots for each genotype.
+## Generate GO scatter plots for each genotype.
 #-------------------------------------------------------------------------------
 
 # Change names of GOenrichment results to genotype specific colors.
@@ -1146,27 +545,12 @@ plots <- list(
   Ube3a = ggplotGOscatter(data, color = "purple", topN = 1)
 )
 
-# Save plots and legends.
-if (save_plots == TRUE){
-  for (i in 1:length(plots)) {
-    plot <- plots[[i]]
-    file <- paste0(
-      outputfigs, "/", outputMatName, "_",
-      names(plots)[[i]], "_GO_ScatterPlot.tiff")
-    ggsave(file, plot, width = 3.0, height = 2.5, units = "in")
-  }
-}
-
 #-------------------------------------------------------------------------------
-#' ## Condition overlap.
+## Condition overlap.
 #-------------------------------------------------------------------------------
 
 # Load statistical results..
-file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
-results <- readRDS(file)
-
-# Check that number of DE candidates looks correct.
-lapply(results, function(x) sum(x$FDR < 0.05))
+results <- glm_results
 
 # Combine by FDR.
 stats <- lapply(results, function(x)
@@ -1177,9 +561,6 @@ colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
 rownames(df) <- paste(df$Gene, df$Uniprot, sep = "|")
 df$Uniprot <- NULL
 df$Gene <- NULL
-
-# Check.
-apply(df, 2, function(x) sum(x < 0.05))
 
 # Gather sigProts.
 sigProts <- list()
@@ -1224,128 +605,7 @@ dm2 <- sweep(dm, 1, apply(dm, 1, function(x) max(x, na.rm = TRUE)), FUN = "/")
 df <- melt(dm, na.rm = TRUE)
 df$percent <- round(melt(dm2, na.rm = TRUE)$value, 2)
 
-# Generate plot.
-plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
-  geom_tile(color = "white") +
-  geom_text(aes(Var2, Var1, label = value), color = "black", size = 2.5) +
-  scale_fill_gradient2(name = "Percent Overlap") +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    panel.grid.major = element_blank(),
-    panel.border = element_blank(),
-    panel.background = element_blank(),
-    axis.ticks = element_blank(),
-    legend.justification = c(1, 0),
-    legend.position = c(0.5, 0.7),
-    legend.direction = "horizontal"
-  ) +
-  guides(fill = guide_colorbar(
-    barwidth = 7, barheight = 1,
-    title.position = "top", title.hjust = 0.5
-  )) +
-  coord_fixed()
-
-# Store plot.
-all_plots[["TAMPOR_Condition_Overlap"]] <- plot
-
-# Extract legend and save seperately.
-legend <- get_legend(plot)
-plot <- plot + theme(legend.position = "none")
-
-
-# Save figure and legend.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "_Condition_Overlap.tiff")
-  ggsave(file, plot, width = 3, height = 3, units = "in")
-
-  file <- paste0(outputfigs, "/", outputMatName, "_Condition_Overlap_legend.tiff")
-  ggsave(file, legend, width = 3, height = 3, units = "in")
-}
-
-#-------------------------------------------------------------------------------
-#' ## Condition overlap, combined tissue types.
-#-------------------------------------------------------------------------------
-
-# Load statistical results..
-file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
-results <- readRDS(file)
-
-# Check.
-# lapply(results, function(x) sum(x$FDR < 0.05))
-
-# Combine by FDR.
-stats <- lapply(results, function(x)
-  data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR))
-names(stats) <- names(results)
-df <- stats %>% reduce(left_join, by = c("Uniprot", "Gene"))
-colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
-rownames(df) <- paste(df$Gene, df$Uniprot, sep = "|")
-df$Uniprot <- NULL
-df$Gene <- NULL
-
-# Check.
-# apply(df, 2, function(x) sum(x < 0.05))
-
-# Gather sigProts.
-sigProts <- list()
-for (i in 1:ncol(df)) {
-  idx <- df[, i] < 0.05
-  sigProts[[i]] <- rownames(df)[idx]
-}
-names(sigProts) <- names(stats)
-
-# Combine sigprots for each genotype.
-genos <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-u <- list()
-for (geno in genos) {
-  print(geno)
-  idx <- grep(geno, names(sigProts))
-  u[[geno]] <- union(sigProts[[idx[1]]], sigProts[[idx[2]]])
-}
-sigProts <- u
-
-# Build a matrix showing overlap.
-col_names <- names(sigProts)
-row_names <- names(sigProts)
-
-# All possible combinations.
-contrasts <- expand.grid(col_names, row_names)
-colnames(contrasts) <- c("GenoA", "GenoB")
-contrasts$GenoA <- as.vector(contrasts$GenoA)
-contrasts$GenoB <- as.vector(contrasts$GenoB)
-
-# Loop
-int <- list()
-for (i in 1:dim(contrasts)[1]) {
-  a <- unlist(as.vector(sigProts[contrasts$GenoA[i]]))
-  b <- unlist(as.vector(sigProts[contrasts$GenoB[i]]))
-  int[[i]] <- intersect(a, b)
-}
-
-contrasts$Name <- paste(contrasts$GenoA, contrasts$GenoB, sep = "_U_")
-names(int) <- contrasts$Name
-int$Syngap1_U_Ube3a
-
-# Add to contrasts.
-contrasts$Intersection <- unlist(lapply(int, function(x) length(x)))
-
-# Make overlap matrix.
-dm <- matrix(contrasts$Intersection, nrow = 4, ncol = 4)
-rownames(dm) <- colnames(dm) <- row_names
-
-# Remove upper tri and melt.
-dm[lower.tri(dm)] <- NA
-
-# Calculate percent overlap.
-dm2 <- sweep(dm, 1, apply(dm, 1, function(x) max(x, na.rm = TRUE)), FUN = "/")
-
-# Melt
-df <- melt(dm, na.rm = TRUE)
-df$percent <- round(melt(dm2, na.rm = TRUE)$value, 2)
-
-# Generate plot.
+# Generate plot
 plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
   geom_tile(color = "black", size = 0.5) +
   geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
@@ -1372,55 +632,37 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
   coord_fixed()
 
 # Store plot
-all_plots[["TAMPOR_Genotype_Overlap"]] <- plot
-
-# Extract legend and save seperately.
-legend <- get_legend(plot)
-plot <- plot + theme(legend.position = "none")
-
-# Save figure and legend.
-if (save_plots == TRUE) {
-  file <- paste0(outputfigs, "/", outputMatName, "_Genotype_Overlap.tiff")
-  ggsave(file, plot, width = 3, height = 3, units = "in")
-
-  file <- paste0(outputfigs, "/", outputMatName, "_Genotype_Overlap_legend.tiff")
-  ggsave(file, legend, width = 3, height = 3, units = "in")
-}
+all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 
 #--------------------------------------------------------------------------------
-#' ## Generate protein boxplots for significantly DE proteins.
+## Generate protein boxplots.
 #-------------------------------------------------------------------------------
 
-# Load statistical results..
-file <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
-results <- readRDS(file)
+# Group WT cortex and WT striatum.
+traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model,sep=".")
+traits$Condition <- traits$Tissue.Sample.Model
+traits$Condition[grepl("Cortex.WT",traits$Condition)] <- "Cortex.WT"
+traits$Condition[grepl("Striatum.WT",traits$Condition)] <- "Striatum.WT"
 
-# Expression data.
-exprDat <- log2(y_DGE$counts)
-
-# Insure all WT samples are annotated as WT in traits.
-traits_temp <- traits
-traits_temp$Sample.Model <- paste(traits_temp$Tissue, traits_temp$Sample.Model, sep = ".")
-traits_temp$Sample.Model[grepl("Cortex.WT", traits_temp$Sample.Model)] <- "Cortex.WT"
-traits_temp$Sample.Model[grepl("Striatum.WT", traits_temp$Sample.Model)] <- "Striatum.WT"
-traits_temp <- subset(traits_temp, rownames(traits_temp) %in% colnames(exprDat))
+# Levels for boxplots:
+lvls <- c("Cortex.WT",          "Striatum.WT",
+	  "Cortex.KO.Shank2",   "Striatum.KO.Shank2",
+	  "Cortex.KO.Shank3",   "Striatum.KO.Shank3", 
+	  "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
+	  "Cortex.KO.Ube3a",    "Striatum.KO.Ube3a")
 
 # Generate plots.
 plot_list <- ggplotProteinBoxes(
-  data_in = exprDat,
-  interesting.proteins = rownames(exprDat),
-  dataType = "Relative Abundance",
-  traits = traits_temp,
-  order = c(2, 7, 4, 6, 5, 8, 1, 9, 3, 10),
+  data_in = log2(normDat),
+  interesting.proteins = rownames(normDat),
+  traits = traits,
+  order = lvls,
   scatter = TRUE
 )
 
-# Check a plot.
-# plot_list$`Shank2|Q80Z38`
-
 # Add custom colors.
 colors <- c(
-  "gray", "gray",
+  "gray","gray",
   "#FFF200", "#FFF200",
   "#00A2E8", "#00A2E8",
   "#22B14C", "#22B14C",
@@ -1428,33 +670,19 @@ colors <- c(
 )
 plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
-# Example plot.
-plot_list$`Shank2|Q80Z38`
-
 ## Add significance stars.
 # Build a df with statistical results.
-stats <- lapply(results, function(x)
-  as.data.frame(cbind(Uniprot = x$Uniprot, FDR = x$FDR)))
-names(stats) <- names(results)
-df <- stats %>% reduce(left_join, by = "Uniprot")
-colnames(df)[c(2:ncol(df))] <- names(stats)
-head(df)
+stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
+stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 
-# Annotate rows as gene|uniprot
-Uniprot <- df$Uniprot
-Gene <- mapIds(
-  org.Mm.eg.db,
-  keys = Uniprot,
-  column = "SYMBOL",
-  keytype = "UNIPROT",
-  multiVals = "first"
-)
-rownames(df) <- paste(Gene, Uniprot, sep = "|")
-df$Uniprot <- NULL
-stats <- df
+colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
+rownames(stats) <- stats$Uniprot
+stats$Uniprot <- NULL
 
 # Example plot.
-annotate_stars(plot_list$`Shank2|Q80Z38`, stats)
+plot <- plot_list$'Shank2|Q80Z38'
+
+annotate_stars(plot_list$`Shank2|Q80Z38`,stats)
 
 # Loop to add stars.
 plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
@@ -1489,17 +717,6 @@ fix_axis_labels <- function(plot) {
 
 plots <- lapply(plots, function(x) fix_axis_labels(x))
 
-
-# Save as tiff.
-if (save_plots == TRUE) {
-  for (i in 1:length(plots)) {
-    file <- paste0(outputfigs, "/", outputMatName, "_", names(plots)[i], "_BoxPlot.tiff")
-    ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
-  }
-}
-
-## Inspecting other interesting proteins...
-
 # Make function to change x-axis text to red if significant.
 change_axis_color <- function(plot) {
   build <- ggplot_build(plot)
@@ -1519,13 +736,86 @@ names(plots) <- sapply(strsplit(names(plots), "\\|"), "[", 1)
 # Change axis color.
 plots <- lapply(plots, function(x) change_axis_color(x))
 
-# Save as tiff.
-if (save_plots == TRUE) {
-  for (i in 1:length(plots)) {
-    file <- paste0(outputfigs, "/", outputMatName, "_", names(plots)[i], "_BoxPlot.tiff")
-    ggsave(file, plots[[i]], width = 3, height = 3, units = "in")
-  }
+# Store plots in list.
+all_plots[[paste(tissue,"Shank2_BP",sep="_")]]  <- p1
+all_plots[[paste(tissue,"Shank3_BP",sep="_")]]  <- p2
+all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
+all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
+
+# Save plot list.
+file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
+saveRDS(all_plots, file)
+
+#-------------------------------------------------------------------------------
+## Write data to excel spreadsheet.
+#-------------------------------------------------------------------------------
+
+files <- list(
+  traits = paste(Rdatadir, "2_Combined_traits.Rds", sep = "/"),
+  raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.Rds", sep = "/"),
+  raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.Rds", sep = "/"),
+  cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
+)
+
+data <- lapply(files, function(x) readRDS(x))
+
+# Clean up traits.
+traits <- data$traits
+rownames(traits) <- NULL
+colnames(traits)[1] <- "Batch.Channel"
+traits$Color <- NULL
+traits$Order <- NULL
+colnames(traits)[2] <- "LongName"
+
+# Gather raw data.
+raw_cortex <- data$raw_cortex
+raw_striatum <- data$raw_striatum
+idx <- grepl("Abundance",colnames(raw_cortex))
+colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], "Cortex", sep =", ")
+idx <- grepl("Abundance",colnames(raw_striatum))
+colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], "Striatum", sep =", ")
+
+# Gather normalized data.
+norm_data <- as.data.frame(log2(data$cleanDat))
+idx <- match(colnames(norm_data),traits$Batch.Channel)
+colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep=", ")
+norm_data <- add_column(norm_data,"Gene|Uniprot" = rownames(norm_data), .before = 1)
+rownames(norm_data) <- NULL
+
+# Write to excel workbook.
+wb <- createWorkbook()
+addWorksheet(wb, sheetName = "sample_info")
+addWorksheet(wb, sheetName = "raw_cortex")
+addWorksheet(wb, sheetName = "raw_striatum")
+addWorksheet(wb, sheetName = "combined_normalized_data")
+writeData(wb, sheet = 1, keepNA = TRUE, traits)
+writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
+writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
+writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
+file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx",sep="/")
+saveWorkbook(wb, file, overwrite = TRUE)
+
+## ENDOFILE
+#-------------------------------------------------------------------------------
+#!/usr/bin/env Rscript
+
+#' ---
+#' title: 2_TMT_Analysis_Combined.R
+#' description: TAMPOR Normalization of preprocessed TMT data.
+#' authors: Tyler W Bradshaw, Eric B Dammer.
+#' ---
+  color_vect[idx] <- "red"
+  plot <- plot +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = color_vect))
+  return(plot)
 }
+
+# Other interesting proteins.
+plots <- plot_list[int$Syngap1_U_Ube3a]
+names(plots) <- sapply(strsplit(names(plots), "\\|"), "[", 1)
+
+# Change axis color.
+plots <- lapply(plots, function(x) change_axis_color(x))
 
 # Store plots in list.
 all_plots[[paste(tissue,"Shank2_BP",sep="_")]]  <- p1
@@ -1537,7 +827,10 @@ all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
 file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
 saveRDS(all_plots, file)
 
+#-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.
+#-------------------------------------------------------------------------------
+
 files <- list(
   traits = paste(Rdatadir, "2_Combined_traits.Rds", sep = "/"),
   raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.Rds", sep = "/"),
