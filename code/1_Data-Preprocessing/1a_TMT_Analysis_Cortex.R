@@ -103,8 +103,8 @@ sample_info <- sample_info[order(sample_info$Order), ]
 raw_peptide <- cleanPD(data_PD, sample_info)
 
 # Save to Rdata. To be saved to excel later.
-file <- paste0(Rdatadir, "/", outputMatName, "_raw_peptide.Rds")
-saveRDS(raw_peptide, file)
+myfile <- paste0(Rdatadir, "/", outputMatName, "_raw_peptide.Rds")
+saveRDS(raw_peptide, myfile)
 
 #-------------------------------------------------------------------------------
 ## Examine an example peptide.
@@ -225,12 +225,13 @@ data_in <- raw_peptide
 title <- "Raw Peptide"
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 
-# Generate boxplot and density plots.
+# Generate boxplot 
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 l1 <- get_legend(p1)
 p1 <- p1 + theme(legend.position = "none")
 p1 <- p1 + theme(axis.text.x=element_blank())
 
+# Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
 
 # Genotype specific colors must be specified in column order.
@@ -439,7 +440,6 @@ SL_protein <- normalize_SL(filt_protein, "Abundance", "Abundance")
 #' ComBat is not applied.
 
 # Define experimental groups and column ID for expression data.
-groups
 colID <- "Abundance"
 data_in <- SL_protein
 
@@ -553,7 +553,7 @@ for (i in 1:length(groups)) {
   plots <- list(plot1, plot2)
   plot_list[[i]] <- plots
   names(plot_list[[i]]) <- paste(groups[i], c("preComBat", "postComBat"))
-}
+} # Ends ComBat loop.
 
 # Merge the data frames with purrr::reduce()
 data_return <- data_out %>% reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
@@ -680,11 +680,11 @@ for (i in 1:n_iter) {
 bad_samples <- unlist(out_samples)
 bad_samples
 
-# Remove from data, re-do IRS, and check sample connectivity.
+# Remove outliers from data.
 samples_out <- paste(bad_samples, collapse = "|")
 out <- grepl(samples_out, colnames(SL_protein))
 
-# Redo IRS after removal of outlier.
+# Redo IRS after outlier removal..
 IRS_OutRemoved_protein <- normalize_IRS(SL_protein[, !out], "QC", groups, robust = TRUE)
 
 # Write over IRS_data
@@ -741,8 +741,6 @@ all_plots[[paste(tissue,"irs_mds",sep="_")]] <- p4
 # Remove proteins that are identified by only 1 peptide as well as
 # proteins identified in less than 50% of samples.
 filt_protein <- filter_proteins(IRS_protein, "Abundance")
-# 94 proteins identified by 1 peptide were removed.
-# 15 proteins identified in less than 50% of samples were removed.
 
 # Generate plot to examine distribution of remaining missing values.
 plot <- ggplotDetect(filt_protein, "Abundance") +
@@ -797,15 +795,9 @@ all_plots[[paste(tissue,"tmm_mds",sep="_")]] <- p4
 
 # Prepare the data.
 data_in <- TMM_protein
-title <- "TMM Normalized protein"
-
-# Data is...
-# Check, there should be no missing values.
-sum(is.na(TMM_protein)) == 0
-data_in <- na.omit(TMM_protein)
-dim(data_in)
-colID <- "Abundance"
 traits <- sample_info
+title <- "TMM Normalized protein"
+colID <- "Abundance"
 
 # Remove the QC Data
 out <- grepl("QC", colnames(data_in))
@@ -863,6 +855,12 @@ saveRDS(all_plots, myfile)
 #' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
 
 # Data is...
+#data_in <- TMM_protein
+#rownames(data_in) <- TMM_protein$Accession
+#data_in$Accession <- NULL
+#data_in$Peptides <- NULL
+#data_in <- as.matrix(data_in)
+
 data_in <- 2^t(data.fit)
 data_in[1:5, 1:5] # un-log
 dim(data_in)
@@ -880,7 +878,6 @@ gene_names <- sapply(strsplit(long_names, "\\ "), "[", 1)
 
 # Row names are Gene|Uniprot
 row_names <- paste(gene_names, uniprot, sep = "|")
-head(row_names)
 
 # Gather data, set row names
 cols <- grep("Abundance", colnames(data_in))
@@ -891,18 +888,12 @@ rownames(data_out) <- row_names
 idx <- match(colnames(data_out), sample_info$ColumnName)
 col_names <- sample_info$SampleID[idx]
 colnames(data_out) <- col_names
-head(col_names)
 
 # Reorder based on batch.
-data_out <- data_out[, order(colnames(data_out))]
+cleanDat <- data_out[, order(colnames(data_out))]
 
 # Save as cleanDat
-cleanDat <- data_out
-cleanDat[1:5, 1:5]
-dim(cleanDat)
-
-# Save to Rdata
-file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_TAMPOR_Format.Rds")
+file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_NoEblm_TAMPOR_Format.Rds")
 saveRDS(cleanDat, file)
 
 ## ENDOFILE
