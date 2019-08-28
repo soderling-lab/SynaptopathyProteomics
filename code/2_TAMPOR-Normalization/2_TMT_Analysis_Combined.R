@@ -213,7 +213,7 @@ traits$Sample.Model[rownames(traits) %in% bad_samples]
 
 # Save data to file.
 cleanDat <- 2^data_in
-myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_OutlierRemoved.Rds")
+myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds")
 saveRDS(cleanDat, myfile)
 
 #-------------------------------------------------------------------------------
@@ -345,23 +345,16 @@ glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$tab
 glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
 
 # Annotate with Gene names and Entrez IDS.
-prot_map <- data.table::fread(file.path(outputtabs,"ProtMap.csv"))
-
-f <- function(x) {
-
-	uniprot <- sapply(strsplit(rownames(x),"\\|"),"[",2)
-	idx <- match(x$Uniprot,prot_map$uniprot)
-
-	x <- add_column(x,uniprot,.before=1)
-	x <- add_column(x,,.before=1)
-
-	x$Gene <- prot_map$symbol[idx]
-	x$Entrez <- prot_map$entrez[idx]
-
+prot_map <- data.table::fread(file.path(Rdatadir,"ProtMap.csv"))
+mapProts <- function(x) {
+	Uniprot <- sapply(strsplit(rownames(x),"\\|"),"[",2)
+	idx <- match(Uniprot,prot_map$uniprot)
+	x <- add_column(x, Uniprot,.before=1)
+	x <- add_column(x, Gene = prot_map$symbol[idx], .after=1)
+	x <- add_column(x, Entrez = prot_map$symbol[idx], .after=2)
 	return(x)
 }
-glm_results <- lapply(glm_results,function(x) f(x))
-
+glm_results <- lapply(glm_results,function(x) mapProts(x))
 
 # Sort by pvalue.
 glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
@@ -475,7 +468,6 @@ labels <- data.frame(
   Syngap1 = df$Cortex.HET.Syngap1 < 0.05 | df$Striatum.HET.Syngap1 < 0.05,
   Ube3a3 = df$Cortex.KO.Ube3a < 0.05 | df$Striatum.KO.Ube3a < 0.05
 )
-
 rownames(labels) <- df$Uniprot
 
 # Convert TRUE to column names.
@@ -527,23 +519,11 @@ results_GOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)) {
   results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
 }
-length(results_GOenrichment)
 names(results_GOenrichment) <- colnames(labels)
 
-#-------------------------------------------------------------------------------
-## Generate GO scatter plots for each genotype.
-#-------------------------------------------------------------------------------
-
-# Change names of GOenrichment results to genotype specific colors.
-data <- results_GOenrichment
-names(data) <- c("yellow", "blue", "green", "purple")
-
-plots <- list(
-  Shank2 = ggplotGOscatter(data, color = "yellow", topN = 1),
-  Shank3 = ggplotGOscatter(data, color = "blue", topN = 1),
-  Syngap1 = ggplotGOscatter(data, color = "green", topN = 1),
-  Ube3a = ggplotGOscatter(data, color = "purple", topN = 1)
-)
+# Save as excel workbook.
+myfile <- file.path(rootdir, "tables", "2_Supplementary_TMT_GO_Analysis.xlsx")
+write.excel(results_GOenrichment,myfile)
 
 #-------------------------------------------------------------------------------
 ## Condition overlap.
@@ -556,7 +536,7 @@ results <- glm_results
 stats <- lapply(results, function(x)
   data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR))
 names(stats) <- names(results)
-df <- stats %>% reduce(left_join, by = c("Uniprot", "Gene"))
+df <- stats %>% purrr::reduce(left_join, by = c("Uniprot", "Gene"))
 colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
 rownames(df) <- paste(df$Gene, df$Uniprot, sep = "|")
 df$Uniprot <- NULL
@@ -674,15 +654,9 @@ plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors
 # Build a df with statistical results.
 stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
 stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
-
 colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
 rownames(stats) <- stats$Uniprot
 stats$Uniprot <- NULL
-
-# Example plot.
-plot <- plot_list$'Shank2|Q80Z38'
-
-annotate_stars(plot_list$`Shank2|Q80Z38`,stats)
 
 # Loop to add stars.
 plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
@@ -692,7 +666,6 @@ p1 <- plot_list$`Shank2|Q80Z38`
 p2 <- plot_list$`Shank3|Q4ACU6`
 p3 <- plot_list$`Syngap1|F6SEU4`
 p4 <- plot_list$`Ube3a|O08759`
-
 
 # Modify x-axis labels-- significant bar axis labels are in red.
 a <- c("black", "black", "red", "red", "black", "black", "black", "black", "black", "black")
@@ -705,46 +678,11 @@ p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
 p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
 p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
 
-plots <- list(p1, p2, p3, p4)
-names(plots) <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-
-# Fix axis labels.
-fix_axis_labels <- function(plot) {
-  b <- ggplot_build(plot)
-  labs <- gsub("\\.", " ", b$layout$panel_params[[1]]$x.labels)
-  plot + scale_x_discrete(labels = labs)
-}
-
-plots <- lapply(plots, function(x) fix_axis_labels(x))
-
-# Make function to change x-axis text to red if significant.
-change_axis_color <- function(plot) {
-  build <- ggplot_build(plot)
-  labs <- build$data[[3]]
-  idx <- grep("\\*", labs$label[order(labs$x)]) + 2
-  color_vect <- rep("black", 10)
-  color_vect[idx] <- "red"
-  plot <- plot +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = color_vect))
-  return(plot)
-}
-
-# Other interesting proteins.
-plots <- plot_list[int$Syngap1_U_Ube3a]
-names(plots) <- sapply(strsplit(names(plots), "\\|"), "[", 1)
-
-# Change axis color.
-plots <- lapply(plots, function(x) change_axis_color(x))
-
 # Store plots in list.
 all_plots[[paste(tissue,"Shank2_BP",sep="_")]]  <- p1
 all_plots[[paste(tissue,"Shank3_BP",sep="_")]]  <- p2
 all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
 all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
-
-# Save plot list.
-file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
-saveRDS(all_plots, file)
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.
@@ -795,86 +733,5 @@ writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
 file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx",sep="/")
 saveWorkbook(wb, file, overwrite = TRUE)
 
-## ENDOFILE
-#-------------------------------------------------------------------------------
-#!/usr/bin/env Rscript
-
-#' ---
-#' title: 2_TMT_Analysis_Combined.R
-#' description: TAMPOR Normalization of preprocessed TMT data.
-#' authors: Tyler W Bradshaw, Eric B Dammer.
-#' ---
-  color_vect[idx] <- "red"
-  plot <- plot +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = color_vect))
-  return(plot)
-}
-
-# Other interesting proteins.
-plots <- plot_list[int$Syngap1_U_Ube3a]
-names(plots) <- sapply(strsplit(names(plots), "\\|"), "[", 1)
-
-# Change axis color.
-plots <- lapply(plots, function(x) change_axis_color(x))
-
-# Store plots in list.
-all_plots[[paste(tissue,"Shank2_BP",sep="_")]]  <- p1
-all_plots[[paste(tissue,"Shank3_BP",sep="_")]]  <- p2
-all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
-all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
-
-# Save plot list.
-file <- paste(Rdatadir,"1_All_plots.Rds", sep ="/")
-saveRDS(all_plots, file)
-
-#-------------------------------------------------------------------------------
-## Write data to excel spreadsheet.
-#-------------------------------------------------------------------------------
-
-files <- list(
-  traits = paste(Rdatadir, "2_Combined_traits.Rds", sep = "/"),
-  raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.Rds", sep = "/"),
-  raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.Rds", sep = "/"),
-  cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
-)
-
-data <- lapply(files, function(x) readRDS(x))
-
-# Clean up traits.
-traits <- data$traits
-rownames(traits) <- NULL
-colnames(traits)[1] <- "Batch.Channel"
-traits$Color <- NULL
-traits$Order <- NULL
-colnames(traits)[2] <- "LongName"
-
-# Gather raw data.
-raw_cortex <- data$raw_cortex
-raw_striatum <- data$raw_striatum
-idx <- grepl("Abundance",colnames(raw_cortex))
-colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], "Cortex", sep =", ")
-idx <- grepl("Abundance",colnames(raw_striatum))
-colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], "Striatum", sep =", ")
-
-# Gather normalized data.
-norm_data <- as.data.frame(log2(data$cleanDat))
-idx <- match(colnames(norm_data),traits$Batch.Channel)
-colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep=", ")
-norm_data <- add_column(norm_data,"Gene|Uniprot" = rownames(norm_data), .before = 1)
-rownames(norm_data) <- NULL
-
-# Write to excel workbook.
-wb <- createWorkbook()
-addWorksheet(wb, sheetName = "sample_info")
-addWorksheet(wb, sheetName = "raw_cortex")
-addWorksheet(wb, sheetName = "raw_striatum")
-addWorksheet(wb, sheetName = "combined_normalized_data")
-writeData(wb, sheet = 1, keepNA = TRUE, traits)
-writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
-writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
-writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
-file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx",sep="/")
-saveWorkbook(wb, file, overwrite = TRUE)
-
-## ENDOFILE
-#-------------------------------------------------------------------------------
+# ENDOFILE
+#------------------------------------------------------------------------------
