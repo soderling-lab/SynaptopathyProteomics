@@ -787,69 +787,6 @@ all_plots[[paste(tissue,"tmm_msd",sep="_")]] <- p3
 all_plots[[paste(tissue,"tmm_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
-## Perform moderated EB regression of genetic strain as a covariate.
-#-------------------------------------------------------------------------------
-#' Moderated Empirical Bayes (EB) regression as implemented by the `WGCNA`
-#' function is __empiricalBayesLM()__ is performed to remove the affect of
-#' genetic background.
-
-# Prepare the data.
-data_in <- TMM_protein
-traits <- sample_info
-title <- "TMM Normalized protein"
-colID <- "Abundance"
-
-# Remove the QC Data
-out <- grepl("QC", colnames(data_in))
-data <- data_in[, !out]
-traits <- subset(traits, !traits$SampleType == "QC")
-traits <- subset(traits, traits$ColumnName %in% colnames(data_in))
-
-# Format data for EBLM
-cols <- grep("Abundance", colnames(data))
-data <- log2(as.matrix(data[, cols]))
-rownames(data) <- data_in$Accession
-data <- t(data)
-data[1:5, 1:5]
-dim(data)
-
-# Check, data and traits are in matching order?
-all(rownames(data) == traits$ColumnName)
-
-# Define covariates.
-status <- traits$SampleType
-sex <- as.factor(traits$Sex)
-age <- as.numeric(traits$Age)
-batch <- as.factor(traits$PrepDate)
-strain <- as.factor(traits$Model)
-
-# Design, we will perform regression on strain (mouse genetic background).
-design <- as.data.frame(cbind(status, strain, batch, sex, age))
-covariates <- cbind(design$strain)
-
-# Eblm regression.
-fit.eblm <- empiricalBayesLM(data,
-  removedCovariates = covariates,
-  fitToSamples = design$status == "WT"
-)
-
-# Get fitted data.
-data.fit <- fit.eblm$adjustedData
-
-# Examine overall PCA before and after EB regression.
-colors <- traits$Color
-plot1 <- ggplotPCA(t(data), traits, colors, title = "2D PCA Plot (Pre-Regression)")
-plot2 <- ggplotPCA(t(data.fit), traits, colors, title = "2D PCA Plot (Post-Regression)")
-
-# Store plots.
-all_plots[[paste(tissue,"pca_pre_eblm",sep="_")]] <- plot1
-all_plots[[paste(tissue,"pca_pre_eblm",sep="_")]] <- plot2
-
-# Save plot list.
-myfile <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
-saveRDS(all_plots, myfile)
-
-#-------------------------------------------------------------------------------
 ## Reformat final normalized, regressed data for TAMPOR Normalization.
 #-------------------------------------------------------------------------------
 #' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
@@ -861,7 +798,6 @@ data_in$Accession <- NULL
 data_in$Peptides <- NULL
 data_in <- as.matrix(data_in)
 
-# Data is... fitted data.
 #data_in <- 2^t(data.fit)
 #data_in[1:5, 1:5] # un-log
 #dim(data_in)
@@ -894,8 +830,12 @@ colnames(data_out) <- col_names
 cleanDat <- data_out[, order(colnames(data_out))]
 
 # Save as cleanDat
-file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_NoEblm_TAMPOR_Format.Rds")
+file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_TAMPOR_Format.Rds")
 saveRDS(cleanDat, file)
+
+# Save plot list.
+myfile <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
+saveRDS(all_plots, myfile)
 
 ## ENDOFILE
 #------------------------------------------------------------------------------

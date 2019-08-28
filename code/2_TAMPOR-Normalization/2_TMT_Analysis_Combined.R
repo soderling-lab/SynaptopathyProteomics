@@ -143,9 +143,6 @@ colnames(data_norm) <- c(group1, group2)
 cleanDat <- data_norm
 
 # GIS index is all WT samples.
-controls <- colsplit(traits$SampleID[grepl("WT", traits$SampleType)], "\\.", 
-		     c("batch", "channel"))
-
 controls <- traits$SampleID[grepl("WT", traits$SampleType)] 
 
 # Save merged data and traits to file.
@@ -181,7 +178,9 @@ normDat <- results$cleanRelAbun
 #-------------------------------------------------------------------------------
 
 # Data is...
-data_in <- log2(normDat)
+# Remove QC samples.
+out <- colnames(normDat) %in% rownames(traits)[traits$SampleType=="QC"]
+data_in <- log2(normDat[,!out])
 
 # Illustrate Oldham's sample connectivity.
 sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
@@ -213,6 +212,7 @@ traits$Sample.Model[rownames(traits) %in% bad_samples]
 
 # Save data to file.
 cleanDat <- 2^data_in
+
 myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds")
 saveRDS(cleanDat, myfile)
 
@@ -249,12 +249,12 @@ all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 #-------------------------------------------------------------------------------
 
 # Create DGEList object...
-y_DGE <- DGEList(counts = normDat)
+y_DGE <- DGEList(counts = cleanDat)
 
 # Create sample mapping to Tissue.Genotype. Group WT Cortex and WT Striatum..
 traits$ColumnName <- traits$SampleID
 traits <- subset(traits, rownames(traits) %in% colnames(cleanDat))
-traits <- traits[match(colnames(normDat), rownames(traits)), ]
+traits <- traits[match(colnames(cleanDat), rownames(traits)), ]
 all(traits$ColumnName == colnames(normDat))
 group <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 group[grepl("Cortex.WT", group)] <- "Cortex.WT"
@@ -672,7 +672,6 @@ a <- c("black", "black", "red", "red", "black", "black", "black", "black", "blac
 b <- c("black", "black", "black", "black", "red", "red", "black", "black", "black", "black")
 c <- c("black", "black", "black", "black", "black", "black", "red", "red", "black", "black")
 d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
-
 p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
 p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
 p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
