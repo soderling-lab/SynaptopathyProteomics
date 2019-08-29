@@ -1,5 +1,9 @@
 #!/usr/bin/env Rscript
 #
+##!/usr/bin/env Rscript
+#if(Sys.getenv("VIRTUAL_ENV") == ""){ stop("An active virtualenv is required") }
+#source(file.path(Sys.getenv('VIRTUAL_ENV'), 'bin', 'rvenv'))
+#
 #------------------------------------------------------------------------------
 ## Installing R dependencies.
 #------------------------------------------------------------------------------

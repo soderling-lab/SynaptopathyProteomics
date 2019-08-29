@@ -24,7 +24,10 @@ data <- log2(cleanDat[,!out])
 adjm <- silently(WGCNA::bicor, t(data))
 
 # Pass this adjacency matrix as .csv to leidenalg-clustering.py script.
-data.table::fwrite(adjm,"adjm.csv")
-cmd 
+tmpfile <- tempfile(,tmpdir = here)
+data.table::fwrite(adjm,tmpfile)
+result cmd <- paste(script, input, output)
+
+system(cmd, intern = TRUE, ignore.stderr = TRUE)
 
 # Collcect the results.

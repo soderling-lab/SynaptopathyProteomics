@@ -15,20 +15,20 @@ from pandas import read_csv
 
 ap = ArgumentParser(description = ''' Perform clustering of the protein 
         co-expression matrix using the Leiden algorithm. ''')
-ap.add_argument('adjm', type = str,
+ap.add_argument('adjm.csv', type = str,
         help = 'File path to a n x n adjaceny matrix.')
 args = vars(ap.parse_args())
 
-print(args['adjm'])
+print(args['adjm.csv'])
 
 sys.exit()
 
 # Read bicor adjacency matrix.
-adjm = read_csv(args['adjm'], header = 0, index_col = 0)
+adjm = read_csv(args['adjm.csv'], header = 0, index_col = 0)
 
 # Output files:
-output_partition = args['adjm'].split(".")"foo.csv"
-output_profile = "foo.csv"
+#output_partition = args['adjm'].split(".")"foo.csv"
+#output_profile = "foo.csv"
 
 #------------------------------------------------------------------------------
 ## Create an igraph object to be passed to leidenalg.
