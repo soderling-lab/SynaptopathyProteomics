@@ -9,6 +9,7 @@
 ## Parse the user's input.
 #------------------------------------------------------------------------------
 
+import os
 import sys
 from argparse import ArgumentParser
 from pandas import read_csv
@@ -19,16 +20,8 @@ ap.add_argument('adjm.csv', type = str,
         help = 'File path to a n x n adjaceny matrix.')
 args = vars(ap.parse_args())
 
-print(args['adjm.csv'])
-
-sys.exit()
-
 # Read bicor adjacency matrix.
 adjm = read_csv(args['adjm.csv'], header = 0, index_col = 0)
-
-# Output files:
-#output_partition = args['adjm'].split(".")"foo.csv"
-#output_profile = "foo.csv"
 
 #------------------------------------------------------------------------------
 ## Create an igraph object to be passed to leidenalg.
@@ -46,7 +39,6 @@ edges['weight'] = edges['weight'] ** power
 
 # Define dictionary of nodes.
 nodes = dict(zip(df.columns, range(len(df.columns))))
-
 
 # Create list of edge tuples.
 edge_list = list(zip(edges['protA'],edges['protB']))
@@ -98,12 +90,12 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save membership info.
-DataFrame(results['Membership']).to_csv(output_partition)
+DataFrame(results['Membership']).to_csv("la-partitions.csv")
 
 # Save other info as csv.
 #FIXME: NEED TO remove row index and columns for proper import into self-preservation.r script.
 df = DataFrame.from_dict(results)
-df.to_csv(output_profile)
+df.to_csv("la-profile.csv")
 
 # ENDOFILE
 #------------------------------------------------------------------------------

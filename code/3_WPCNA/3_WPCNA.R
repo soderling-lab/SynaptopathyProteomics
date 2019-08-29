@@ -7,6 +7,7 @@ datadir <- file.path(root,"data")
 
 # Load misc functions.
 library(TBmiscr)
+library(data.table)
 
 # Load the normalized protein abundance data.
 myfile <- file.path(datadir,"2_Combined_TAMPOR_cleanDat.Rds")
@@ -20,14 +21,20 @@ traits <- readRDS(myfile)
 out <- traits$SampleType[match(colnames(cleanDat),rownames(traits))] == "QC"
 data <- log2(cleanDat[,!out])
 
-# Create signed adjacency matrix.
-adjm <- silently(WGCNA::bicor, t(data))
+# Create signed adjacency matrix, coerce to data.table.
+adjm <- data.table(silently(WGCNA::bicor, t(data)))
+rownames(adjm) <- colnames(adjm)
 
-# Pass this adjacency matrix as .csv to leidenalg-clustering.py script.
-tmpfile <- tempfile(,tmpdir = here)
-data.table::fwrite(adjm,tmpfile)
-result cmd <- paste(script, input, output)
+## Pass this adjacency matrix as .csv to leidenalg-clustering.py script.
 
+# Write adjm to .csv.
+tmpfile <- tempfile(tmpdir = here, fileext = ".csv")
+fwrite(adjm, tmpfile, row.names = TRUE) 
+
+# Create system command.
+script <- "leidenalg-clustering.py"
+cmd <- paste(file.path(here,script), tmpfile)
+
+# Call leidenalg.py and remove temporary file.
 system(cmd, intern = TRUE, ignore.stderr = TRUE)
-
-# Collcect the results.
+unlink(tmpfile)
