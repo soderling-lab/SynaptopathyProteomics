@@ -5,29 +5,48 @@
 #  Leiden algorithm.
 #------------------------------------------------------------------------------
 
-import os
+#------------------------------------------------------------------------------
+## Parse the user's input.
+#------------------------------------------------------------------------------
+
 import sys
+from argparse import ArgumentParser
+from pandas import read_csv
+
+ap = ArgumentParser(description = ''' Perform clustering of the protein 
+        co-expression matrix using the Leiden algorithm. ''')
+ap.add_argument('adjm', type = str,
+        help = 'File path to a n x n adjaceny matrix.')
+args = vars(ap.parse_args())
+
+print(args['adjm'])
+
+sys.exit()
+
+# Read bicor adjacency matrix.
+adjm = read_csv(args['adjm'], header = 0, index_col = 0)
+
+# Output files:
+output_partition = args['adjm'].split(".")"foo.csv"
+output_profile = "foo.csv"
+
+#------------------------------------------------------------------------------
+## Create an igraph object to be passed to leidenalg.
+#------------------------------------------------------------------------------
+
 from igraph import Graph
-from pandas import read_csv, DataFrame
-
-# Specify which network to be analyzed (wt, ko, or combined):
-net = ['wtAdjm.csv', 'koAdjm.csv', 'combinedAdjm.csv'][2]
-print(f'Analyzing the {net.split(".")[0]} network!', file = sys.stderr)
-
-# Read bicor adjacency matrix (no additional soft threshold)..
-os.chdir('/mnt/d/projects/Synaptopathy-Proteomics/data')
-df = read_csv(net, header = 0, index_col = 0)
 
 # Create edge list.
 edges = df.stack().reset_index()
 edges.columns = ['protA','protB','weight']
 
 # Add weighted edges.
-power = 9 # If even, you should enforce sign!
-edges['weighted'] = edges['weight'] ** power
+power = 1 
+edges['weight'] = edges['weight'] ** power
 
 # Define dictionary of nodes.
 nodes = dict(zip(df.columns, range(len(df.columns))))
+
 
 # Create list of edge tuples.
 edge_list = list(zip(edges['protA'],edges['protB']))
@@ -58,23 +77,17 @@ g = g.simplify(multiple = False, loops = True)
 #------------------------------------------------------------------------------
 
 import sys
+from pandas import DataFrame
 from leidenalg import Optimiser
 from leidenalg import find_partition
 from leidenalg import CPMVertexPartition
-
-# Perform clustering at a single resolution.
-# Does adding edge weight improve cluster detection?
-#p1 = find_partition(g, CPMVertexPartition, weights = 'weight', resolution_parameter = 0.0)
-#p1.summary
-#p2 = find_partition(g, CPMVertexPartition, weights = 'weighted', resolution_parameter = 0.0)
-#p2.summary
 
 # Calculate resolution profile:
 print('''Generating partition profile for protein co-expression graph!
         This will take several hours!''', file = sys.stderr)
 optimiser = Optimiser()
 profile = optimiser.resolution_profile(
-        g, CPMVertexPartition, weights = 'weighted', resolution_range=(0,0.1))
+        g, CPMVertexPartition, weights = 'weight', resolution_range=(0,1))
 
 # Collect key results.
 print(f"Examined network at {len(profile)} resolutions!")
@@ -85,12 +98,12 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save membership info.
-DataFrame(results['Membership']).to_csv("koAdjm_partitions.csv")
+DataFrame(results['Membership']).to_csv(output_partition)
 
 # Save other info as csv.
 #FIXME: NEED TO remove row index and columns for proper import into self-preservation.r script.
 df = DataFrame.from_dict(results)
-df.to_csv("koAdjm_partition_profile.csv")
+df.to_csv(output_profile)
 
 # ENDOFILE
 #------------------------------------------------------------------------------
