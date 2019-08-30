@@ -4,19 +4,22 @@ Analysis of synaptosome TMT proteomics from __Shank2__, __Shank3__,
 __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders 
 (ASD), intellectual disability (ID), and epilepsy. 
 
+-------------------------------------------------------------------------------
+
 | Mouse Model | Disorder | Reference |
 | ---         | ---      | --- |
 | Shank2      | ASD      | [REF](url) |
 | Shank3      | ASD      | [Wang et al., 2016](https://www.ncbi.nlm.nih.gov/pubmed/27161151) |
 | Syngap1     | ID, ASD, epilepsy |[Kim et al., 2003](https://www.ncbi.nlm.nih.gov/pubmed/12598599) |
 | Ube3a       | Angelman Syndrome | [Jiang et al. 1998,](https://www.ncbi.nlm.nih.gov/pubmed/9808466) |
--------------------------------------------------------------------------------
-## Project Organization
 
+-------------------------------------------------------------------------------
+
+## Project Organization
 ### Main Directories
 * [bin/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/bin) - executable scripts for the project.
 * [code/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code) - the code that performs the projects analysis.
-* [functions](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/functions) - functions used in the anallysis.
+* [functions/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/functions) - functions used in the analysis.
 * [input/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - the raw data used as a starting point for the analysis.
 * [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/tables) - directory for table output from scripts. 
 
@@ -40,7 +43,8 @@ completion of this work:
 * __leidenalg__: [package](https://pypi.org/project/leidenalg/) | [pre-print publication](https://arxiv.org/abs/1810.08473)  
 
 For more information about these packages, please see their respective publications. 
-For a complete list of [R]() and [Python](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/bin/requirements.txt) dependencies. 
+See also, a complete list of [R](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/bin/r_requirements.txt) and 
+[Python](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/bin/python_requirements.txt) dependencies. 
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on a Windows 10 PC. 
