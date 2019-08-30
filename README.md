@@ -40,7 +40,7 @@ completion of this work:
 * __leidenalg__: [package](https://pypi.org/project/leidenalg/) | [pre-print publication](https://arxiv.org/abs/1810.08473)  
 
 For more information about these packages, please see their respective publications. 
-For a complete list of dependencies, please see [here](). 
+For a complete list of [R]() and [Python](https://github.com/twesleyb/Synaptopathy-Proteomics/blob/master/bin/requirements.txt) dependencies. 
 
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on a Windows 10 PC. 
