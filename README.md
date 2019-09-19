@@ -18,7 +18,7 @@ __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders
 ## Project Organization
 ### Main Directories
 * [bin/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/bin) - executable scripts for the project.
-* [code/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code) - the code that performs the projects analysis.
+* [code/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code) - this directory contains scripts used to perform the data analaysis. The scripts are named in the order they should be executed in order to complete the analysis. 
 * [functions/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/functions) - functions used in the analysis.
 * [input/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - the raw data used as a starting point for the analysis.
 * [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/tables) - directory for table output from scripts. 

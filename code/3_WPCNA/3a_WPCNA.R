@@ -45,7 +45,7 @@ fwrite(adjm, tmpfile, row.names = TRUE)
 script <- "leidenalg-clustering.py"
 cmd <- paste(file.path(here, script), tmpfile)
 
-# Call leidenalg.py and remove temporary file.
+# Call leidenalg-clustering.py.
 system(cmd, intern = TRUE, ignore.stderr = TRUE)
 
 # Remove temporary file.

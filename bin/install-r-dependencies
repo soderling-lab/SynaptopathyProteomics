@@ -1,13 +1,9 @@
 #!/usr/bin/env Rscript
 #
-##!/usr/bin/env Rscript
-#if(Sys.getenv("VIRTUAL_ENV") == ""){ stop("An active virtualenv is required") }
-#source(file.path(Sys.getenv('VIRTUAL_ENV'), 'bin', 'rvenv'))
-#
 #------------------------------------------------------------------------------
 ## Installing R dependencies.
 #------------------------------------------------------------------------------
-# This script should serve as a guide to install R dependencies for the 
+# This script should serve as a guide to install all R dependencies for the 
 # the analysis.
 
 # Update existing packages.
@@ -80,12 +76,14 @@ rip("WGCNA", method = "BiocManager")
 rip("vsn", method = "BiocManager")
 rip("org.Mm.eg.db", method = "BiocManager")
 
-# Misc.
+# Other misc packages.
 rip("hexbin")
 rip("BurStMisc")
 rip("ggpubr")
 rip("statmod")
 rip("openxlsx")
+rip("igraph")
+rip("NetRep") # Requires cpp!
 
 # ENDOFILE
 #------------------------------------------------------------------------------
