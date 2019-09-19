@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
+''' Multiresolution clustering of the protein co-expression graph. 
+Command line script that utilizes the Leiden algorithm to perform multiresolution 
+clustering of the protein co-expression graph (adjacency/correlation matrix).
+
+FIXME: Doesnt work for single resolution parameter...
+
+USAGE: 
+    $ ./leidenalg-clustering.py adjm.csv --resolution 0.05
+
+OUTPUT:
+    la-partitions.csv: node community (cluster) membership for graph partition(s).
+    la-profile.csv: other descriptive statistics for the resolution profile.
+'''
 
 #------------------------------------------------------------------------------
-## Multiresolution partitioning of the protein co-expression network using the 
-#  Leiden algorithm.
+## Parse the user's input.
 #------------------------------------------------------------------------------
 
 import os
@@ -10,7 +22,6 @@ import sys
 from argparse import ArgumentParser
 from pandas import read_csv
 
-## Parse the user's input.
 ap = ArgumentParser(description = '''Perform clustering of the protein 
         co-expression matrix using the Leiden algorithm. ''')
 ap.add_argument('adjm.csv', type = str,
@@ -26,6 +37,7 @@ args = vars(ap.parse_args())
 
 # Read bicor adjacency matrix.
 adjm = read_csv(args['adjm.csv'], header = 0, index_col = 0)
+#adjm = read_csv('file36574aeb926b.csv', header = 0, index_col = 0)
 
 #------------------------------------------------------------------------------
 ## Create an igraph object to be passed to leidenalg.
@@ -59,16 +71,16 @@ g = Graph()
 g.add_vertices(len(nodes))
 g.vs['label'] = nodes.keys()
 
-# Add edges as list of tuples: (1,2) = node 1 interacts with node 2.
+# Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
 print("Adding edges to graph, this will take several minutes...", file = sys.stderr)
 g.add_edges(el)
 g.es['weight'] = edges['weight'] 
 
-# Remove self-loops.
+# Remove any self-loops.
 g = g.simplify(multiple = False, loops = True)
 
 #------------------------------------------------------------------------------
-## Community detection in the WPCNetwork with the Leiden algorithm..
+## Community detection in the WPCNetwork with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
 import sys
@@ -79,13 +91,19 @@ from leidenalg import CPMVertexPartition
 
 # Perform community detection with leidenalg.
 if len(args['resolution']) is 1:
-    print(f'''Finding the best partition of the graph at 
-    a single resolution, r = {args["resolution"]}.''', file = sys.stderr)
-    profile = find_partition(g, CPMVertexPartition, n_iterations = -1)
+    # Single resolution:
+    print(f'''Finding the best partition of the graph at a single resolution, 
+              r = {args["resolution"]}.''', file = sys.stderr)
+    r = args['resolution']
+    profile = find_partition(
+            g, 
+            CPMVertexPartition, 
+            resolution_parameter = r, 
+            n_iterations = -1)
 elif len(args['resolution']) is 2:
-    # Calculate resolution profile:
+    # Mulitple-resolution profile:
     print('''Generating partition profile for protein co-expression graph!
-            This will take several hours!''', file = sys.stderr)
+             This will take several hours!''', file = sys.stderr)
     optimiser = Optimiser()
     profile = optimiser.resolution_profile(
             g, 
@@ -93,9 +111,17 @@ elif len(args['resolution']) is 2:
             weights = 'weight', 
             resolution_range = args['resolution'])
 
-# Collect key results from profile object.
+# Collect partition results. 
 print(f"Examined network at {len(profile)} resolutions!", file = sys.stderr)
-results = {
+if len(args['resolution']) is 1:
+    # Single resolution:
+    results = {
+        'Modularity' : profile.modularity,
+        'Membership' : profile.membership,
+        'Summary'    : profile.summary(), 
+        'Resolution' : profile.resolution_parameter} 
+    # Multiple resolutions:
+    results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
         'Summary'    : [partition.summary() for partition in profile],

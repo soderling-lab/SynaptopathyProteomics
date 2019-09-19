@@ -153,7 +153,8 @@ saveRDS(traits, file)
 ## Perform TAMPOR normalization.
 #-------------------------------------------------------------------------------
 
-# Insure that QC data have been removed from traits.
+# Insure than any samples that were removed from cleanDat are removed from 
+# traits (any outliers identified in previous scripts).
 traits <- traits[rownames(traits) %in% colnames(cleanDat),]
 
 # Load TAMPOR function.
@@ -175,7 +176,6 @@ cleanDat <- results$cleanRelAbun
 ## Remove any sample outliers.
 #-------------------------------------------------------------------------------
 
-# Data is...
 # Remove QC samples.
 out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType=="QC"]
 data_in <- log2(cleanDat[,!out])
@@ -184,7 +184,7 @@ data_in <- log2(cleanDat[,!out])
 sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
 plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
 
-# Store plot
+# Store plot.
 all_plots[["TAMPOR_Oldham_Outliers"]] <- plot
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
@@ -220,9 +220,13 @@ saveRDS(cleanDat, myfile)
 # Insure that any outlier samples have been removed.
 traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
 
+# Remove QC data.
+out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType=="QC"]
+data_in <- log2(cleanDat[,!out])
+
 # Check, traits and cleanDat should match data.
-traits <- traits[match(colnames(cleanDat),rownames(traits)),]
-all(rownames(traits) == colnames(cleanDat))
+traits <- traits[match(colnames(data_in),rownames(traits)),]
+all(rownames(traits) == colnames(data_in))
 
 ## PCA Plots.
 # Relative abundance.
@@ -232,9 +236,9 @@ traits$ColumnName <- rownames(traits)
 # Cortex and striatum.
 idx <- traits$Tissue == "Cortex"
 idy <- traits$Tissue == "Striatum"
-plot1 <- ggplotPCA(log2(cleanDat[, idx]), traits, colors[idx], title = "Cortex")
-plot2 <- ggplotPCA(log2(cleanDat[, idy]), traits, colors[idy], title = "Striatum")
-plot3 <- ggplotPCA(log2(cleanDat), traits, colors, title = "Combined")
+plot1 <- ggplotPCA(log2(data_in[, idx]), traits, colors[idx], title = "Cortex")
+plot2 <- ggplotPCA(log2(data_in[, idy]), traits, colors[idy], title = "Striatum")
+plot3 <- ggplotPCA(log2(data_in), traits, colors, title = "Combined")
 
 # Store in list.
 all_plots[["Cortex_postTAMPOR_PCA"]] <- plot1
@@ -251,6 +255,9 @@ data_in <- cleanDat[,!out]
 
 # Create DGEList object...
 y_DGE <- DGEList(counts = data_in)
+
+# TMM Normalization.
+y_DGE <- calcNormFactors(y_DGE)
 
 # Create sample mapping to Tissue.Genotype. Group WT Cortex and WT Striatum..
 traits$ColumnName <- traits$SampleID

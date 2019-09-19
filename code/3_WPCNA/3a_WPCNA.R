@@ -1,4 +1,13 @@
 #!/usr/bin/env Rscript
+# Perform weighted protein-coexpression analysis.
+# Calculates protein co-expression (correlation) matrix, and then passes this 
+# to 3b_la-clustering.py which performs mesoresolution clustering using the
+# Leiden algorithm. Finally, module self-preservation is enforced with 
+# 3c_self-preservation.R.
+
+#------------------------------------------------------------------------------
+## Generate protein correlation matrix.
+#------------------------------------------------------------------------------
 
 # Load the normalized expression data.
 here <- getwd()
@@ -25,14 +34,16 @@ data <- log2(cleanDat[,!out])
 adjm <- data.table(silently(WGCNA::bicor, t(data)))
 rownames(adjm) <- colnames(adjm)
 
-## Pass this adjacency matrix as .csv to leidenalg-clustering.py script.
+#------------------------------------------------------------------------------
+## Pass adjacency matrix as .csv to leidenalg-clustering.py script.
+#------------------------------------------------------------------------------
 # Write adjm to .csv.
 tmpfile <- "adjm.csv"
 fwrite(adjm, tmpfile, row.names = TRUE) 
 
 # Create system command.
 script <- "leidenalg-clustering.py"
-cmd <- paste(file.path(here,script), tmpfile)
+cmd <- paste(file.path(here, script), tmpfile)
 
 # Call leidenalg.py and remove temporary file.
 system(cmd, intern = TRUE, ignore.stderr = TRUE)
@@ -41,6 +52,10 @@ system(cmd, intern = TRUE, ignore.stderr = TRUE)
 unlink(tmpfile)
 
 #------------------------------------------------------------------------------
+## Parse the results.
+#------------------------------------------------------------------------------
+
+
 
 # ENDOFILE
 #------------------------------------------------------------------------------

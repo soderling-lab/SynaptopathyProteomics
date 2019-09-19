@@ -787,7 +787,7 @@ all_plots[[paste(tissue,"tmm_msd",sep="_")]] <- p3
 all_plots[[paste(tissue,"tmm_mds",sep="_")]] <- p4
 
 #-------------------------------------------------------------------------------
-## Reformat final normalized, regressed data for TAMPOR Normalization.
+## Reformat final normalized data for TAMPOR.
 #-------------------------------------------------------------------------------
 #' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
 
