@@ -36,8 +36,8 @@ ggtheme <- theme(
 #'
 #' @export
 #' @importFrom  
-#------------------------------------------------------------------------------
 
+#------------------------------------------------------------------------------
 #' write.excel
 #' Utility function to write data to excel. Data can be provided as a named list.
 #'
@@ -75,7 +75,6 @@ write.excel <- function(data, file, ...){
 }
 
 #-------------------------------------------------------------------------------
-
 #' silently
 #'
 #' suppress any unwanted output from a function with sink().
@@ -102,7 +101,6 @@ silently <- function(func, ...) {
 }
 
 #-------------------------------------------------------------------------------
-
 #' fill down
 #'
 #' Fill a data frame with missing values.
@@ -134,7 +132,6 @@ fill_down <- function(x, blank = is.na) {
   x[which(isnotblank)][cumsum(isnotblank)]
 }
 
-#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 #' write.pajek
 #'
@@ -171,7 +168,6 @@ write.pajek <- function(adjm, file) {
 }
 
 #-------------------------------------------------------------------------------
-
 #' ggplotProteinScatterPlot
 #' Generate a scatter plot between two proteins.
 #'
@@ -213,7 +209,6 @@ ggplotProteinScatterPlot <- function(cleanDat, prot1, prot2){
 }
 
 #------------------------------------------------------------------------------
-
 #' grobsize
 #'
 #' get the actual height and width of a grob
@@ -244,8 +239,25 @@ grobsize <- function(x) {
 }
 
 #------------------------------------------------------------------------------
+#' ggplotVerboseBoxplot
+#' Generate WGCNA verbose boxplots
+#'
+#' @param x - ME vector
+#' @param g - groups, same dimension as ME
+#' @param contrasts - which groups to compare
+#' @param order - order of the bars in the plot
+#'
+#' @return verbose boxplot
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#' @references \url{}
+#' @keywords 
+#'
+#' @examples
+#'
+#' @export
+#' @importFrom  
 
-# Function for verbose boxplots:
 ggplotVerboseBoxplot <- function(x,g,contrasts, order=NULL, ...){
 	require(FSA)
 	# Bind data together as a data.frame.

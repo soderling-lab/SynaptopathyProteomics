@@ -75,6 +75,7 @@ rip("genefilter", method = "BiocManager")
 rip("WGCNA", method = "BiocManager")
 rip("vsn", method = "BiocManager")
 rip("org.Mm.eg.db", method = "BiocManager")
+rip("DescTools", method = "BiocManager")
 
 # Other misc packages.
 rip("hexbin")
@@ -84,6 +85,8 @@ rip("statmod")
 rip("openxlsx")
 rip("igraph")
 rip("NetRep") # Requires cpp!
+rip("dendextend")
+rip("FSA")
 
 # ENDOFILE
 #------------------------------------------------------------------------------
