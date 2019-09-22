@@ -141,6 +141,7 @@ colnames(data_norm) <- c(group1, group2)
 cleanDat <- data_norm
 
 # GIS index is all WT samples.
+# WT Cortex and WT Striatum scaled by TAMPOR to be the same.
 controls <- traits$SampleID[grepl("WT", traits$SampleType)] 
 
 # Save merged data and traits to file.
@@ -259,7 +260,8 @@ y_DGE <- DGEList(counts = data_in)
 # TMM Normalization.
 y_DGE <- calcNormFactors(y_DGE)
 
-# Create sample mapping to Tissue.Genotype. Group WT Cortex and WT Striatum..
+# Create sample mapping to Tissue.Genotype. 
+# Group WT Cortex samples and WT Striatum samples together.
 traits$ColumnName <- traits$SampleID
 traits <- subset(traits, rownames(traits) %in% colnames(data_in))
 traits <- traits[match(colnames(data_in), rownames(traits)), ]

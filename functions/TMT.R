@@ -259,16 +259,21 @@ grobsize <- function(x) {
 #' @importFrom  
 
 ggplotVerboseBoxplot <- function(x,g,contrasts, order=NULL, ...){
+
 	require(FSA)
 	# Bind data together as a data.frame.
+
 	df <- data.frame(x = as.numeric(x), g = as.factor(g))
+
 	# Parse the df's levels.
 	lvls <- if(!is.null(order)) {
 		lvls <- order 
 	} else {
 		lvls <- unique(df$g)
 	}
+
 	levels(df$g) <- lvls	
+
 	# Perform KW test.
 	KWtest <- kruskal.test(df$x, df$g)
 	# Title annotation. 
