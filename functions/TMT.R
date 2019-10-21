@@ -260,6 +260,7 @@ grobsize <- function(x) {
 
 ggplotVerboseBoxplot <- function(x,g,contrasts, order=NULL, ...){
 
+	# Use 
 	require(FSA)
 	# Bind data together as a data.frame.
 
