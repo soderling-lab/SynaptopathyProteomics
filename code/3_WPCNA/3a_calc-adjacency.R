@@ -27,6 +27,7 @@ traits <- readRDS(myfile)
 # Remove QC data, log2 transform, and coerce to data.table.
 out <- traits$SampleType[match(colnames(cleanDat),rownames(traits))] == "QC"
 data <- as.data.table(log2(cleanDat[,!out]))
+rownames(data) <- rownames(cleanDat)
 
 # Drop any Trait rows that are not in data (outlier samples removed).
 traits <- as.data.table(traits) %>% filter(SampleID %in% colnames(data))
@@ -44,7 +45,9 @@ saveRDS(subdat$WT,file.path(datadir,"wtDat.Rds"))
 saveRDS(subdat$KO,file.path(datadir,"koDat.Rds"))
 
 # Create signed adjacency matrix.
-adjm <- lapply(subdat, function(x) WGCNA::bicor(t(x)))
+library(TBmiscr)
+adjm <- lapply(subdat, function(x) silently(WGCNA::bicor,t(x)))
+# Fix row and column names.
 f <- function(x,namen){
 	rownames(x) <- namen
 	colnames(x) <- namen
@@ -53,6 +56,7 @@ f <- function(x,namen){
 adjm <- lapply(adjm,function(x) f(x,rownames(cleanDat)))
 
 # Write adjm to .csv.
+# These will be passed to Leidenalg clustering script.
 adjmfiles <- file.path(datadir,paste0("3_",names(adjm),"adjm.csv"))
 fwrite(as.data.table(adjm$WT, keep.rownames=TRUE), adjmfiles[1])
 fwrite(as.data.table(adjm$KO, keep.rownames=TRUE), adjmfiles[2])
