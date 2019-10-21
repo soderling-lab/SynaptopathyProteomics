@@ -3,6 +3,7 @@
 .Rhistory
 *.Rproj
 *.swp
+/tables
 code/4_WPCNA-Optimization/wtAdjm.csv
 rdata
 pydata
