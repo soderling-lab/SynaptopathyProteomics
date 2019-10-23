@@ -134,10 +134,8 @@ df <- data.table("resolution" = seq(1,100),
 		 "ko" = unlist(sapply(out,"[",3)))
 df <- data.table::melt(df,id.vars=c("resolution"))
 
-
 plot <- ggplot(df,aes(x=resolution, y=value,colour=variable)) + geom_point()
 plot
-
 
 # Look at number of modules with sig go terms.
 # Get GO results.
@@ -164,4 +162,14 @@ plot
 
 # ~best resolution.
 #r_best = 44
-r_best <- as.integer(filter(df,value==max(df$value)) %>% select(resolution))
+subdat <- as.data.table(subset(df,df$variable =="wt"))
+r_best <- as.integer(filter(subdat,value==max(subdat$value)) %>% select(resolution))
+
+x = df %>% dplyr::filter(variable=="wt")
+r_best <- as.integer(dplyr::filter(x,value==max(x$value)))[1]
+print(paste("best wt resolution:",r_best))
+
+x = df %>% dplyr::filter(variable=="ko")
+r_best <- as.integer(dplyr::filter(x,value==max(x$value)))[1]
+print(paste("best ko resolution:",r_best))
+

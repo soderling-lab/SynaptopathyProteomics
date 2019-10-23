@@ -1,6 +1,4 @@
 #!/usr/bin/env Rscript
-# Examine preservation of modules identified in the discovery dataset, either
-# WT or KO protein co-expression graph, in the the opposite test dataset.
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
@@ -29,16 +27,22 @@ colnames(wtDat) <- colnames(koDat) <- rownames(readRDS(file.path(datadir,"wtDat.
 wtAdjm <- WGCNA::bicor(wtDat)
 koAdjm <- WGCNA::bicor(koDat)
 
+# ~Best resolutions. 
+# Most biological (GO) information: WT = 44; KO = 30.
+r_wt <- 44
+r_ko <- 30
+
 # Load WT partitions.
-r_best = 44 # most biological (GO) information.
 wtParts <- data.table::fread(file.path(datadir,"WT_partitions.csv"),drop=1)
-wtPartition <- as.integer(wtParts[r_best,]) + 1
+wtPartition <- as.integer(wtParts[r_wt,]) + 1
 names(wtPartition) <- colnames(wtParts)
+wtModules <- split(wtPartition,wtPartition)
 
 # Load KO partitions.
 koParts <- data.table::fread(file.path(datadir,"KO_partitions.csv"),drop=1)
-koPartition <- as.integer(koParts[r_best,]) + 1
+koPartition <- as.integer(koParts[r_ko,]) + 1
 names(koPartition) <- colnames(koParts)
+koModules <- split(koPartition,koPartition)
 
 # Checks:
 if (!all(colnames(wtDat) == colnames(koDat))) { stop("Input data don't match!") }
@@ -47,7 +51,7 @@ if (!all(names(wtPartition) %in% colnames(wtDat))) { stop("Input data don't matc
 if (!all(names(koPartition) %in% colnames(koDat))) { stop("Input data don't match!") }
 
 #-------------------------------------------------------------------------------
-## Examine module self-preservation.
+## Perform permutation testing for module self-preservation.
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
@@ -104,7 +108,7 @@ table(wtPartition)
 table(koPartition)
 
 #-------------------------------------------------------------------------------
-## Utilize permutation approach to identify divergent modules. ++More conservative???
+## Utilize permutation approach to identify divergent modules.
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
@@ -114,141 +118,45 @@ network_list     <- list(wt = tomWT, ko = tomKO)
 module_list      <- list(wt = wtPartition, ko = koPartition)
 
 # Generalize for discovery/test.
-# Perform permutation testing.
-discovery = "ko"
-test = "wt"
+h0 = list(wt = c(discovery = "wt", test = "ko"), 
+	  ko = c(discovery = "ko", test = "wt"))
 
-preservation <- NetRep::modulePreservation(
+# Perform permutation testing.
+preservation <- lapply(h0, function(x) NetRep::modulePreservation(
 					   network = network_list,
 					   data = data_list,
 					   correlation = correlation_list,
 					   moduleAssignments = module_list,
 					   modules = NULL,
 					   backgroundLabel = 0,
-					   discovery = discovery,
-					   test = test,
+					   discovery = x$discovery,
+					   test = x$test,
 					   selfPreservation = FALSE,
 					   nThreads = 8,
-					   #nPerm = 100000, 
+					   #nPerm = 100000,  # determined by the function.
 					   null = "overlap",
-					   alternative = "two.sided", #c(greater,less,two.sided)
+					   alternative = "less", # c(greater,less,two.sided)
 					   simplify = TRUE,
 					   verbose = TRUE
 					   )
+)
 
-# All Modules.
-wtModules <- split(wtPartition,wtPartition)
-koModules <- split(koPartition,koPartition)
 
 # Which stat?
-idy <- 3
+idy <- 1 # avg.edge weight
 perm_stats <- seq(1:ncol(preservation$p.values))
 names(perm_stats) <- colnames(preservation$p.values)
 perm_stats[idy]
 # NULL hypothesis (distribution centered around 0).
 q <- p.adjust(preservation$p.values[,idy],"bonferroni")
 sigModules <- names(q)[q<0.05]
+
 # Status.
 message(paste(length(sigModules),"of",length(koModules), discovery,
 	      "modules exhibit significantly different topology in the",
 	     test, "network."))
 
-# 2 wt modules changing toplogy. = divergent
-# 1 ko module changing topology. = divergent 
-
 # Preserved modules...
-
-# Need different resolution for WT And KO graph!
-
-#-------------------------------------------------------------------------------
-## Utilize permutation approach to identify divergent modules.
-#-------------------------------------------------------------------------------
-
-# Compute difference in adjacency matrices.
-deltaAdjm <- koAdjm - wtAdjm
-
-# Compute normalized delta TOM.
-#normKO <- scale(koAdjm, center = TRUE, scale = TRUE)
-#normWT <- scale(wtAdjm, center = TRUE, scale = TRUE)
-#deltaAdjm <- normKO - normWT
-
-# Input for NetRep:
-data_list        <- list(self = rbind(wtDat,koDat)) # Combined data. 
-correlation_list <- list(self = deltaAdjm) 
-network_list     <- list(self = deltaAdjm) 
-module_list      <- list(self = wtPartition)
-
-# Perform permutation testing.
-wtPreservation <- NetRep::modulePreservation(
-					   network = network_list,
-					   data = data_list,
-					   correlation = correlation_list,
-					   moduleAssignments = module_list,
-					   modules = NULL,
-					   backgroundLabel = 0,
-					   discovery = "self",
-					   test = "self",
-					   selfPreservation = TRUE,
-					   nThreads = 8,
-					   #nPerm = 100000, 
-					   null = "overlap",
-					   alternative = "two.sided", #c(greater,less,two.sided)
-					   simplify = TRUE,
-					   verbose = TRUE
-					   )
-# Repeate for KO modules.
-module_list <- list(self = koPartition)
-koPreservation <- NetRep::modulePreservation(
-					   network = network_list,
-					   data = data_list,
-					   correlation = correlation_list,
-					   moduleAssignments = module_list,
-					   modules = NULL,
-					   backgroundLabel = 0,
-					   discovery = "self",
-					   test = "self",
-					   selfPreservation = TRUE,
-					   nThreads = 8,
-					   #nPerm = 100000, 
-					   null = "overlap",
-					   alternative = "two.sided",
-					   simplify = TRUE,
-					   verbose = TRUE
-					   )
-# Combine results.
-preservation <- list(wt = wtPreservation, ko = koPreservation)
-
-# All Modules.
-wtModules <- split(wtPartition,wtPartition)
-koModules <- split(koPartition,koPartition)
-
-# Get divergent modules--significant permutation statistics.
-# Average edge weight is different (up or down) compared to the 
-
-## Why using concordance of corr structure is a bad idea.... cor coefs should all be high in a module!
-# The concordance of correlation structure should be interpreted in the context of the density of
-# correlation structure. A high concordance of correlation structure is not likely to be biologically
-# meaningful where the density of correlation structure is low and has a high permutation test p-value.
-# Conversely, a low concordance of correlation structure may arise where the density of correlation
-# structure is high where all correlation coefficients are large. In this case tiny variations between
-# correlation coefficients can lead to dramatic changes in the relative rank of node pairs, leading to a
-# low concordance of correlation structure. This tiny variations is unlikely to be biologically
-# meaningful, thus the concordance of correlation structure may be incorrectly classified as not
-# preserved.
-
-# Which stat?
-idy <- 1
-perm_stats <- seq(1:ncol(preservation$wt$p.values))
-names(perm_stats) <- colnames(preservation$wt$p.values)
-perm_stats[idy]
-# NULL hypothesis (distribution centered around 0).
-q <- lapply(preservation, function(x) p.adjust(x$p.values[,idy],"bonferroni"))
-sigModules <- lapply(q,function(x) names(x)[x<0.05])
-wtSig <- sigModules$wt
-koSig <- sigModules$ko
-# Status.
-message(paste(length(wtSig),"of",length(wtModules),"WT modules exhibit significantly different topology."))
-message(paste(length(koSig),"of",length(koModules),"KO modules exhibit significantly different topology."))
 
 #------------------------------------------------------------------------------
 ## Examine divergent modules. 
