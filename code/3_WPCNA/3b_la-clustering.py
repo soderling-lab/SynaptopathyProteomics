@@ -21,6 +21,7 @@ from pandas import read_csv
 # WT or KO network (0,1)
 data_type = 0 
 geno = ['WT','KO'][data_type]
+print("Performing Leiden algorithm clustering of the " + geno + " protein co-expression network.", file = stderr)
 
 # Read bicor adjacency matrix.
 datadir = '~/projects/Synaptopathy-Proteoimcs/data'
@@ -32,7 +33,7 @@ adjm = read_csv(myfiles[data_type], header = 0, index_col = 0)
 ## Create an igraph object to be passed to leidenalg.
 #------------------------------------------------------------------------------
 # I tried a couple ways of creating an igraph object. Simplier approaches like
-# using the Weighted_Adjacency function didn't work. 
+# using the igraph.Weighted_Adjacency function didn't work. 
 
 from igraph import Graph
 

@@ -1,8 +1,11 @@
-# Files and folders/ to ignore.
+# General files to ignore.
 .Rproj.user
 .Rhistory
+.RData
 *.Rproj
 *.swp
+
+# Other files to ignore.
 /tables
 code/4_WPCNA-Optimization/wtAdjm.csv
 rdata
