@@ -39,6 +39,9 @@ wtParts <- data.table::fread(file.path(datadir,"WT_partitions.csv"),drop=1)
 koParts <- data.table::fread(file.path(datadir,"KO_partitions.csv"),drop=1)
 
 #-------------------------------------------------------------------------------
+## Permutation testing.
+#-------------------------------------------------------------------------------
+
 # Input for NetRep:
 data_list        <- list(wt = wtDat, ko = koDat)   
 correlation_list <- list(wt = wtAdjm, ko = koAdjm) 
