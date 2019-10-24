@@ -2554,6 +2554,7 @@ ggplotVerboseScatterPlot <- function(MMdata, GSdata, moduleGenes, module, trait,
 # Function for plotting WGCNA powers.
 
 ggplotScaleFreeFit <- function(sft) {
+	require(ggplot2)
   # Gather the data, calculate scale free fit.
   data <- sft$fitIndices
   data$fit <- -sign(data$slope) * data$SFT.R.sq
@@ -2563,7 +2564,7 @@ ggplotScaleFreeFit <- function(sft) {
     ggtitle("Scale independence") +
     xlab(expression(Soft ~ Threshold ~ Power ~ (beta))) +
     ylab(expression(Scale ~ Free ~ Topology ~ (R^2))) +
-    geom_hline(yintercept = 0.9, linetype = "dashed", color = "red", size = 0.6) +
+    geom_hline(yintercept = 0.8, linetype = "dashed", color = "red", size = 0.6) +
     # geom_hline(yintercept = 0.8, linetype = "dashed", color = "gray", size = 0.6) +
     theme(
       plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
@@ -2581,9 +2582,8 @@ ggplotScaleFreeFit <- function(sft) {
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
       axis.title.y = element_text(color = "black", size = 11, face = "bold")
     )
-  plot3 <- plot_grid(plot1, plot2, labels = "auto")
-  data_return <- list(plot1, plot2, plot3)
-  names(data_return) <- c("ScaleFreeFit", "MeanConnectivity", "Grid")
+  data_return <- list(plot1, plot2)
+  names(data_return) <- c("ScaleFreeFit", "MeanConnectivity")
   return(data_return)
 }
 
@@ -2622,7 +2622,14 @@ mixcolors <- function(color1, color2, ratio1 = 1, ratio2 = 1, plot = FALSE) {
 
 #-------------------------------------------------------------------------------
 # Define function: ggplotProteinScatterPlot
+
 ggplotProteinScatterPlot <- function(exprDat, prot1, prot2, annotate_stats = FALSE) {
+
+	require(WGCNA)
+	require(ggplot2)
+	require(gridExtra)
+	require(gtable)
+	require(grid)
 
   # Get data for proteins of interest.
   x <- as.numeric(exprDat[rownames(exprDat) == prot1, ])
@@ -2635,18 +2642,21 @@ ggplotProteinScatterPlot <- function(exprDat, prot1, prot2, annotate_stats = FAL
   fit <- lm(df$prot2 ~ df$prot1)
 
   # Calculate bicor statistics.
-  stats <- bicorAndPvalue(df$prot1, df$prot2)
+  stats <- WGCNA::bicorAndPvalue(df$prot1, df$prot2)
 
   # Build annotation table.
   pvalue <- paste("P-value =", formatC(stats$p, format = "e", digits = 2))
   slope <- paste("Slope =", round(as.numeric(coef(fit)[2]), 3))
   R2 <- paste("R2 =", round(stats$bicor, 3))
   mytable <- rbind(R2, pvalue, slope)
-  text <- paste0("R² = ", round(stats$bicor, 2), ", P = ", formatC(stats$p, format = "e", digits = 2))
+  text <- paste0("R² = ", round(stats$bicor, 2), 
+		 ", P = ", formatC(stats$p, format = "e", digits = 2))
+
   # Generate plot with best fit line.
   plot <- ggplot(df, aes(x = prot1, y = prot2)) +
     geom_point(color = "white", pch = 21, fill = "black", size = 2) +
-    geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2], color = "black", linetype = "dashed") +
+    geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2], 
+		color = "black", linetype = "dashed") +
     ggtitle(text) +
     xlab(paste("Log₂(Expression ", strsplit(prot1, "\\|")[[1]][1], ")", sep = "")) +
     ylab(paste("Log₂(Expression ", strsplit(prot2, "\\|")[[1]][1], ")", sep = "")) +

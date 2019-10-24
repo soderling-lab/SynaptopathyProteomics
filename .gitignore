@@ -6,6 +6,7 @@
 *.swp
 
 # Other files to ignore.
+presentations/
 /tables
 code/4_WPCNA-Optimization/wtAdjm.csv
 rdata

@@ -160,6 +160,9 @@ df <- data.table::melt(df,id.vars=c("resolution"))
 plot <- ggplot(df,aes(x=resolution, y=log2(value), colour=variable)) + geom_point()
 plot
 
+ggsave("totalGOsignificance.tiff")
+
+
 # ~best resolution.
 #r_best = 44
 subdat <- as.data.table(subset(df,df$variable =="wt"))
