@@ -50,7 +50,7 @@ network_list     <- list(wt = wtAdjm, ko = koAdjm)
 # Loop through partitions, evaluating self-preservation.
 results <- list()
 
-for (i in 1:100) {
+for (i in 1:1) {
 	# status
 	message(paste("working on partition",i,"..."))
 	# Get partition.
@@ -94,4 +94,4 @@ for (i in 1:100) {
 }
 
 # Save to Rdata.
-saveRDS(results,file.path(datadir,"self_preservation_results.RDS")
+saveRDS(results,file.path(datadir,"self_preservation_results.RDS"))

@@ -1,0 +1,5 @@
+## Linux
+R_LIBS=~/renv/lib
+
+## Windows
+#R_LIBS=C:/R/library

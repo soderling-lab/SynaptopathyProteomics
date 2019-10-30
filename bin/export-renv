@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Export a virtual environment.
+conda activate ../renv/
+conda env export > ../renv.yml

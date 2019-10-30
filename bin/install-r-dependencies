@@ -44,9 +44,9 @@ rip("BiocManager")
 rip("https://cran.r-project.org/src/contrib/ps_1.3.0.tar.gz", method = "source")
 rip("https://cran.r-project.org/src/contrib/xml2_1.2.2.tar.gz", method = "source") 
 rip("https://cran.r-project.org/src/contrib/roxygen2_6.1.1.tar.gz", method = "source")
-rip("devtools")
 
-# Install R dependencies:
+# Install other R dependencies:
+rip("devtools")
 rip("ggplot2")
 rip("readxl")
 rip("data.table")
@@ -61,13 +61,20 @@ rip("flashClust")
 rip("ggdendro")
 rip("purrr")
 rip("ggrepel")
-rip("impute", method = "BiocManager")
-rip("edgeR", method = "BiocManager")
-
-# Install Biobase from source.
-rip("https://www.bioconductor.org/packages/release/bioc/src/contrib/Biobase_2.44.0.tar.gz", method = "source")
+rip("hexbin")
+rip("BurStMisc")
+rip("ggpubr")
+rip("statmod")
+rip("openxlsx")
+rip("igraph")
+rip("NetRep") 
+rip("dendextend")
+rip("FSA")
 
 # Additional packages from Bioconductor.
+rip("Biobase", method = "BiocManager")
+rip("impute", method = "BiocManager")
+rip("edgeR", method = "BiocManager")
 rip("AnnotationDbi", method = "BiocManager")
 rip("annotate", method = "BiocManager")
 rip("sva", method = "BiocManager")
@@ -76,17 +83,6 @@ rip("WGCNA", method = "BiocManager")
 rip("vsn", method = "BiocManager")
 rip("org.Mm.eg.db", method = "BiocManager")
 rip("DescTools", method = "BiocManager")
-
-# Other misc packages.
-rip("hexbin")
-rip("BurStMisc")
-rip("ggpubr")
-rip("statmod")
-rip("openxlsx")
-rip("igraph")
-rip("NetRep") # Requires cpp!
-rip("dendextend")
-rip("FSA")
 
 # ENDOFILE
 #------------------------------------------------------------------------------
