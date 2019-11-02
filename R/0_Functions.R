@@ -836,9 +836,9 @@ checkNormalization <- function(data_in, traits, colors, title) {
 #-------------------------------------------------------------------------------
 # Function for plotting sample connectivity.
 ggplotSampleConnectivityv2 <- function(data_in, log = TRUE, colID, threshold = -2.5) {
-	require(ggdendro)
-	require(WGCNA)
-	require(ggrepel)
+  require(ggdendro)
+  require(WGCNA)
+  require(ggrepel)
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
   if (log == TRUE) {
@@ -978,7 +978,7 @@ ggplotMDS <- function(data_in,
                       title,
                       sample_info,
                       labels = FALSE) {
-	require(limma, quietly = TRUE)
+  require(limma, quietly = TRUE)
   # get the data
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
@@ -1224,8 +1224,8 @@ ggplotBoxPlot <- function(data_in, colID, colors, title) {
   data_temp <- na.omit(data_temp)
 
   # Discrete x-axis labels.
-  #v <- seq(1,44,1)
-  #v <- v[rep(c(FALSE,TRUE), 22)] <- ""
+  # v <- seq(1,44,1)
+  # v <- v[rep(c(FALSE,TRUE), 22)] <- ""
 
   plot <- ggplot(data_temp, aes(x = Run, y = Intensity, fill = Run)) +
     geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
@@ -1623,9 +1623,9 @@ ggplotProteinBoxes <- function(data_in, interesting.proteins, traits, order = NU
     data_sub$Group <- traits$Condition[match(rownames(data_sub), rownames(traits))]
     # If provided, enforce order.
     if (is.character(order)) {
-	    data_sub$Group <- factor(data_sub$Group, levels = order)
+      data_sub$Group <- factor(data_sub$Group, levels = order)
     } else {
-	    data_sub$Group <- factor(data_sub$Group, levels = unique(data_sub$Group))
+      data_sub$Group <- factor(data_sub$Group, levels = unique(data_sub$Group))
     }
     plot <- ggplot(data_sub, aes(x = Group, y = Intensity, fill = Group)) +
       geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
@@ -1965,8 +1965,8 @@ edgeR_GSE <- function(qlf, FDR = 0.05, filter = TRUE) {
 #-------------------------------------------------------------------------------
 # Function to annotate DE candidates:
 annotateTopTags <- function(y_TT) {
-	require(AnnotationDbi)
-	require(org.Mm.eg.db)
+  require(AnnotationDbi)
+  require(org.Mm.eg.db)
   y_TT$logCPM <- 100 * (2^y_TT$logFC)
   colnames(y_TT)[2] <- "%WT"
   y_TT$candidate <- "no"
@@ -2554,7 +2554,7 @@ ggplotVerboseScatterPlot <- function(MMdata, GSdata, moduleGenes, module, trait,
 # Function for plotting WGCNA powers.
 
 ggplotScaleFreeFit <- function(sft) {
-	require(ggplot2)
+  require(ggplot2)
   # Gather the data, calculate scale free fit.
   data <- sft$fitIndices
   data$fit <- -sign(data$slope) * data$SFT.R.sq
@@ -2624,12 +2624,11 @@ mixcolors <- function(color1, color2, ratio1 = 1, ratio2 = 1, plot = FALSE) {
 # Define function: ggplotProteinScatterPlot
 
 ggplotProteinScatterPlot <- function(exprDat, prot1, prot2, annotate_stats = FALSE) {
-
-	require(WGCNA)
-	require(ggplot2)
-	require(gridExtra)
-	require(gtable)
-	require(grid)
+  require(WGCNA)
+  require(ggplot2)
+  require(gridExtra)
+  require(gtable)
+  require(grid)
 
   # Get data for proteins of interest.
   x <- as.numeric(exprDat[rownames(exprDat) == prot1, ])
@@ -2649,14 +2648,18 @@ ggplotProteinScatterPlot <- function(exprDat, prot1, prot2, annotate_stats = FAL
   slope <- paste("Slope =", round(as.numeric(coef(fit)[2]), 3))
   R2 <- paste("R2 =", round(stats$bicor, 3))
   mytable <- rbind(R2, pvalue, slope)
-  text <- paste0("R² = ", round(stats$bicor, 2), 
-		 ", P = ", formatC(stats$p, format = "e", digits = 2))
+  text <- paste0(
+    "R² = ", round(stats$bicor, 2),
+    ", P = ", formatC(stats$p, format = "e", digits = 2)
+  )
 
   # Generate plot with best fit line.
   plot <- ggplot(df, aes(x = prot1, y = prot2)) +
     geom_point(color = "white", pch = 21, fill = "black", size = 2) +
-    geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2], 
-		color = "black", linetype = "dashed") +
+    geom_abline(
+      intercept = coef(fit)[1], slope = coef(fit)[2],
+      color = "black", linetype = "dashed"
+    ) +
     ggtitle(text) +
     xlab(paste("Log₂(Expression ", strsplit(prot1, "\\|")[[1]][1], ")", sep = "")) +
     ylab(paste("Log₂(Expression ", strsplit(prot2, "\\|")[[1]][1], ")", sep = "")) +
@@ -2812,24 +2815,26 @@ ggplotModuleSignificanceBoxplot <- function(x, g, trait, stats = TRUE) {
 # Function to add significance stars given a protein boxplot,
 # stats with FDR column and the column to be labeled.
 annotate_stars <- function(plot, stats) {
-	data <- plot$data
-	df <- as.data.frame(data %>% group_by(Group) %>%
-			    summarise(Intensity = mean(Intensity))) 
-	# Get FDR from stats.
-	uniprot <- strsplit(plot$labels$title,"\\|")[[1]][2]
-	idx <- match(uniprot,rownames(stats))
-	stats.df <- data.frame(t(stats[idx, ]))
-	df$FDR <- stats.df[match(df$Group,rownames(stats.df)),]
-	# Add symbols.
-	df$symbol <- ""
-	df$symbol[df$FDR < 0.1] <- "*"
-	df$symbol[df$FDR < 0.05] <- "**"
-	df$symbol[df$FDR < 0.001] <- "***"
-	# Add ypos.
-	df$ypos <- 1.01 * max(data$Intensity)
-	# Add asterisks indicating significance to plot.
-	plot <- plot + annotate("text",x = df$Group, y = df$ypos,
-				label = df$symbol, size = 4)
+  data <- plot$data
+  df <- as.data.frame(data %>% group_by(Group) %>%
+    summarise(Intensity = mean(Intensity)))
+  # Get FDR from stats.
+  uniprot <- strsplit(plot$labels$title, "\\|")[[1]][2]
+  idx <- match(uniprot, rownames(stats))
+  stats.df <- data.frame(t(stats[idx, ]))
+  df$FDR <- stats.df[match(df$Group, rownames(stats.df)), ]
+  # Add symbols.
+  df$symbol <- ""
+  df$symbol[df$FDR < 0.1] <- "*"
+  df$symbol[df$FDR < 0.05] <- "**"
+  df$symbol[df$FDR < 0.001] <- "***"
+  # Add ypos.
+  df$ypos <- 1.01 * max(data$Intensity)
+  # Add asterisks indicating significance to plot.
+  plot <- plot + annotate("text",
+    x = df$Group, y = df$ypos,
+    label = df$symbol, size = 4
+  )
   return(plot)
 }
 
@@ -3075,22 +3080,22 @@ ggplotHistK <- function(connectivity) {
 #'
 #' @examples
 #' write.pajek(adjm, "network.net")
-#'
 #' @export
 
 write.pajek <- function(adjm, file, ...) {
   # Write network adjacency matrix to .net file in Pajek format.
   # Uses data.table::fwrite for faster performance.
-	require(data.table, quietly = TRUE)
-	colnames(adjm) <- rownames(adjm) <- c(1:ncol(adjm))
-	edge_list <- as.data.table(na.omit(melt(adjm)))
-	colnames(edge_list) <- c("protA","protB","weight")
-	v <- as.data.table(paste(seq(1,ncol(adjm)), " \"", seq(1,ncol(adjm)), "\"", sep = ""))
-	write.table(paste("*Vertices", dim(adjm)[1]), file,
-	quote = FALSE, row.names = FALSE, col.names = FALSE)
-	fwrite(v, file, quote = FALSE, sep = " ", row.names = FALSE, col.names = FALSE, append = TRUE)
-	write.table("*Edges", file, quote = FALSE, row.names = FALSE, col.names = FALSE, append = TRUE)
-	fwrite(edge_list, file, sep = " ", col.names = FALSE, append = TRUE)
+  require(data.table, quietly = TRUE)
+  colnames(adjm) <- rownames(adjm) <- c(1:ncol(adjm))
+  edge_list <- as.data.table(na.omit(melt(adjm)))
+  colnames(edge_list) <- c("protA", "protB", "weight")
+  v <- as.data.table(paste(seq(1, ncol(adjm)), " \"", seq(1, ncol(adjm)), "\"", sep = ""))
+  write.table(paste("*Vertices", dim(adjm)[1]), file,
+    quote = FALSE, row.names = FALSE, col.names = FALSE
+  )
+  fwrite(v, file, quote = FALSE, sep = " ", row.names = FALSE, col.names = FALSE, append = TRUE)
+  write.table("*Edges", file, quote = FALSE, row.names = FALSE, col.names = FALSE, append = TRUE)
+  fwrite(edge_list, file, sep = " ", col.names = FALSE, append = TRUE)
 }
 
 #-------------------------------------------------------------------------------
@@ -3109,7 +3114,6 @@ write.pajek <- function(adjm, file, ...) {
 #'
 #' @examples
 #' silently(wgcna::bicor, exprDat)
-#'
 #' @export
 ## Define a function that can suppress unwanted messages from a function.
 silently <- function(func, ...) {
@@ -3135,20 +3139,19 @@ silently <- function(func, ...) {
 #'
 #' @examples
 #' silently(wgcna::bicor, exprDat)
-#'
 #' @export
 ## Define a function that can suppress unwanted messages from a function.
 
 #-------------------------------------------------------------------------------
 # Function ggplotVerboseBoxplot
-ggplotVerboseBoxplot <- function(x, 
-				 g, 
-				 levels, 
-				 contrasts, 
-				 color, 
-				 stats = FALSE,
-                                 method = "dunnett", 
-				 correction_factor = 8) {
+ggplotVerboseBoxplot <- function(x,
+                                 g,
+                                 levels,
+                                 contrasts,
+                                 color,
+                                 stats = FALSE,
+                                 method = "dunnett",
+                                 correction_factor = 8) {
   # Bind data as data frame for ggplot.
   df <- as.data.frame(cbind(x, g))
   df$g <- factor(df$g, levels = levels)

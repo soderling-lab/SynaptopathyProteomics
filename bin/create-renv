@@ -4,4 +4,4 @@
 #conda env list
 
 # Create a R virtual environment with conda.
-conda create -p ../renv --prefix renv r-essentials r-base --yes
+conda create -p ../renv --prefix ../renv r-essentials r-base --yes
