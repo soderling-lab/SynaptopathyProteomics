@@ -18,7 +18,6 @@
 #'
 #' @examples
 #' summarize_Protein(peptide_data)
-
 summarize_Protein <- function(peptide_data) {
   # Add column for peptides, summarize using dplyr::summarize_all(sum)
   Peptides <- rep(1, nrow(peptide_data))

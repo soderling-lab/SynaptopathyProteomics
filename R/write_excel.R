@@ -34,4 +34,3 @@ write_excel <- function(data, file, ...) {
   }
   saveWorkbook(wb, file, overwrite = TRUE)
 }
-

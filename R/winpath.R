@@ -18,7 +18,6 @@
 #'
 #' @examples
 #' winpath()
-
 winpath <- function() {
   x <- readClipboard()
   winpath <- gsub("\\\\", "/", x)

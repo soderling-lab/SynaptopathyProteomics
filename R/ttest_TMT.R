@@ -18,7 +18,6 @@
 #'
 #' @examples
 #' ttest_TMT(data_in, groups)
-
 ttest_TMT <- function(data_in, groups) {
   data_temp <- as.data.frame(assay(data_in))
   data_out <- matrix(NA, nrow = nrow(data_temp), ncol = length(groups))

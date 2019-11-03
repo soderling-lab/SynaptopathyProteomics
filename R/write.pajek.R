@@ -35,4 +35,3 @@ write_pajek <- function(adjm, file) {
   )
   fwrite(edge_list, file, sep = " ", col.names = FALSE, append = TRUE)
 }
-
