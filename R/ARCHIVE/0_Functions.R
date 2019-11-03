@@ -1,4 +1,3 @@
-
 ################################################################################
 # Note:
 # Please note,  these functions are not robust. They do not typically check the
@@ -38,6 +37,7 @@ fill_down <- function(x, blank = is.na) {
 }
 
 #-------------------------------------------------------------------------------
+
 #' cleanPD
 #'
 #' Clean up raw TMT data exported as xlsx from PD.
@@ -79,6 +79,7 @@ cleanPD <- function(data_in, sample_info) {
 }
 
 #-------------------------------------------------------------------------------
+
 #' getCols
 #'
 # Gets a vector of column numbers for a given ID. An alternative to grep().
@@ -102,10 +103,24 @@ getCols <- function(data_in, ID) {
   return(cols)
 }
 
-#-------------------------------------------------------------------------------
-# ## peptide_overlap
-#-------------------------------------------------------------------------------
-# Calculates peptide identification overlap for given contrasts matrix.
+#------------------------------------------------------------------------------
+
+#' peptide_overlap
+#'
+#' Calculates peptide identification overlap for given contrasts matrix.
+#'
+#' @param
+#' @param
+#'
+#' @return none
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#' @references \url{}
+#' @keywords
+#'
+#' @examples
+#' peptide_overlap_TMT()
+#' @export
 
 peptide_overlap_TMT <- function(data_in, contrasts, info_cols) {
   num_iter <- dim(contrasts)[2]
@@ -133,8 +148,8 @@ peptide_overlap_TMT <- function(data_in, contrasts, info_cols) {
 }
 
 #-------------------------------------------------------------------------------
-#' ## corQC
-#-------------------------------------------------------------------------------
+
+#' corQC
 # GGplots are saved as objects in a list.
 # Scatter plot showing correlation of QC samples. All comparisons.
 # nbin number of histograms showind distribution of QC ratios for all intensity bins.
