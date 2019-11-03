@@ -9,16 +9,15 @@
 # Adapted from: https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/
 
 # First install some additional dependencies. 
-dependencies <- as.list(
-   c("TxDb.Hsapiens.UCSC.hg19.knownGene",
-     "TxDb.Mmusculus.UCSC.mm10.knownGene",
-     "XML",
-     "AnnotationDbi",
-     "GO.db",
-     "org.Hs.eg.db",
-     "org.Mm.eg.db",
-     "WGCNA")
-)
+dependencies <- c(
+		  "TxDb.Hsapiens.UCSC.hg19.knownGene",
+		  "TxDb.Mmusculus.UCSC.mm10.knownGene",
+		  "XML",
+		  "AnnotationDbi",
+		  "GO.db",
+		  "org.Hs.eg.db",
+		  "org.Mm.eg.db",
+		  "WGCNA")
 
 # A Function to install dependencies. 
 rip <- function(package, method = "utils", ...) {
@@ -48,15 +47,17 @@ rip <- function(package, method = "utils", ...) {
 	} else stop("problem installing package")
 }
 
-lapply(dependencies,function(x) rip(x, method = "BiocManager"))
+sapply(dependencies,function(x) rip(x, method = "BiocManager"))
 
 # Download AnRichment source code.
 urls <- c("https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichmentMethods_0.90-1.tar.gz",
-          "https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichment_1.01-2.tar.gz")
-download.file(urls[1], "anRichmentMethods_0.90-1.tar.gz")
-download.file(urls[2], "anRichment_1.01-2.tar.gz")
-untar("anRichmentMethods_0.90-1.tar.gz")
-untar("anRichment_1.01-2.tar.gz")
+	  "https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichment_1.01-2.tar.gz")
+
+download.file(urls[1], basename(urls[1]))
+download.file(urls[2], basename(urls[2]))
+
+untar(basename(urls[1]))
+untar(basename(urls[2]))
 
 # Install from source code. 
 dir <- getwd()
