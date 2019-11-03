@@ -3,7 +3,7 @@
 #' Scatter plot showing correlation of QC samples. All comparisons.
 #' nbin number of histograms showind distribution of QC ratios for all intensity bins.
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'
@@ -13,7 +13,7 @@
 #'
 #' @keywords none
 #'
-#' @import
+#' @import grid gridExtra ggplot2
 #'
 #' @export
 #'

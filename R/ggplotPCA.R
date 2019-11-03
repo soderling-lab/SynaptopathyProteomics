@@ -2,7 +2,7 @@
 #'
 #' plot a PCA plot with ggplot
 #'
-#' @param
+#' @param data_in - the expression data
 #'
 #' @return none
 #'
@@ -12,19 +12,20 @@
 #'
 #' @keywords none
 #'
-#' @import
-#'
 #' @export
 #'
 #' @examples
 #' ggplotPCA(data_in, traits, colors)
-ggplotPCA <- function(data_in, traits, colors, title = "2D PCA Plot") {
-  # Perform PCA
+ggplotPCA <- function(data_in, traits, colors, colID = "Abundance", title = "2D PCA Plot") {
+  # Get the numeric data.
+  idy <- grepl("Abundance", colnames(data_in))
+  data_in <- data_in[, idy]
+  # Perform PCA. Must remove any NA.
   PC <- prcomp(t(na.omit(data_in)))$x[, 1:2]
   # Add annotations to PC data frame.
   PC <- as.data.frame(PC)
-  PC$Label <- paste(traits$Model, traits$SampleType, sep = "_")[match(rownames(PC), traits$ColumnName)]
-
+  idx <- match(rownames(PC), traits$ColumnName)
+  PC$Label <- paste(traits$Model, traits$SampleType, sep = "_")[idx]
   # Generate plot.
   plot <- ggplot(PC, aes(x = PC1, y = PC2)) +
     geom_text(aes(label = Label), color = colors) +
@@ -34,5 +35,6 @@ ggplotPCA <- function(data_in, traits, colors, title = "2D PCA Plot") {
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
       axis.title.y = element_text(color = "black", size = 11, face = "bold")
     )
+
   return(plot)
 }

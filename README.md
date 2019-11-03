@@ -33,10 +33,13 @@ managed by git (see `.gitignore`).
 ## Supplemental Information
 For a detailed overview of the analysis, please see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
 
-## Dependencies
+## Reproducibility
 
 You can reproduce the developing environment in which the analysis was performed using _conda_.
-Use `conda env create -f renv.yml` to  to set up all dependencies.
+Use `conda env create -f venv.yml` to  to set up all dependencies.
+
+This will create a virtual environment. 
+Use `conda activate SynaptopathyProteomics` to activate it.
 
 This work is indebted to numerous others who have shared their ideas, software,
 and time. In particular, the following open source packages were essential in 

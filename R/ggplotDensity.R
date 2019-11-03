@@ -2,7 +2,7 @@
 #'
 #' plot sample density plots
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'
@@ -12,7 +12,7 @@
 #'
 #' @keywords none
 #'
-#' @import
+#' @import ggplot2
 #'
 #' @export
 #'
@@ -22,7 +22,8 @@ ggplotDensity <- function(data_in, colID, title) {
   # The function ggplotDensity plots a density plot using ggplot.
   # The input data should be a data matrix. This data is reshaped with reshape2::melt
   # The title provided as input is used as the ggplot title.
-  dm <- df2dm_TMT(data_in, colID)
+  idy <- grepl(colID, colnames(data_in))
+  dm <- as.matrix(data_in[, idy])
   data_temp <- melt(log2(dm))
   colnames(data_temp) <- c("Accession", "Run", "Intensity")
   data_temp$Run <- as.factor(data_temp$Run)

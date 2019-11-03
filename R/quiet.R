@@ -2,7 +2,7 @@
 #'
 #' Function for supressing printed messages from a function.
 #'
-#' @param
+#' @param x - expression to be silenced.
 #'
 #' @return none
 #'
@@ -12,13 +12,10 @@
 #'
 #' @keywords none
 #'
-#' @import
-#'
 #' @export
 #'
 #' @examples
-quiet(myfun(x))
-
+#'quiet(myfun(x))
 quiet <- function(x) {
   sink(tempfile())
   on.exit(sink())

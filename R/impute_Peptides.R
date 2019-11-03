@@ -1,9 +1,9 @@
-#' impute_Peptides
+#' impute_peptides
 #'
 #' Function to impute peptide level missing values.
 #' Supports MLE for MAR and KNN for MNAR.
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'
@@ -13,13 +13,13 @@
 #'
 #' @keywords none
 #'
-#' @import
-#'
 #' @export
 #'
 #' @examples
-#' impute_Peptides(data_in, groups, method)
-impute_Peptides <- function(data_in, groups, method, qc_threshold = 0, bio_threshold = 2) {
+#' impute_peptides(data_in, groups, method)
+impute_peptides <- function(data_in, groups, method, qc_threshold = 0, bio_threshold = 2) {
+	# Function to supress output of function.
+	source("~/projects/SynaptopathyProteomics/R/quiet.R")
   n_out <- list()
   for (i in 1:length(groups)) {
     data_work <- data_in
@@ -53,13 +53,13 @@ impute_Peptides <- function(data_in, groups, method, qc_threshold = 0, bio_thres
     # KNN Impute
     if (method == "knn") {
       data_imp <- as.matrix(data_temp)
-      data_imp[, c(1:11)] <- quiet(impute.knn(data_imp[, c(1:11)])$data)
+      data_imp[, c(1:11)] <- quiet(impute::impute.knn(data_imp[, c(1:11)])$data)
       data_imp <- as.data.frame(data_imp)
     } else if (method == "mle") {
       # MLE Impute
       conditions <- as.factor(c(rep(1, 3), rep(2, 4), rep(3, 4)))
       data_imp <- data_temp
-      data_imp[, c(1:11)] <- impute.mle(data_temp[, c(1:11)], conditions)
+      data_imp[, c(1:11)] <- imp4p::impute.mle(data_temp[, c(1:11)], conditions)
     }
     # Put back together with data_out
     data <- rbind(data_out, 2^data_imp) # Un-log.

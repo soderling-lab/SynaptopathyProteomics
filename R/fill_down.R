@@ -2,7 +2,6 @@
 #'
 #' Fill a data frame with missing values.
 #' Missing values are replaced with the value above them in a column.
-#' From StackOverflow user [nacnudus](https://stackoverflow.com/users/937932/nacnudus).
 #'
 #' @param x column vector with blank values.
 #' @param blank logic vector specifying blank values.

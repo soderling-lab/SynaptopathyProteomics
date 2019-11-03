@@ -1,8 +1,8 @@
 #' ggplotMeanSdPlot
 #'
-#' plot mean SD plot with ggplot
+#' wrapper around vsn::meanSdPlot that generates a mean Sd ggplot
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'
@@ -12,7 +12,7 @@
 #'
 #' @keywords none
 #'
-#' @import
+#' @import vsn ggplot2
 #'
 #' @export
 #'

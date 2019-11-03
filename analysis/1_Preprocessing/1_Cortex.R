@@ -1,86 +1,87 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: 1a_TMT_Analysis_Cortex.R
-#' description: TMT Analysis part 1a. Preprocessing of Cortex Data.
+#' title: 1_Cortex.R
+#' description: Preprocessing of Cortex Data.
 #' authors: Tyler W Bradshaw
 #' ---
 
 #-------------------------------------------------------------------------------
 ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#' Prepare the R workspace for the analysis. Load custom functions and prepare
-#' the project directory for saving output files.
+# Prepare the R workspace for the analysis. Load custom functions and prepare
+# the project directory for saving output files.
 
-rm(list = ls())
-if (!is.null(dev.list())) {
-  dev.off()
-}
-cat("\f")
-options(stringsAsFactors = FALSE)
+#rm(list = ls())
+#if (!is.null(dev.list())) {
+#  dev.off()
+#}
+#cat("\f")
+#options(stringsAsFactors = FALSE)
 
 # Load required packages.
 suppressPackageStartupMessages({
-  library(readxl)
+	#library(readxl)
   library(data.table)
-  library(reshape2)
-  library(WGCNA)
+#  library(reshape2)
+#  library(WGCNA)
   library(dplyr)
   library(gridExtra)
   library(grid)
   library(gtable)
   library(ggplot2)
-  library(cowplot)
-  library(impute)
-  library(tibble)
-  library(flashClust)
-  library(ggdendro)
-  library(sva)
-  library(purrr)
-  library(ggrepel)
-  library(edgeR)
+#  library(cowplot)
+#  library(impute)
+#  library(tibble)
+#  library(flashClust)
+#  library(ggdendro)
+#  library(sva)
+#  library(purrr)
+#  library(ggrepel)
+#  library(edgeR)
 })
 
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
 type <- 1
 tissue <- c("Cortex", "Striatum")[type]
 
-# Set the working directory.
+# Directories:
 here <- getwd()
 rootdir <- dirname(dirname(here))
-
-# Set any other directories.
-functiondir <- paste(rootdir, "functions", sep = "/")
-datadir <- paste(rootdir, "input", sep = "/")
-Rdatadir <- paste(rootdir, "data", sep = "/")
-outputfigs <- paste(rootdir, "figures", tissue, sep = "/")
-outputtabs <- paste(rootdir, "tables", sep = "/")
+funcdir <- file.path(rootdir, "R")
+datadir <- file.path(rootdir, "input")
+Rdatadir <- file.path(rootdir, "data")
+figsdir <- file.path(rootdir, "figures")
+tabsdir <- file.path(rootdir, "tables")
 
 # Load required custom functions.
-my_functions <- paste(functiondir, "0_Functions.R", sep = "/")
-source(my_functions)
+source_myfun <- function() {
+	myfun <- list.files(funcdir,pattern=".R",full.names=TRUE)
+	invisible(sapply(myfun,source))
+}
+source_myfun()
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("1_", tissue)
 
 # Globally set ggplots theme.
-ggplot2::theme_set(theme_gray())
+ggtheme()
 
-# Plots will be stored in a list.
+# All plots will be stored in a list and saved to RData.
 output_plots <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
 all_plots <- list()
 
 #-------------------------------------------------------------------------------
-## Load the raw data and sample info (traits) from excel.
+## Load the raw data and sample info (traits).
 #-------------------------------------------------------------------------------
-#' The raw peptide intensity data were exported from ProteomeDiscover (PD)
-#' version 2.2. Note that the default export from PD2.x is a unitless signal to
-#' noise ratio, and it is not recommended to use ths for quantification.
+# The raw peptide intensity data were exported from ProteomeDiscover (PD)
+# version 2.2. Note that the default export from PD2.x is a unitless signal to
+# noise ratio, and it is not recommended to use ths for quantification.
 
-# Load the data from excel using readxl::read_excel().
+# Load the data.
 datafile <- c(
-  "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.xlsx",
-  "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.xlsx"
+  "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
+  "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
 )
 
 # Load sample information.
@@ -90,23 +91,18 @@ samplefile <- c(
 )
 
 # Load the data from PD and sample info.
-data_PD <- read_excel(paste(datadir, "/", datafile[type], sep = ""), 1)
-sample_info <- read.csv(paste(datadir, "/", samplefile[type], sep = ""))
+raw_peptide <- fread(file=file.path(datadir, datafile[type]))
+sample_info <- fread(file=file.path(datadir, samplefile[type]))
 
 # Insure traits are in matching order.
 sample_info <- sample_info[order(sample_info$Order), ]
 
-#-------------------------------------------------------------------------------
-## Cleanup and reorganize the data from PD.
-#-------------------------------------------------------------------------------
-#' The raw data are cleaned up with the custom function __cleanPD__.
-
-# Load the data from PD.
-raw_peptide <- cleanPD(data_PD, sample_info)
-
 # Save to Rdata. To be saved to excel later.
-myfile <- paste0(Rdatadir, "/", outputMatName, "_raw_peptide.Rds")
-saveRDS(raw_peptide, myfile)
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.RData"))
+save(raw_peptide,file=myfile)
+
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_sample_info.RData"))
+save(sample_info,file=myfile)
 
 #-------------------------------------------------------------------------------
 ## Examine an example peptide.
@@ -114,7 +110,7 @@ saveRDS(raw_peptide, myfile)
 
 # Get a slice of the data.
 set.seed(7)
-dat <- subset(raw_peptide, grepl("Dlg4", raw_peptide$Description))
+dat <- as.data.frame(subset(raw_peptide, grepl("Dlg4", raw_peptide$Description)))
 rownames(dat) <- paste(dat$Accession, dat$Sequence, c(1:nrow(dat)), sep = "_")
 idy <- grepl("Shank2", colnames(dat))
 dat <- dat[, idy]
@@ -126,19 +122,13 @@ geno <- gsub(",", "", sapply(strsplit(colnames(dat), "\\ "), "[", 5))
 n <- sample(nrow(dat), 1)
 df <- reshape2::melt(dat[n, ])
 df$Channel <- colIDs
-title <- strsplit(rownames(dat)[n], "_")[[1]][2]
+title <- paste0("Dlg4"," >",strsplit(rownames(dat)[n], "_")[[1]][2])
 
 plot <- ggplot(df, aes(x = Channel, y = log2(value), fill = Channel)) +
   geom_bar(stat = "identity", width = 0.9, position = position_dodge(width = 1)) +
   xlab("TMT Channel") + ylab("Log2(Raw Intensity)") +
   ggtitle(title) +
-  theme(
-    legend.position = "none",
-    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold")
-  )
+  theme(legend.position = "none")
 
 # Store in list.
 all_plots[[paste(tissue, "Example_TMT", sep = "_")]] <- plot
@@ -146,13 +136,13 @@ all_plots[[paste(tissue, "Example_TMT", sep = "_")]] <- plot
 #-------------------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
 #-------------------------------------------------------------------------------
-#' Approximately 40,000 unique peptides cooresponding to ~3,000 proteins are
-#' quantified across all four experiments. When comparing the peptides
-#' identified in each experiment, the overlap is only ~25%. ~20$ of peptides are
-#' identified in all four experiments. This means that in different experiments,
-#' the same protein will likely be quantified by different peptides.
-#' This is a major reason the internal reference scaling (IRS) normalizaiton
-#' approach is employed below.
+# Approximately 40,000 unique peptides cooresponding to ~3,000 proteins are
+# quantified across all four experiments. When comparing the peptides
+# identified in each experiment, the overlap is only ~25%. ~20$ of peptides are
+# identified in all four experiments. This means that in different experiments,
+# the same protein will likely be quantified by different peptides.
+# This is a major reason the internal reference scaling (IRS) normalizaiton
+# approach is employed below.
 
 # Determine the total number of unique peptides:
 nPeptides <- format(length(unique(raw_peptide$Sequence)), big.mark = ",")
@@ -178,17 +168,13 @@ nPep <- nPep[!nPep$nPeptides == 1, ]
 
 # Generate plot.
 plot1 <- ggplot(nPep, aes(nPeptides)) + geom_histogram(bins = 100, fill = "black") +
-  ggtitle("Peptides per Protein") + xlab("Peptides") + ylab("Frequency") +
-  theme(
-    plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold")
-  )
+  ggtitle("Peptides per Protein") + xlab("Peptides") + ylab("Frequency")
 
 # Peptide identification overlap per pairwise comparisons of experiments.
 contrasts <- combn(c("Shank2", "Shank3", "Syngap1", "Ube3a"), 2)
 info_cols <- c(1, 2, 3, 4, 5)
-overlap <- peptide_overlap_TMT(raw_peptide, contrasts, info_cols)
+overlap <- peptide_overlap(raw_peptide, contrasts, info_cols)
+
 all <- c(
   "NaN", "NaN", dim(na.omit(raw_peptide))[1], dim(raw_peptide)[1],
   round(100 * dim(na.omit(raw_peptide))[1] / dim(raw_peptide)[1], 4)
@@ -220,8 +206,8 @@ all_plots[[paste(tissue, "pep_id_overlap_tab", sep = "_")]] <- tab2
 #-------------------------------------------------------------------------------
 ## Examine the raw data.
 #-------------------------------------------------------------------------------
-#' The need for normalization is evident in the raw data. Note that in the MDS
-#' plot, samples cluster by experiment--evidence of a batch effect.
+# The need for normalization is evident in the raw data. Note that in the MDS
+# plot, samples cluster by experiment--evidence of a batch effect.
 
 # Prepare the data.
 data_in <- raw_peptide
@@ -238,14 +224,14 @@ p1 <- p1 + theme(axis.text.x = element_blank())
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
 
 # Genotype specific colors must be specified in column order.
-colors <- c(rep("yellow", 11), rep("blue", 11), rep("green", 11), rep("purple", 11))
+colors <- rep(c("yellow","blue","green","purple"),each=11)
 p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
-# Generate MDS plot.
-colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
-p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
-  theme(legend.position = "none")
+# Generate PCA plot.
+colors <- rep(c("yellow","blue","green","purple"),each=11)
+p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
+	theme(legend.position = "none")
 
 # Store plots in list.
 all_plots[[paste(tissue, "raw_bp", sep = "_")]] <- p1
@@ -256,12 +242,12 @@ all_plots[[paste(tissue, "raw_mds", sep = "_")]] <- p4
 #-------------------------------------------------------------------------------
 ## Sample loading normalization within experiments.
 #-------------------------------------------------------------------------------
-#' The function __normalize_SL__ performs sample loading (SL) normalization to
-#' equalize the run level intensity (column) sums. The data in each column are
-#' multiplied by a factor such that the mean of the column sums are are equal.
-#' Sample loading normalization is performed within an experiment under the
-#' assumption that equal amounts of protein were used for each of the 11 TMT
-#' channels.
+# The function __normalize_SL__ performs sample loading (SL) normalization to
+# equalize the run level intensity (column) sums. The data in each column are
+# multiplied by a factor such that the mean of the column sums are are equal.
+# Sample loading normalization is performed within an experiment under the
+# assumption that equal amounts of protein were used for each of the 11 TMT
+# channels.
 
 # Define data columns for SL within experiments:
 colID <- "Abundance"
@@ -273,8 +259,8 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 #-------------------------------------------------------------------------------
 ## Examine the SL Data.
 #-------------------------------------------------------------------------------
-#' Sample loading normalization equalizes the run-level sums within
-#' an 11-plex TMT experiment.
+# Sample loading normalization equalizes the run-level sums within
+# an 11-plex TMT experiment.
 
 # Generate boxplot.
 title <- "SL Peptide"
@@ -291,10 +277,10 @@ p2 <- p2 + scale_color_manual(values = colors)
 # Generate meanSd plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
-# Generate MDS plot.
-colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
-p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
-  theme(legend.position = "none")
+# Generate PCA plot.
+colors <- rep(c("yellow","blue","green","purple"),each=11)
+p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
+	theme(legend.position = "none")
 
 # Store plots.
 all_plots[[paste(tissue, "sl_bp", sep = "_")]] <- p1
@@ -305,17 +291,17 @@ all_plots[[paste(tissue, "sl_mds", sep = "_")]] <- p4
 #-------------------------------------------------------------------------------
 ## Examine the nature of missing values.
 #-------------------------------------------------------------------------------
-#' Missing values are inherent in high throughput experiments. There are two
-#' main classes of missing values, missing at random (MAR) and missing not at
-#' random (MNAR). The appropriate imputing algorithm should be chosen based on
-#' the nature of missing values. The distribution of peptides with missing
-#' values is examined by density plots. The left-shifted distribution of
-#' peptides with missing values indicates that peptides that have missing
-#' values are generally lower in abundance. Missing values are likely then to be
-#' missing not at random (MNAR), but missing because they are low-abundance
-#' and at or near the limit of detection. MNAR data can be imputed with the
-#' k-nearest neighbors (knn) algorithm in the next chunk. The __impute.knn__
-#' function from the package `impute` is used to impute MNAR data.
+# Missing values are inherent in high throughput experiments. There are two
+# main classes of missing values, missing at random (MAR) and missing not at
+# random (MNAR). The appropriate imputing algorithm should be chosen based on
+# the nature of missing values. The distribution of peptides with missing
+# values is examined by density plots. The left-shifted distribution of
+# peptides with missing values indicates that peptides that have missing
+# values are generally lower in abundance. Missing values are likely then to be
+# missing not at random (MNAR), but missing because they are low-abundance
+# and at or near the limit of detection. MNAR data can be imputed with the
+# k-nearest neighbors (knn) algorithm in the next chunk. The __impute.knn__
+# function from the package `impute` is used to impute MNAR data.
 
 # Define groups for subseting the data.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -343,13 +329,13 @@ all_plots[[paste(tissue, "missing_val_ube3a", sep = "_")]] <- p4
 #-------------------------------------------------------------------------------
 ## Impute missing peptide values within an experiment.
 #-------------------------------------------------------------------------------
-#' The function __impute_Peptides__ supports imputing missing values with the
-#' maximum likelyhood estimation (MLE) or KNN algorithms for missing not at
-#' random (MNAR) and missing at random data, respectively. Impution is performed
-#' with an experiment, and rows with more than 50% missing values are censored
-#' and will not be imputed. Peptides with more than 2 missing biological
-#' replicates or any missing quality control (QC) replicates will be
-#' censored and are not imputed.
+# The function __impute_Peptides__ supports imputing missing values with the
+# maximum likelyhood estimation (MLE) or KNN algorithms for missing not at
+# random (MNAR) and missing at random data, respectively. Impution is performed
+# with an experiment, and rows with more than 50% missing values are censored
+# and will not be imputed. Peptides with more than 2 missing biological
+# replicates or any missing quality control (QC) replicates will be
+# censored and are not imputed.
 
 # Define experimental groups for checking QC variability:
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -358,13 +344,13 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 # Rows with missing QC replicates are ingored (qc_threshold=0).
 # Rows with more than 2 (50%) missing biological replicates are
 # ignored (bio_threshold=2).
-data_impute <- impute_Peptides(SL_peptide, groups, method = "knn")
+data_impute <- impute_peptides(SL_peptide, groups, method = "knn")
 impute_peptide <- data_impute$data_imputed
 
 # Table of n imputed peptides.
 n_out <- data_impute$n_out
 mytable <- as.data.frame(do.call(rbind, n_out))
-mytable <- add_column(mytable, rownames(mytable), .before = 1)
+mytable <- tibble::add_column(mytable, rownames(mytable), .before = 1)
 colnames(mytable) <- c("Experiment", "N Imputed")
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
@@ -374,12 +360,12 @@ all_plots[[paste(tissue, "n_imputed_pep_tab", sep = "_")]] <- mytable
 #-------------------------------------------------------------------------------
 ## Illustrate the mean variance relationship of QC peptides.
 #-------------------------------------------------------------------------------
-#' Quality control samples can be used to asses intra-experimental variability.
-#' Peptides that have highly variable QC measurements will increase protein
-#' level variability and should be removed. The peptide-level QC data are
-#' binned by intensity, and peptides whose mean ratio are more than four
-#' standard deviations away from the mean are considered outliers and
-#' removed.
+# Quality control samples can be used to asses intra-experimental variability.
+# Peptides that have highly variable QC measurements will increase protein
+# level variability and should be removed. The peptide-level QC data are
+# binned by intensity, and peptides whose mean ratio are more than four
+# standard deviations away from the mean are considered outliers and
+# removed.
 
 # Generate QC correlation scatter plots for all experimental groups.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -399,9 +385,9 @@ all_plots[[paste(tissue, "histQC_list", sep = "_")]] <- hist_list
 #-------------------------------------------------------------------------------
 ## Peptide level filtering.
 #-------------------------------------------------------------------------------
-#' Peptides that were not quantified in all three qc replicates are removed.
-#' The data are binned by intensity, and measruments that are 4xSD from the mean
-#' ratio of the intensity bin are considered outliers and removed.
+# Peptides that were not quantified in all three qc replicates are removed.
+# The data are binned by intensity, and measruments that are 4xSD from the mean
+# ratio of the intensity bin are considered outliers and removed.
 
 # Define experimental groups for checking QC variability:
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -420,9 +406,9 @@ all_plots[[paste(tissue, "n_pep_filtered_cortex", sep = "_")]] <- mytable
 #-------------------------------------------------------------------------------
 ##  Protein level summarization and normalization across all batches.
 #-------------------------------------------------------------------------------
-#' Summarize to protein level by summing peptide intensities. Note that the
-#' peptide column in the returned data frame reflects the total number of
-#' peptides identified for a given protein across all experiments.
+# Summarize to protein level by summing peptide intensities. Note that the
+# peptide column in the returned data frame reflects the total number of
+# peptides identified for a given protein across all experiments.
 
 # Summarize to protein level:
 filt_protein <- summarize_Protein(filter_peptide)
@@ -433,14 +419,14 @@ SL_protein <- normalize_SL(filt_protein, "Abundance", "Abundance")
 #-------------------------------------------------------------------------------
 ## IntraBatch Protein-lavel ComBat.
 #-------------------------------------------------------------------------------
-#' Each experimental cohort of 8 was prepared in two batches. This was necessary
-#' because the ultra-centrifuge rotor used to prepare purified synaptosomes
-#' holds a maximum of 6 samples. This intra-batch batch effect was recorded for
-#' 6/8 experiments. Here I will utilize the __ComBat()__ function from the `sva`
-#' package to remove this batch effect before correcting for inter-batch batch
-#' effects between batches with IRS normalization and regression. Note that in
-#' the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1),
-#' ComBat is not applied.
+# Each experimental cohort of 8 was prepared in two batches. This was necessary
+# because the ultra-centrifuge rotor used to prepare purified synaptosomes
+# holds a maximum of 6 samples. This intra-batch batch effect was recorded for
+# 6/8 experiments. Here I will utilize the __ComBat()__ function from the `sva`
+# package to remove this batch effect before correcting for inter-batch batch
+# effects between batches with IRS normalization and regression. Note that in
+# the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1),
+# ComBat is not applied.
 
 # Define experimental groups and column ID for expression data.
 colID <- "Abundance"

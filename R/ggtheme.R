@@ -1,8 +1,8 @@
 #' ggtheme
 #'
-#' Default theme for gg plots.
+#' Set a theme for ggplots.
 #'
-#' @param
+#' @param none
 #'
 #' @return none
 #'
@@ -12,17 +12,22 @@
 #'
 #' @keywords none
 #'
-#' @import
+#' @import ggplot2
 #'
 #' @export
 #'
 #' @examples
 #' ggtheme()
 ggtheme <- function() {
-  require(ggplot2)
-  ggtheme <- theme(
-    plot.title = element_text(color = "black", size = 11, face = "bold", hjust = 0.5),
-    axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-    axis.title.y = element_text(color = "black", size = 11, face = "bold")
-  )
+  suppressPackageStartupMessages({
+    require(ggplot2)
+  })
+  ggtheme <- theme_gray() +
+    theme(
+      plot.title = element_text(color = "black", size = 11, face = "bold", hjust = 0.5),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 11, angle = 45, hjust = 1.0)
+    )
+  theme_set(ggtheme)
 }

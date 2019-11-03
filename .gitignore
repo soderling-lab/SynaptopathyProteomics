@@ -1,4 +1,4 @@
-# General files to ignore.
+# Misc files to ignore.
 *.Rproj
 .Rproj.user
 .Rhistory
