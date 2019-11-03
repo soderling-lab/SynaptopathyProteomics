@@ -1,6 +1,6 @@
 #' summarize_Protein
 #'
-#' function_description
+#' Summarize proteins by summing all peptides for a unique Accession identifier.
 #'
 #' @param
 #'
@@ -17,10 +17,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## summarize_Protein
-#' # Summarize proteins by summing all peptides for a unique Accession identifier.
+#' summarize_Protein(peptide_data)
+
 summarize_Protein <- function(peptide_data) {
   # Add column for peptides, summarize using dplyr::summarize_all(sum)
   Peptides <- rep(1, nrow(peptide_data))

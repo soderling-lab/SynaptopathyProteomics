@@ -1,6 +1,6 @@
 #' ggplotVolcanoPlot
 #'
-#' function_description
+#' Define function: ggplotVolcanoPlot()
 #'
 #' @param
 #'
@@ -12,15 +12,12 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' Define function: ggplotVolcanoPlot()
-
+#' ggplotVolcanoPlot(data_in, title, cutoff = log2(1.25))
 ggplotVolcanoPlot <- function(data_in, title, cutoff = log2(1.25)) {
   df <- data_in
   df$x <- df[, grep("FC", colnames(df))]
@@ -42,4 +39,3 @@ ggplotVolcanoPlot <- function(data_in, title, cutoff = log2(1.25)) {
     )
   return(plot)
 }
-

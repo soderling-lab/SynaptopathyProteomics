@@ -13,7 +13,9 @@
 #' the project directory for saving output files.
 
 rm(list = ls())
-if (!is.null(dev.list())) { dev.off() }
+if (!is.null(dev.list())) {
+  dev.off()
+}
 cat("\f")
 options(stringsAsFactors = FALSE)
 
@@ -95,13 +97,17 @@ rownames(traits) <- traits$SampleID
 traits$Tissue <- c(rep("Cortex", 44), rep("Striatum", 44))
 
 # Add column for batch.
-traits$Batch <- sapply(strsplit(rownames(traits),"\\."),"[",1)
+traits$Batch <- sapply(strsplit(rownames(traits), "\\."), "[", 1)
 
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
 files <- paste(Rdatadir,
-               c("1_Cortex_CleanDat_TAMPOR_Format.Rds", 
-		 "1_Striatum_CleanDat_TAMPOR_Format.Rds"), sep = "/")
+  c(
+    "1_Cortex_CleanDat_TAMPOR_Format.Rds",
+    "1_Striatum_CleanDat_TAMPOR_Format.Rds"
+  ),
+  sep = "/"
+)
 data <- lapply(as.list(files), function(x) readRDS(x))
 names(data) <- c("Cortex", "Striatum")
 
@@ -142,7 +148,7 @@ cleanDat <- data_norm
 
 # GIS index is all WT samples.
 # WT Cortex and WT Striatum scaled by TAMPOR to be the same.
-controls <- traits$SampleID[grepl("WT", traits$SampleType)] 
+controls <- traits$SampleID[grepl("WT", traits$SampleType)]
 
 # Save merged data and traits to file.
 file <- paste0(Rdatadir, "/", outputMatName, "_cleanDat.Rds")
@@ -154,21 +160,22 @@ saveRDS(traits, file)
 ## Perform TAMPOR normalization.
 #-------------------------------------------------------------------------------
 
-# Insure than any samples that were removed from cleanDat are removed from 
+# Insure than any samples that were removed from cleanDat are removed from
 # traits (any outliers identified in previous scripts).
-traits <- traits[rownames(traits) %in% colnames(cleanDat),]
+traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
 
 # Load TAMPOR function.
-source(file.path(functiondir,"TAMPOR.R"))
+source(file.path(functiondir, "TAMPOR.R"))
 
 # Perform TAMPOR.
-results <- TAMPOR(dat = cleanDat,
-		  traits = traits,
-		  batchPrefixInSampleNames = TRUE, 
-		  samplesToIgnore = "None",
-		  GISchannels = controls, 
-		  parallelThreads = 8 
-		  )
+results <- TAMPOR(
+  dat = cleanDat,
+  traits = traits,
+  batchPrefixInSampleNames = TRUE,
+  samplesToIgnore = "None",
+  GISchannels = controls,
+  parallelThreads = 8
+)
 
 # Collect normalize relative abundance data.
 cleanDat <- results$cleanRelAbun
@@ -178,8 +185,8 @@ cleanDat <- results$cleanRelAbun
 #-------------------------------------------------------------------------------
 
 # Remove QC samples.
-out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType=="QC"]
-data_in <- log2(cleanDat[,!out])
+out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
+data_in <- log2(cleanDat[, !out])
 
 # Illustrate Oldham's sample connectivity.
 sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
@@ -210,7 +217,7 @@ bad_samples <- unlist(out_samples)
 message(paste("Outlier samples:", traits$Sample.Model[rownames(traits) %in% bad_samples]))
 
 # Save data to file.
-cleanDat <- cleanDat[,!colnames(cleanDat) %in% bad_samples]
+cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
 myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds")
 saveRDS(cleanDat, myfile)
 
@@ -222,11 +229,11 @@ saveRDS(cleanDat, myfile)
 traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
 
 # Remove QC data.
-out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType=="QC"]
-data_in <- log2(cleanDat[,!out])
+out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
+data_in <- log2(cleanDat[, !out])
 
 # Check, traits and cleanDat should match data.
-traits <- traits[match(colnames(data_in),rownames(traits)),]
+traits <- traits[match(colnames(data_in), rownames(traits)), ]
 all(rownames(traits) == colnames(data_in))
 
 ## PCA Plots.
@@ -251,8 +258,8 @@ all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 #-------------------------------------------------------------------------------
 
 # Remove QC samples prior to passing data to EdgeR.
-out <- traits$SampleType[match(colnames(cleanDat),rownames(traits))] == "QC"
-data_in <- cleanDat[,!out]
+out <- traits$SampleType[match(colnames(cleanDat), rownames(traits))] == "QC"
+data_in <- cleanDat[, !out]
 
 # Create DGEList object...
 y_DGE <- DGEList(counts = data_in)
@@ -260,7 +267,7 @@ y_DGE <- DGEList(counts = data_in)
 # TMM Normalization.
 y_DGE <- calcNormFactors(y_DGE)
 
-# Create sample mapping to Tissue.Genotype. 
+# Create sample mapping to Tissue.Genotype.
 # Group WT Cortex samples and WT Striatum samples together.
 traits$ColumnName <- traits$SampleID
 traits <- subset(traits, rownames(traits) %in% colnames(data_in))
@@ -304,7 +311,7 @@ contrasts <- list(
   makeContrasts(cont2[4], levels = design)
 )
 names(contrasts) <- unlist({
-	lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
+  lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
 })
 
 # Call glmQLFTest() to evaluate differences in contrasts.
@@ -355,16 +362,16 @@ glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$tab
 glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
 
 # Annotate with Gene names and Entrez IDS.
-prot_map <- data.table::fread(file.path(Rdatadir,"ProtMap.csv"))
+prot_map <- data.table::fread(file.path(Rdatadir, "ProtMap.csv"))
 mapProts <- function(x) {
-	Uniprot <- sapply(strsplit(rownames(x),"\\|"),"[",2)
-	idx <- match(Uniprot,prot_map$uniprot)
-	x <- add_column(x, Uniprot,.before=1)
-	x <- add_column(x, Gene = prot_map$symbol[idx], .after=1)
-	x <- add_column(x, Entrez = prot_map$symbol[idx], .after=2)
-	return(x)
+  Uniprot <- sapply(strsplit(rownames(x), "\\|"), "[", 2)
+  idx <- match(Uniprot, prot_map$uniprot)
+  x <- add_column(x, Uniprot, .before = 1)
+  x <- add_column(x, Gene = prot_map$symbol[idx], .after = 1)
+  x <- add_column(x, Entrez = prot_map$symbol[idx], .after = 2)
+  return(x)
 }
-glm_results <- lapply(glm_results,function(x) mapProts(x))
+glm_results <- lapply(glm_results, function(x) mapProts(x))
 
 # Sort by pvalue.
 glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
@@ -529,7 +536,7 @@ names(results_GOenrichment) <- colnames(labels)
 
 # Save as excel workbook.
 myfile <- file.path(rootdir, "tables", "2_Supplementary_TMT_GO_Analysis.xlsx")
-write.excel(results_GOenrichment,myfile)
+write.excel(results_GOenrichment, myfile)
 
 #-------------------------------------------------------------------------------
 ## Condition overlap.
@@ -539,8 +546,9 @@ write.excel(results_GOenrichment,myfile)
 results <- glm_results
 
 # Combine by FDR.
-stats <- lapply(results, function(x)
-  data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR))
+stats <- lapply(results, function(x) {
+  data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR)
+})
 
 names(stats) <- names(results)
 df <- stats %>% purrr::reduce(left_join, by = c("Uniprot", "Gene"))
@@ -626,17 +634,19 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 #-------------------------------------------------------------------------------
 
 # Group WT cortex and WT striatum.
-traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model,sep=".")
+traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 traits$Condition <- traits$Tissue.Sample.Model
-traits$Condition[grepl("Cortex.WT",traits$Condition)] <- "Cortex.WT"
-traits$Condition[grepl("Striatum.WT",traits$Condition)] <- "Striatum.WT"
+traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
+traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
 # Levels for boxplots:
-lvls <- c("Cortex.WT",          "Striatum.WT",
-	  "Cortex.KO.Shank2",   "Striatum.KO.Shank2",
-	  "Cortex.KO.Shank3",   "Striatum.KO.Shank3", 
-	  "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
-	  "Cortex.KO.Ube3a",    "Striatum.KO.Ube3a")
+lvls <- c(
+  "Cortex.WT", "Striatum.WT",
+  "Cortex.KO.Shank2", "Striatum.KO.Shank2",
+  "Cortex.KO.Shank3", "Striatum.KO.Shank3",
+  "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
+  "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
+)
 
 # Generate plots.
 plot_list <- ggplotProteinBoxes(
@@ -649,7 +659,7 @@ plot_list <- ggplotProteinBoxes(
 
 # Add custom colors.
 colors <- c(
-  "gray","gray",
+  "gray", "gray",
   "#FFF200", "#FFF200",
   "#00A2E8", "#00A2E8",
   "#22B14C", "#22B14C",
@@ -685,13 +695,13 @@ p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
 p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
 
 # Store plots in list.
-all_plots[[paste(tissue,"Shank2_BP",sep="_")]]  <- p1
-all_plots[[paste(tissue,"Shank3_BP",sep="_")]]  <- p2
-all_plots[[paste(tissue,"Syngap1_BP",sep="_")]] <- p3
-all_plots[[paste(tissue,"Ube3a_BP",sep="_")]]   <- p4
+all_plots[[paste(tissue, "Shank2_BP", sep = "_")]] <- p1
+all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
+all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
+all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
 
 # Save plots.
-myfile <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
 saveRDS(all_plots, myfile)
 
 #-------------------------------------------------------------------------------
@@ -718,23 +728,23 @@ colnames(traits)[2] <- "LongName"
 # Gather raw data.
 raw_cortex <- data$raw_cortex
 raw_striatum <- data$raw_striatum
-idx <- grepl("Abundance",colnames(raw_cortex))
-colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], "Cortex", sep =", ")
-idx <- grepl("Abundance",colnames(raw_striatum))
-colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], "Striatum", sep =", ")
+idx <- grepl("Abundance", colnames(raw_cortex))
+colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], "Cortex", sep = ", ")
+idx <- grepl("Abundance", colnames(raw_striatum))
+colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], "Striatum", sep = ", ")
 
 # Gather normalized data.
 norm_data <- as.data.frame(log2(data$cleanDat))
-idx <- match(colnames(norm_data),traits$Batch.Channel)
-colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep=", ")
-norm_data <- add_column(norm_data,"Gene|Uniprot" = rownames(norm_data), .before = 1)
+idx <- match(colnames(norm_data), traits$Batch.Channel)
+colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep = ", ")
+norm_data <- add_column(norm_data, "Gene|Uniprot" = rownames(norm_data), .before = 1)
 rownames(norm_data) <- NULL
 
 # Write statistical results.
 # FIXME: Change order!
-stats <- readRDS(file.path(Rdatadir,"2_Combined_TAMPOR_GLM_Results.RDS"))
-myfile <- file.path(rootdir,"tables","2_Supplementary_TMT_GLM_Results.xlsx")
-write.excel(stats,myfile)
+stats <- readRDS(file.path(Rdatadir, "2_Combined_TAMPOR_GLM_Results.RDS"))
+myfile <- file.path(rootdir, "tables", "2_Supplementary_TMT_GLM_Results.xlsx")
+write.excel(stats, myfile)
 
 # Write to excel workbook.
 wb <- createWorkbook()
@@ -746,7 +756,7 @@ writeData(wb, sheet = 1, keepNA = TRUE, traits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
-file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx",sep="/")
+file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx", sep = "/")
 saveWorkbook(wb, file, overwrite = TRUE)
 
 # ENDOFILE

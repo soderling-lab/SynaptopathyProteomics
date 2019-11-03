@@ -1,6 +1,6 @@
 #' ggplotDetect
 #'
-#' function_description
+#' Function for plotting distribution (density) of missing values).
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for plotting distribution (density) of missing values).
+#' ggplotDetect(data_in, group, log = TRUE)
 ggplotDetect <- function(data_in, group, log = TRUE) {
   # Subset the data.
   cols <- grepl(group, colnames(data_in))

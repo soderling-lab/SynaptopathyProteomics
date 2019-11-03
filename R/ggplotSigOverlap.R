@@ -1,6 +1,6 @@
 #' ggplotSigOverlap
 #'
-#' function_description
+#' plot significance of overlap
 #'
 #' @param
 #'
@@ -17,8 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
+#' ggplotSigOverlap(data, protID, colID)
 ggplotSigOverlap <- function(data, protID, colID) {
   cols <- grepl(colID, colnames(data))
   data_work <- data[, cols]

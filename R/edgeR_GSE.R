@@ -1,6 +1,8 @@
 #' edgeR_GSE
 #'
-#' function_description
+#' A Function for performing GO and KEGG GSE.
+#' Requires an internet connection!
+#' Can operate on qlf or ET objects.
 #'
 #' @param
 #'
@@ -17,11 +19,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # A Function for performing GO and KEGG GSE.
-#' # Requires an internet connection!
-#' # Can operate on qlf or ET objects.
+#' edgeR_GSE(qlf, FDR = 0.05, filter = TRUE)
 edgeR_GSE <- function(qlf, FDR = 0.05, filter = TRUE) {
   GSE_results <- list()
   # Map Uniprot IDs to Entrez IDs:

@@ -1,6 +1,6 @@
 #' formatDEP
 #'
-#' function_description
+#' Reformats the data for input into DEP package
 #'
 #' @param
 #'
@@ -17,11 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## formatDEP
-#'
-#' # Reformats the data for input into DEP package
+#' formatDEP(data_in)
 formatDEP <- function(data_in) {
   #  Add ID and names columns
   data_in$ID <- data_in$Accession

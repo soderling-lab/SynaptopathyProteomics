@@ -1,25 +1,5 @@
 #' ggplotProteinScatterPlot
 #'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' ggplotProteinScatterPlot
 #' Generate a scatter plot between two proteins.
 #'
 #' @param arg1
@@ -31,11 +11,12 @@
 #' @references \url{}
 #' @keywords
 #'
-#' @examples
-#'
 #' @export
+#'
 #' @importFrom
-
+#'
+#' @examples
+#' ggplotProteinScatterPlot(cleanDat, prot1, prot2)
 ggplotProteinScatterPlot <- function(cleanDat, prot1, prot2) {
   # collect data in dataframe; colnames are protein/gene names.
   df <- data.frame(
@@ -63,4 +44,3 @@ ggplotProteinScatterPlot <- function(cleanDat, prot1, prot2) {
     ggtheme
   return(plot)
 }
-

@@ -1,6 +1,8 @@
 #' filterQCv2
 #'
-#' function_description
+#' This function bins peptides by mean intensity of QC samples, calculates
+#' the log ratio of all QC sample comparisons and then removes a peptides
+#' if its mean QC ratio is outside NxSD the mean its intensity bin.
 #'
 #' @param
 #'
@@ -17,12 +19,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## filterQCv2
-#' # This function bins peptides by mean intensity of QC samples, calculates the
-#' # log ratio of all QC sample comparisons and then removes a peptides if its mean QC ratio
-#' # is outside NxSD the mean its intensity bin.
+#' filterQCv2(data_in, groups, nbins, threshold)
 filterQCv2 <- function(data_in, groups, nbins, threshold) {
   for (i in 1:length(groups)) {
     group <- groups[i]

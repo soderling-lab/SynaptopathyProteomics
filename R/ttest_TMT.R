@@ -1,6 +1,6 @@
 #' ttest_TMT
 #'
-#' function_description
+#' This function just does all the work of ttest.
 #'
 #' @param
 #'
@@ -17,10 +17,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## ttest_TMT
-#' # This function just does all the work of ttest.
+#' ttest_TMT(data_in, groups)
+
 ttest_TMT <- function(data_in, groups) {
   data_temp <- as.data.frame(assay(data_in))
   data_out <- matrix(NA, nrow = nrow(data_temp), ncol = length(groups))

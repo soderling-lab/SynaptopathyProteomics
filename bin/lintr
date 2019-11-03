@@ -2,3 +2,4 @@
 #
 # Styles R files.
 styler::style_dir("../R")
+styler::style_dir("../analysis")

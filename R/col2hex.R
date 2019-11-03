@@ -1,6 +1,8 @@
 #' col2hex
 #'
-#' function_description
+#' A Function for mixing colors.
+#' Returns hex code for new color and prints plot showing the color in the
+#' console.
 #'
 #' @param
 #'
@@ -12,16 +14,12 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' ## A Function for mixing colors.
-#' Returns hex code for new color and prints plot showing the color in the console.
-
+#' col2hex(color, maxValue = 255)
 col2hex <- function(color, maxValue = 255) {
   z <- col2rgb(color)
   hex <- rgb(z[1], z[2], z[3], maxColorValue = maxValue)
@@ -50,4 +48,3 @@ mixcolors <- function(color1, color2, ratio1 = 1, ratio2 = 1, plot = FALSE) {
   if (plot == TRUE) print(p)
   return(hex)
 }
-

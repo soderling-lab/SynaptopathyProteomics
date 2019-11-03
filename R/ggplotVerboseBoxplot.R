@@ -1,25 +1,5 @@
 #' ggplotVerboseBoxplot
 #'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#------------------------------------------------------------------------------
-#' ggplotVerboseBoxplot
 #' Generate WGCNA verbose boxplots
 #'
 #' @param x - ME vector
@@ -33,14 +13,13 @@
 #' @references \url{}
 #' @keywords
 #'
-#' @examples
-#'
 #' @export
-#' @importFrom
-
+#'
+#' @examples
+#' ggplotVerboseBoxplot(x, g, contrasts)
 ggplotVerboseBoxplot <- function(x, g, contrasts, order = NULL, ...) {
 
-  # Use
+  # Imports
   require(FSA)
   # Bind data together as a data.frame.
 
@@ -107,4 +86,3 @@ ggplotVerboseBoxplot <- function(x, g, contrasts, order = NULL, ...) {
   plot <- plot + annotate("text", x = Dtest$xpos, y = Dtest$ypos, label = Dtest$symbol, size = 10)
   return(plot)
 }
-

@@ -1,6 +1,6 @@
 #' ggplotScaleFreeFit
 #'
-#' function_description
+#' Function for plotting WGCNA powers.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for plotting WGCNA powers.
+#' ggplotScaleFreeFit(sft)
 ggplotScaleFreeFit <- function(sft) {
   require(ggplot2)
   # Gather the data, calculate scale free fit.

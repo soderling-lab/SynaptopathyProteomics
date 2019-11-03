@@ -1,6 +1,6 @@
 #' ggplotBoxPlotv2
 #'
-#' function_description
+#' plot sample boxplots
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## boxplot function.
+#' ggplotBoxPlotv2(data_in, colID, traits, colors, title)
 ggplotBoxPlotv2 <- function(data_in, colID, traits, colors, title) {
   sampleIndex <- as.data.frame(do.call(rbind, strsplit(colnames(data_in), "\\.")))
   colnames(sampleIndex) <- c("batch", "channel")

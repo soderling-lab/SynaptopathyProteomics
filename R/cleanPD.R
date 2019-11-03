@@ -1,27 +1,5 @@
 #' cleanPD
 #'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-
-#' cleanPD
-#'
 #' Clean up raw TMT data exported as xlsx from PD.
 #'   Utilizes the fill_down function.
 #'
@@ -34,11 +12,10 @@
 #' @references \url{}
 #' @keywords PD ProteomeDiscover raw intensity peptides
 #'
+#' @export
+#'
 #' @examples
 #' cleanPD()
-#' @export
-# @importFrom
-#'
 cleanPD <- function(data_in, sample_info) {
   logic <- is.na(data_in$`Protein FDR Confidence: Mascot`)
   data_in[logic, c(1, 3, 4)] <- NA
@@ -59,4 +36,3 @@ cleanPD <- function(data_in, sample_info) {
   colnames(data_out)[c(1, 4, 5)] <- c("Confidence", "Sequence", "Modifications")
   return(data_out)
 }
-

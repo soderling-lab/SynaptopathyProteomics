@@ -1,8 +1,8 @@
 #' annotateTopTags
 #'
-#' function_description
+#' A function to annotate DAP candidates.
 #'
-#' @param
+#' @param y_TT
 #'
 #' @return none
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function to annotate DE candidates:
+#' annotateTopTags(y_TT)
 annotateTopTags <- function(y_TT) {
   require(AnnotationDbi)
   require(org.Mm.eg.db)

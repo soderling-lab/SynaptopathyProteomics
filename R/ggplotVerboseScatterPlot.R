@@ -1,6 +1,6 @@
 #' ggplotVerboseScatterPlot
 #'
-#' function_description
+#' Define function: ggplotVerboseScatterPlot
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#'
-#' # Define function: ggplotVerboseScatterPlot
+#' ggplotVerboseScatterPlot(MMdata, GSdata, moduleGenes, module, trait)
 ggplotVerboseScatterPlot <- function(MMdata, GSdata, moduleGenes, module, trait, stats = TRUE) {
 
   # Subset the data.

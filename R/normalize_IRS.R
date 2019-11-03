@@ -1,6 +1,7 @@
 #' normalize_IRS
 #'
-#' function_description
+#' Function for IRS normalization.
+#' Supports geometric or robust mean.
 #'
 #' @param
 #'
@@ -17,13 +18,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## normalize_IRS
-#' # Function for IRS normalization.
-#' # Supports geometric or robust mean.
-normalize_IRS <- function(data_in, IRS_ID, groups, robust) {
-
+#' normalize_IRS(data_in, IRS_ID, groups, robust)
+normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
   # Subset the data.
   cols_qc <- grep(IRS_ID, colnames(data_in))
   data_qc <- data_in[, cols_qc]

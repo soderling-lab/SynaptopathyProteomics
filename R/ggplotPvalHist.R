@@ -1,6 +1,6 @@
 #' ggplotPvalHist
 #'
-#' function_description
+#' plot p-value histogram
 #'
 #' @param
 #'
@@ -12,14 +12,12 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' Define function: ggplotPvalHist()
+#' ggplotPvalHist(data_in, color, title)
 ggplotPvalHist <- function(data_in, color, title) {
   col <- grep("PValue|pvalue|p value| P value| P Value", colnames(data_in))
   plot <- ggplot(data = data_in, aes(data_in[, col])) +
@@ -32,4 +30,3 @@ ggplotPvalHist <- function(data_in, color, title) {
     )
   return(plot)
 }
-

@@ -1,6 +1,6 @@
 #' ggplotPCA
 #'
-#' function_description
+#' plot a PCA plot with ggplot
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## ggplotPCA
+#' ggplotPCA(data_in, traits, colors)
 ggplotPCA <- function(data_in, traits, colors, title = "2D PCA Plot") {
   # Perform PCA
   PC <- prcomp(t(na.omit(data_in)))$x[, 1:2]

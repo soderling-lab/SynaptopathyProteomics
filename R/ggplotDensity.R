@@ -1,6 +1,6 @@
 #' ggplotDensity
 #'
-#' function_description
+#' plot sample density plots
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: ggplotDensity(data_in,title)
+#' ggplotDensity(data_in, title)
 ggplotDensity <- function(data_in, colID, title) {
   # The function ggplotDensity plots a density plot using ggplot.
   # The input data should be a data matrix. This data is reshaped with reshape2::melt

@@ -1,6 +1,6 @@
 #' qlf_goana_results
 #'
-#' function_description
+#' Get GO and KEGG results from qlf object.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Get GO and KEGG results from qlf object.
+#' qlf_goana_results(qlf_result)
 qlf_goana_results <- function(qlf_result) {
   qlf <- qlf_result$QLF
   Uniprot_IDs <- sapply(strsplit(rownames(qlf), "\\|"), "[", 2)

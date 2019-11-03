@@ -1,6 +1,7 @@
 #' ggplotVolcanoPlot2
 #'
-#' function_description
+#' # A Volcano plot function.
+#' # Function for producing volcano plots.
 #'
 #' @param
 #'
@@ -17,10 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # A Volcano plot function.
-#' # Function for producing volcano plots.
+#' ggplotVolcanoPlot2(df)
 ggplotVolcanoPlot2 <- function(df) {
   df$x <- df[, grep("FC", colnames(df))]
   df$y <- -log10(df[, grep("PValue", colnames(df))])

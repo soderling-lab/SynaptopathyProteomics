@@ -13,30 +13,32 @@
 #' the project directory for saving output files.
 
 rm(list = ls())
-if (!is.null(dev.list())) { dev.off() }
+if (!is.null(dev.list())) {
+  dev.off()
+}
 cat("\f")
 options(stringsAsFactors = FALSE)
 
 # Load required packages.
 suppressPackageStartupMessages({
-	library(readxl)
-	library(data.table)
-	library(reshape2)
-	library(WGCNA)
-	library(dplyr)
-	library(gridExtra)
-	library(grid)
-	library(gtable)
-	library(ggplot2)
-	library(cowplot)
-	library(impute)
-	library(tibble)
-	library(flashClust)
-	library(ggdendro)
-	library(sva)
-	library(purrr)
-	library(ggrepel)
-	library(edgeR)
+  library(readxl)
+  library(data.table)
+  library(reshape2)
+  library(WGCNA)
+  library(dplyr)
+  library(gridExtra)
+  library(grid)
+  library(gtable)
+  library(ggplot2)
+  library(cowplot)
+  library(impute)
+  library(tibble)
+  library(flashClust)
+  library(ggdendro)
+  library(sva)
+  library(purrr)
+  library(ggrepel)
+  library(edgeR)
 })
 
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
@@ -48,7 +50,7 @@ here <- getwd()
 rootdir <- dirname(dirname(here))
 
 # Set any other directories.
-functiondir <- paste(rootdir, "functions",sep = "/")
+functiondir <- paste(rootdir, "functions", sep = "/")
 datadir <- paste(rootdir, "input", sep = "/")
 Rdatadir <- paste(rootdir, "data", sep = "/")
 outputfigs <- paste(rootdir, "figures", tissue, sep = "/")
@@ -65,7 +67,7 @@ outputMatName <- paste0("1_", tissue)
 ggplot2::theme_set(theme_gray())
 
 # Plots will be stored in a list.
-output_plots <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
+output_plots <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
 all_plots <- list()
 
 #-------------------------------------------------------------------------------
@@ -139,7 +141,7 @@ plot <- ggplot(df, aes(x = Channel, y = log2(value), fill = Channel)) +
   )
 
 # Store in list.
-all_plots[[paste(tissue,"Example_TMT",sep="_")]] <- plot
+all_plots[[paste(tissue, "Example_TMT", sep = "_")]] <- plot
 
 #-------------------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
@@ -163,7 +165,8 @@ print(paste(nProteins, " unique proteins identified.", sep = ""))
 # Utilize gridExtra to create a table.
 tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
   rows = NULL,
-  theme = ttheme_default())
+  theme = ttheme_default()
+)
 
 # Examine the number of peptides per protein.
 nPep <- subset(raw_peptide) %>%
@@ -175,7 +178,7 @@ nPep <- nPep[!nPep$nPeptides == 1, ]
 
 # Generate plot.
 plot1 <- ggplot(nPep, aes(nPeptides)) + geom_histogram(bins = 100, fill = "black") +
-  ggtitle("Peptides per Protein") + xlab("Peptides") + ylab("Frequency") + 
+  ggtitle("Peptides per Protein") + xlab("Peptides") + ylab("Frequency") +
   theme(
     plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
     axis.title.x = element_text(color = "black", size = 11, face = "bold"),
@@ -205,14 +208,14 @@ tab2 <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Plot peptide identification overlap.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) + 
+plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) +
   labs(title = "Peptide Identification\nOverlap")
-                 
+
 # Store plots in list.
-all_plots[[paste(tissue,"n_pep_per_protein",sep="_")]]      <- plot1
-all_plots[[paste(tissue,"pep_id_overlap",sep="_")]]         <- plot2
-all_plots[[paste(tissue,"total_pep_and_prot_tab",sep="_")]] <- tab1
-all_plots[[paste(tissue,"pep_id_overlap_tab",sep="_")]]     <- tab2
+all_plots[[paste(tissue, "n_pep_per_protein", sep = "_")]] <- plot1
+all_plots[[paste(tissue, "pep_id_overlap", sep = "_")]] <- plot2
+all_plots[[paste(tissue, "total_pep_and_prot_tab", sep = "_")]] <- tab1
+all_plots[[paste(tissue, "pep_id_overlap_tab", sep = "_")]] <- tab2
 
 #-------------------------------------------------------------------------------
 ## Examine the raw data.
@@ -225,11 +228,11 @@ data_in <- raw_peptide
 title <- "Raw Peptide"
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 
-# Generate boxplot 
+# Generate boxplot
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 l1 <- get_legend(p1)
 p1 <- p1 + theme(legend.position = "none")
-p1 <- p1 + theme(axis.text.x=element_blank())
+p1 <- p1 + theme(axis.text.x = element_blank())
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
@@ -244,11 +247,11 @@ colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
 p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
   theme(legend.position = "none")
 
-# Store plots in list. 
-all_plots[[paste(tissue,"raw_bp",sep="_")]]  <- p1
-all_plots[[paste(tissue,"raw_dp",sep="_")]]  <- p2
-all_plots[[paste(tissue,"raw_msd",sep="_")]] <- p3
-all_plots[[paste(tissue,"raw_mds",sep="_")]] <- p4
+# Store plots in list.
+all_plots[[paste(tissue, "raw_bp", sep = "_")]] <- p1
+all_plots[[paste(tissue, "raw_dp", sep = "_")]] <- p2
+all_plots[[paste(tissue, "raw_msd", sep = "_")]] <- p3
+all_plots[[paste(tissue, "raw_mds", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## Sample loading normalization within experiments.
@@ -278,7 +281,7 @@ title <- "SL Peptide"
 data_in <- SL_peptide
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title) + theme(legend.position = "none")
-p1 <- p1 + theme(axis.text.x=element_blank())
+p1 <- p1 + theme(axis.text.x = element_blank())
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
@@ -294,10 +297,10 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Store plots.
-all_plots[[paste(tissue,"sl_bp",sep="_")]] <- p1
-all_plots[[paste(tissue,"sl_dp",sep="_")]] <- p2
-all_plots[[paste(tissue,"sl_msd",sep="_")]] <- p3
-all_plots[[paste(tissue,"sl_mds",sep="_")]] <- p4
+all_plots[[paste(tissue, "sl_bp", sep = "_")]] <- p1
+all_plots[[paste(tissue, "sl_dp", sep = "_")]] <- p2
+all_plots[[paste(tissue, "sl_msd", sep = "_")]] <- p3
+all_plots[[paste(tissue, "sl_mds", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## Examine the nature of missing values.
@@ -332,10 +335,10 @@ p4 <- ggplotDetect(SL_peptide, groups[4]) #+ ggtitle(NULL)
 p4 <- p4 + theme(legend.position = "none")
 
 # Store plots.
-all_plots[[paste(tissue,"missing_val_shank2",sep="_")]]  <- p1
-all_plots[[paste(tissue,"missing_val_shank3",sep="_")]]  <- p2
-all_plots[[paste(tissue,"missing_val_syngap1",sep="_")]] <- p3
-all_plots[[paste(tissue,"missing_val_ube3a",sep="_")]]   <- p4
+all_plots[[paste(tissue, "missing_val_shank2", sep = "_")]] <- p1
+all_plots[[paste(tissue, "missing_val_shank3", sep = "_")]] <- p2
+all_plots[[paste(tissue, "missing_val_syngap1", sep = "_")]] <- p3
+all_plots[[paste(tissue, "missing_val_ube3a", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## Impute missing peptide values within an experiment.
@@ -365,8 +368,8 @@ mytable <- add_column(mytable, rownames(mytable), .before = 1)
 colnames(mytable) <- c("Experiment", "N Imputed")
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
-# Store table. 
-all_plots[[paste(tissue,"n_imputed_pep_tab",sep="_")]] <- mytable
+# Store table.
+all_plots[[paste(tissue, "n_imputed_pep_tab", sep = "_")]] <- mytable
 
 #-------------------------------------------------------------------------------
 ## Illustrate the mean variance relationship of QC peptides.
@@ -390,8 +393,8 @@ hist_list[["Syngap1"]] <- ggplotQCHist(impute_peptide, "Syngap1", nbins = 5, thr
 hist_list[["Ube3a"]] <- ggplotQCHist(impute_peptide, "Ube3a", nbins = 5, threshold = 4)
 
 # Store plots.
-all_plots[[paste(tissue,"corQC_list",sep="_")]]    <- plots
-all_plots[[paste(tissue,"histQC_list",sep="_")]] <- hist_list 
+all_plots[[paste(tissue, "corQC_list", sep = "_")]] <- plots
+all_plots[[paste(tissue, "histQC_list", sep = "_")]] <- hist_list
 
 #-------------------------------------------------------------------------------
 ## Peptide level filtering.
@@ -412,7 +415,7 @@ mytable <- data.frame(cbind(groups, out))
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Store table
-all_plots[[paste(tissue,"n_pep_filtered_cortex",sep="_")]] <- mytable
+all_plots[[paste(tissue, "n_pep_filtered_cortex", sep = "_")]] <- mytable
 
 #-------------------------------------------------------------------------------
 ##  Protein level summarization and normalization across all batches.
@@ -568,11 +571,11 @@ colnames(df) <- c("Experiment", "preComBat", "postComBat")
 mytable <- tableGrob(df, rows = NULL)
 
 # Store plots...
-all_plots[[paste(tissue,"batch_effect_tab",sep="_")]]   <- mytable
-all_plots[[paste(tissue,"shank2_combat_pca",sep="_")]]  <- plot_list[[1]]
-all_plots[[paste(tissue,"shank3_combat_pca",sep="_")]]  <- plot_list[[2]]
-all_plots[[paste(tissue,"syngap1_combat_pca",sep="_")]] <- plot_list[[3]]
-all_plots[[paste(tissue,"ube3a_combat_pca",sep="_")]]   <- plot_list[[4]]
+all_plots[[paste(tissue, "batch_effect_tab", sep = "_")]] <- mytable
+all_plots[[paste(tissue, "shank2_combat_pca", sep = "_")]] <- plot_list[[1]]
+all_plots[[paste(tissue, "shank3_combat_pca", sep = "_")]] <- plot_list[[2]]
+all_plots[[paste(tissue, "syngap1_combat_pca", sep = "_")]] <- plot_list[[3]]
+all_plots[[paste(tissue, "ube3a_combat_pca", sep = "_")]] <- plot_list[[4]]
 
 #-------------------------------------------------------------------------------
 ##  Examine protein identification overlap.
@@ -584,7 +587,7 @@ plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +
   ggtitle("Protein Identification Overlap")
 
 # Store plot.
-all_plots[[paste(tissue,"prot_id_overlap",sep="_")]] <- plot
+all_plots[[paste(tissue, "prot_id_overlap", sep = "_")]] <- plot
 
 #-------------------------------------------------------------------------------
 ## Examine the Normalized protein level data.
@@ -610,10 +613,10 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Store plots.
-all_plots[[paste(tissue,"sl_prot_bp",sep="_")]]  <- p1
-all_plots[[paste(tissue,"sl_prot_dp",sep="_")]]  <- p2
-all_plots[[paste(tissue,"sl_prot_msd",sep="_")]] <- p3
-all_plots[[paste(tissue,"sl_prot_mds",sep="_")]] <- p4
+all_plots[[paste(tissue, "sl_prot_bp", sep = "_")]] <- p1
+all_plots[[paste(tissue, "sl_prot_dp", sep = "_")]] <- p2
+all_plots[[paste(tissue, "sl_prot_msd", sep = "_")]] <- p3
+all_plots[[paste(tissue, "sl_prot_mds", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## IRS Normalization.
@@ -691,7 +694,7 @@ IRS_OutRemoved_protein <- normalize_IRS(SL_protein[, !out], "QC", groups, robust
 IRS_protein <- IRS_OutRemoved_protein
 
 # Store plots.
-all_plots[[paste(tissue,"sample_connectivity_list",sep="_")]]  <- plots
+all_plots[[paste(tissue, "sample_connectivity_list", sep = "_")]] <- plots
 
 #-------------------------------------------------------------------------------
 ## Examine the IRS Normalized protein level data.
@@ -724,10 +727,10 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Store plots.
-all_plots[[paste(tissue,"irs_bp",sep="_")]]  <- p1
-all_plots[[paste(tissue,"irs_dp",sep="_")]]  <- p2
-all_plots[[paste(tissue,"irs_msd",sep="_")]] <- p3
-all_plots[[paste(tissue,"irs_mds",sep="_")]] <- p4
+all_plots[[paste(tissue, "irs_bp", sep = "_")]] <- p1
+all_plots[[paste(tissue, "irs_dp", sep = "_")]] <- p2
+all_plots[[paste(tissue, "irs_msd", sep = "_")]] <- p3
+all_plots[[paste(tissue, "irs_mds", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## Protein level filtering, imputing, and final TMM normalization.
@@ -753,7 +756,7 @@ imp_protein <- impute_KNN(filt_protein, "Abundance")
 TMM_protein <- normalize_TMM(imp_protein, "Abundance")
 
 # Store plots.
-all_plots[[paste(tissue,"prot_missing_val_dp",sep="_")]] <- plot
+all_plots[[paste(tissue, "prot_missing_val_dp", sep = "_")]] <- plot
 
 #-------------------------------------------------------------------------------
 ## Examine the TMM Normalized protein level data.
@@ -781,10 +784,10 @@ p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels
   theme(legend.position = "none")
 
 # Store plots.
-all_plots[[paste(tissue,"tmm_bp",sep="_")]]  <- p1
-all_plots[[paste(tissue,"tmm_dp",sep="_")]]  <- p2
-all_plots[[paste(tissue,"tmm_msd",sep="_")]] <- p3
-all_plots[[paste(tissue,"tmm_mds",sep="_")]] <- p4
+all_plots[[paste(tissue, "tmm_bp", sep = "_")]] <- p1
+all_plots[[paste(tissue, "tmm_dp", sep = "_")]] <- p2
+all_plots[[paste(tissue, "tmm_msd", sep = "_")]] <- p3
+all_plots[[paste(tissue, "tmm_mds", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## Reformat final normalized, regressed data for TAMPOR Normalization.
@@ -798,9 +801,9 @@ data_in$Accession <- NULL
 data_in$Peptides <- NULL
 data_in <- as.matrix(data_in)
 
-#data_in <- 2^t(data.fit)
-#data_in[1:5, 1:5] # un-log
-#dim(data_in)
+# data_in <- 2^t(data.fit)
+# data_in[1:5, 1:5] # un-log
+# dim(data_in)
 
 # Extract Gene descriptions and uniprot accesssions for renaming rows.
 idx <- match(rownames(data_in), SL_peptide$Accession)
@@ -834,7 +837,7 @@ file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_TAMPOR_Format.Rds")
 saveRDS(cleanDat, file)
 
 # Save plot list.
-myfile <- file.path(Rdatadir, paste0(outputMatName,"_plots.Rds"))
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
 saveRDS(all_plots, myfile)
 
 ## ENDOFILE

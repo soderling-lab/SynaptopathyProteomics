@@ -1,6 +1,7 @@
 #' checkNormalization
 #'
-#' function_description
+#' This function calls several of the custom ggplot functions for checking
+#' the data:
 #'
 #' @param
 #'
@@ -17,10 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## checkNormalization
-#' # This function calls several of the custom ggplot functions for checking the data:
+#' checkNormalization(data_in, traits, colors, title)
 checkNormalization <- function(data_in, traits, colors, title) {
   # Generate plots.
   p1 <- ggplotBoxPlotv2(log2(data_in),

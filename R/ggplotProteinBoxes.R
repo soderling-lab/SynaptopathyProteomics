@@ -1,6 +1,6 @@
 #' ggplotProteinBoxes
 #'
-#' function_description
+#' Function to make boxplots for proteins of interst.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function to make boxplots for proteins of interst.
+#' ggplotProteinBoxes(data_in, interesting.proteins, traits, scatter = TRUE)
 ggplotProteinBoxes <- function(data_in, interesting.proteins, traits, order = NULL, scatter = FALSE) {
   proteinBoxes <- list()
   for (protein in interesting.proteins) {

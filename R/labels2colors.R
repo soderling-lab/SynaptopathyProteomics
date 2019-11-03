@@ -1,6 +1,6 @@
 #' labels2colors
 #'
-#' function_description
+#' convert labels to colors
 #'
 #' @param
 #'
@@ -17,8 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #------------------------------------------------------------------------------
+#' labels2colors(labels)
 labels2colors <- function(labels, zeroIsGrey = TRUE, colorSeq = NULL, naColor = "grey", commonColorCode = TRUE) # small function from WGCNA
 {
   if (is.null(colorSeq)) {

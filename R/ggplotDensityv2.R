@@ -1,6 +1,6 @@
 #' ggplotDensityv2
 #'
-#' function_description
+#' plot sample density plots
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: ggplotDensity(data_in,title)
+#' ggplotDensity(data_in, title)
 ggplotDensityv2 <- function(data_in, colID, colors, traits, title) {
   sampleIndex <- as.data.frame(do.call(rbind, strsplit(colnames(cleanDat), "\\.")))
   colnames(sampleIndex) <- c("batch", "channel")

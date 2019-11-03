@@ -1,6 +1,7 @@
 #' eBLM_regression
 #'
-#' function_description
+#' A function for performing moderated empirical bayes regression for removal
+#' of covariate effects.
 #'
 #' @param
 #'
@@ -17,9 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # A function for performing moderated empirical bayes regression for removal of covariate effects.
+#' eBLM_regression(data_in, traits, group, colID, cov, OLS = FALSE)
 eBLM_regression <- function(data_in, traits, group, colID, cov, OLS = FALSE) {
   # Prepare the expression data.
   cols <- grep(group, colnames(data_in))

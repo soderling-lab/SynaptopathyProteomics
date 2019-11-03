@@ -1,6 +1,7 @@
 #' normalize_SL
 #'
-#' function_description
+#' Performs sample loading normalization based on column sums of TMT-runs.
+#' This function also removes rows in which qc was not quantified in all three replicates.
 #'
 #' @param
 #'
@@ -17,11 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## normalize_SL
-#' # Performs sample loading normalization based on column sums of TMT-runs.
-#' # This function also removes rows in which qc was not quantified in all three replicates.
+#' normalize_SL(data_in, colID = "", group = "")
 normalize_SL <- function(data_in, colID = "", group = "") {
 
   # Seperate data columns and info columns

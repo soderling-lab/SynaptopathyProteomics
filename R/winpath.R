@@ -1,6 +1,6 @@
 #' winpath
 #'
-#' function_description
+#' converts windows path in clipboard to path
 #'
 #' @param
 #'
@@ -17,9 +17,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Function: winpath
+#' winpath()
+
 winpath <- function() {
   x <- readClipboard()
   winpath <- gsub("\\\\", "/", x)

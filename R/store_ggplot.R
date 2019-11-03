@@ -1,6 +1,6 @@
 #' store_ggplot
 #'
-#' function_description
+#' Saves ggplot(s) to list.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: store_plot
-#' #  Saves ggplot(s) to list.
+#' store_ggplot(plot_list, plot, name)
 store_ggplot <- function(plot_list, plot, name) {
   k <- length(plot_list)
   plot_list[[k + 1]] <- plot

@@ -1,6 +1,6 @@
 #' TMT_exactTest
 #'
-#' function_description
+#' A Function to evaluate DAPs using the exactTest from edgeR.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## TMT_exactTest
-#' # A Function to evaluate DEP using the exactTest from edgeR.
+#' function_name(data_in, geno)
 TMT_exactTest <- function(data_in, geno) {
   keep <- grep(geno, colnames(data_in))
   data_sub <- data_in[, keep]

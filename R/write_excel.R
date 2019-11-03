@@ -1,25 +1,5 @@
-#' write.excel
+#' write_excel
 #'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#------------------------------------------------------------------------------
-#' write.excel
 #' Utility function to write data to excel. Data can be provided as a named list.
 #'
 #' @param data (list, matrix, dataframe)
@@ -32,11 +12,11 @@
 #' @keywords write write.excel save workbook xlsx xls
 #'
 #' @examples
-#' write.excel()
+#' write_excel()
 #' @export
 #' @importFrom openxlsx
 
-write.excel <- function(data, file, ...) {
+write_excel <- function(data, file, ...) {
   require(openxlsx, quietly = TRUE)
   if (inherits(data, "list")) {
     data_list <- data

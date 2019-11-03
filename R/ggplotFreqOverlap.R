@@ -1,6 +1,6 @@
 #' ggplotFreqOverlap
 #'
-#' function_description
+#' Function for plotting overlap frequency for peptides and proteins:
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for plotting overlap frequency for peptides and proteins:
+#' ggplotFreqOverlap(data_in, colID, groups)
 ggplotFreqOverlap <- function(data_in, colID, groups) {
   # Subset the data.
   cols <- grepl(colID, colnames(data_in))

@@ -1,6 +1,6 @@
 #' ggplotSampleConnectivityv2
 #'
-#' function_description
+#' Function for plotting sample connectivity.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for plotting sample connectivity.
+#' ggplotSampleConnectivityv2(data_in, log = TRUE, colID, threshold = -2.5)
 ggplotSampleConnectivityv2 <- function(data_in, log = TRUE, colID, threshold = -2.5) {
   require(ggdendro)
   require(WGCNA)

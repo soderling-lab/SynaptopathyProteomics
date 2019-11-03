@@ -1,6 +1,7 @@
 #' annotate_Entrez
 #'
-#' function_description
+#' Annotate topTags table with entrez and gene symbols.
+#' Rownames should be Uniprot IDs.
 #'
 #' @param
 #'
@@ -17,11 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Annotate topTags table with entrez and gene symbols.
-#' # based on rownames being Uniprot IDS.
-#' # Function:
+#' annotate_Entrez(y_TT)
 annotate_Entrez <- function(y_TT) {
   Uniprot <- rownames(y_TT)
   # Map Uniprot IDs to Entrez IDs:

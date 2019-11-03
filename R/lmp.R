@@ -1,6 +1,7 @@
 #' lmp
 #'
-#' function_description
+#' # Function to get pvalue from a linear model object.
+#' # Source: https://www.gettinggeneticsdone.com/2011/01/rstats-function-for-extracting-f-test-p.html
 #'
 #' @param
 #'
@@ -17,10 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-----------------------------------------------------------------------------
-#' # Function to get pvalue from a linear model object.
-#' # Source: https://www.gettinggeneticsdone.com/2011/01/rstats-function-for-extracting-f-test-p.html
+#' lmp(modelobject)
 lmp <- function(modelobject) {
   if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
   f <- summary(modelobject)$fstatistic

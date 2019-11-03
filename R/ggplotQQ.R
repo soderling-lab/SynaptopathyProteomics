@@ -1,6 +1,6 @@
-#' ggplotQQplot
+#' ggplotQQ
 #'
-#' function_description
+#' generate qq plot with ggplot
 #'
 #' @param
 #'
@@ -12,15 +12,13 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' Define function: ggplotQQplot()
-ggplotQQplot <- function(data_in, title) {
+#' ggplotQQ(data_in, title)
+ggplotQQ <- function(data_in, title) {
   df <- na.omit(melt(as.data.frame(data_in)))
   plot <- ggplot(df, aes(sample = value)) + stat_qq() + stat_qq_line() +
     ggtitle(title) +
@@ -31,4 +29,3 @@ ggplotQQplot <- function(data_in, title) {
     )
   return(plot)
 }
-

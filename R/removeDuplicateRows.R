@@ -1,6 +1,6 @@
 #' removeDuplicateRows
 #'
-#' function_description
+#' Removes rows that are duplicate. e.g. A|B and B|A
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Function: removed duplicate rows.
-#' # Removes rows that are duplicate. e.g. A|B and B|A
+#' removeDuplicateRows(dataframe, colA = 1, colB = 2)
 removeDuplicateRows <- function(dataframe, colA = 1, colB = 2) {
   df <- dataframe[, c(colA, colB)]
   df <- as.data.frame(apply(df, 2, function(x) as.character(x)))

@@ -1,6 +1,6 @@
 #' quiet
 #'
-#' function_description
+#' Function for supressing printed messages from a function.
 #'
 #' @param
 #'
@@ -17,9 +17,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for supressing printed messages from a function.
+quiet(myfun(x))
+
 quiet <- function(x) {
   sink(tempfile())
   on.exit(sink())

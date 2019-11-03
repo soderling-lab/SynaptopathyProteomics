@@ -1,6 +1,6 @@
 #' ggplotBoxPlot
 #'
-#' function_description
+#' plot sample boxplots
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: ggplotBoxPlot(data_in,colors,title)
+#' ggplotBoxPlot(data_in, colors, title)
 ggplotBoxPlot <- function(data_in, colID, colors, title) {
   # The function ggplotBoxPlot plots Run level boxplots with ggplot.
   dm <- df2dm_TMT(data_in, colID)

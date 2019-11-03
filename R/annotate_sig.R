@@ -1,6 +1,7 @@
 #' annotate_sig
 #'
-#' function_description
+#' Function to add significance stars given a protein boxplot,
+#' stats with FDR column and the column to be labeled.
 #'
 #' @param
 #'
@@ -17,10 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function to add significance stars given a protein boxplot,
-#' # stats with FDR column and the column to be labeled.
+#' annotate_sig(plot, stats, group, annotate = TRUE)
 annotate_sig <- function(plot, stats, group, annotate = TRUE) {
   # Add symbols.
   idx <- match(plot$labels$title, rownames(stats))

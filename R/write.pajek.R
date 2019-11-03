@@ -1,25 +1,4 @@
-#' write.pajek
-#'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' write.pajek
+#' write_pajek
 #'
 #' Write network adjacency network to file in Pajek (*.net) format.
 #' Uses data.table::fwrite for faster performance.
@@ -37,7 +16,7 @@
 #' write.pajek(adjm, "network.net")
 #' @export
 
-write.pajek <- function(adjm, file) {
+write_pajek <- function(adjm, file) {
   require(data.table, quietly = TRUE)
   colnames(adjm) <- rownames(adjm) <- c(1:ncol(adjm))
   edge_list <- as.data.table(na.omit(melt(adjm)))

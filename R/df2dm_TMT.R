@@ -1,6 +1,6 @@
 #' df2dm_TMT
 #'
-#' function_description
+#' This is a simple function to convert data frame to dm for plotting purposes.
 #'
 #' @param
 #'
@@ -17,11 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## df2dm_TMT
-#'
-#' # This is a simple function to convert data frame to dm for plotting purposes.
+#' df2dm_TMT(df, colID)
 df2dm_TMT <- function(df, colID) {
   tmt_cols <- grep(colID, colnames(df))
   dm <- as.matrix(df[, tmt_cols])

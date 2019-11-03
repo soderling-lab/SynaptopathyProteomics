@@ -1,6 +1,6 @@
-#' ggplotHistK
+#' ggplotHistConnectivity
 #'
-#' function_description
+#' Network connectivity histogram.
 #'
 #' @param
 #'
@@ -12,16 +12,13 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-----------------------------------------------------------------------------
-#' Network connectivity histogram.
-
-ggplotHistK <- function(connectivity) {
+#' ggplotHistConnectivity(connectivity)
+ggplotHistConnectivity <- function(connectivity) {
   plot <- qplot(connectivity,
     geom = "histogram",
     binwidth = 5,
@@ -42,4 +39,3 @@ ggplotHistK <- function(connectivity) {
     )
   return(plot)
 }
-

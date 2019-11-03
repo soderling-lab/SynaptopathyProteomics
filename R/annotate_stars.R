@@ -1,6 +1,7 @@
 #' annotate_stars
 #'
-#' function_description
+#' Function to add significance stars given a protein boxplot,
+#' stats with FDR column and the column to be labeled.
 #'
 #' @param
 #'
@@ -17,10 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function to add significance stars given a protein boxplot,
-#' # stats with FDR column and the column to be labeled.
+#' annotate_stars(plot, stats)
 annotate_stars <- function(plot, stats) {
   data <- plot$data
   df <- as.data.frame(data %>% group_by(Group) %>%

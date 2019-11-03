@@ -1,6 +1,7 @@
 #' normalize_TMM
 #'
-#' function_description
+#' perform tmm normalization using the edgeR package on the columns
+#' specified by tmt_cols.
 #'
 #' @param
 #'
@@ -17,11 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## normalize_TMM(data_in,colID)
-#' # This function performs tmm normalization using the edgeR package on the columns
-#' # specified by tmt_cols.
+#' normalize_TMM(data_in, colID)
 normalize_TMM <- function(data_in, groups) {
   for (i in 1:length(groups)) {
     colID <- groups[i]

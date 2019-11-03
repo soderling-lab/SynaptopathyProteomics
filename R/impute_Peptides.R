@@ -1,6 +1,7 @@
 #' impute_Peptides
 #'
-#' function_description
+#' Function to impute peptide level missing values.
+#' Supports MLE for MAR and KNN for MNAR.
 #'
 #' @param
 #'
@@ -17,10 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function to impute peptide level missing values.
-#' # Supports MLE for MAR and KNN for MNAR.
+#' impute_Peptides(data_in, groups, method)
 impute_Peptides <- function(data_in, groups, method, qc_threshold = 0, bio_threshold = 2) {
   n_out <- list()
   for (i in 1:length(groups)) {

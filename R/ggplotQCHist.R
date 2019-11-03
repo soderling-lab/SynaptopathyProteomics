@@ -1,6 +1,6 @@
 #' ggplotQCHist
 #'
-#' function_description
+#' plot histogram of qc ratios
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## ggplotQCHist(data_in,groups,nbins,threshold)
+#' ggplotQCHist(data_in, groups, nbins, threshold)
 ggplotQCHist <- function(data_in, group, nbins, threshold) {
   hist_list <- list()
   # Get the data for the specified group.

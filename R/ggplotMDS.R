@@ -1,26 +1,5 @@
 #' ggplotMDS
 #'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' ggplotMDS
-#'
 #' This function utilizes limma::plotMDS to generate a MDS plot which is then plotted with ggplot2.
 #' The column names of the input data (an expression data frame) are used as geom_point() labels.
 #' To supress plot output which results from calling limma::plotMDS, a temporary file
@@ -36,12 +15,10 @@
 #' @references \url{https://stackoverflow.com/questions/20363266/how-can-i-suppress-the-creation-of-a-plot-while-calling-a-function-in-r}
 #' @keywords fill down blank missing values
 #'
+#' @export
+#'
 #' @examples
 #' ggplotMDS(data_in, colors, title)
-#' @export
-#' @importFrom limma
-#'
-
 ggplotMDS <- function(data_in,
                       colID,
                       colors,
@@ -95,4 +72,3 @@ ggplotMDS <- function(data_in,
   }
   return(plot)
 }
-

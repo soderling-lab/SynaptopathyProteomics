@@ -1,6 +1,6 @@
 #' results_QLFTest
 #'
-#' function_description
+#' A function to perform QLF test with GLM fit.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # A function to perform QLF test with GLM fit.
+#' results_QLFTest(fit, comparison, alpha = 0.05)
 results_QLFTest <- function(fit, comparison, alpha = 0.05) {
   # test comparisons with QLFtest, add FDR, extract results, and sort by pvalue.
   qlf <- glmQLFTest(fit, contrast = comparison)

@@ -1,6 +1,6 @@
 #' ggplotScaleFreePlot
 #'
-#' function_description
+#' generate scatter plot of k and obs prob
 #'
 #' @param
 #'
@@ -17,8 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
+#' ggplotScaleFreePlot(connectivity)
 ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
                                 removeFirst = FALSE, main = "", ...) {
   k <- connectivity

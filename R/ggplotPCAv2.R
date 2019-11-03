@@ -1,6 +1,6 @@
 #' ggplotPCAv2
 #'
-#' function_description
+#' Generates a PCA plot.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Define function: ggplotPCA
-#' # Generates a PCA plot.
+#' ggplotPCA(data_in, traits)
 ggplotPCAv2 <- function(data_in, traits, title = "2D PCA Plot") {
   # Perform PCA
   PC <- prcomp(t(na.omit(data_in)))$x[, 1:2]

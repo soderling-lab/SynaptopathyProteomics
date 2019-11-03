@@ -1,6 +1,6 @@
 #' clean_DEP
 #'
-#' function_description
+#' This function just compresses the work for cleaning up the DEP limma results.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## Define function: clean_DEP
-#' # This function just compresses the work for cleaning up the DEP limma results.
+#' clean_DEP(data_in, alpha, lfc)
 clean_DEP <- function(data_in, alpha, lfc) {
   # Denote significant proteins: no logFC cut-off, alpha = 0.1
   dep <- add_rejections(data_diff, alpha = alpha, lfc = lfc)

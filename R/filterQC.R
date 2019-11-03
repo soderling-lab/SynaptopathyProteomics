@@ -1,6 +1,7 @@
 #' filterQC
 #'
-#' function_description
+#' Removes peptides that were not quantified in all three replicates.
+#' Remove peptides from n x sd away from mean sd of given intensity bin.
 #'
 #' @param
 #'
@@ -17,11 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## filterQC
-#' # Removes peptides that were not quantified in all three replicates.
-#' # Remove peptides from n x sd away from mean sd of given intensity bin.
+#' filterQC(data_in, groups, nbins, threshold)
 filterQC <- function(data_in, groups, nbins, threshold) {
   for (i in 1:length(groups)) {
     group <- groups[i]

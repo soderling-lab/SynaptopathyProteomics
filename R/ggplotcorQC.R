@@ -1,6 +1,7 @@
 #' ggplotcorQC
 #'
-#' function_description
+#' Scatter plot showing correlation of QC samples. All comparisons.
+#' nbin number of histograms showind distribution of QC ratios for all intensity bins.
 #'
 #' @param
 #'
@@ -17,13 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#'
-#' corQC
-#' # GGplots are saved as objects in a list.
-#' # Scatter plot showing correlation of QC samples. All comparisons.
-#' # nbin number of histograms showind distribution of QC ratios for all intensity bins.
+#' ggplotcorQC(data_in, groups, colID, nbins, annotate = TRUE)
 ggplotcorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
   plot_list <- list()
   for (i in 1:length(groups)) {

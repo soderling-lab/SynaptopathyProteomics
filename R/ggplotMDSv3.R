@@ -1,6 +1,6 @@
 #' ggplotMDSv3
 #'
-#' function_description
+#' plot a MDS plot with ggplot
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: ggplotMDS(data_in, colID, traits, title)
+#' ggplotMDS(data_in, colID, traits, title)
 ggplotMDSv3 <- function(data_in, colID, traits, title) {
   idx <- match(colnames(data_in), rownames(traits))
   # colnames(data_in) <- traits$SampleType[idx]

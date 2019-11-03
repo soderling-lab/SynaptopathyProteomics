@@ -1,6 +1,7 @@
 #' filter_proteins
 #'
-#' function_description
+#' remove one hit wonders and proteins that are not identified in at least
+#' 50% of samples.
 #'
 #' @param
 #'
@@ -17,9 +18,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Filter proteins.
+#' filter_proteins(data_in, colID)
 filter_proteins <- function(data_in, colID) {
   # Removing one hit wonders...
   out <- data_in$Peptides == 1

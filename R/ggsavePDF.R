@@ -1,6 +1,6 @@
 #' ggsavePDF
 #'
-#' function_description
+#' Function for saving ggplots to single pdf.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for saving ggplots to single pdf.
+#' ggsavePDF(plots, file)
 ggsavePDF <- function(plots, file) {
   pdf(file, onefile = TRUE)
   # If not a list, coerce to list.

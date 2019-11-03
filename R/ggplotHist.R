@@ -1,6 +1,6 @@
 #' ggplotHist
 #'
-#' function_description
+#' Plot a histogram using ggplot.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: ggplotHist
-#' # Plot a histogram using ggplot.
+#' ggplotHist(data_in, colID, title)
 ggplotHist <- function(data_in, colID, title) {
   dm <- df2dm_TMT(data_in, colID)
   data_temp <- na.omit(melt(log2(dm)))

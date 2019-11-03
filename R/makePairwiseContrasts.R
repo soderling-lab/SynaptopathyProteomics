@@ -1,6 +1,6 @@
 #' makePairwiseContrasts
 #'
-#' function_description
+#' Function for making pairwise contrasts.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for making pairwise contrasts.
+#' makePairwiseContrasts(g1, g2, collapse = " - ")
 makePairwiseContrasts <- function(g1, g2, collapse = " - ") {
   # Coerce to list if necessary.
   if (!inherits(g1, "list")) {

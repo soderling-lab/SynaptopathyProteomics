@@ -1,6 +1,6 @@
 #' ggplotGOscatter
 #'
-#' function_description
+#' Function for visualizing GO terms.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for visualizing GO terms.
+#' ggplotGOscatter(results_GOenrichment, color, topN = 10)
 ggplotGOscatter <- function(results_GOenrichment, color, topN = 10) {
   # Collect data in df.
   GOres <- results_GOenrichment[[color]]

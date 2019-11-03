@@ -1,6 +1,6 @@
 #' eBLM_glmQLFit_QLFTest
 #'
-#' function_description
+#' A Function for performing eBLM regression and EdgeR GLM and QLFTest.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # A Function for performing eBLM regression and EdgeR GLM and QLFTest.
-#' # Function for doing all the work.
+#' eBLM_glmQLFit_QLFTest(data_in, geno, traits, cov, col, contrast)
 eBLM_glmQLFit_QLFTest <- function(data_in, geno, traits, cov, col, contrast) {
 
   # Subset data

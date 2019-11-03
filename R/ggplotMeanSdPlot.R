@@ -1,6 +1,6 @@
 #' ggplotMeanSdPlot
 #'
-#' function_description
+#' plot mean SD plot with ggplot
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## ggplotMeanSdPlot.
+#' ggplotMeanSdPlot(data_in, colID, title, log)
 ggplotMeanSdPlot <- function(data_in, colID, title, log) {
   data_in <- data_in[, grepl(colID, colnames(data_in))]
   if (log == TRUE) {

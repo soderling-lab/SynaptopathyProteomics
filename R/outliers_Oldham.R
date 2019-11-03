@@ -1,6 +1,6 @@
 #' outliers_Oldham
 #'
-#' function_description
+#' Function for plotting Oldham sample connectivity.
 #'
 #' @param
 #'
@@ -17,11 +17,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for plotting sample connectivity.
+#' outliers_Oldham(data_in, colID, threshold = 2.5)
 outliers_Oldham <- function(data_in, colID, threshold = 2.5) {
-
   # get the data
   cols <- grep(colID, colnames(data_in))
   dm <- as.data.frame(data_in[, cols])

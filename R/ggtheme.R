@@ -1,6 +1,6 @@
 #' ggtheme
 #'
-#' function_description
+#' Default theme for gg plots.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #------------------------------------------------------------------------------
-#'
-#' # Create a ggplot theme for plots.
+#' ggtheme()
 ggtheme <- function() {
   require(ggplot2)
   ggtheme <- theme(

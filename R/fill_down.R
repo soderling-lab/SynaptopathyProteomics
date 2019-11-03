@@ -1,24 +1,3 @@
-#' fill_down
-#'
-#' function_description
-#'
-#' @param
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
 #' fill down
 #'
 #' Fill a data frame with missing values.
@@ -37,7 +16,6 @@
 #' @examples
 #' fill_down()
 #' @export
-# @importFrom grDevices rgb2hsv
 
 fill_down <- function(x, blank = is.na) {
   # Find the values
@@ -49,4 +27,3 @@ fill_down <- function(x, blank = is.na) {
   # Fill down
   x[which(isnotblank)][cumsum(isnotblank)]
 }
-

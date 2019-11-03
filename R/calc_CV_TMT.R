@@ -1,6 +1,10 @@
 #' calc_CV_TMT
 #'
-#' function_description
+#' A function to calculate the Coefficient of variation (STDEV/Mean) of log2
+#' transformed input.
+#' Groups defined by groups
+#' Columns with numerical data defined by ColID.
+#' row identifier should be provided by "Accession" column
 #'
 #' @param
 #'
@@ -17,14 +21,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # ## calc_CV_TMT
-#' # A function to calculate the Coefficient of variation (STDEV/Mean) of log2
-#' # transformed input.
-#' # Groups defined by groups
-#' # Columns with numerical data defined by ColID.
-#' # row identifier should be provided by "Accession" column
+#' calc_CV_TMT(data_in, groups, colID)
 calc_CV_TMT <- function(data_in, groups, colID) {
   data_work <- df2dm_TMT(data_in, colID)
   colnames(data_work) <- colnames(data_in)[grep(colID, colnames(data_in))]

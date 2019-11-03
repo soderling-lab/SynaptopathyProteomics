@@ -1,6 +1,6 @@
 #' ggsaveMultiPDF
 #'
-#' function_description
+#' save plots in a list as a singple pdf.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## Define function: ggsave_plots(plot_list,file_ext)
+#' ggsave_plots(plot_list, file_ext)
 ggsaveMultiPDF <- function(plot_list, savefigs_path, file_ext, verbose = TRUE) {
   # Saves plots in plot_list to file as given by savefigs_path.
   # Saves figures in format given by file_ext.

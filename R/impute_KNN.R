@@ -1,6 +1,8 @@
 #' impute_KNN
 #'
-#' function_description
+#' A function for imputing TMT protein expression matrix with the KNN algorithm
+#' from package impute. Note data is log transformed before imputing and then
+#' return un-logged.
 #'
 #' @param
 #'
@@ -12,19 +14,12 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' ## impute_KNN(data_in)
-#' A function for imputing TMT protein expression matrix with the KNN algorithm
-#' from package impute. Note data is log transformed before imputing and then
-#' return un-logged.
-
-# KNN impute.
+#' impute_KNN(data_in)
 impute_KNN <- function(data_in, colID) {
   cols <- grep(colID, colnames(data_in))
   data_work <- log2(as.matrix(data_in[, cols]))
@@ -34,4 +29,3 @@ impute_KNN <- function(data_in, colID) {
   data_out[, cols] <- data_imp
   return(data_out)
 }
-

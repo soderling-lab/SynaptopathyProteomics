@@ -1,42 +1,20 @@
-#' peptide_overlap_TMT
+#' peptide_overlap
 #'
-#' function_description
+#' Calculates peptide identification overlap for given contrasts matrix.
 #'
+#' @param
 #' @param
 #'
 #' @return none
 #'
 #' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords none
-#'
-#' @import 
-#'
-#' @export
-#'
-#' @examples
-#' function_name(param1, ... )
-#------------------------------------------------------------------------------
-
-#' peptide_overlap
-#'
-#' Calculates peptide identification overlap for given contrasts matrix.
-#'
-#' @param 
-#' @param 
-#'
-#' @return none
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
 #' @references \url{}
-#' @keywords 
+#' @keywords
+#'
+#' @export
 #'
 #' @examples
-#' peptide_overlap_TMT()
-#' @export
-
+#' peptide_overlap_TMT(data_in, contrasts, info_cols)
 peptide_overlap_TMT <- function(data_in, contrasts, info_cols) {
   num_iter <- dim(contrasts)[2]
   contrasts <- rbind(contrasts, matrix(NA, nrow = 3, ncol = num_iter))
@@ -61,4 +39,3 @@ peptide_overlap_TMT <- function(data_in, contrasts, info_cols) {
   }
   return(contrasts)
 }
-

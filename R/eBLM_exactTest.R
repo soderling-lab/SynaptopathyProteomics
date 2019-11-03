@@ -1,6 +1,6 @@
 #' eBLM_exactTest
 #'
-#' function_description
+#' Function for doing eBLM regression and exactTest.
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for doing eBLM regression and exactTest.
+#' eBLM_exactTest(data_in, geno, sample_info, cov, OLS, col)
 eBLM_exactTest <- function(data_in, geno, sample_info, cov, OLS, col) {
   # Subset data
   cols <- grep(geno, colnames(data_in))

@@ -1,6 +1,10 @@
 #' impute_MLE
 #'
-#' function_description
+#' Updated 021419. Previosly data was returned with no imputed values!!!
+#' This function replaces missing values using MLE algorithm for MAR data.
+#' qc_threshold - number of tolerated missing qc values within an experiment
+#' bio_threshold - number of tolerated missing biological replicate valutes within an exp
+#' group - column identifier for experiments
 #'
 #' @param
 #'
@@ -12,20 +16,12 @@
 #'
 #' @keywords none
 #'
-#' @import 
+#' @import
 #'
 #' @export
 #'
 #' @examples
-#' function_name(param1, ... )
-#-------------------------------------------------------------------------------
-#' ## impute_MLE
-#' Updated 021419. Previosly data was returned with no imputed values!!!
-# This function replaces missing values using MLE algorithm for MAR data.
-# qc_threshold - number of tolerated missing qc values within an experiment
-# bio_threshold - number of tolerated missing biological replicate valutes within an exp
-# group - column identifier for experiments
-
+#' impute_MLE(data_in, groups, qc_threshold = 0, bio_threshold = 2)
 impute_MLE <- function(data_in, groups, qc_threshold = 0, bio_threshold = 2) {
   for (i in 1:length(groups)) {
     data_work <- data_in
@@ -73,4 +69,3 @@ impute_MLE <- function(data_in, groups, qc_threshold = 0, bio_threshold = 2) {
   }
   return(data_in)
 }
-

@@ -1,6 +1,6 @@
 #' ggplotModuleSignificanceBoxplot
 #'
-#' function_description
+#' plot module significance plot with ggplot
 #'
 #' @param
 #'
@@ -17,10 +17,8 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function ggplotModuleSignificanceBoxplot
-ggplotModuleSignificanceBoxplot <- function(x, g, trait, stats = TRUE) {
+#' ggplotModuleSignificanceBoxplot(x, g, trait)
+gglotModuleSignificanceBoxplot <- function(x, g, trait, stats = TRUE) {
 
   # Bind data as data frame for ggplot.
   df <- as.data.frame(cbind(x, g))

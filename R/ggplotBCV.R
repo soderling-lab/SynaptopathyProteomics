@@ -1,6 +1,6 @@
 #' ggplotBCV
 #'
-#' function_description
+#' plot biological coefficients of variation
 #'
 #' @param
 #'
@@ -17,9 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' ## ggplotBCV
+#' ggplotBCV(y_DGE)
 ggplotBCV <- function(y_DGE) {
   y <- y_DGE
   tag_x <- y$AveLogCPM

@@ -1,6 +1,6 @@
 #' slice
 #'
-#' function_description
+#' # Function for slicing data into groups.
 #'
 #' @param
 #'
@@ -17,10 +17,7 @@
 #' @export
 #'
 #' @examples
-#' function_name(param1, ...)
-#' #-------------------------------------------------------------------------------
-#' # Function for slicing data into groups.
-#' # Requires plyr
+#' slice(df, by = 2)
 slice <- function(input, by = 2) {
   starts <- seq(1, length(input), by)
   tt <- lapply(starts, function(y) input[y:(y + (by - 1))])
