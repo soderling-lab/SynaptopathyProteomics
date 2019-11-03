@@ -2,4 +2,4 @@
 
 # Export a virtual environment.
 conda activate ../renv/
-conda env export > ../renv.yml
+conda env export > renv.yml
