@@ -3,7 +3,7 @@
 #' perform tmm normalization using the edgeR package on the columns
 #' specified by tmt_cols.
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'
@@ -13,13 +13,14 @@
 #'
 #' @keywords none
 #'
-#' @import
+#' @import edgeR
 #'
 #' @export
 #'
 #' @examples
 #' normalize_TMM(data_in, colID)
 normalize_TMM <- function(data_in, groups) {
+	data_in <- as.data.frame(data_in)
   for (i in 1:length(groups)) {
     colID <- groups[i]
     # Get data
@@ -28,12 +29,12 @@ normalize_TMM <- function(data_in, groups) {
     # replace NA with 0 (TMM cannot have missing values (NA))
     logic <- is.na(dm)
     if (length(logic[logic == TRUE]) > 0) {
-      print("Warning: missing values (NA) are not tolerated. These will be replaced with 0")
+      message("Warning: missing values (NA) are not tolerated. These will be replaced with 0")
     }
     dm[logic] <- 0
     data_work <- dm
     # TMM Normalization.
-    factors_tmm <- calcNormFactors(data_work)
+    factors_tmm <- edgeR::calcNormFactors(data_work)
     dm_tmm <- sweep(data_work, 2, factors_tmm, FUN = "/")
     dm_tmm[logic] <- NA # Insure 0 values are now NA
     # Write to data frame

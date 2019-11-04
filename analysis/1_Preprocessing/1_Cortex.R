@@ -26,9 +26,9 @@ suppressPackageStartupMessages({
 #  library(cowplot)
 #  library(impute)
 #  library(tibble)
-#  library(flashClust)
+  library(flashClust)
 #  library(ggdendro)
-#  library(sva)
+  library(sva)
 #  library(purrr)
 #  library(ggrepel)
 #  library(edgeR)
@@ -102,7 +102,7 @@ save(sample_info,file=myfile)
 #-------------------------------------------------------------------------------
 
 # Get a slice of the data.
-set.seed(7)
+set.seed(1)
 dat <- as.data.frame(subset(raw_peptide, grepl("Dlg4", raw_peptide$Description)))
 rownames(dat) <- paste(dat$Accession, dat$Sequence, c(1:nrow(dat)), sep = "_")
 idy <- grepl("Shank2", colnames(dat))
@@ -120,7 +120,7 @@ title <- paste0("Dlg4"," >",strsplit(rownames(dat)[n], "_")[[1]][2])
 plot <- ggplot(df, aes(x = Channel, y = log2(value), fill = Channel)) +
   geom_bar(stat = "identity", width = 0.9, position = position_dodge(width = 1)) +
   xlab("TMT Channel") + ylab("Log2(Raw Intensity)") +
-  ggtitle(title) +
+  ggtitle(title) + 
   theme(legend.position = "none")
 
 # Store in list.
@@ -337,8 +337,8 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 # Rows with missing QC replicates are ingored (qc_threshold=0).
 # Rows with more than 2 (50%) missing biological replicates are
 # ignored (bio_threshold=2).
-data_impute <- impute_peptides(SL_peptide, groups, method = "knn")
-impute_peptide <- data_impute$data_imputed
+data_impute <- impute_peptide(SL_peptide, groups, method = "knn")
+imp_peptide <- data_impute$data_imputed
 
 # Table of n imputed peptides.
 n_out <- data_impute$n_out
@@ -362,11 +362,12 @@ all_plots[[paste(tissue, "n_imputed_pep_tab", sep = "_")]] <- mytable
 
 # Generate QC correlation scatter plots for all experimental groups.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-plots <- ggplotcorQC(impute_peptide, groups, colID = "QC", nbins = 5)
+plots <- ggplotcorQC(imp_peptide, groups, colID = "QC", nbins = 5)
 
-# Generate intensity bin histograms. Example, Shank2.
+# Generate intensity bin histograms. 
+# This will take a couple minutes.
 hist_list <- lapply(as.list(groups),function(x) 
-		    ggplotQCHist(impute_peptide,x, nbins = 5, threshold = 4))
+		    ggplotQCHist(imp_peptide,x, nbins = 5, threshold = 4))
 names(hist_list) <- groups
 
 # Store plots.
@@ -384,7 +385,7 @@ all_plots[[paste(tissue, "histQC_list", sep = "_")]] <- hist_list
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Filter peptides based on QC precision.
-filt_peptide <- filter_QC(impute_peptide, groups, nbins = 5, threshold = 4)
+filt_peptide <- filter_QC(imp_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
 out <- list(c(94, 77, 133, 59), c(182, 67, 73, 75))[[type]] # Cox and Str peps removed.
@@ -479,7 +480,7 @@ for (i in 1:length(groups)) {
     sep = "."
   )
   title <- paste(gsub(" ", "", unique(traits_sub$Model)), "pre-ComBat", sep = " ")
-  plot1 <- ggplotMDSv2(log2(data),
+  plot1 <- ggplotMDS(log2(data),
     colID = "b",
     title = title, traits = traits_sub
   )$plot + theme(legend.position = "none")
@@ -523,7 +524,7 @@ for (i in 1:length(groups)) {
   R[[i]] <- cbind(r1, r2)
   # Check MDS plot after ComBat.
   title <- paste(gsub(" ", "", unique(traits_sub$Model)), "post-ComBat", sep = " ")
-  plot2 <- ggplotMDSv2(
+  plot2 <- ggplotMDS(
     data_in = data_ComBat, colID = "Abundance",
     title = title, traits = traits_sub
   )$plot + theme(legend.position = "none")
@@ -539,7 +540,7 @@ for (i in 1:length(groups)) {
 } # Ends ComBat loop.
 
 # Merge the data frames with purrr::reduce()
-data_return <- data_out %>% reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
+data_return <- data_out %>% purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
 
 # Quantifying the batch effect.
 # Check bicor correlation with batch before and after ComBat.

@@ -18,7 +18,7 @@
 #'
 #' @examples
 #' filter_QC(data_in, groups, nbins, threshold)
-filterQC <- function(data_in, groups, nbins, threshold) {
+filter_QC <- function(data_in, groups, nbins, threshold) {
   for (i in 1:length(groups)) {
     group <- groups[i]
     # Get the data for the specified group.
@@ -82,7 +82,7 @@ filterQC <- function(data_in, groups, nbins, threshold) {
 
     # Print number of peptides that will be removed:
     num_filt <- length(logic[logic == TRUE]) - length(logic[is.na(logic)])
-    print(paste(num_filt, "peptides will be removed from ", group, " because of QC imprecision"))
+    message(paste(num_filt, "peptides will be removed from ", group, " because of QC imprecision..."))
 
     # Insure NA in logical vector are TRUE
     logic[is.na(logic)] <- TRUE

@@ -3,7 +3,7 @@
 #' remove one hit wonders and proteins that are not identified in at least
 #' 50% of samples.
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'
@@ -20,20 +20,20 @@
 #' @examples
 #' filter_proteins(data_in, colID)
 filter_proteins <- function(data_in, colID) {
+	data_in <- as.data.frame(data_in)
   # Removing one hit wonders...
   out <- data_in$Peptides == 1
-  print(paste(
+  message(paste(
     length(out[out == TRUE]),
     "proteins are identified by only one peptide and will be removed."
   ))
   filt_protein <- data_in[!out, ]
-
   # Removing proteins that are not identified in at least 50% of samples.
   tmt_cols <- grep(colID, colnames(filt_protein))
   threshold <- length(colnames(filt_protein)[tmt_cols]) / 2
   out <- apply(filt_protein[, tmt_cols], 1, function(x) sum(is.na(x))) > threshold
   # Number of proteins identified in less than 50% of samples
-  print(paste(
+  message(paste(
     length(out[out == TRUE]),
     "proteins are identified in less than 50% of samples and are removed."
   ))

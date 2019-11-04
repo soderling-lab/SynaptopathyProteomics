@@ -3,7 +3,7 @@
 #' Function for IRS normalization.
 #' Supports geometric or robust mean.
 #'
-#' @param
+#' @param data_in - expression data.
 #'
 #' @return none
 #'
@@ -13,20 +13,17 @@
 #'
 #' @keywords none
 #'
-#' @import
-#'
 #' @export
 #'
 #' @examples
 #' normalize_IRS(data_in, IRS_ID, groups, robust)
 normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
+	data_in <- as.data.frame(data_in)
   # Subset the data.
   cols_qc <- grep(IRS_ID, colnames(data_in))
   data_qc <- data_in[, cols_qc]
-
   # Empty list for output of loop.
   data_list <- list()
-
   # Loop to calculate rowMeans of QC channels within an experiment.
   for (i in 1:length(groups)) {
     exp_cols <- grep(groups[i], colnames(data_qc))
@@ -34,10 +31,8 @@ normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
     colnames(df) <- paste(groups[1], "QC", "rowMeans", sep = "_")
     data_list[[i]] <- df
   }
-
   # Bind the data frames in list.
   df_IRS <- do.call(cbind, data_list)
-
   # Calculate mean of QC means (supports Robust, geometric mean).
   if (robust == TRUE) {
     # Calculate geometric rowMeans, ignore missing values.
@@ -47,28 +42,23 @@ normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
     df_IRS$Avg <- apply(df_IRS, 1, function(x) mean(x, na.rm = TRUE))
     print("Used arithmetic mean.")
   }
-
   # Compute scaling factors for each experiment.
   factors_list <- list()
   for (j in 1:length(groups)) {
     factors_list[[j]] <- df_IRS$Avg / df_IRS[, j]
   }
-
   # Loop through factors list and generate matrix of factors, store in a new list.
   new_list <- list()
   for (k in 1:length(groups)) {
     num_channels <- length(grep(groups[k], colnames(data_in)))
     new_list[[k]] <- matrix(factors_list[[k]], nrow = nrow(data_in), ncol = num_channels)
   }
-
   # Bind factors in list.
   dm_factors <- do.call(cbind, new_list)
-
   # Perform IRS (factors * data_in)
   tmt_cols <- grep("Abundance", colnames(data_in))
   data_IRS <- data_in
   data_IRS[, tmt_cols] <- dm_factors * data_in[, tmt_cols]
-
   # Return IRS data.
   return(data_IRS)
 }
