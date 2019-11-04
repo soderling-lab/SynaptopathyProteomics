@@ -20,7 +20,7 @@
 #' ggplotBoxPlot(data_in, colors, title)
 ggplotBoxPlot <- function(data_in, colID, colors, title) {
   # The function ggplotBoxPlot plots Run level boxplots with ggplot.
-
+	data_in <- as.data.frame(data_in)
   idy <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, idy])
   data_temp <- melt(log2(dm))

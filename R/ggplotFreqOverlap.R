@@ -19,10 +19,8 @@
 #' @examples
 #' ggplotFreqOverlap(data_in, colID, groups)
 ggplotFreqOverlap <- function(data_in, colID, groups) {
-  suppressPackageStartupMessages({
-    require(ggplot2)
-  })
   # Subset the data.
+	data_in <- as.data.frame(data_in)
   cols <- grepl(colID, colnames(data_in))
   data_work <- data_in[, cols]
   rownames(data_work) <- paste(data_in$Accession,

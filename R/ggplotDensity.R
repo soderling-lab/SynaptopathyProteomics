@@ -22,9 +22,12 @@ ggplotDensity <- function(data_in, colID, title) {
   # The function ggplotDensity plots a density plot using ggplot.
   # The input data should be a data matrix. This data is reshaped with reshape2::melt
   # The title provided as input is used as the ggplot title.
+  data_in <- as.data.frame(data_in)
   idy <- grepl(colID, colnames(data_in))
-  dm <- as.matrix(data_in[, idy])
-  data_temp <- melt(log2(dm))
+  dm <- as.matrix(data_in[,idy])
+  suppressMessages({
+  data_temp <- reshape2::melt(log2(dm))
+  })
   colnames(data_temp) <- c("Accession", "Run", "Intensity")
   data_temp$Run <- as.factor(data_temp$Run)
   data_temp <- na.omit(data_temp)

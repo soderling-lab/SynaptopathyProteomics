@@ -15,9 +15,9 @@
 #' silently(wgcna::bicor, exprDat)
 #' @export
 
-silently <- function(func, ...) {
+silently <- function(x) {
   sink(tempfile())
-  out <- func(...)
-  sink(NULL)
+invisible(force(x))
+on.exit(sink())
   return(out)
 }

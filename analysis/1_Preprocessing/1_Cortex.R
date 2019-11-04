@@ -12,19 +12,12 @@
 # Prepare the R workspace for the analysis. Load custom functions and prepare
 # the project directory for saving output files.
 
-#rm(list = ls())
-#if (!is.null(dev.list())) {
-#  dev.off()
-#}
-#cat("\f")
-#options(stringsAsFactors = FALSE)
-
 # Load required packages.
 suppressPackageStartupMessages({
 	#library(readxl)
   library(data.table)
 #  library(reshape2)
-#  library(WGCNA)
+  library(WGCNA)
   library(dplyr)
   library(gridExtra)
   library(grid)
@@ -308,7 +301,7 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Generate plots.
 p1 <- ggplotDetect(SL_peptide, groups[1]) #+ ggtitle(NULL)
-l1 <- get_legend(p1)
+l1 <- cowplot::get_legend(p1)
 p1 <- p1 + theme(legend.position = "none")
 
 p2 <- ggplotDetect(SL_peptide, groups[2]) #+ ggtitle(NULL)
@@ -372,11 +365,9 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 plots <- ggplotcorQC(impute_peptide, groups, colID = "QC", nbins = 5)
 
 # Generate intensity bin histograms. Example, Shank2.
-hist_list <- list()
-hist_list[["Shank2"]] <- ggplotQCHist(impute_peptide, "Shank2", nbins = 5, threshold = 4)
-hist_list[["Shank3"]] <- ggplotQCHist(impute_peptide, "Shank3", nbins = 5, threshold = 4)
-hist_list[["Syngap1"]] <- ggplotQCHist(impute_peptide, "Syngap1", nbins = 5, threshold = 4)
-hist_list[["Ube3a"]] <- ggplotQCHist(impute_peptide, "Ube3a", nbins = 5, threshold = 4)
+hist_list <- lapply(as.list(groups),function(x) 
+		    ggplotQCHist(impute_peptide,x, nbins = 5, threshold = 4))
+names(hist_list) <- groups
 
 # Store plots.
 all_plots[[paste(tissue, "corQC_list", sep = "_")]] <- plots
@@ -393,7 +384,7 @@ all_plots[[paste(tissue, "histQC_list", sep = "_")]] <- hist_list
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Filter peptides based on QC precision.
-filter_peptide <- filterQCv2(impute_peptide, groups, nbins = 5, threshold = 4)
+filt_peptide <- filter_QC(impute_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
 out <- list(c(94, 77, 133, 59), c(182, 67, 73, 75))[[type]] # Cox and Str peps removed.
@@ -411,7 +402,7 @@ all_plots[[paste(tissue, "n_pep_filtered_cortex", sep = "_")]] <- mytable
 # peptides identified for a given protein across all experiments.
 
 # Summarize to protein level:
-filt_protein <- summarize_Protein(filter_peptide)
+filt_protein <- summarize_protein(filt_peptide)
 
 # Normalize across all columns (experiments).
 SL_protein <- normalize_SL(filt_protein, "Abundance", "Abundance")
@@ -433,8 +424,11 @@ colID <- "Abundance"
 data_in <- SL_protein
 
 # Loop to perform ComBat on intraBatch batch effect (prep date).
-# If there is no known batch effect, the data is returned un-regressed.
-# Note: QC samples are not adjusted by ComBat.
+# If there is no known batch effect (bicor(batch,PC1)<0.1) then 
+# the data is returned un-regressed.
+
+# Note: The values of QC samples are not adjusted by ComBat. The QC 
+# samples were prepared from a seperate batch of mice and represent a single batch.
 
 data_out <- list() # ComBat data.
 plot_list <- list() # MDS plots.
@@ -566,7 +560,7 @@ all_plots[[paste(tissue, "ube3a_combat_pca", sep = "_")]] <- plot_list[[4]]
 #-------------------------------------------------------------------------------
 ##  Examine protein identification overlap.
 #-------------------------------------------------------------------------------
-#' Approximately 80-90% of all proteins are identified in all experiments.
+# Approximately 80-90% of all proteins are identified in all experiments.
 
 # Inspect the overlap in protein identifcation.
 plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +

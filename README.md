@@ -15,13 +15,18 @@ __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders
 
 -------------------------------------------------------------------------------
 
+## Data Analysis
+1_Preprocessing
+2_TAMPOR-Normalization
+3_
+
 ## Project Organization
 ### Main Directories
-* [bin/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/bin) - executable scripts for the project.
-* [code/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code) - this directory contains scripts used to perform the data analaysis. The scripts are named in the order they should be executed in order to complete the analysis. 
-* [functions/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/functions) - functions used in the analysis.
-* [input/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/input) - the raw data used as a starting point for the analysis.
-* [tables/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/tables) - directory for table output from scripts. 
+* [bin/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/bin) - executable scripts for the project.
+* [analysis/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/analysis) - this directory contains scripts used to perform the data analaysis. The scripts are named in the order they should be executed in order to complete the analysis. 
+* [R/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/R) - functions used in the analysis.
+* [input/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/input) - the raw data used as a starting point for the analysis.
+* [tables/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/tables) - directory for table output from scripts. 
 
 ### Additional directories
 Several other directories are used to store output generated during the analysis. 
