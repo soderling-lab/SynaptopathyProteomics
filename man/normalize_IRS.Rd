@@ -17,7 +17,7 @@ Performs IRS normalization
 Supports geometric or robust mean.
 }
 \examples{
-normalize_IRS(data_in,IRS_ID="QC",groups)
+normalize_IRS(data_in, IRS_ID = "QC", groups)
 }
 \references{
 none
