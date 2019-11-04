@@ -15,7 +15,7 @@
 #' @export
 #'
 #' @examples
-#'quiet(myfun(x))
+#' quiet(myfun(x))
 quiet <- function(x) {
   sink(tempfile())
   on.exit(sink())

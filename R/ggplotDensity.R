@@ -24,9 +24,9 @@ ggplotDensity <- function(data_in, colID, title) {
   # The title provided as input is used as the ggplot title.
   data_in <- as.data.frame(data_in)
   idy <- grepl(colID, colnames(data_in))
-  dm <- as.matrix(data_in[,idy])
+  dm <- as.matrix(data_in[, idy])
   suppressMessages({
-  data_temp <- reshape2::melt(log2(dm))
+    data_temp <- reshape2::melt(log2(dm))
   })
   colnames(data_temp) <- c("Accession", "Run", "Intensity")
   data_temp$Run <- as.factor(data_temp$Run)

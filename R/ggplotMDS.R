@@ -20,9 +20,9 @@
 #' @examples
 #' ggplotMDS(data_in, colID, traits, title)
 ggplotMDS <- function(data_in, colID, traits, title) {
-suppressPackageStartupMessages({
-	require(ggdendro)
-})
+  suppressPackageStartupMessages({
+    require(ggdendro)
+  })
   idx <- match(colnames(data_in), rownames(traits))
   # colnames(data_in) <- traits$SampleType[idx]
   colnames(data_in) <- traits$Sample.Model[idx]

@@ -18,7 +18,7 @@
 #' @examples
 #' filter_protein(data_in, colID)
 filter_protein <- function(data_in, colID) {
-	data_in <- as.data.frame(data_in)
+  data_in <- as.data.frame(data_in)
   # Removing one hit wonders...
   out <- data_in$Peptides == 1
   message(paste(

@@ -2,7 +2,7 @@
 
 #' ---
 #' title: 1_Cortex.R
-#' description: Preprocessing of Cortex Data.
+#' description: Preprocessing of Cortex TMT data.
 #' authors: Tyler W Bradshaw
 #' ---
 
@@ -14,24 +14,16 @@
 
 # Load required packages.
 suppressPackageStartupMessages({
-	#library(readxl)
   library(data.table)
-#  library(reshape2)
   library(WGCNA)
   library(dplyr)
   library(gridExtra)
   library(grid)
   library(gtable)
   library(ggplot2)
-#  library(cowplot)
-#  library(impute)
-#  library(tibble)
   library(flashClust)
-#  library(ggdendro)
   library(sva)
-#  library(purrr)
-#  library(ggrepel)
-#  library(edgeR)
+  library(edgeR)
 })
 
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
@@ -49,8 +41,8 @@ tabsdir <- file.path(rootdir, "tables")
 
 # Load required custom functions.
 source_myfun <- function() {
-	myfun <- list.files(funcdir,pattern=".R",full.names=TRUE)
-	invisible(sapply(myfun,source))
+  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+  invisible(sapply(myfun, source))
 }
 source_myfun()
 
@@ -71,7 +63,7 @@ all_plots <- list()
 # version 2.2. Note that the default export from PD2.x is a unitless signal to
 # noise ratio, and it is not recommended to use ths for quantification.
 
-# Load the data.
+# Load the TMT data.
 datafile <- c(
   "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
   "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
@@ -84,44 +76,25 @@ samplefile <- c(
 )
 
 # Load the data from PD and sample info.
-raw_peptide <- fread(file=file.path(datadir, datafile[type]))
-sample_info <- fread(file=file.path(datadir, samplefile[type]))
+raw_peptide <- fread(file = file.path(datadir, datafile[type]))
+sample_info <- fread(file = file.path(datadir, samplefile[type]))
 
 # Insure traits are in matching order.
 sample_info <- sample_info[order(sample_info$Order), ]
 
-# Save to Rdata. To be saved to excel later.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.RData"))
-save(raw_peptide,file=myfile)
+# Save raw data to Rdata. To be saved to excel document later.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.rda"))
+save(raw_peptide, file = myfile)
 
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_sample_info.RData"))
-save(sample_info,file=myfile)
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_sample_info.rda"))
+save(sample_info, file = myfile)
 
 #-------------------------------------------------------------------------------
 ## Examine an example peptide.
 #-------------------------------------------------------------------------------
 
-# Get a slice of the data.
-set.seed(1)
-dat <- as.data.frame(subset(raw_peptide, grepl("Dlg4", raw_peptide$Description)))
-rownames(dat) <- paste(dat$Accession, dat$Sequence, c(1:nrow(dat)), sep = "_")
-idy <- grepl("Shank2", colnames(dat))
-dat <- dat[, idy]
-dat <- na.omit(dat)
-
-# Make bar plot for given peptide.
-colIDs <- gsub(",", "", sapply(strsplit(colnames(dat), "\\ "), "[", 3))
-geno <- gsub(",", "", sapply(strsplit(colnames(dat), "\\ "), "[", 5))
-n <- sample(nrow(dat), 1)
-df <- reshape2::melt(dat[n, ])
-df$Channel <- colIDs
-title <- paste0("Dlg4"," >",strsplit(rownames(dat)[n], "_")[[1]][2])
-
-plot <- ggplot(df, aes(x = Channel, y = log2(value), fill = Channel)) +
-  geom_bar(stat = "identity", width = 0.9, position = position_dodge(width = 1)) +
-  xlab("TMT Channel") + ylab("Log2(Raw Intensity)") +
-  ggtitle(title) + 
-  theme(legend.position = "none")
+# Generate a plot.
+plot <- ggplotPeptideBarPlot(raw_peptide)
 
 # Store in list.
 all_plots[[paste(tissue, "Example_TMT", sep = "_")]] <- plot
@@ -139,11 +112,11 @@ all_plots[[paste(tissue, "Example_TMT", sep = "_")]] <- plot
 
 # Determine the total number of unique peptides:
 nPeptides <- format(length(unique(raw_peptide$Sequence)), big.mark = ",")
-print(paste(nPeptides, " unique peptides identified.", sep = ""))
+message(paste(nPeptides, " unique peptides identified.", sep = ""))
 
 # Determine the total number of unique proteins:
 nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
-print(paste(nProteins, " unique proteins identified.", sep = ""))
+message(paste(nProteins, " unique proteins identified.", sep = ""))
 
 # Utilize gridExtra to create a table.
 tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
@@ -152,9 +125,9 @@ tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
 )
 
 # Examine the number of peptides per protein.
-nPep <- subset(raw_peptide) %>%
-  dplyr::group_by(Accession) %>%
-  dplyr::summarize(nPeptides = length(Sequence))
+nPep <- raw_peptide %>%
+  group_by(Accession) %>%
+  summarize(nPeptides = length(Sequence))
 
 # Remove one hit wonders!
 nPep <- nPep[!nPep$nPeptides == 1, ]
@@ -217,14 +190,14 @@ p1 <- p1 + theme(axis.text.x = element_blank())
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
 
 # Genotype specific colors must be specified in column order.
-colors <- rep(c("yellow","blue","green","purple"),each=11)
+colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
-colors <- rep(c("yellow","blue","green","purple"),each=11)
-p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
-	theme(legend.position = "none")
+colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
+  theme(legend.position = "none")
 
 # Store plots in list.
 all_plots[[paste(tissue, "raw_bp", sep = "_")]] <- p1
@@ -249,6 +222,10 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 # Perform SL normalization.
 SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 
+# Save to rda
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_SL_peptide.rda"))
+save(SL_peptide, file = myfile)
+
 #-------------------------------------------------------------------------------
 ## Examine the SL Data.
 #-------------------------------------------------------------------------------
@@ -271,9 +248,9 @@ p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
-colors <- rep(c("yellow","blue","green","purple"),each=11)
-p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
-	theme(legend.position = "none")
+colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
+  theme(legend.position = "none")
 
 # Store plots.
 all_plots[[paste(tissue, "sl_bp", sep = "_")]] <- p1
@@ -350,6 +327,10 @@ mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 # Store table.
 all_plots[[paste(tissue, "n_imputed_pep_tab", sep = "_")]] <- mytable
 
+# Save data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_impute_peptide.rda"))
+save(imp_peptide, file = myfile)
+
 #-------------------------------------------------------------------------------
 ## Illustrate the mean variance relationship of QC peptides.
 #-------------------------------------------------------------------------------
@@ -362,12 +343,13 @@ all_plots[[paste(tissue, "n_imputed_pep_tab", sep = "_")]] <- mytable
 
 # Generate QC correlation scatter plots for all experimental groups.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-plots <- ggplotcorQC(imp_peptide, groups, colID = "QC", nbins = 5)
+plots <- ggplotCorQC(imp_peptide, groups, colID = "QC", nbins = 5)
 
-# Generate intensity bin histograms. 
+# Generate intensity bin histograms.
 # This will take a couple minutes.
-hist_list <- lapply(as.list(groups),function(x) 
-		    ggplotQCHist(imp_peptide,x, nbins = 5, threshold = 4))
+hist_list <- lapply(as.list(groups), function(x) {
+  ggplotQCHist(imp_peptide, x, nbins = 5, threshold = 4)
+})
 names(hist_list) <- groups
 
 # Store plots.
@@ -395,6 +377,10 @@ mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 # Store table
 all_plots[[paste(tissue, "n_pep_filtered_cortex", sep = "_")]] <- mytable
 
+# Save data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_filt_peptide.rda"))
+save(filt_peptide, file = myfile)
+
 #-------------------------------------------------------------------------------
 ##  Protein level summarization and normalization across all batches.
 #-------------------------------------------------------------------------------
@@ -407,6 +393,10 @@ filt_protein <- summarize_protein(filt_peptide)
 
 # Normalize across all columns (experiments).
 SL_protein <- normalize_SL(filt_protein, "Abundance", "Abundance")
+
+# Save data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_SL_protein.rda"))
+save(SL_protein, file = myfile)
 
 #-------------------------------------------------------------------------------
 ## IntraBatch Protein-lavel ComBat.
@@ -425,16 +415,17 @@ colID <- "Abundance"
 data_in <- SL_protein
 
 # Loop to perform ComBat on intraBatch batch effect (prep date).
-# If there is no known batch effect (bicor(batch,PC1)<0.1) then 
+# If there is no known batch effect (bicor(batch,PC1)<0.1) then
 # the data is returned un-regressed.
 
-# Note: The values of QC samples are not adjusted by ComBat. The QC 
+# Note: The values of QC samples are not adjusted by ComBat. The QC
 # samples were prepared from a seperate batch of mice and represent a single batch.
 
 data_out <- list() # ComBat data.
 plot_list <- list() # MDS plots.
 R <- list() # Bicor stats [bicor(batch,PC1)]
 
+# Loop:
 for (i in 1:length(groups)) {
   # Meta data.
   info_cols <- data_in[, !grepl(colID, colnames(data_in))]
@@ -540,7 +531,7 @@ for (i in 1:length(groups)) {
 } # Ends ComBat loop.
 
 # Merge the data frames with purrr::reduce()
-data_return <- data_out %>% purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
+norm_protein <- data_out %>% purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
 
 # Quantifying the batch effect.
 # Check bicor correlation with batch before and after ComBat.
@@ -564,7 +555,7 @@ all_plots[[paste(tissue, "ube3a_combat_pca", sep = "_")]] <- plot_list[[4]]
 # Approximately 80-90% of all proteins are identified in all experiments.
 
 # Inspect the overlap in protein identifcation.
-plot <- ggplotFreqOverlap(SL_protein, "Abundance", groups) +
+plot <- ggplotFreqOverlap(norm_protein, "Abundance", groups) +
   ggtitle("Protein Identification Overlap")
 
 # Store plot.
@@ -575,7 +566,7 @@ all_plots[[paste(tissue, "prot_id_overlap", sep = "_")]] <- plot
 #-------------------------------------------------------------------------------
 
 # Generate boxplot.
-data_in <- SL_protein
+data_in <- norm_protein
 title <- "Normalized protein"
 colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
@@ -589,15 +580,19 @@ p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
-colors <- rep(c("yellow","blue","green","purple"),each=11)
-p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
-	theme(legend.position = "none")
+colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
+  theme(legend.position = "none")
 
 # Store plots.
-all_plots[[paste(tissue, "sl_prot_bp", sep = "_")]] <- p1
-all_plots[[paste(tissue, "sl_prot_dp", sep = "_")]] <- p2
-all_plots[[paste(tissue, "sl_prot_msd", sep = "_")]] <- p3
-all_plots[[paste(tissue, "sl_prot_mds", sep = "_")]] <- p4
+all_plots[[paste(tissue, "norm_prot_bp", sep = "_")]] <- p1
+all_plots[[paste(tissue, "norm_prot_dp", sep = "_")]] <- p2
+all_plots[[paste(tissue, "norm_prot_msd", sep = "_")]] <- p3
+all_plots[[paste(tissue, "norm_prot_mds", sep = "_")]] <- p4
+
+# Save raw data to Rdata. To be saved to excel document later.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_norm_protein.rda"))
+save(norm_protein, file = myfile)
 
 #-------------------------------------------------------------------------------
 ## IRS Normalization.
@@ -610,7 +605,7 @@ all_plots[[paste(tissue, "sl_prot_mds", sep = "_")]] <- p4
 
 # Perform IRS normaliztion.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
+IRS_protein <- normalize_IRS(norm_protein, "QC", groups, robust = TRUE)
 
 #-------------------------------------------------------------------------------
 ## Identify and remove QC outliers.
@@ -662,20 +657,24 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-bad_samples
+message(paste("Number of outlier QC samples:", sum(bad_samples != "none")))
 
 # Remove outliers from data.
 samples_out <- paste(bad_samples, collapse = "|")
 out <- grepl(samples_out, colnames(SL_protein))
 
 # Redo IRS after outlier removal..
-IRS_OutRemoved_protein <- normalize_IRS(SL_protein[, !out], "QC", groups, robust = TRUE)
+IRS_OutRemoved_protein <- normalize_IRS(norm_protein[, !out], "QC", groups, robust = TRUE)
 
 # Write over IRS_data
 IRS_protein <- IRS_OutRemoved_protein
 
 # Store plots.
 all_plots[[paste(tissue, "sample_connectivity_list", sep = "_")]] <- plots
+
+# Save data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_IRS_protein.rda"))
+save(IRS_protein, file = myfile)
 
 #-------------------------------------------------------------------------------
 ## Examine the IRS Normalized protein level data.
@@ -703,9 +702,9 @@ p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
-colors <- rep(c("yellow","blue","green","purple"),each=11)
-p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
-	theme(legend.position = "none")
+colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
+  theme(legend.position = "none")
 
 # Store plots.
 all_plots[[paste(tissue, "irs_bp", sep = "_")]] <- p1
@@ -714,7 +713,7 @@ all_plots[[paste(tissue, "irs_msd", sep = "_")]] <- p3
 all_plots[[paste(tissue, "irs_mds", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
-## Protein level filtering, imputing, and final TMM normalization.
+## Protein level filtering, and imputing.
 #-------------------------------------------------------------------------------
 # Proteins that are identified by only a single peptide are removed. Proteins
 # that are identified in less than 50% of all samples are also removed. The
@@ -724,67 +723,36 @@ all_plots[[paste(tissue, "irs_mds", sep = "_")]] <- p4
 
 # Remove proteins that are identified by only 1 peptide as well as
 # proteins identified in less than 50% of samples.
-filt_protein <- filter_proteins(IRS_protein, "Abundance")
+filter_protein <- filter_protein(IRS_protein, "Abundance")
 
 # Generate plot to examine distribution of remaining missing values.
 plot <- ggplotDetect(filt_protein, "Abundance") +
   ggtitle("Protein missing value distribution")
 
 # Impute the remaining number of missing values with KNN.
-imp_protein <- impute_protein(filt_protein, "Abundance", method="knn")
-
-# Final normalization with TMM.
-TMM_protein <- normalize_TMM(imp_protein, "Abundance")
+impute_protein <- impute_protein(filt_protein, "Abundance", method = "knn")
 
 # Store plots.
 all_plots[[paste(tissue, "prot_missing_val_dp", sep = "_")]] <- plot
 
-#-------------------------------------------------------------------------------
-## Examine the TMM Normalized protein level data.
-#-------------------------------------------------------------------------------
-
-# Generate boxplot.
-# Adjust color vector if samples were removed.
-# Cortex outliers = 1x Ube3a, and 1x Syngap1
-data_in <- TMM_protein
-title <- "TMM Normalized protein"
-colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
-p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
-
-# Generate density plot.
-p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
-colors <- c(rep("yellow", 11), rep("blue", 11), rep("green", 11), rep("purple", 11))
-p2 <- p2 + scale_color_manual(values = colors)
-
-# Generate meanSd plot.
-p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
-
-# Generate MDS plot.
-colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
-p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
-  theme(legend.position = "none")
-
-# Store plots.
-all_plots[[paste(tissue, "tmm_bp", sep = "_")]] <- p1
-all_plots[[paste(tissue, "tmm_dp", sep = "_")]] <- p2
-all_plots[[paste(tissue, "tmm_msd", sep = "_")]] <- p3
-all_plots[[paste(tissue, "tmm_mds", sep = "_")]] <- p4
+# Save data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_filter_protein.rda"))
+save(filter_protein, file = myfile)
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_impute_protein.rda"))
+save(impute_protein, file = myfile)
 
 #-------------------------------------------------------------------------------
-## Reformat final normalized, regressed data for TAMPOR Normalization.
+# Reformat data for TAMPOR normalization script.
 #-------------------------------------------------------------------------------
-#' Data are reformatted for TAMPOR normalization in the `2_TMT_Analysis.R` script.
+# Reformat final normalized, intra-batch regressed, IRS-normalized, filtered,
+# and imputed data for TAMPOR Normalization.
 
 # Data is...
-data_in <- TMM_protein
+data_in <- impute_protein
 rownames(data_in) <- TMM_protein$Accession
 data_in$Accession <- NULL
 data_in$Peptides <- NULL
 data_in <- as.matrix(data_in)
-
-# data_in <- 2^t(data.fit)
-# data_in[1:5, 1:5] # un-log
-# dim(data_in)
 
 # Extract Gene descriptions and uniprot accesssions for renaming rows.
 idx <- match(rownames(data_in), SL_peptide$Accession)
@@ -814,12 +782,9 @@ colnames(data_out) <- col_names
 cleanDat <- data_out[, order(colnames(data_out))]
 
 # Save as cleanDat
-file <- paste0(Rdatadir, "/", outputMatName, "_CleanDat_TAMPOR_Format.Rds")
-saveRDS(cleanDat, file)
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_cleanDat.rda"))
+save(cleanDat, file = myfile)
 
-# Save plot list.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
+# Save all plots in plot list.
+myfile <- file.path(Rdatadir, paste0(".", outputMatName, "_plots.RData"))
 saveRDS(all_plots, myfile)
-
-## ENDOFILE
-#------------------------------------------------------------------------------

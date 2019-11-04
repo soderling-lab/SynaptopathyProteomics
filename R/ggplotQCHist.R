@@ -91,8 +91,8 @@ ggplotQCHist <- function(data_in, group, nbins, threshold) {
   palette <- c("#132B43", "#22496C", "#336A98", "#448DC6", "#56B1F7")
   for (j in 1:nbins) {
     data_sub <- subset(data_work, bins == j)
-  idy <- grep("ratio_avg",colnames(data_sub))
-    dm <- as.matrix(data_sub[,idy])
+    idy <- grep("ratio_avg", colnames(data_sub))
+    dm <- as.matrix(data_sub[, idy])
     data_temp <- na.omit(melt(dm))
     mu <- mean(data_temp$value)
     stdev <- sd(data_temp$value)

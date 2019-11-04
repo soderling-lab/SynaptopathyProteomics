@@ -22,7 +22,7 @@ summarize_protein <- function(peptide_data) {
   # Add column for peptides, summarize using dplyr::summarize_all(sum)
   Peptides <- rep(1, nrow(peptide_data))
   temp_data <- tibble::add_column(peptide_data, Peptides, .after = 5)
-  tmt_cols <- grep("Abundance",colnames(temp_data))
+  tmt_cols <- grep("Abundance", colnames(temp_data))
   temp_data <- temp_data[, c(2, 6, tmt_cols)]
   prot_data <- temp_data %>%
     group_by(Accession) %>%

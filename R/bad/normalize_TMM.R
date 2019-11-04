@@ -20,7 +20,7 @@
 #' @examples
 #' normalize_TMM(data_in, colID)
 normalize_TMM <- function(data_in, groups) {
-	data_in <- as.data.frame(data_in)
+  data_in <- as.data.frame(data_in)
   for (i in 1:length(groups)) {
     colID <- groups[i]
     # Get data

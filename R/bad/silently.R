@@ -17,7 +17,7 @@
 
 silently <- function(x) {
   sink(tempfile())
-invisible(force(x))
-on.exit(sink())
+  invisible(force(x))
+  on.exit(sink())
   return(out)
 }
