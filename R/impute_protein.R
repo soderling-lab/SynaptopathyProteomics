@@ -4,7 +4,7 @@
 #' from package impute. Note data is log transformed before imputing and then
 #' return un-logged.
 #'
-#' @param
+#' @param data_in - expression data
 #'
 #' @return none
 #'

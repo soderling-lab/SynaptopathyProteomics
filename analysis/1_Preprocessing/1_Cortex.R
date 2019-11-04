@@ -547,7 +547,7 @@ data_return <- data_out %>% purrr::reduce(left_join, by = c(colnames(data_in)[c(
 df <- do.call(rbind, lapply(R, function(x) x[1, ]))
 df <- as.data.frame(t(apply(df, 1, function(x) round(abs(as.numeric(x)), 3))))
 rownames(df) <- groups
-df <- add_column(df, rownames(df), .before = 1)
+df <- tibble::add_column(df, rownames(df), .before = 1)
 colnames(df) <- c("Experiment", "preComBat", "postComBat")
 mytable <- tableGrob(df, rows = NULL)
 
@@ -588,10 +588,10 @@ p2 <- p2 + scale_color_manual(values = colors)
 # Generate meanSd plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
-# Generate MDS plot.
-colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
-p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
-  theme(legend.position = "none")
+# Generate PCA plot.
+colors <- rep(c("yellow","blue","green","purple"),each=11)
+p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
+	theme(legend.position = "none")
 
 # Store plots.
 all_plots[[paste(tissue, "sl_prot_bp", sep = "_")]] <- p1
@@ -602,11 +602,11 @@ all_plots[[paste(tissue, "sl_prot_mds", sep = "_")]] <- p4
 #-------------------------------------------------------------------------------
 ## IRS Normalization.
 #-------------------------------------------------------------------------------
-#' Internal reference sclaing (IRS) normalization equalizes the protein-wise means
-#' of reference (QC) samples across all batches. Thus, IRS normalization accounts
-#' for the random sampling of peptides at the MS2 level which results in the
-#' identification/quantificaiton of proteins by different peptides in each
-#' experiment. IRS normalization was first described by __Plubell et al., 2017__.
+# Internal reference sclaing (IRS) normalization equalizes the protein-wise means
+# of reference (QC) samples across all batches. Thus, IRS normalization accounts
+# for the random sampling of peptides at the MS2 level which results in the
+# identification/quantificaiton of proteins by different peptides in each
+# experiment. IRS normalization was first described by __Plubell et al., 2017__.
 
 # Perform IRS normaliztion.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -615,22 +615,22 @@ IRS_protein <- normalize_IRS(SL_protein, "QC", groups, robust = TRUE)
 #-------------------------------------------------------------------------------
 ## Identify and remove QC outliers.
 #-------------------------------------------------------------------------------
-#' IRS normalization utilizes QC samples as reference samples. Outlier QC
-#' measurements (caused by interference or other artifact) would influence the
-#' create unwanted variability. Thus, outlier QC samples are removed, if
-#' identified. The method used by __Oldham et al., 2016__ is used to identify
-#' QC sample outliers. A threshold of -2.5 is used.
+# IRS normalization utilizes QC samples as reference samples. Outlier QC
+# measurements (caused by interference or other artifact) would influence the
+# create unwanted variability. Thus, outlier QC samples are removed, if
+# identified. The method used by __Oldham et al., 2016__ is used to identify
+# QC sample outliers. A threshold of -2.5 is used.
 
 # Data is...
 data_in <- IRS_protein
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(IRS_protein,
+sample_connectivity <- ggplotSampleConnectivity(IRS_protein,
   colID = "QC",
   threshold = -2.5
 )
 tab <- sample_connectivity$table
-df <- add_column(tab, SampleName = rownames(tab), .before = 1)
+df <- tibble::add_column(tab, SampleName = rownames(tab), .before = 1)
 rownames(df) <- NULL
 
 plot1 <- sample_connectivity$connectivityplot +
@@ -646,7 +646,7 @@ plots <- list()
 # Loop:
 for (i in 1:n_iter) {
   data_temp <- quiet(normalize_IRS(data_in, "QC", groups, robust = TRUE))
-  oldham <- ggplotSampleConnectivityv2(data_temp, log = TRUE, colID = "QC")
+  oldham <- ggplotSampleConnectivity(data_temp, log = TRUE, colID = "QC")
   plots[[i]] <- oldham$connectivityplot +
     ggtitle(paste("Sample Connectivity (Iteration = ", i, ")", sep = ""))
   bad_samples <- rownames(oldham$table)[oldham$table$Z.Ki < threshold]
@@ -702,10 +702,10 @@ p2 <- p2 + scale_color_manual(values = colors)
 # Generate meanSd plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
-# Generate MDS plot.
-colors <- c(rep("yellow", 3), rep("blue", 3), rep("green", 3), rep("purple", 3))
-p4 <- ggplotMDS(data_in, colID = "Abundance", colors, title, sample_info, labels = TRUE) +
-  theme(legend.position = "none")
+# Generate PCA plot.
+colors <- rep(c("yellow","blue","green","purple"),each=11)
+p4 <- ggplotPCA(data_in, traits=sample_info, colors, title = "2D PCA Plot") +
+	theme(legend.position = "none")
 
 # Store plots.
 all_plots[[paste(tissue, "irs_bp", sep = "_")]] <- p1
@@ -716,11 +716,11 @@ all_plots[[paste(tissue, "irs_mds", sep = "_")]] <- p4
 #-------------------------------------------------------------------------------
 ## Protein level filtering, imputing, and final TMM normalization.
 #-------------------------------------------------------------------------------
-#' Proteins that are identified by only a single peptide are removed. Proteins
-#' that are identified in less than 50% of all samples are also removed. The
-#' nature of the remaining missng values are examined by density plot and
-#' imputed with the KNN algorithm for MNAR data. Finally, TMM normalization is
-#' applied to correct for any biases introduced by these previous steps.
+# Proteins that are identified by only a single peptide are removed. Proteins
+# that are identified in less than 50% of all samples are also removed. The
+# nature of the remaining missng values are examined by density plot and
+# imputed with the KNN algorithm for MNAR data. Finally, TMM normalization is
+# applied to correct for any biases introduced by these previous steps.
 
 # Remove proteins that are identified by only 1 peptide as well as
 # proteins identified in less than 50% of samples.
@@ -731,7 +731,7 @@ plot <- ggplotDetect(filt_protein, "Abundance") +
   ggtitle("Protein missing value distribution")
 
 # Impute the remaining number of missing values with KNN.
-imp_protein <- impute_KNN(filt_protein, "Abundance")
+imp_protein <- impute_protein(filt_protein, "Abundance", method="knn")
 
 # Final normalization with TMM.
 TMM_protein <- normalize_TMM(imp_protein, "Abundance")
