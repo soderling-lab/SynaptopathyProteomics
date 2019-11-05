@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 ''' Multiresolution clustering of the protein co-expression graph. 
 Executable script that utilizes the Leiden algorithm to perform multiresolution 
 clustering of the protein co-expression graph.
@@ -10,6 +11,7 @@ OUTPUT:
     la-partitions.csv: node community (cluster) membership for graph partition(s).
     la-profile.csv: other descriptive statistics for the resolution profile.
 '''
+
 #------------------------------------------------------------------------------
 ## Load the adjacency matrix.
 #------------------------------------------------------------------------------

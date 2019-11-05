@@ -1,5 +1,11 @@
 #!/usr/bin/env Rscript
 
+#' ---
+#' title: 1_calc-adjacency.R
+#' description: generate wt and ko bicor correlation matrice.
+#' authors: Tyler W. Bradshaw
+#' ---
+
 #------------------------------------------------------------------------------
 ## Generate protein correlation matrix.
 #------------------------------------------------------------------------------
@@ -7,7 +13,8 @@
 # Load the normalized expression data.
 here <- getwd()
 root <- dirname(dirname(here))
-datadir <- file.path(root, "data")
+rdatadir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 # Load misc functions.
 suppressPackageStartupMessages({
@@ -17,11 +24,11 @@ suppressPackageStartupMessages({
 
 # Load the normalized expression data.
 # No QC data. Any sample level outliers removed.
-myfile <- file.path(datadir, "2_Combined_TAMPOR_OutlierRemoved.Rds")
+myfile <- file.path(rdatadir, "2_Combined_TAMPOR_cleanDat.RData")
 cleanDat <- readRDS(myfile)
 
 # Load sample traits.
-myfile <- file.path(datadir, "2_Combined_traits.Rds")
+myfile <- file.path(rdatadir, "2_Combined_traits.RData")
 traits <- readRDS(myfile)
 
 # Remove QC data, log2 transform, and coerce to data.table.
@@ -42,25 +49,17 @@ koDat <- as.matrix(data %>% select(ko_samples))
 rownames(wtDat) <- rownames(koDat) <- rownames(data)
 
 # Save WT and KO data to file.
-saveRDS(wtDat, file.path(datadir, "3_wtDat.Rds"))
-saveRDS(koDat, file.path(datadir, "3_koDat.Rds"))
+saveRDS(wtDat, file.path(rdatadir, "3_wtDat.Rds"))
+saveRDS(koDat, file.path(rdatadir, "3_koDat.Rds"))
 
 # Create signed adjacency matrix.
-library(TBmiscr)
-adjm <- lapply(subdat, function(x) silently(WGCNA::bicor, t(x)))
-# Fix row and column names.
-f <- function(x, namen) {
-  rownames(x) <- namen
-  colnames(x) <- namen
-  return(x)
-}
-adjm <- lapply(adjm, function(x) f(x, rownames(cleanDat)))
+wtAdjm <- WGCNA::bicor(t(wtDat))
+koAdjm <- WGCNA::bicor(t(koDat))
 
 # Write adjm to .csv.
-# These will be passed to Leidenalg clustering script.
-adjmfiles <- file.path(datadir, paste0("3_", names(adjm), "adjm.csv"))
-fwrite(as.data.table(adjm$WT, keep.rownames = TRUE), adjmfiles[1])
-fwrite(as.data.table(adjm$KO, keep.rownames = TRUE), adjmfiles[2])
+fwrite(wtAdjm,file.path(tabsdir,"3_wtAdjm.csv"),row.names=TRUE)
+fwrite(koAdjm,file.path(tabsdir,"3_koAdjm.csv"),row.names=TRUE)
 
-# ENDOFILE
-#------------------------------------------------------------------------------
+# Save WT and KO correlation matrixes file.
+saveRDS(wtAdjm, file.path(rdatadir, "3_wtAdjm.RData"))
+saveRDS(koAdjm, file.path(rdatadir, "3_koAdjm.RData"))

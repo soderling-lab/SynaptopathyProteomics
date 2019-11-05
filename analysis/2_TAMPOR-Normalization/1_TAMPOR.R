@@ -32,6 +32,7 @@ suppressPackageStartupMessages({
   library(grid)
   library(anRichment)
   library(openxlsx)
+  library(org.Mm.eg.db)
 })
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined.
@@ -684,6 +685,8 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 #-------------------------------------------------------------------------------
 
 # THIS CHUNK ISNT WORKING. EXTRA NA Column in boxplots.
+skip = TRUE
+if (skip==FALSE) {
 
 # Group WT cortex and WT striatum.
 traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
@@ -755,6 +758,8 @@ all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
 # Save plots.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
 saveRDS(all_plots, myfile)
+
+}
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.

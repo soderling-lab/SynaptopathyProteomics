@@ -61,7 +61,7 @@ here <- getwd()
 rootdir <- dirname(dirname(here))
 funcdir <- file.path(rootdir, "R")
 datadir <- file.path(rootdir, "input")
-Rdatadir <- file.path(rootdir, "data")
+Rdatadir <- file.path(rootdir, "rdata")
 figsdir <- file.path(rootdir, "figures")
 tabsdir <- file.path(rootdir, "tables")
 
