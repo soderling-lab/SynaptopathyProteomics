@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: 2_TMT_Analysis_Combined.R
+#' title: 1_TAMPOR.R
 #' description: TAMPOR Normalization of preprocessed TMT data.
 #' authors: Tyler W Bradshaw, Eric B Dammer.
 #' ---
@@ -9,8 +9,8 @@
 #-------------------------------------------------------------------------------
 ## Prepare the workspace.
 #-------------------------------------------------------------------------------
-#' Prepare the R workspace for the analysis. Load custom functions and prepare
-#' the project directory for saving output files.
+# Prepare the R workspace for the analysis. Load custom functions and prepare
+# the project directory for saving output files.
 
 rm(list = ls())
 if (!is.null(dev.list())) {
@@ -35,29 +35,31 @@ suppressPackageStartupMessages({
 })
 
 # Define tisue type: cortex = 1; striatum = 2; 3 = combined.
-type <- 3
-tissue <- c("Cortex", "Striatum", "Combined")[type]
+tissue <- "Combined"
 
 # Set the working directory.
 here <- getwd()
 rootdir <- dirname(dirname(here))
 
 # Set any other directories.
-functiondir <- paste(rootdir, "functions", sep = "/")
+functiondir <- paste(rootdir, "R", sep = "/")
 datadir <- paste(rootdir, "input", sep = "/")
-Rdatadir <- paste(rootdir, "data", sep = "/")
-outputfigs <- paste(rootdir, "figures", tissue, sep = "/")
+Rdatadir <- paste(rootdir, "rdata", sep = "/")
+outputfigs <- paste(rootdir, "figs", tissue, sep = "/")
 outputtabs <- paste(rootdir, "tables", sep = "/")
 
 # Load required custom functions.
-my_functions <- paste(functiondir, "0_Functions.R", sep = "/")
-source(my_functions)
+source_myfun <- function() {
+  myfun <- list.files(functiondir, pattern = ".R", full.names = TRUE)
+  invisible(sapply(myfun, source))
+}
+source_myfun()
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("2_", tissue)
 
 # Globally set ggplots theme.
-ggplot2::theme_set(theme_gray())
+ggtheme()
 
 # Store any plots in list.
 all_plots <- list()
@@ -65,10 +67,10 @@ all_plots <- list()
 #-------------------------------------------------------------------------------
 ## Merge cortex and striatum data.
 #-------------------------------------------------------------------------------
-#' We will utilize TAMPOR to combine the Cortex and Striatum datasets. Merge the
-#' preprocessed data and traits files.
+# We will utilize TAMPOR to combine the Cortex and Striatum datasets. Merge the
+# preprocessed data and traits files.
 
-## Merge traits data.
+# Merge traits data.
 # Load the cortex and striatum traits files.
 inputTraitsCSV <- c(
   "4227_TMT_Cortex_Combined_traits.csv",
@@ -98,18 +100,18 @@ traits$Tissue <- c(rep("Cortex", 44), rep("Striatum", 44))
 
 # Add column for batch.
 traits$Batch <- sapply(strsplit(rownames(traits), "\\."), "[", 1)
+alltraits <- traits
 
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
-files <- paste(Rdatadir,
-  c(
-    "1_Cortex_CleanDat_TAMPOR_Format.Rds",
-    "1_Striatum_CleanDat_TAMPOR_Format.Rds"
-  ),
-  sep = "/"
+myfiles <- file.path(Rdatadir, c(
+  "1_Cortex_cleanDat.RData",
+  "1_Striatum_cleanDat.RData"
+))
+data <- list(
+  "Cortex"  = readRDS(myfiles[1]),
+  "Striatum" = readRDS(myfiles[2])
 )
-data <- lapply(as.list(files), function(x) readRDS(x))
-names(data) <- c("Cortex", "Striatum")
 
 # Fortify and add accession column
 data_fort <- lapply(
@@ -123,12 +125,11 @@ rownames(data_merge) <- data_merge$ID
 data_merge$ID <- NULL
 
 # Remove rows with missing values.
-data_clean <- na.omit(data_merge)
-data_norm <- data_clean
+allDat <- na.omit(data_merge)
 
 ## Clean-up formatting for TAMPOR.
 # Batch b1-b4 are cortex. Batches b5-b8 are straitum.
-col_names <- colnames(data_norm)
+col_names <- colnames(allDat)
 # Cortex = group1...
 group1 <- col_names[grepl(".x", col_names)]
 group1 <- gsub(".x", "", group1)
@@ -141,20 +142,15 @@ group2 <- gsub("b3", "b7", group2)
 group2 <- gsub("b4", "b8", group2)
 
 # Change column names to batch.channel.
-colnames(data_norm) <- c(group1, group2)
-
-# Write as cleanDat
-cleanDat <- data_norm
+colnames(allDat) <- c(group1, group2)
 
 # GIS index is all WT samples.
 # WT Cortex and WT Striatum scaled by TAMPOR to be the same.
-controls <- traits$SampleID[grepl("WT", traits$SampleType)]
+controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 
-# Save merged data and traits to file.
-file <- paste0(Rdatadir, "/", outputMatName, "_cleanDat.Rds")
-saveRDS(cleanDat, file)
-file <- paste0(Rdatadir, "/", outputMatName, "_traits.Rds")
-saveRDS(traits, file)
+# Save merged traits file.
+myfile <- paste0(Rdatadir, "/", outputMatName, "_traits.RData")
+saveRDS(alltraits, file = myfile)
 
 #-------------------------------------------------------------------------------
 ## Perform TAMPOR normalization.
@@ -162,14 +158,11 @@ saveRDS(traits, file)
 
 # Insure than any samples that were removed from cleanDat are removed from
 # traits (any outliers identified in previous scripts).
-traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
-
-# Load TAMPOR function.
-source(file.path(functiondir, "TAMPOR.R"))
+traits <- alltraits[rownames(alltraits) %in% colnames(allDat), ]
 
 # Perform TAMPOR.
 results <- TAMPOR(
-  dat = cleanDat,
+  dat = allDat,
   traits = traits,
   batchPrefixInSampleNames = TRUE,
   samplesToIgnore = "None",
@@ -189,8 +182,9 @@ out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
 data_in <- log2(cleanDat[, !out])
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivityv2(data_in, log = TRUE, colID = "b")
-plot <- sample_connectivity$connectivityplot + ggtitle("Sample Connectivity post-TAMPOR")
+sample_connectivity <- ggplotSampleConnectivity(data_in, log = TRUE, colID = "b.")
+plot <- sample_connectivity$connectivityplot +
+  ggtitle("Sample Connectivity post-TAMPOR")
 
 # Store plot.
 all_plots[["TAMPOR_Oldham_Outliers"]] <- plot
@@ -203,7 +197,7 @@ out_samples <- list()
 # Loop:
 for (i in 1:n_iter) {
   data_temp <- data_in
-  oldham <- ggplotSampleConnectivityv2(data_temp, log = TRUE, colID = "b", threshold = -3)
+  oldham <- ggplotSampleConnectivity(data_temp, log = TRUE, colID = "b", threshold = -3)
   bad_samples <- rownames(oldham$table)[oldham$table$Z.Ki < threshold]
   print(paste(length(bad_samples), " outlier sample(s) identified in iteration ", i, ".", sep = ""))
   if (length(bad_samples) == 0) bad_samples <- "none"
@@ -216,9 +210,9 @@ for (i in 1:n_iter) {
 bad_samples <- unlist(out_samples)
 message(paste("Outlier samples:", traits$Sample.Model[rownames(traits) %in% bad_samples]))
 
-# Save data to file.
+# Save data with QC samples, but outliers removed to file.
 cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
-myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds")
+myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.RData")
 saveRDS(cleanDat, myfile)
 
 #-------------------------------------------------------------------------------
@@ -226,7 +220,7 @@ saveRDS(cleanDat, myfile)
 #-------------------------------------------------------------------------------
 
 # Insure that any outlier samples have been removed.
-traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
+traits <- alltraits[rownames(alltraits) %in% colnames(cleanDat), ]
 
 # Remove QC data.
 out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
@@ -244,9 +238,18 @@ traits$ColumnName <- rownames(traits)
 # Cortex and striatum.
 idx <- traits$Tissue == "Cortex"
 idy <- traits$Tissue == "Striatum"
-plot1 <- ggplotPCA(log2(data_in[, idx]), traits, colors[idx], title = "Cortex")
-plot2 <- ggplotPCA(log2(data_in[, idy]), traits, colors[idy], title = "Striatum")
-plot3 <- ggplotPCA(log2(data_in), traits, colors, title = "Combined")
+plot1 <- ggplotPCA(log2(data_in[, idx]), traits,
+  colID = "b.",
+  colors[idx], title = "Cortex"
+)
+plot2 <- ggplotPCA(log2(data_in[, idy]), traits,
+  colID = "b.",
+  colors[idy], title = "Striatum"
+)
+plot3 <- ggplotPCA(log2(data_in), traits, colors,
+  colID = "b.",
+  title = "Combined"
+)
 
 # Store in list.
 all_plots[["Cortex_postTAMPOR_PCA"]] <- plot1
@@ -254,12 +257,66 @@ all_plots[["Striatum_postTAMPOR_PCA"]] <- plot2
 all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 
 #-------------------------------------------------------------------------------
+## Create protein identifier map.
+#-------------------------------------------------------------------------------
+ids <- rownames(cleanDat)
+symbol <- sapply(strsplit(ids, "\\|"), "[", 1)
+uniprot <- sapply(strsplit(ids, "\\|"), "[", 2)
+
+# Map uniprot to entrez.
+suppressMessages({
+  entrez <- mapIds(org.Mm.eg.db,
+    keys = uniprot,
+    column = "ENTREZID", keytype = "UNIPROT", multiVals = "first"
+  )
+})
+# If missing map gene to entrez.
+is_missing <- is.na(entrez)
+suppressMessages({
+  entrez[is_missing] <- mapIds(org.Mm.eg.db,
+    keys = symbol[is_missing],
+    column = "ENTREZID", keytype = "SYMBOL", multiVals = "first"
+  )
+})
+is_missing <- is.na(entrez)
+
+# Map remainder by hand.
+# ids[is_missing]
+entrez[is_missing] <- c(102631912, 14070, 18517)
+
+# Check
+if (sum(is.na(entrez)) > 0) {
+  stop("Not all genes mapped to entrez!")
+}
+
+# Use entrez IDs to get consistent gene names.
+suppressMessages({
+  gene <- mapIds(org.Mm.eg.db,
+    keys = entrez,
+    column = "SYMBOL", keytype = "ENTREZID", multiVals = "first"
+  )
+})
+
+# Check
+if (sum(is.na(gene)) > 0) {
+  stop("Not all genes mapped to symbols!")
+}
+
+# Protein identifier map.
+prot_map <- data.frame(ids, uniprot, entrez, gene)
+
+#-------------------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
 #-------------------------------------------------------------------------------
 
 # Remove QC samples prior to passing data to EdgeR.
-out <- traits$SampleType[match(colnames(cleanDat), rownames(traits))] == "QC"
+out <- alltraits$SampleType[match(colnames(cleanDat), rownames(alltraits))] == "QC"
 data_in <- cleanDat[, !out]
+
+# Summarize proteins...
+nprots <- dim(data_in)[1]
+nsamples <- dim(data_in)[2]
+message(paste(nprots, "proteins identified in", nsamples, "samples."))
 
 # Create DGEList object...
 y_DGE <- DGEList(counts = data_in)
@@ -286,8 +343,8 @@ colnames(design) <- levels(y_DGE$samples$group)
 y_DGE <- estimateDisp(y_DGE, design, robust = TRUE)
 
 # PlotBCV
-plot <- ggplotBCV(y_DGE)
-all_plots[["TAMPOR_BCV"]] <- plot
+# plot <- ggplotBCV(y_DGE)
+# all_plots[["TAMPOR_BCV"]] <- plot
 
 # Fit a general linear model.
 fit <- glmQLFit(y_DGE, design, robust = TRUE)
@@ -357,28 +414,26 @@ all_plots[["TAMPOR_DE_Table"]] <- mytable
 # Call topTags to add FDR. Gather tabularized results.
 glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
 
-# Convert logCPM column to percent WT.
-# Annotate with candidate column.
+# Convert logCPM column to percent WT and annotate with candidate column.
 glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
 
-# Annotate with Gene names and Entrez IDS.
-prot_map <- data.table::fread(file.path(Rdatadir, "ProtMap.csv"))
-mapProts <- function(x) {
-  Uniprot <- sapply(strsplit(rownames(x), "\\|"), "[", 2)
-  idx <- match(Uniprot, prot_map$uniprot)
-  x <- add_column(x, Uniprot, .before = 1)
-  x <- add_column(x, Gene = prot_map$symbol[idx], .after = 1)
-  x <- add_column(x, Entrez = prot_map$symbol[idx], .after = 2)
-  return(x)
+# Use prot_map to annotate glm_results with entrez Ids and gene symbols.
+for (i in 1:length(glm_results)) {
+  x <- glm_results[[i]]
+  idx <- match(rownames(x), prot_map$ids)
+  x <- add_column(x, "Gene|Uniprot" = prot_map$ids[idx], .before = 1)
+  x <- add_column(x, "Uniprot" = prot_map$uniprot[idx], .after = 1)
+  x <- add_column(x, "Entrez" = prot_map$entrez[idx], .after = 2)
+  x <- add_column(x, "Symbol" = prot_map$gene[idx], .after = 3)
+  glm_results[[i]] <- x
 }
-glm_results <- lapply(glm_results, function(x) mapProts(x))
 
 # Sort by pvalue.
 glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
 
-# Write to RDS.
-myfile <- paste0(Rdatadir, "/", outputMatName, "_TAMPOR_GLM_Results.RDS")
-saveRDS(glm_results, myfile)
+# Save results to file.
+myfile <- file.path(outputtabs, paste0(outputMatName, "_glm_results.xlsx"))
+write_excel(glm_results, myfile)
 
 #-------------------------------------------------------------------------------
 ## Volcano plots for each genotype.
@@ -407,7 +462,7 @@ results <- split(df, df$Color)
 names(results) <- names(colors)[match(names(results), colors)]
 
 # Function for producing volcano plots.
-ggplotVolcanoPlot2 <- function(df) {
+ggplotVolcanoPlot <- function(df) {
   df$x <- df[, grep("FC", colnames(df))]
   df$y <- -log10(df[, grep("PValue", colnames(df))])
   logic <- df$FDR < 0.05
@@ -440,7 +495,7 @@ ggplotVolcanoPlot2 <- function(df) {
 }
 
 # Generate plots.
-plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot2(results[[x]]))
+plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot(results[[x]]))
 names(plots) <- names(colors)
 
 # Add titles.
@@ -448,12 +503,7 @@ for (i in 1:length(plots)) {
   plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
 }
 
-# Make x-axis symmetrical.
-# for (i in 1:length(plots)){
-#  plot <- plots[[i]]
-#  xlim <- max(abs(layer_scales(plot)$x$range$range))
-#  plots[[i]] <- plot + xlim(-xlim,xlim)
-# }
+# Store plots in list...
 vp1 <- plots$Shank2
 vp2 <- plots$Shank3
 vp3 <- plots$Syngap1
@@ -535,8 +585,8 @@ for (i in 1:length(GOenrichment$setResults)) {
 names(results_GOenrichment) <- colnames(labels)
 
 # Save as excel workbook.
-myfile <- file.path(rootdir, "tables", "2_Supplementary_TMT_GO_Analysis.xlsx")
-write.excel(results_GOenrichment, myfile)
+myfile <- file.path(rootdir, "tables", paste0(outputMatName, "_GO_Analysis.xlsx"))
+write_excel(results_GOenrichment, myfile)
 
 #-------------------------------------------------------------------------------
 ## Condition overlap.
@@ -633,6 +683,8 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 ## Generate protein boxplots.
 #-------------------------------------------------------------------------------
 
+# THIS CHUNK ISNT WORKING. EXTRA NA Column in boxplots.
+
 # Group WT cortex and WT striatum.
 traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 traits$Condition <- traits$Tissue.Sample.Model
@@ -710,10 +762,10 @@ saveRDS(all_plots, myfile)
 
 # Load data.
 files <- list(
-  traits = paste(Rdatadir, "2_Combined_traits.Rds", sep = "/"),
-  raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.Rds", sep = "/"),
-  raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.Rds", sep = "/"),
-  cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.Rds", sep = "/")
+  traits = paste(Rdatadir, "2_Combined_traits.Rdata", sep = "/"),
+  raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.RData", sep = "/"),
+  raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.RData", sep = "/"),
+  cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.RData", sep = "/")
 )
 data <- lapply(files, function(x) readRDS(x))
 
@@ -740,12 +792,6 @@ colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep = ", 
 norm_data <- add_column(norm_data, "Gene|Uniprot" = rownames(norm_data), .before = 1)
 rownames(norm_data) <- NULL
 
-# Write statistical results.
-# FIXME: Change order!
-stats <- readRDS(file.path(Rdatadir, "2_Combined_TAMPOR_GLM_Results.RDS"))
-myfile <- file.path(rootdir, "tables", "2_Supplementary_TMT_GLM_Results.xlsx")
-write.excel(stats, myfile)
-
 # Write to excel workbook.
 wb <- createWorkbook()
 addWorksheet(wb, sheetName = "sample_info")
@@ -758,6 +804,3 @@ writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
 file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx", sep = "/")
 saveWorkbook(wb, file, overwrite = TRUE)
-
-# ENDOFILE
-#------------------------------------------------------------------------------

@@ -18,8 +18,9 @@
 #' ggplotPCA(data_in, traits, colors)
 ggplotPCA <- function(data_in, traits, colors, colID = "Abundance", title = "2D PCA Plot") {
   # Get the numeric data.
+
   data_in <- as.data.frame(data_in)
-  idy <- grepl("Abundance", colnames(data_in))
+  idy <- grepl(colID, colnames(data_in))
   data_in <- data_in[, idy]
   # Perform PCA. Must remove any NA.
   PC <- prcomp(t(na.omit(data_in)))$x[, 1:2]
@@ -27,6 +28,7 @@ ggplotPCA <- function(data_in, traits, colors, colID = "Abundance", title = "2D 
   PC <- as.data.frame(PC)
   idx <- match(rownames(PC), traits$ColumnName)
   PC$Label <- paste(traits$Model, traits$SampleType, sep = "_")[idx]
+
   # Generate plot.
   plot <- ggplot(PC, aes(x = PC1, y = PC2)) +
     geom_text(aes(label = Label), color = colors) +
