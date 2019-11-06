@@ -30,7 +30,7 @@ source_myfun()
 
 # Load partitions of co-expression graph:
 myfiles <- file.path(tabsdir, list.files(tabsdir, pattern = "*partitions.csv"))
-partitions <- lapply(as.list(myfiles), function(x) fread(x,skip=1))
+partitions <- lapply(as.list(myfiles), function(x) fread(x, skip = 1))
 names(partitions) <- c("KO", "WT")
 
 #------------------------------------------------------------------------------
@@ -43,14 +43,16 @@ fmi <- list()
 nparts <- 100
 for (i in 1:nparts) {
   if (i == 1) {
-	  pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
-	  message("Computing Folkes Mallow similarity of WT and KO partitions.")
+    pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
+    message("Computing Folkes Mallow similarity of WT and KO partitions.")
   }
-setTxtProgressBar(pb, i)
+  setTxtProgressBar(pb, i)
   p1 <- partitions$WT[i, ]
   p2 <- partitions$KO[i, ]
   fmi[[i]] <- dendextend::FM_index_R(p1, p2, include_EV = FALSE)[1]
-  if (i == nparts){ close(pb) }
+  if (i == nparts) {
+    close(pb)
+  }
 }
 fmi <- unlist(fmi)
 
@@ -58,13 +60,13 @@ fmi <- unlist(fmi)
 ## Compare resolution versus number of clusters (k).
 #-------------------------------------------------------------------------------
 
-k <- lapply(partitions,function(x) apply(x,1,function(y) length(unique(y))))
-df <- as.data.frame(melt(do.call(cbind,k)))
-colnames(df) <- c("Resolution","Group","k") 
+k <- lapply(partitions, function(x) apply(x, 1, function(y) length(unique(y))))
+df <- as.data.frame(melt(do.call(cbind, k)))
+colnames(df) <- c("Resolution", "Group", "k")
 
 # Examine relationship between resolution and number of clusters.
-p1 <- ggplot(df, aes(Resolution, k, colour = Group)) + geom_line() + 
-	geom_point() + ggtitle("nModules (k)") 
+p1 <- ggplot(df, aes(Resolution, k, colour = Group)) + geom_line() +
+  geom_point() + ggtitle("nModules (k)")
 
 
 #-------------------------------------------------------------------------------
@@ -75,12 +77,12 @@ p1 <- ggplot(df, aes(Resolution, k, colour = Group)) + geom_line() +
 # Evaluate GO enrichment of modules in every partition.
 
 # Load previously compiled GO annotation collection:
-musGOcollection <- buildGOcollection(organism="mouse")
+musGOcollection <- buildGOcollection(organism = "mouse")
 
 # Load adjacency matrices.
-myfiles <- list.files(datadir,pattern="*Adjm.RData",full.names=TRUE)
-adjm = lapply(as.list(myfiles),readRDS)
-names(adjm) <- c("KO","WT")
+myfiles <- list.files(datadir, pattern = "*Adjm.RData", full.names = TRUE)
+adjm <- lapply(as.list(myfiles), readRDS)
+names(adjm) <- c("KO", "WT")
 
 # Protein names (same for WT and KO).
 prots <- colnames(adjm$WT)
@@ -96,12 +98,12 @@ nparts <- 100
 
 for (i in 1:nparts) {
   if (i == 1) {
-	  # Initialize progress bar.
-	  pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
+    # Initialize progress bar.
+    pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
     message("Computing GO enrichment for all WT and KO modules at every resolution...")
-  setTxtProgressBar(pb, i)
+    setTxtProgressBar(pb, i)
   } else {
-  setTxtProgressBar(pb, i)
+    setTxtProgressBar(pb, i)
   }
   # Get WT and KO partitions. Add one for non-zero index.
   p1 <- as.integer(partitions$WT[i, ]) + 1
@@ -149,7 +151,9 @@ for (i in 1:nparts) {
   nsigKO <- sum(unlist(lapply(GOresults$KO, function(x) sum(x$Bonferroni < 0.05))))
   # Return GO results as well as ~"biological meaninfullness"
   out[[i]] <- list("GO" = GOresults, "nsigWT" = nsigWT, "nsigKO" = nsigKO)
-  if (i == nparts) { close(pb) }
+  if (i == nparts) {
+    close(pb)
+  }
 } # ENDS LOOP.
 
 # Inspect a result.

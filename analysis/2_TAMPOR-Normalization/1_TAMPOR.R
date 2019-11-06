@@ -307,8 +307,8 @@ if (sum(is.na(gene)) > 0) {
 prot_map <- data.frame(ids, uniprot, entrez, gene)
 
 # Save to Rdata.
-myfile <- file.path(Rdatadir,"2_Prot_Map.RData")
-saveRDS(prot_map,myfile)
+myfile <- file.path(Rdatadir, "2_Prot_Map.RData")
+saveRDS(prot_map, myfile)
 
 #-------------------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
@@ -393,7 +393,7 @@ overall <- overall[, c(1, 3, 2, 4)]
 overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
 overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 
-# Table of DE candidates.
+# Table of DA candidates.
 # Modify tables theme to change font size.
 # Cex is a scaling factor relative to the defaults.
 mytheme <- gridExtra::ttheme_default(
@@ -687,76 +687,75 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 #-------------------------------------------------------------------------------
 
 # THIS CHUNK ISNT WORKING. EXTRA NA Column in boxplots.
-skip = TRUE
-if (skip==FALSE) {
+skip <- TRUE
+if (skip == FALSE) {
 
-# Group WT cortex and WT striatum.
-traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
-traits$Condition <- traits$Tissue.Sample.Model
-traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
-traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
+  # Group WT cortex and WT striatum.
+  traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+  traits$Condition <- traits$Tissue.Sample.Model
+  traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
+  traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
-# Levels for boxplots:
-lvls <- c(
-  "Cortex.WT", "Striatum.WT",
-  "Cortex.KO.Shank2", "Striatum.KO.Shank2",
-  "Cortex.KO.Shank3", "Striatum.KO.Shank3",
-  "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
-  "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
-)
+  # Levels for boxplots:
+  lvls <- c(
+    "Cortex.WT", "Striatum.WT",
+    "Cortex.KO.Shank2", "Striatum.KO.Shank2",
+    "Cortex.KO.Shank3", "Striatum.KO.Shank3",
+    "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
+    "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
+  )
 
-# Generate plots.
-plot_list <- ggplotProteinBoxes(
-  data_in = log2(cleanDat),
-  interesting.proteins = rownames(cleanDat),
-  traits = traits,
-  order = lvls,
-  scatter = TRUE
-)
+  # Generate plots.
+  plot_list <- ggplotProteinBoxes(
+    data_in = log2(cleanDat),
+    interesting.proteins = rownames(cleanDat),
+    traits = traits,
+    order = lvls,
+    scatter = TRUE
+  )
 
-# Add custom colors.
-colors <- c(
-  "gray", "gray",
-  "#FFF200", "#FFF200",
-  "#00A2E8", "#00A2E8",
-  "#22B14C", "#22B14C",
-  "#A349A4", "#A349A4"
-)
-plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
+  # Add custom colors.
+  colors <- c(
+    "gray", "gray",
+    "#FFF200", "#FFF200",
+    "#00A2E8", "#00A2E8",
+    "#22B14C", "#22B14C",
+    "#A349A4", "#A349A4"
+  )
+  plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
-## Add significance stars.
-# Build a df with statistical results.
-stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
-stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
-colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
-rownames(stats) <- stats$Uniprot
-stats$Uniprot <- NULL
+  ## Add significance stars.
+  # Build a df with statistical results.
+  stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
+  stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
+  colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
+  rownames(stats) <- stats$Uniprot
+  stats$Uniprot <- NULL
 
-# Loop to add stars.
-plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
+  # Loop to add stars.
+  plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
 
-# Top proteins.
-p1 <- plot_list$`Shank2|Q80Z38`
-p2 <- plot_list$`Shank3|Q4ACU6`
-p3 <- plot_list$`Syngap1|F6SEU4`
-p4 <- plot_list$`Ube3a|O08759`
+  # Top proteins.
+  p1 <- plot_list$`Shank2|Q80Z38`
+  p2 <- plot_list$`Shank3|Q4ACU6`
+  p3 <- plot_list$`Syngap1|F6SEU4`
+  p4 <- plot_list$`Ube3a|O08759`
 
-# Modify x-axis labels-- significant bar axis labels are in red.
-a <- c("black", "black", "red", "red", "black", "black", "black", "black", "black", "black")
-b <- c("black", "black", "black", "black", "red", "red", "black", "black", "black", "black")
-c <- c("black", "black", "black", "black", "black", "black", "red", "red", "black", "black")
-d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
-p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
-p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
-p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
-p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
+  # Modify x-axis labels-- significant bar axis labels are in red.
+  a <- c("black", "black", "red", "red", "black", "black", "black", "black", "black", "black")
+  b <- c("black", "black", "black", "black", "red", "red", "black", "black", "black", "black")
+  c <- c("black", "black", "black", "black", "black", "black", "red", "red", "black", "black")
+  d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
+  p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
+  p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
+  p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
+  p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
 
-# Store plots in list.
-all_plots[[paste(tissue, "Shank2_BP", sep = "_")]] <- p1
-all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
-all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
-all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
-
+  # Store plots in list.
+  all_plots[[paste(tissue, "Shank2_BP", sep = "_")]] <- p1
+  all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
+  all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
+  all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
 }
 
 # Save all plots.
