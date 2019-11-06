@@ -1,22 +1,25 @@
 name: SynaptopathyProteomics
 channels:
   - bioconda
+  - conda-forge
   - r
   - anaconda
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
   - _r-mutex=1.0.0=anacondar_1
+  - atomicwrites=1.3.0=py_0
   - attrs=19.3.0=py_0
   - backcall=0.1.0=py37_0
   - binutils_impl_linux-64=2.31.1=h6176602_1
   - binutils_linux-64=2.31.1=h6176602_8
   - bioconductor-biobase=2.46.0=r36h516909a_0
   - bioconductor-biocgenerics=0.32.0=r36_0
+  - blas=1.0=mkl
   - bleach=3.1.0=py37_0
   - bwidget=1.9.11=1
   - bzip2=1.0.8=h7b6447c_0
-  - ca-certificates=2019.10.16=0
+  - ca-certificates=2019.9.11=hecc5488_0
   - cairo=1.14.12=h8948797_3
   - certifi=2019.9.11=py37_0
   - curl=7.65.3=hbc83047_0
@@ -38,7 +41,9 @@ dependencies:
   - gxx_linux-64=7.3.0=h553295d_8
   - harfbuzz=1.8.8=hffaf4a1_0
   - icu=58.2=h9c2bf20_1
+  - igraph=0.7.1=h2166141_1005
   - importlib_metadata=0.23=py37_0
+  - intel-openmp=2019.4=243
   - ipykernel=5.1.2=py37h39e3cac_0
   - ipython=7.8.0=py37h39e3cac_0
   - ipython_genutils=0.2.0=py37_0
@@ -49,11 +54,13 @@ dependencies:
   - jupyter_client=5.3.4=py37_0
   - jupyter_core=4.6.0=py37_0
   - krb5=1.16.1=h173b8e3_7
+  - leidenalg=0.7.0=py37he1b5a44_1
   - libcurl=7.65.3=h20c2e04_0
   - libedit=3.1.20181209=hc058e9b_0
   - libffi=3.2.1=hd88cf55_4
   - libgcc-ng=9.1.0=hdf63c60_0
   - libgfortran-ng=7.3.0=hdf63c60_0
+  - libiconv=1.15=h516909a_1005
   - libpng=1.6.37=hbc83047_0
   - libsodium=1.0.16=h1bed415_0
   - libssh2=1.8.2=h1ba5d50_0
@@ -65,12 +72,20 @@ dependencies:
   - make=4.2.1=h1bed415_1
   - markupsafe=1.1.1=py37h7b6447c_0
   - mistune=0.8.4=py37h7b6447c_0
+  - mkl=2019.4=243
+  - mkl-service=2.3.0=py37he904b0f_0
+  - mkl_fft=1.0.14=py37ha843d7b_0
+  - mkl_random=1.1.0=py37hd6b4f25_0
   - more-itertools=7.2.0=py37_0
   - nbconvert=5.6.0=py37_1
   - nbformat=4.4.0=py37_0
   - ncurses=6.1=he6710b0_1
   - notebook=6.0.1=py37_0
+  - numpy=1.17.2=py37haad9e8e_0
+  - numpy-base=1.17.2=py37hde5b4d6_0
   - openssl=1.1.1=h7b6447c_0
+  - packaging=19.2=py_0
+  - pandas=0.25.2=py37he6710b0_0
   - pandoc=2.2.3.2=0
   - pandocfilters=1.4.2=py37_1
   - pango=1.42.4=h049681c_0
@@ -80,13 +95,23 @@ dependencies:
   - pickleshare=0.7.5=py37_0
   - pip=19.3.1=py37_0
   - pixman=0.38.0=h7b6447c_0
+  - pluggy=0.13.0=py37_0
+  - progressbar2=3.47.0=py_0
   - prometheus_client=0.7.1=py_0
   - prompt_toolkit=2.0.10=py_0
   - ptyprocess=0.6.0=py37_0
+  - py=1.8.0=py_0
+  - pycairo=1.18.1=py37h2a1e443_0
   - pygments=2.4.2=py_0
+  - pyparsing=2.4.3=py_0
   - pyrsistent=0.15.4=py37h7b6447c_0
+  - pytest=5.2.2=py37_0
+  - pytest-runner=5.2=py_0
   - python=3.7.5=h0371630_0
   - python-dateutil=2.8.0=py37_0
+  - python-igraph=0.7.1.post7=py37h516909a_0
+  - python-utils=2.3.0=py_1
+  - pytz=2019.3=py_0
   - pyzmq=17.1.2=py37h14c3975_0
   - r-askpass=1.0=r36h14c3975_0
   - r-assertthat=0.2.1=r36h6115d3f_0

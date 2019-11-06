@@ -11,13 +11,13 @@
 #' @references \url{}
 #' @keywords supress output silent quiet
 #'
+#' @export
+#'
 #' @examples
 #' silently(wgcna::bicor, exprDat)
-#' @export
-
 silently <- function(x) {
   sink(tempfile())
   invisible(force(x))
   on.exit(sink())
-  return(out)
+  return(x)
 }

@@ -1,4 +1,4 @@
-#' ggplotProteinBoxes
+#' ggplotProteinBoxPlot
 #'
 #' Function to make boxplots for proteins of interst.
 #'
@@ -17,14 +17,15 @@
 #' @export
 #'
 #' @examples
-#' ggplotProteinBoxes(data_in, interesting.proteins, traits, scatter = TRUE)
-ggplotProteinBoxes <- function(data_in, interesting.proteins, traits, order = NULL, scatter = FALSE) {
+#' ggplotProteinBoxPlot(data_in, interesting.proteins, traits, scatter = TRUE)
+ggplotProteinBoxPlot <- function(data_in, interesting.proteins, traits, order = NULL, scatter = FALSE) {
   proteinBoxes <- list()
   for (protein in interesting.proteins) {
     # Subset the data.
     idx <- match(protein, rownames(data_in))
     data_sub <- data.frame("Intensity" = data_in[idx, ])
-    data_sub$Group <- traits$Condition[match(rownames(data_sub), rownames(traits))]
+    data_sub$Group <-traits$Condition[match(rownames(data_sub), rownames(traits))]
+    data_sub <- na.omit(data_sub)
     # If provided, enforce order.
     if (is.character(order)) {
       data_sub$Group <- factor(data_sub$Group, levels = order)

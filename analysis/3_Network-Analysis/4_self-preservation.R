@@ -9,34 +9,36 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(data.table)
-  library(readxl)
-  library(igraph)
-  library(reshape2)
-  library(ggplot2)
-  library(anRichment)
-  library(TBmiscr)
+  library(NetRep)
 })
 
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-datadir <- file.path(root, "data")
+datadir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
+funcdir <- file.path(root, "R")
 
-# Load expression data
-wtDat <- t(readRDS(file.path(datadir, "wtDat.Rds")))
-koDat <- t(readRDS(file.path(datadir, "koDat.Rds")))
+# Functions.
+source_myfun <- function() {
+  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+  invisible(sapply(myfun, source))
+}
+source_myfun()
 
-# Fix rownames.
-colnames(wtDat) <- colnames(koDat) <- rownames(readRDS(file.path(datadir, "wtDat.Rds")))
+# Load expression data. Transpose -> rows = samples; columns = genes.
+wtDat <- t(readRDS(file.path(datadir, "3_WT_cleanDat.RData")))
+koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
 
 # Compute adjmatrix:
-wtAdjm <- silently(WGCNA::bicor, wtDat)
-koAdjm <- silently(WGCNA::bicor, koDat)
+wtAdjm <- silently(WGCNA::bicor(wtDat))
+koAdjm <- silently(WGCNA::bicor(koDat))
 
 # Load partitions.
-wtParts <- data.table::fread(file.path(datadir, "WT_partitions.csv"), drop = 1)
-koParts <- data.table::fread(file.path(datadir, "KO_partitions.csv"), drop = 1)
+myfiles <- list.files(tabsdir,pattern="*partitions.csv",full.names=TRUE)
+koParts <- data.table::fread(myfiles[1], drop=1,skip = 1)
+wtParts <- data.table::fread(myfiles[2], drop=1,skip = 1)
+colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -48,9 +50,10 @@ correlation_list <- list(wt = wtAdjm, ko = koAdjm)
 network_list <- list(wt = wtAdjm, ko = koAdjm)
 
 # Loop through partitions, evaluating self-preservation.
+n <- dim(koParts)[1]
 results <- list()
 
-for (i in 1:1) {
+for (i in 1:n) {
   # status
   message(paste("working on partition", i, "..."))
   # Get partition.
@@ -59,6 +62,7 @@ for (i in 1:1) {
   names(wtPartition) <- names(koPartition) <- colnames(wtAdjm)
   module_list <- list(wt = wtPartition, ko = koPartition)
   # Perform permutation test for module self-preservation.
+  # Done for both wt and ko networks...
   self <- as.list(c("wt", "ko"))
   selfPreservation <- lapply(self, function(x) {
     NetRep::modulePreservation(
@@ -93,7 +97,7 @@ for (i in 1:1) {
   koPartition[koPartition %in% out[[2]]] <- 0
   # Return results.
   results[[i]] <- list(wt = wtPartition, ko = koPartition)
-}
+} # END LOOP.
 
 # Save to Rdata.
 saveRDS(results, file.path(datadir, "self_preservation_results.RDS"))

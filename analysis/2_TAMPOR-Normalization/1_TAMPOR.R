@@ -35,7 +35,7 @@ suppressPackageStartupMessages({
   library(org.Mm.eg.db)
 })
 
-# Define tisue type: cortex = 1; striatum = 2; 3 = combined.
+# Define tisue type: 
 tissue <- "Combined"
 
 # Set the working directory.
@@ -229,10 +229,11 @@ data_in <- log2(cleanDat[, !out])
 
 # Check, traits and cleanDat should match data.
 traits <- traits[match(colnames(data_in), rownames(traits)), ]
-all(rownames(traits) == colnames(data_in))
+if (!all(rownames(traits) == colnames(data_in))) {
+	stop("data do not match traits.")
+}
 
 ## PCA Plots.
-# Relative abundance.
 colors <- traits$Color
 traits$ColumnName <- rownames(traits)
 
@@ -260,6 +261,7 @@ all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 #-------------------------------------------------------------------------------
 ## Create protein identifier map.
 #-------------------------------------------------------------------------------
+
 ids <- rownames(cleanDat)
 symbol <- sapply(strsplit(ids, "\\|"), "[", 1)
 uniprot <- sapply(strsplit(ids, "\\|"), "[", 2)
@@ -331,13 +333,13 @@ y_DGE <- calcNormFactors(y_DGE)
 
 # Create sample mapping to Tissue.Genotype.
 # Group WT Cortex samples and WT Striatum samples together.
-traits$ColumnName <- traits$SampleID
-traits <- subset(traits, rownames(traits) %in% colnames(data_in))
+traits <- subset(alltraits, rownames(traits) %in% colnames(data_in))
 traits <- traits[match(colnames(data_in), rownames(traits)), ]
-all(traits$ColumnName == colnames(data_in))
+all(traits$SampleID == colnames(data_in))
 group <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 group[grepl("Cortex.WT", group)] <- "Cortex.WT"
 group[grepl("Striatum.WT", group)] <- "Striatum.WT"
+traits$group <- group
 y_DGE$samples$group <- as.factor(group)
 
 # Basic design matrix for GLM.
@@ -433,12 +435,42 @@ for (i in 1:length(glm_results)) {
   glm_results[[i]] <- x
 }
 
+# Add expression data.
+for (i in 1:length(glm_results)){
+namen <- names(glm_results)[i]
+df <- glm_results[[i]]
+comparison <- contrasts[[namen]]
+groups <- rownames(comparison)[!comparison==0]
+samples <- traits$SampleID[traits$group %in% groups]
+dat <- cleanDat[,samples]
+colnames(dat) <- traits$ColumnName[match(colnames(dat),traits$SampleID)]
+dat <- dat[,c(grep("HET|KO",colnames(dat)),grep("WT",colnames(dat)))]
+out <- merge(df,log2(dat),by="row.names")
+glm_results[[i]] <- out
+}
+
 # Sort by pvalue.
 glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
 
+# Reorder by genotype.
+idx <- c(grep("Shank2",names(glm_results)),
+	grep("Shank3",names(glm_results)),
+	grep("Syngap1",names(glm_results)),
+	grep("Ube3a",names(glm_results)))
+glm_results <- glm_results[idx]
+
+# Final renaming.
+my_results <- glm_results
+
+namen <- unlist({
+	lapply(lapply(strsplit(gsub("HET.|KO.","",names(my_results)),"\\."),rev),
+	       function(x) paste(x,collapse=" "))
+})
+names(my_results) <- namen
+
 # Save results to file.
 myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
-write_excel(glm_results, myfile)
+write_excel(my_results, myfile)
 
 #-------------------------------------------------------------------------------
 ## Volcano plots for each genotype.
@@ -686,17 +718,15 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 ## Generate protein boxplots.
 #-------------------------------------------------------------------------------
 
-# THIS CHUNK ISNT WORKING. EXTRA NA Column in boxplots.
-skip <- TRUE
-if (skip == FALSE) {
-
-  # Group WT cortex and WT striatum.
+  # Remove QC from traits. Group WT cortex and WT striatum.
+out <- alltraits$SampleType == "QC"
+traits <- alltraits[!out,]
   traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
   traits$Condition <- traits$Tissue.Sample.Model
   traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
   traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
-  # Levels for boxplots:
+  # Levels for boxplots (order of the boxes):
   lvls <- c(
     "Cortex.WT", "Striatum.WT",
     "Cortex.KO.Shank2", "Striatum.KO.Shank2",
@@ -706,7 +736,7 @@ if (skip == FALSE) {
   )
 
   # Generate plots.
-  plot_list <- ggplotProteinBoxes(
+  plot_list <- ggplotProteinBoxPlot(
     data_in = log2(cleanDat),
     interesting.proteins = rownames(cleanDat),
     traits = traits,
@@ -743,8 +773,8 @@ if (skip == FALSE) {
 
   # Modify x-axis labels-- significant bar axis labels are in red.
   a <- c("black", "black", "red", "red", "black", "black", "black", "black", "black", "black")
-  b <- c("black", "black", "black", "black", "red", "red", "black", "black", "black", "black")
-  c <- c("black", "black", "black", "black", "black", "black", "red", "red", "black", "black")
+  b <- c("black", "black", "red", "black", "red", "red", "black", "black", "black", "red")
+  c <- c("black", "black", "black", "black", "black", "red", "red", "red", "black", "black")
   d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
   p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
   p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
@@ -756,11 +786,8 @@ if (skip == FALSE) {
   all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
   all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
   all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
-}
 
-# Save all plots.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
-saveRDS(all_plots, myfile)
+## Save all these boxplots as a multipage pdf.
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.
@@ -810,3 +837,9 @@ writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
 file <- paste(rootdir, "tables", "2_Combined_TMT_Data.xlsx", sep = "/")
 saveWorkbook(wb, file, overwrite = TRUE)
+
+# Save all plots.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.RData"))
+saveRDS(all_plots, myfile)
+
+message("Done!")

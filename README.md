@@ -15,33 +15,24 @@ __Syngap1__, and __Ube3a__ mouse models of human autism spectrum disorders
 
 -------------------------------------------------------------------------------
 
-## Data Analysis
-1_Preprocessing
-2_TAMPOR-Normalization
-3_
-
-## Project Organization
-### Main Directories
+## Repository Organization
+### Directories
 * [bin/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/bin) - executable scripts for the project.
 * [analysis/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/analysis) - this directory contains scripts used to perform the data analaysis. The scripts are named in the order they should be executed in order to complete the analysis. 
 * [R/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/R) - functions used in the analysis.
+* [rdata/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/rdata) - directory for storing intermediate data files.
 * [input/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/input) - the raw data used as a starting point for the analysis.
 * [tables/](https://github.com/twesleyb/SynaptopathyProteomics/tree/master/tables) - directory for table output from scripts. 
+* [data/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/data) - directory for storing data for R package.
+* [figures/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/figures) - directory for plots and figures.
 
-### Additional directories
-Several other directories are used to store output generated during the analysis. 
-Due to the potential for these directories to get really big, they are not 
-managed by git (see `.gitignore`).
-* [data/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/data) - directory for storing intermediate data files.
-* [figures/](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/figures) - directory for figure output from scripts.
-
-## Supplemental Information
+## Data Analysis 
 For a detailed overview of the analysis, please see the supplemental information [here](https://github.com/twesleyb/Synaptopathy-Proteomics/tree/master/code/README.md).
 
 ## Reproducibility
 
 You can reproduce the developing environment in which the analysis was performed using [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html).
-Use `conda env create -f venv.yml` to  to set up all dependencies.
+Use `conda env create -f venv.yml` to  to set up all R and Python dependencies.
 
 This will create a virtual environment. 
 Use `conda activate SynaptopathyProteomics` to activate it.
@@ -50,6 +41,7 @@ This work is indebted to numerous others who have shared their ideas, software,
 and time. In particular, the following open source packages were essential in 
 completion of this work:
 * __WGCNA__: [package](https://cran.r-project.org/web/packages/WGCNA/index.html) | [publication](https://www.ncbi.nlm.nih.gov/pubmed/19114008)
+* __anRichment__: [package]() 
 * __EdgeR__: [package](https://bioconductor.org/packages/release/bioc/html/edgeR.html) | [publication](https://www.ncbi.nlm.nih.gov/pubmed/19910308)
 * __NetRep__: [package](https://cran.rstudio.com/web/packages/NetRep/index.html) | [publication](https://www.ncbi.nlm.nih.gov/pubmed/27467248)
 * __leidenalg__: [package](https://pypi.org/project/leidenalg/) | [pre-print publication](https://arxiv.org/abs/1810.08473)  
@@ -61,10 +53,10 @@ See also, a complete list of [R](https://github.com/twesleyb/Synaptopathy-Proteo
 ## System Info
 The analysis was done using the Windows Substem for Linux ([WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10)) on a Windows 10 PC. 
 
-|     |     |
-| --- | --- |
-| sysname | Windows |
-| release | 10 x64 |
-| version | build 18362 |
-| nodename | WINDOWS10 | 
-| machine | x86-64 | 
+|          |             |
+| ---      | ---         |
+| sysname  | Windows     |
+| release  | 10 x64      |
+| version  | build 18362 |
+| nodename | WINDOWS10   | 
+| machine  | x86-64      | 

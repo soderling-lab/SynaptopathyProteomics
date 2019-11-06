@@ -49,8 +49,8 @@ koDat <- as.matrix(data %>% select(ko_samples))
 rownames(wtDat) <- rownames(koDat) <- rownames(data)
 
 # Save WT and KO data to file.
-saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.Rds"))
-saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.Rds"))
+saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.RData"))
+saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.RData"))
 
 # Create signed adjacency matrix.
 wtAdjm <- WGCNA::bicor(t(wtDat))

@@ -12,6 +12,9 @@ tabsdir <- file.path(rootdir, "tables")
 figsdir <- file.path(rootdir, "figures")
 funcdir <- file.path(rootdir, "functions")
 
+# Store all plots in list.
+all_plots <- list()
+
 # Global options and imports.
 suppressPackageStartupMessages({
   library(data.table)
@@ -68,6 +71,7 @@ colnames(df) <- c("Resolution", "Group", "k")
 p1 <- ggplot(df, aes(Resolution, k, colour = Group)) + geom_line() +
   geom_point() + ggtitle("nModules (k)")
 
+all_plots[["resolution_k"]] <- p1
 
 #-------------------------------------------------------------------------------
 ## Which partition has most biological meaninfullness?
@@ -156,11 +160,15 @@ for (i in 1:nparts) {
   }
 } # ENDS LOOP.
 
-# Inspect a result.
-k <- sample(nparts, 1)
-x <- out[[k]]
+# Save results.
+myfile <- file.path(datadir,"3_All_Resolution_GO.RData")
+saveRDS(out,myfile)
+
+# Inspect a random result.
+resolution <- sample(nparts, 1)
+x <- out[[resolution]]
 y <- x$GO
-print(k)
+print(resolution)
 x$nsigWT
 x$nsigKO
 
@@ -173,7 +181,9 @@ df <- data.table(
 df <- data.table::melt(df, id.vars = c("resolution"))
 
 plot <- ggplot(df, aes(x = resolution, y = value, colour = variable)) + geom_point()
-plot
+
+# Store plot.
+all_plots[["go_resolution1"]] <- plot
 
 # Look at number of modules with sig go terms.
 # Get GO results.
@@ -197,16 +207,15 @@ df <- data.table(
 )
 df <- data.table::melt(df, id.vars = c("resolution"))
 
+# Generate plot.
 plot <- ggplot(df, aes(x = resolution, y = log2(value), colour = variable)) + geom_point()
-plot
 
-ggsave("totalGOsignificance.tiff")
-
+# Store plot.
+all_plots[["go_resolution2"]] <- plot
 
 # ~best resolution.
 # r_best = 44
 subdat <- as.data.table(subset(df, df$variable == "wt"))
-r_best <- as.integer(filter(subdat, value == max(subdat$value)) %>% select(resolution))
 
 x <- df %>% dplyr::filter(variable == "wt")
 r_best <- as.integer(dplyr::filter(x, value == max(x$value)))[1]
