@@ -306,6 +306,10 @@ if (sum(is.na(gene)) > 0) {
 # Protein identifier map.
 prot_map <- data.frame(ids, uniprot, entrez, gene)
 
+# Save to Rdata.
+myfile <- file.path(Rdatadir,"2_Prot_Map.RData")
+saveRDS(prot_map,myfile)
+
 #-------------------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
 #-------------------------------------------------------------------------------
@@ -753,11 +757,11 @@ all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
 all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
 all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
 
-# Save plots.
+}
+
+# Save all plots.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
 saveRDS(all_plots, myfile)
-
-}
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.

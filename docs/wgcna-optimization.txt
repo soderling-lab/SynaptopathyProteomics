@@ -1,0 +1,58 @@
+# Optimization of WGCNA partition quality.
+
+Define an adjacency matrix as the m x m correlation matrix of m genes.
+
+A correlation between gene m1 and mi is a measure of the distance between 
+two genes. The bicor correlation metric is used as a robust alternative to the
+Pearson correlation.
+
+The total amount of information in the network is the sum of the squared adjacency matrix.
+Squaring the adjacency matrix insures that all correlations are positive.
+
+We want to explain as muchof this information as possible by breaking the
+network into modules. 
+
+A typical interpretation of cluster quality is:
+* Clusters are dense: within cluster variation is small.
+* Clusters are well seperated: between cluster variation is large.
+
+For WGCNA, we want to identify modules that are dense or cohesive. One
+interpretation of module cohesivenss is the percent variance explained by that
+modules eigengene (its first principle component). The correlation between a
+proteins expression vector and its ME is a measure of its distance to the
+modules center. The sum of these squred distances is the intra module variation.
+
+This is a modules membership or kme.
+
+The total information (variation) in a module is the sum of the squared correlations.
+The information explained by a module is the PVE * TV. 
+And the total variation explained is the sum of all modules TVE
+
+The amount of information explained by a partition is then:
+TVE/TV
+
+Modules are well seperated if the distances between their module eigenegnenes
+are large.
+Calculate adjacency matrix as bicor(ME). This is transformed into a distance
+matrix as dist(1-adjm).
+The sum of this matrix, is the amount of seperation between modules. 
+
+Alternatively, we could define the centroid of the matrix as the mean of all
+MEs. Then compute the bicor adjacency and sum of squared adjacencies to
+centroid.
+
+
+The optimization of modularity cannot be performed by exhaustive search, as
+the number of different partitions are equal to the Bell [16] or exponential numbers
+which grow at least exponentially in the number of nodes N.
+Optimization of modularity is a NP-Hard problem [17].
+
+[16] E. T. Bell, Amer. Math. Monthly 41, 411 (1934).
+[17] U. Brandes, D. Delling, M. Gaertler, R. Goerke, M.
+Hoefer, Z. Nikoloski, D. Wagner, IEEE Transactions on
+Knowledge and Data Engineering 20(2), 172 (2008).
+
+## Modularity of signed network:
+Q = Q+[2w+/(2w+ + 2w-)] - Q-[2w-/(2w+ + 2w-)]
+
+

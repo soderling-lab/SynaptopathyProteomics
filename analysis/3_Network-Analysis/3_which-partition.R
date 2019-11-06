@@ -7,7 +7,7 @@
 # Directories.
 here <- getwd()
 rootdir <- dirname(dirname(here))
-datadir <- file.path(rootdir, "data")
+datadir <- file.path(rootdir, "rdata")
 tabsdir <- file.path(rootdir, "tables")
 figsdir <- file.path(rootdir, "figures")
 funcdir <- file.path(rootdir, "functions")
@@ -21,9 +21,16 @@ suppressPackageStartupMessages({
   library(anRichment)
 })
 
+# Load required custom functions.
+source_myfun <- function() {
+  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+  invisible(sapply(myfun, source))
+}
+source_myfun()
+
 # Load partitions of co-expression graph:
-myfiles <- file.path(datadir, list.files(datadir, pattern = "partitions.csv"))
-partitions <- lapply(as.list(myfiles), function(x) fread(x, drop = 1))
+myfiles <- file.path(tabsdir, list.files(tabsdir, pattern = "*partitions.csv"))
+partitions <- lapply(as.list(myfiles), function(x) fread(x,skip=1))
 names(partitions) <- c("KO", "WT")
 
 #------------------------------------------------------------------------------
@@ -34,17 +41,31 @@ names(partitions) <- c("KO", "WT")
 # We are potentially interested in the partition which is most divergent (different).
 fmi <- list()
 nparts <- 100
-pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
 for (i in 1:nparts) {
   if (i == 1) {
-    message("Computing Folkes Mallow similarity of WT and KO partitions.")
+	  pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
+	  message("Computing Folkes Mallow similarity of WT and KO partitions.")
   }
-  setTxtProgressBar(pb, i)
+setTxtProgressBar(pb, i)
   p1 <- partitions$WT[i, ]
   p2 <- partitions$KO[i, ]
   fmi[[i]] <- dendextend::FM_index_R(p1, p2, include_EV = FALSE)[1]
+  if (i == nparts){ close(pb) }
 }
 fmi <- unlist(fmi)
+
+#-------------------------------------------------------------------------------
+## Compare resolution versus number of clusters (k).
+#-------------------------------------------------------------------------------
+
+k <- lapply(partitions,function(x) apply(x,1,function(y) length(unique(y))))
+df <- as.data.frame(melt(do.call(cbind,k)))
+colnames(df) <- c("Resolution","Group","k") 
+
+# Examine relationship between resolution and number of clusters.
+p1 <- ggplot(df, aes(Resolution, k, colour = Group)) + geom_line() + 
+	geom_point() + ggtitle("nModules (k)") 
+
 
 #-------------------------------------------------------------------------------
 ## Which partition has most biological meaninfullness?
@@ -54,31 +75,34 @@ fmi <- unlist(fmi)
 # Evaluate GO enrichment of modules in every partition.
 
 # Load previously compiled GO annotation collection:
-musGOcollection <- readRDS(file.path(datadir, "musGOcollection.Rds"))
+musGOcollection <- buildGOcollection(organism="mouse")
 
 # Load adjacency matrices.
-adjm <- list(
-  "WT" = fread(file.path(datadir, "3_WTadjm.csv"), drop = 1),
-  "KO" = fread(file.path(datadir, "3_KOadjm.csv"), drop = 1)
-)
+myfiles <- list.files(datadir,pattern="*Adjm.RData",full.names=TRUE)
+adjm = lapply(as.list(myfiles),readRDS)
+names(adjm) <- c("KO","WT")
 
 # Protein names (same for WT and KO).
 prots <- colnames(adjm$WT)
 
 # Load protein identifier map for mapping protein names to entrez.
-protmap <- fread(file.path(datadir, "ProtMap.csv"))
+protmap <- readRDS(file.path(datadir, "2_Prot_Map.RData"))
 
 # Loop through profile calculating GO enrichemnt.
 # GOresults is a list containing GO enrichment results for each partition.
 # Each item in the list a list of GO results for each module identified in that partition.
 out <- list()
 nparts <- 100
-pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
+
 for (i in 1:nparts) {
   if (i == 1) {
+	  # Initialize progress bar.
+	  pb <- txtProgressBar(min = 0, max = nparts, initial = 0)
     message("Computing GO enrichment for all WT and KO modules at every resolution...")
-  }
   setTxtProgressBar(pb, i)
+  } else {
+  setTxtProgressBar(pb, i)
+  }
   # Get WT and KO partitions. Add one for non-zero index.
   p1 <- as.integer(partitions$WT[i, ]) + 1
   p2 <- as.integer(partitions$KO[i, ]) + 1
@@ -93,7 +117,7 @@ for (i in 1:nparts) {
     # Get modules.
     modules <- split(partition, partition)
     # Build a matrix of labels.
-    entrez <- protmap$entrez[match(names(partition), protmap$prots)]
+    entrez <- protmap$entrez[match(names(partition), protmap$ids)]
     idx <- lapply(modules, function(x) names(partition) %in% names(x))
     labels_dm <- apply(as.matrix(do.call(cbind, idx)), 2, function(x) as.numeric(x))
     # Perform GO Enrichment analysis with the anRichment library.
@@ -125,8 +149,8 @@ for (i in 1:nparts) {
   nsigKO <- sum(unlist(lapply(GOresults$KO, function(x) sum(x$Bonferroni < 0.05))))
   # Return GO results as well as ~"biological meaninfullness"
   out[[i]] <- list("GO" = GOresults, "nsigWT" = nsigWT, "nsigKO" = nsigKO)
+  if (i == nparts) { close(pb) }
 } # ENDS LOOP.
-
 
 # Inspect a result.
 k <- sample(nparts, 1)

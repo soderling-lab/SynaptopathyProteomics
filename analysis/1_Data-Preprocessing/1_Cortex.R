@@ -793,3 +793,10 @@ saveRDS(cleanDat, myfile)
 
 # Complete!
 message("Done!")
+ad required custom functions.
+source_myfun <- function() {
+	  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+  invisible(sapply(myfun, source))
+}
+source_myfun()
+

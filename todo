@@ -1,0 +1,16 @@
+# Clean up files in tables...
+Rename 2_Supp...TMT_GO
+
+# Clean up files in rdata...
+rename 3_wtDat ... 3_WT_cleanDat
+
+# Make bash script to automate export of virtual envs
+# Remove un-needed venvs
+
+# Files to be saved in data (for package)?
+cortex   
+striatum # raw peptide data
+combined # combined normalized data
+traits   # combined traits - include is.outlier column?
+wt_network
+ko_network
