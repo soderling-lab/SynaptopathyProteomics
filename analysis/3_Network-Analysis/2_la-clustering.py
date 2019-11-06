@@ -1,38 +1,34 @@
 #!/usr/bin/env python3
-
-''' Multiresolution clustering of the protein co-expression graph. 
-Executable script that utilizes the Leiden algorithm to perform multiresolution 
-clustering of the protein co-expression graph.
-
-USAGE: 
-    $ ./leidenalg-clustering.py
-
-OUTPUT:
-    la-partitions.csv: node community (cluster) membership for graph partition(s).
-    la-profile.csv: other descriptive statistics for the resolution profile.
-'''
+' Clustering of the protein co-expression graph with Leidenalg.'
 
 #------------------------------------------------------------------------------
 ## Load the adjacency matrix.
 #------------------------------------------------------------------------------
 
+import os
+import glob
+from os.path import dirname
 from sys import stderr
 from pandas import read_csv
 
 # Which analysis are we doing?
 # WT or KO network (0,1)
 data_type = 0 
-geno = ['WT','KO'][data_type]
+geno = ['KO','WT'][data_type]
 print("Performing Leiden algorithm clustering of the " + geno + " protein co-expression network.", file = stderr)
 
 # Read bicor adjacency matrix.
-datadir = '~/projects/Synaptopathy-Proteoimcs/data'
-myfiles = ['~/projects/Synaptopathy-Proteomics/data/3_WTadjm.csv',
-        '~/projects/Synaptopathy-Proteomics/data/3_KOadjm.csv']
+here = os.getcwd()
+root = dirname(dirname(here))
+tabsdir = os.path.join(root,"tables")
+myfiles = glob.glob(os.path.join(tabsdir,"*.csv"))
 adjm = read_csv(myfiles[data_type], header = 0, index_col = 0)
 
+# Add rownames.
+adjm = adjm.set_index(keys=adjm.columns)
+
 #------------------------------------------------------------------------------
-## Create an igraph object to be passed to leidenalg.
+## Create an igraph object.
 #------------------------------------------------------------------------------
 # I tried a couple ways of creating an igraph object. Simplier approaches like
 # using the igraph.Weighted_Adjacency function didn't work. 
@@ -70,7 +66,7 @@ g.es['weight'] = edges['weight']
 g = g.simplify(multiple = False, loops = True)
 
 #------------------------------------------------------------------------------
-## Community detection in the PCNetwork with the Leiden algorithm.
+## Community detection with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
 from numpy import linspace
@@ -105,14 +101,11 @@ results = {
 
 # Save cluster membership.
 # FIXME: add correct names!
-myfile = datadir + geno + "_partitions.csv"
+myfile = os.path.join(tabsdir, "3_" + geno + "_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
 # Save partition profile.
 # Add correct names!
 df = DataFrame.from_dict(results)
-myfile = datadir + geno + "_profile.csv"
+myfile = os.path.join(tabsdir, "3_" + geno + "_profile.csv")
 df.to_csv(myfile)
-
-# ENDOFILE
-#------------------------------------------------------------------------------

@@ -213,7 +213,7 @@ message(paste("Outlier samples:", traits$Sample.Model[rownames(traits) %in% bad_
 
 # Save data with QC samples, but outliers removed to file.
 cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
-myfile <- file.path(Rdatadir, "2_Combined_TAMPOR_cleanDat.RData")
+myfile <- file.path(Rdatadir, "2_Combined_cleanDat.RData")
 saveRDS(cleanDat, myfile)
 
 #-------------------------------------------------------------------------------
@@ -433,7 +433,7 @@ for (i in 1:length(glm_results)) {
 glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
 
 # Save results to file.
-myfile <- file.path(outputtabs, paste0(outputMatName, "_glm_results.xlsx"))
+myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
 
 #-------------------------------------------------------------------------------
@@ -555,9 +555,7 @@ table(labels)
 # will be passed to enrichmentAnalysis().
 
 # Build a GO annotation collection:
-if (!exists(deparse(substitute(musGOcollection)))) {
-  musGOcollection <- buildGOcollection(organism = "mouse")
-}
+musGOcollection <- buildGOcollection(organism = "mouse")
 
 # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
 # As implmented by the WGCNA function enrichmentAnalysis().
@@ -807,5 +805,5 @@ writeData(wb, sheet = 1, keepNA = TRUE, traits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
-file <- paste(rootdir, "tables", "2_Supplementary_TMT_Data.xlsx", sep = "/")
+file <- paste(rootdir, "tables", "2_Combined_TMT_Data.xlsx", sep = "/")
 saveWorkbook(wb, file, overwrite = TRUE)

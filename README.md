@@ -40,7 +40,7 @@ For a detailed overview of the analysis, please see the supplemental information
 
 ## Reproducibility
 
-You can reproduce the developing environment in which the analysis was performed using _conda_.
+You can reproduce the developing environment in which the analysis was performed using [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html).
 Use `conda env create -f venv.yml` to  to set up all dependencies.
 
 This will create a virtual environment. 

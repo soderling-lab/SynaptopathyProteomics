@@ -49,17 +49,17 @@ koDat <- as.matrix(data %>% select(ko_samples))
 rownames(wtDat) <- rownames(koDat) <- rownames(data)
 
 # Save WT and KO data to file.
-saveRDS(wtDat, file.path(rdatadir, "3_wtDat.Rds"))
-saveRDS(koDat, file.path(rdatadir, "3_koDat.Rds"))
+saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.Rds"))
+saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.Rds"))
 
 # Create signed adjacency matrix.
 wtAdjm <- WGCNA::bicor(t(wtDat))
 koAdjm <- WGCNA::bicor(t(koDat))
 
 # Write adjm to .csv.
-fwrite(wtAdjm,file.path(tabsdir,"3_wtAdjm.csv"),row.names=TRUE)
-fwrite(koAdjm,file.path(tabsdir,"3_koAdjm.csv"),row.names=TRUE)
+fwrite(wtAdjm,file.path(tabsdir,"3_WT_Adjm.csv"),row.names=TRUE)
+fwrite(koAdjm,file.path(tabsdir,"3_KO_Adjm.csv"),row.names=TRUE)
 
 # Save WT and KO correlation matrixes file.
-saveRDS(wtAdjm, file.path(rdatadir, "3_wtAdjm.RData"))
-saveRDS(koAdjm, file.path(rdatadir, "3_koAdjm.RData"))
+saveRDS(wtAdjm, file.path(rdatadir, "3_WT_Adjm.RData"))
+saveRDS(koAdjm, file.path(rdatadir, "3_KO_Adjm.RData"))
