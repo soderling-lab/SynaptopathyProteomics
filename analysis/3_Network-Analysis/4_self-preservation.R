@@ -47,7 +47,6 @@ network_list <- list(wt = wtAdjm, ko = koAdjm)
 
 # Loop through partitions, evaluating self-preservation.
 n <- dim(koParts)[1]
-n <- 1
 results <- list()
 
 for (i in 1:n) {
@@ -72,7 +71,7 @@ for (i in 1:n) {
       discovery = x,
       test = x,
       selfPreservation = TRUE,
-      nThreads = 8,
+      nThreads = 12,
       # nPerm = 100000,
       null = "overlap",
       alternative = "greater",

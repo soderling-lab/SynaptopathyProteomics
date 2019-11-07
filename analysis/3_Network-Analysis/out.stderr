@@ -1,0 +1,32 @@
+R 3.6.0
+During startup - Warning messages:
+1: Setting LC_CTYPE failed, using "C" 
+2: Setting LC_COLLATE failed, using "C" 
+3: Setting LC_TIME failed, using "C" 
+4: Setting LC_MESSAGES failed, using "C" 
+5: Setting LC_MONETARY failed, using "C" 
+6: Setting LC_PAPER failed, using "C" 
+7: Setting LC_MEASUREMENT failed, using "C" 
+
+working on partition 1 ...
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+working on partition 2 ...
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+working on partition 3 ...
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+working on partition 4 ...
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+working on partition 5 ...
+Warning in permutationTest(nulls, observed, varsPres, totalSize, alternative) :
+  Missing values encountered in the observed test statistics and/or in their null distributions. P-values may be biased for these tests. See 'help("permutationTest")'
+working on partition 6 ...
