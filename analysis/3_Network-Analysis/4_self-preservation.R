@@ -19,11 +19,8 @@ datadir <- file.path(root, "data")
 funcdir <- file.path(root, "R")
 
 # Functions.
-source_myfun <- function() {
-  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
-  invisible(sapply(myfun, source))
-}
-source_myfun()
+myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
+invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
 wtDat <- t(readRDS(file.path(datadir, "3_WT_cleanDat.RData")))
@@ -50,6 +47,7 @@ network_list <- list(wt = wtAdjm, ko = koAdjm)
 
 # Loop through partitions, evaluating self-preservation.
 n <- dim(koParts)[1]
+n <- 1
 results <- list()
 
 for (i in 1:n) {
