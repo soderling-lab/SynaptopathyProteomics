@@ -16,6 +16,13 @@ flash frozen. Striatum tissue was disected from slices
 beween from -3.5 mm and -6.0 mm posterior to the anterior olfactory bulb.
 Tissue was stored in liquid nitrogen until synaptosome purification. 
 
+
+AEBSF (100mM) 1:100
+Sodium Orthovanadate 100mM 1:700
+Leupeptin/Pepstatin (2mg/mL) 1:1000
+
+
+
 Approximately 100-1=300 mg of tissue was homogenizing in 1mL isotonic sucrose
 buffer (320 mM sucrose, 5 mM HEPES, 1mM EGTA, pH 7.4) containing protease
 inhibitors. The crude homogenant
