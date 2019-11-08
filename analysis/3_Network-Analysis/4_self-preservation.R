@@ -71,7 +71,7 @@ for (i in 1:n) {
       discovery = x,
       test = x,
       selfPreservation = TRUE,
-      nThreads = 12,
+      nThreads = 24,
       # nPerm = 100000,
       null = "overlap",
       alternative = "greater",

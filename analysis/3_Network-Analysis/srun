@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH -a 1       
+#SBATCH --mail-user=tyler.w.bradshaw@duke.edu --mail-type=END  
+#SBATCH -e ./out/job_%j.err
+#SBATCH -o ./out/job_%j.out 
+#SBATCH -N 1          
+#SBATCH -c 24         
+#SBATCH --mem=24G      
+#SBATCH -p scavenger
+module load R/3.6.0
+Rscript 4_self-preservation.R
+
+
