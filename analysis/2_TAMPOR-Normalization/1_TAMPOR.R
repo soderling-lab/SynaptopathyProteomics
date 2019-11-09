@@ -460,42 +460,40 @@ idx <- c(grep("Shank2",names(glm_results)),
 glm_results <- glm_results[idx]
 
 # Final renaming.
-my_results <- glm_results
 namen <- unlist({
-	lapply(lapply(strsplit(gsub("HET.|KO.","",names(my_results)),"\\."),rev),
+	lapply(lapply(strsplit(gsub("HET.|KO.","",names(glm_results)),"\\."),rev),
 	       function(x) paste(x,collapse=" "))
 })
-names(my_results) <- namen
+names(glm_results) <- namen
 
 # Remove Row.names column.
 f <- function(x) { x$Row.names=NULL; return(x) }
-my_results <- lapply(my_results, f)
+glm_results <- lapply(glm_results, f)
 
 # Save results to file.
 myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
-write_excel(my_results, myfile)
+write_excel(glm_results, myfile)
 
 #-------------------------------------------------------------------------------
 ## Volcano plots for each genotype.
 #-------------------------------------------------------------------------------
 
 # Add column for genotype and unique ID to results in list.
+output <- list()
 for (i in 1:length(glm_results)) {
   Experiment <- names(glm_results)[i]
   df <- glm_results[[i]]
   df <- add_column(df, Experiment, .before = 1)
-  # ID <- paste(df$Experiment,df$Uniprot, sep = "_")
-  # df <- add_column(df, ID, .after = 1)
-  glm_results[[i]] <- df
+  output[[i]] <- df[,c(1:11)]
 }
 
 # Merge the results.
-df <- do.call(rbind, glm_results)
+df <- do.call(rbind, output)
 
 # Add column for genotype specific colors.
 colors <- as.list(c("#FFF200", "#00A2E8", "#22B14C", "#A349A4"))
 names(colors) <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-df$Color <- unlist(colors[sapply(strsplit(df$Experiment, "\\."), "[", 3)])
+df$Color <- unlist(colors[sapply(strsplit(df$Experiment, "\\ "), "[", 1)])
 
 # Split by genotype (color).
 results <- split(df, df$Color)
@@ -559,17 +557,17 @@ all_plots[["Ube3a_VP"]] <- vp4
 #-------------------------------------------------------------------------------
 
 # Build a df with the combined statistical results.
-stats <- lapply(my_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
+stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
 names(stats) <- names(glm_results)
 df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 colnames(df)[c(2:ncol(df))] <- names(stats)
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
 labels <- data.frame(
-  Shank2 = df$Cortex.KO.Shank2 < 0.05 | df$Striatum.KO.Shank2 < 0.05,
-  Shank3 = df$Cortex.KO.Shank3 < 0.05 | df$Striatum.KO.Shank3 < 0.05,
-  Syngap1 = df$Cortex.HET.Syngap1 < 0.05 | df$Striatum.HET.Syngap1 < 0.05,
-  Ube3a = df$Cortex.KO.Ube3a < 0.05 | df$Striatum.KO.Ube3a < 0.05
+  Shank2 = df$"Shank2 Cortex" < 0.05 | df$"Shank2 Striatum" < 0.05,
+  Shank3 = df$"Shank3 Cortex" < 0.05 | df$"Shank3 Striatum" < 0.05,
+  Syngap1 = df$"Syngap1 Cortex" < 0.05 | df$"Syngap1 Striatum" < 0.05,
+  Ube3a = df$"Ube3a Cortex" < 0.05 | df$"Ube3a Striatum" < 0.05
 )
 rownames(labels) <- df$Uniprot
 
@@ -591,10 +589,13 @@ labels <- as.matrix(labels)
 # will be passed to enrichmentAnalysis().
 
 # Build a GO annotation collection:
-musGOcollection <- buildGOcollection(organism = "mouse")
-
-# Save GO collection.
-saveRDS(musGOcollection, file.path(Rdatadir,"musGOcollection.RData"))
+myfile <- file.path(Rdatadir,"musGOcollection.RData")
+if (file.exists(myfile)){
+	musGOcollection <- readRDS(myfile)
+} else {
+	musGOcollection <- buildGOcollection(organism = "mouse")
+	saveRDS(musGOcollection, file.path(Rdatadir,"musGOcollection.RData"))
+}
 
 # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
 # As implmented by the WGCNA function enrichmentAnalysis().
@@ -607,7 +608,7 @@ GOenrichment <- enrichmentAnalysis(
   classLabels = labels,
   identifiers = entrez,
   refCollection = musGOcollection,
-  useBackground = "given", # options are: given, reference (all), intersection, and provided.
+  useBackground = "given", 
   threshold = 0.05,
   thresholdType = "Bonferroni",
   getOverlapEntrez = TRUE,
@@ -637,7 +638,6 @@ results <- glm_results
 stats <- lapply(results, function(x) {
   data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR)
 })
-
 names(stats) <- names(results)
 df <- stats %>% purrr::reduce(left_join, by = c("Uniprot", "Gene"))
 colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
@@ -721,67 +721,67 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 ## Generate protein boxplots.
 #-------------------------------------------------------------------------------
 
-  # Remove QC from traits. Group WT cortex and WT striatum.
+# Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
 traits <- alltraits[!out,]
   traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
-  traits$Condition <- traits$Tissue.Sample.Model
-  traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
-  traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
+traits$Condition <- traits$Tissue.Sample.Model
+traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
+traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
-  # Levels for boxplots (order of the boxes):
-  lvls <- c(
+# Levels for boxplots (order of the boxes):
+lvls <- c(
     "Cortex.WT", "Striatum.WT",
     "Cortex.KO.Shank2", "Striatum.KO.Shank2",
     "Cortex.KO.Shank3", "Striatum.KO.Shank3",
     "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
     "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
-  )
+)
 
-  # Generate plots.
-  plot_list <- ggplotProteinBoxPlot(
+# Generate plots.
+plot_list <- ggplotProteinBoxPlot(
     data_in = log2(cleanDat),
     interesting.proteins = rownames(cleanDat),
     traits = traits,
     order = lvls,
     scatter = TRUE
-  )
+)
 
-  # Add custom colors.
-  colors <- c(
+# Add custom colors.
+colors <- c(
     "gray", "gray",
     "#FFF200", "#FFF200",
     "#00A2E8", "#00A2E8",
     "#22B14C", "#22B14C",
     "#A349A4", "#A349A4"
   )
-  plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
+plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
-  ## Add significance stars.
-  # Build a df with statistical results.
-  stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
-  stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
+## Add significance stars.
+# Build a df with statistical results.
+stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
+stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
   colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
   rownames(stats) <- stats$Uniprot
   stats$Uniprot <- NULL
 
-  # Loop to add stars.
-  plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
+# Loop to add stars.
+plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
 
-  # Store boxplots.
-  all_plots[["all_box_plots"]] <- plot_list
+# Store boxplots.
+all_plots[["all_box_plots"]] <- plot_list
 
-  # Top proteins.
-  p1 <- plot_list$`Shank2|Q80Z38`
-  p2 <- plot_list$`Shank3|Q4ACU6`
-  p3 <- plot_list$`Syngap1|F6SEU4`
-  p4 <- plot_list$`Ube3a|O08759`
+# Top proteins.
+p1 <- plot_list$`Shank2|Q80Z38`
+p2 <- plot_list$`Shank3|Q4ACU6`
+p3 <- plot_list$`Syngap1|F6SEU4`
+p4 <- plot_list$`Ube3a|O08759`
 
-  # Modify x-axis labels-- significant bar axis labels are in red.
-  a <- c("black", "black", "red", "red", "black", "black", "black", "black", "black", "black")
-  b <- c("black", "black", "red", "black", "red", "red", "black", "black", "black", "red")
-  c <- c("black", "black", "black", "black", "black", "red", "red", "red", "black", "black")
-  d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
+# Modify x-axis labels-- significant bar axis labels are in red.
+a <- c("black", "black", "red", "red", "black", "black", "black", "black", "black", "black")
+b <- c("black", "black", "red", "black", "red", "red", "black", "black", "black", "red")
+c <- c("black", "black", "black", "black", "black", "red", "red", "red", "black", "black")
+d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
   p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
   p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
   p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
@@ -802,7 +802,7 @@ files <- list(
   traits = paste(Rdatadir, "2_Combined_traits.Rdata", sep = "/"),
   raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.RData", sep = "/"),
   raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.RData", sep = "/"),
-  cleanDat = paste(Rdatadir, "2_Combined_TAMPOR_cleanDat.RData", sep = "/")
+  cleanDat = paste(Rdatadir, "2_Combined_cleanDat.RData", sep = "/")
 )
 data <- lapply(files, function(x) readRDS(x))
 
