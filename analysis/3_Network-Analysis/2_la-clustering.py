@@ -20,8 +20,8 @@ print("Performing Leiden algorithm clustering of the " + geno + " protein co-exp
 # Read bicor adjacency matrix.
 here = os.getcwd()
 root = dirname(dirname(here))
-tabsdir = os.path.join(root,"tables")
-myfiles = glob.glob(os.path.join(tabsdir,"*.csv"))
+datadir = os.path.join(root,"rdata")
+myfiles = glob.glob(os.path.join(datadir,"*.csv"))
 adjm = read_csv(myfiles[data_type], header = 0, index_col = 0)
 
 # Add rownames.
@@ -100,12 +100,10 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save cluster membership.
-# FIXME: add correct names!
-myfile = os.path.join(tabsdir, "3_" + geno + "_partitions.csv")
+myfile = os.path.join(datadir, "3_" + geno + "_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
 # Save partition profile.
-# Add correct names!
 df = DataFrame.from_dict(results)
-myfile = os.path.join(tabsdir, "3_" + geno + "_profile.csv")
+myfile = os.path.join(datadir, "3_" + geno + "_profile.csv")
 df.to_csv(myfile)

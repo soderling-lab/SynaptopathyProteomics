@@ -24,7 +24,7 @@ ggplotProteinBoxPlot <- function(data_in, interesting.proteins, traits, order = 
     # Subset the data.
     idx <- match(protein, rownames(data_in))
     data_sub <- data.frame("Intensity" = data_in[idx, ])
-    data_sub$Group <-traits$Condition[match(rownames(data_sub), rownames(traits))]
+    data_sub$Group <- traits$Condition[match(rownames(data_sub), rownames(traits))]
     data_sub <- na.omit(data_sub)
     # If provided, enforce order.
     if (is.character(order)) {

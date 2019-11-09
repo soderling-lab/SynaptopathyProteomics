@@ -29,24 +29,24 @@ figsdir <- file.path(root, "figures")
 all_plots <- list()
 
 # Load functions.
-myfun <- list.files(funcdir,pattern=".R",full.names=TRUE)
-invisible(sapply(myfun,source))
+myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+invisible(sapply(myfun, source))
 
 # Load expression data.
-wtDat <- t(readRDS(list.files(rdatdir,pattern="WT_cleanDat",full.names=TRUE)))
-koDat <- t(readRDS(list.files(rdatdir,pattern="KO_cleanDat",full.names=TRUE)))
+wtDat <- t(readRDS(list.files(rdatdir, pattern = "WT_cleanDat", full.names = TRUE)))
+koDat <- t(readRDS(list.files(rdatdir, pattern = "KO_cleanDat", full.names = TRUE)))
 
 # Load adjmatrices.
-wtAdjm <- t(readRDS(list.files(rdatdir,pattern="WT_Adjm.RData",full.names=TRUE)))
-koAdjm <- t(readRDS(list.files(rdatdir,pattern="KO_Adjm.RData",full.names=TRUE)))
+wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData", full.names = TRUE)))
+koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", full.names = TRUE)))
 
 # ~Best resolutions.
-# Most biological (GO) information: 
+# Most biological (GO) information:
 r_wt <- 52
 r_ko <- 31
 
 # Load network partitions.
-myfile <- list.files(rdatdir,pattern="preservation",full.names=TRUE)
+myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 # Extract from list.
@@ -117,7 +117,7 @@ preservation <- lapply(h0, function(x) {
 q <- lapply(preservation, function(x) p.adjust(x$p.values[, 1], "bonferroni"))
 
 # Require all to be less than 0.05.
-#q <- lapply(preservation, function(x) p.adjust(apply(x$p.values, 1, max)))
+# q <- lapply(preservation, function(x) p.adjust(apply(x$p.values, 1, max)))
 
 sigModules <- lapply(q, function(x) names(x)[x < 0.05])
 
@@ -129,29 +129,29 @@ message(paste("Number of KO modules that exhibit divergence:", length(sigKO)))
 
 
 # Compare edge strengths.
-kw_test <- function(module){
-prots <- names(module)
-idx <- idy <- colnames(wtAdjm) %in% prots
-subWT <- wtAdjm[idx, idy]
-subWT[lower.tri(subWT)] <- NA
-idx <- idy <- colnames(koAdjm) %in% prots
-subKO <- koAdjm[idx, idy]
-subKO[lower.tri(subKO)] <- NA
-wt <- na.omit(melt(subWT))
-wt$group <- "WT"
-ko <- na.omit(melt(subKO))
-ko$group <- "KO"
-df <- rbind(wt,ko)
-x <- df$value
-g <- df$group
-kw <- kruskal.test(x,g)
-return(kw)
+kw_test <- function(module) {
+  prots <- names(module)
+  idx <- idy <- colnames(wtAdjm) %in% prots
+  subWT <- wtAdjm[idx, idy]
+  subWT[lower.tri(subWT)] <- NA
+  idx <- idy <- colnames(koAdjm) %in% prots
+  subKO <- koAdjm[idx, idy]
+  subKO[lower.tri(subKO)] <- NA
+  wt <- na.omit(melt(subWT))
+  wt$group <- "WT"
+  ko <- na.omit(melt(subKO))
+  ko$group <- "KO"
+  df <- rbind(wt, ko)
+  x <- df$value
+  g <- df$group
+  kw <- kruskal.test(x, g)
+  return(kw)
 }
 
-kw_results <- lapply(wtModules,kw_test)
+kw_results <- lapply(wtModules, kw_test)
 
-p <- sapply(kw_results,function(x) x$p.value)
-q <- p.adjust(p,"bonferroni")
+p <- sapply(kw_results, function(x) x$p.value)
+q <- p.adjust(p, "bonferroni")
 
 
 #------------------------------------------------------------------------------
@@ -200,7 +200,7 @@ plots <- ko
 library(gridExtra)
 pdf("ko_plots.pdf", onefile = TRUE)
 for (i in seq(length(plots))) {
-	  grid.arrange(plots[[i]])  
+  grid.arrange(plots[[i]])
 }
 dev.off()
 
@@ -211,7 +211,7 @@ dev.off()
 # average edge weight greater than or less than the null distribution are changing.
 
 # Load statistical results.
-myfile <- list.files(tabsdir, pattern="GLM_Results.xlsx",full.names=TRUE)
+myfile <- list.files(tabsdir, pattern = "GLM_Results.xlsx", full.names = TRUE)
 results <- lapply(as.list(c(1:8)), function(x) read_excel(myfile, x))
 names(results) <- excel_sheets(myfile)
 
@@ -223,7 +223,7 @@ stats <- lapply(results, function(x) {
     FDR = x$FDR
   )
 })
-names(stats) <- gsub(" ",".",names(results))
+names(stats) <- gsub(" ", ".", names(results))
 statsdf <- stats %>% purrr::reduce(left_join, by = c("Uniprot", "Symbol"))
 colnames(statsdf)[c(3:ncol(statsdf))] <- names(stats)
 
@@ -231,11 +231,11 @@ colnames(statsdf)[c(3:ncol(statsdf))] <- names(stats)
 statsdf$sigProt <- apply(statsdf, 1, function(x) any(as.numeric(x[c(3:ncol(statsdf))]) < 0.05))
 
 # Add column for entrez.
-statsdf <- statsdf %>% 
-	tibble::add_column(Entrez = protmap$entrez[match(rownames(statsdf),protmap$ids)],.after=1)
+statsdf <- statsdf %>%
+  tibble::add_column(Entrez = protmap$entrez[match(rownames(statsdf), protmap$ids)], .after = 1)
 
 # Load protein identifier map for mapping protein names to entrez.
-protmap <- readRDS(list.files(rdatdir,pattern="Prot_Map",full.names=TRUE))
+protmap <- readRDS(list.files(rdatdir, pattern = "Prot_Map", full.names = TRUE))
 
 # Insure rownames are gene|uniprot.
 rownames(statsdf) <- protmap$ids[match(as.character(statsdf$Uniprot), protmap$uniprot)]
@@ -284,7 +284,7 @@ generate_heatmaps <- function(modules) {
       ) +
       coord_fixed() + ggtitle(namen)
     # Save.
-    ggsave(file.path(figsdir,paste0(namen, "heatmap.tiff")), plot)
+    ggsave(file.path(figsdir, paste0(namen, "heatmap.tiff")), plot)
   }
 }
 
@@ -295,49 +295,50 @@ generate_heatmaps(koModules)
 #------------------------------------------------------------------------------
 #------------------------------------------------------------------------------
 
-module = wtModules[[sigWT[1]]]
-m = get_data(module)
+module <- wtModules[[sigWT[1]]]
+m <- get_data(module)
 
-statsdf[rownames(statsdf)=="Ache|P21836",]
+statsdf[rownames(statsdf) == "Ache|P21836", ]
 
-get_data <- function(module){
-# Collect data.
-prots <- names(module)
-idx <- idy <- colnames(wtAdjm) %in% prots
-subWT <- wtAdjm[idx, idy]
-subWT[lower.tri(subWT)] <- NA
-idx <- idy <- colnames(koAdjm) %in% prots
-subKO <- koAdjm[idx, idy]
-subKO[lower.tri(subKO)] <- NA
-dc <- apply(subWT,1,function(x) sum(x,na.rm=TRUE))
-dc <- dc[order(dc,decreasing=TRUE)]
-message("WT hubs:")
-print(names(head(dc)))
-dc <- apply(subKO,1,function(x) sum(x,na.rm=TRUE))
-dc <- dc[order(dc,decreasing=TRUE)]
-message("KO hubs:")
-print(names(head(dc)))
-# Build df.
-df <- na.omit(data.frame(
-		 protA = melt(subWT)$Var1,
-		 protB = melt(subWT)$Var2,
-		 wt = melt(subWT)$value,
-		 ko = melt(subKO)$value))
-# Remove self-interactions.
-df <- df[!df$protA == df$protB, ]
-df$delta <- df$wt - df$ko
-# Sort.
-df <- df[order(df$delta, decreasing = TRUE), ]
-# Which are sig?
-sigProts <- rownames(statsdf)[statsdf$sigProt]
-df$sigProtA <- df$protA %in% sigProts
-df$sigProtB <- df$protB %in% sigProts
-return(df)
+get_data <- function(module) {
+  # Collect data.
+  prots <- names(module)
+  idx <- idy <- colnames(wtAdjm) %in% prots
+  subWT <- wtAdjm[idx, idy]
+  subWT[lower.tri(subWT)] <- NA
+  idx <- idy <- colnames(koAdjm) %in% prots
+  subKO <- koAdjm[idx, idy]
+  subKO[lower.tri(subKO)] <- NA
+  dc <- apply(subWT, 1, function(x) sum(x, na.rm = TRUE))
+  dc <- dc[order(dc, decreasing = TRUE)]
+  message("WT hubs:")
+  print(names(head(dc)))
+  dc <- apply(subKO, 1, function(x) sum(x, na.rm = TRUE))
+  dc <- dc[order(dc, decreasing = TRUE)]
+  message("KO hubs:")
+  print(names(head(dc)))
+  # Build df.
+  df <- na.omit(data.frame(
+    protA = melt(subWT)$Var1,
+    protB = melt(subWT)$Var2,
+    wt = melt(subWT)$value,
+    ko = melt(subKO)$value
+  ))
+  # Remove self-interactions.
+  df <- df[!df$protA == df$protB, ]
+  df$delta <- df$wt - df$ko
+  # Sort.
+  df <- df[order(df$delta, decreasing = TRUE), ]
+  # Which are sig?
+  sigProts <- rownames(statsdf)[statsdf$sigProt]
+  df$sigProtA <- df$protA %in% sigProts
+  df$sigProtB <- df$protB %in% sigProts
+  return(df)
 }
 
 
 df <- get_data(wtModules[[sigWT[6]]])
-x = subset(df,df$sigProtA & df$sigProtB)
+x <- subset(df, df$sigProtA & df$sigProtB)
 head(x)
 
 #------------------------------------------------------------------------------
@@ -345,7 +346,7 @@ head(x)
 #------------------------------------------------------------------------------
 
 generate_corplots <- function(modules) {
-	output <- list()
+  output <- list()
   for (i in 1:length(modules)) {
     prots <- names(modules[[i]])
     idx <- idy <- colnames(wtAdjm) %in% prots
@@ -369,11 +370,11 @@ generate_corplots <- function(modules) {
       prot2 <- as.character(df$protB[n])
       p1 <- ggplotProteinScatterPlot(wtDat, prot1, prot2)
       p2 <- ggplotProteinScatterPlot(koDat, prot1, prot2)
-      plots <- list(p1,p2)
+      plots <- list(p1, p2)
     }
     output[[i]] <- plots
   }
-return(output)
+  return(output)
 }
 
 # Generate corplots.
@@ -383,10 +384,11 @@ koPlots <- generate_corplots(koModules)
 # Build  networks
 generate_networks <- function(modules) {
   require(getPPIs)
-if(!exists("musInteractome")) { data(musInteractome) }
+  if (!exists("musInteractome")) {
+    data(musInteractome)
+  }
   output <- list()
   for (i in 1:length(modules)) {
-
     prots <- names(modules[[i]])
     idx <- idy <- colnames(wtAdjm) %in% prots
     subWT <- wtAdjm[idx, idy]
@@ -394,9 +396,9 @@ if(!exists("musInteractome")) { data(musInteractome) }
     subKO <- koAdjm[idx, idy]
     entrez <- protmap$entrez[match(colnames(subWT), protmap$ids)]
     g <- buildNetwork(musInteractome, entrez, taxid = 10090)
-    sp <- statsdf$sigProt[match(names(V(g)),statsdf$Symbol)] 
+    sp <- statsdf$sigProt[match(names(V(g)), statsdf$Symbol)]
 
-    g <- set_vertex_attr(g, "sigProt",value=sp)
+    g <- set_vertex_attr(g, "sigProt", value = sp)
 
     output[[i]] <- g
   }
@@ -410,15 +412,15 @@ names(wtGraphs) <- names(wtModules)
 names(koGraphs) <- names(koModules)
 
 # Save.
-saveRDS(wtGraphs,file.path(rdatdir,"WT_Module_Graphs.RData"))
-saveRDS(koGraphs,file.path(rdatdir,"KO_Module_Graphs.RData"))
+saveRDS(wtGraphs, file.path(rdatdir, "WT_Module_Graphs.RData"))
+saveRDS(koGraphs, file.path(rdatdir, "KO_Module_Graphs.RData"))
 
 #------------------------------------------------------------------------------
 ## GO Analysis.
 #------------------------------------------------------------------------------
 
 # Load previously compiled GO annotation collection:
-musGOcollection <- readRDS(file.path(rdatdir,"musGOcollection.RData"))
+musGOcollection <- readRDS(file.path(rdatdir, "musGOcollection.RData"))
 
 # Protein names (same for WT and KO).
 prots <- colnames(wtAdjm)

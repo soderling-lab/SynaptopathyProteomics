@@ -23,7 +23,7 @@ suppressPackageStartupMessages({
 
 # Load the normalized expression data.
 # No QC data. Any sample level outliers removed.
-myfile <- file.path(rdatadir, "2_Combined_TAMPOR_cleanDat.RData")
+myfile <- file.path(rdatadir, "2_Combined_cleanDat.RData")
 cleanDat <- readRDS(myfile)
 
 # Load sample traits.

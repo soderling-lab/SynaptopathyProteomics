@@ -35,7 +35,7 @@ suppressPackageStartupMessages({
   library(org.Mm.eg.db)
 })
 
-# Define tisue type: 
+# Define tisue type:
 tissue <- "Combined"
 
 # Set the working directory.
@@ -230,7 +230,7 @@ data_in <- log2(cleanDat[, !out])
 # Check, traits and cleanDat should match data.
 traits <- traits[match(colnames(data_in), rownames(traits)), ]
 if (!all(rownames(traits) == colnames(data_in))) {
-	stop("data do not match traits.")
+  stop("data do not match traits.")
 }
 
 ## PCA Plots.
@@ -436,38 +436,45 @@ for (i in 1:length(glm_results)) {
 }
 
 # Add expression data.
-for (i in 1:length(glm_results)){
-namen <- names(glm_results)[i]
-df <- glm_results[[i]]
-comparison <- contrasts[[namen]]
-groups <- rownames(comparison)[!comparison==0]
-samples <- traits$SampleID[traits$group %in% groups]
-dat <- cleanDat[,samples]
-colnames(dat) <- traits$ColumnName[match(colnames(dat),traits$SampleID)]
-dat <- dat[,c(grep("HET|KO",colnames(dat)),grep("WT",colnames(dat)))]
-out <- merge(df,log2(dat),by="row.names")
-glm_results[[i]] <- out
+for (i in 1:length(glm_results)) {
+  namen <- names(glm_results)[i]
+  df <- glm_results[[i]]
+  comparison <- contrasts[[namen]]
+  groups <- rownames(comparison)[!comparison == 0]
+  samples <- traits$SampleID[traits$group %in% groups]
+  dat <- cleanDat[, samples]
+  colnames(dat) <- traits$ColumnName[match(colnames(dat), traits$SampleID)]
+  dat <- dat[, c(grep("HET|KO", colnames(dat)), grep("WT", colnames(dat)))]
+  out <- merge(df, log2(dat), by = "row.names")
+  glm_results[[i]] <- out
 }
 
 # Sort by pvalue.
 glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
 
 # Reorder by genotype.
-idx <- c(grep("Shank2",names(glm_results)),
-	grep("Shank3",names(glm_results)),
-	grep("Syngap1",names(glm_results)),
-	grep("Ube3a",names(glm_results)))
+idx <- c(
+  grep("Shank2", names(glm_results)),
+  grep("Shank3", names(glm_results)),
+  grep("Syngap1", names(glm_results)),
+  grep("Ube3a", names(glm_results))
+)
 glm_results <- glm_results[idx]
 
 # Final renaming.
 namen <- unlist({
-	lapply(lapply(strsplit(gsub("HET.|KO.","",names(glm_results)),"\\."),rev),
-	       function(x) paste(x,collapse=" "))
+  lapply(
+    lapply(strsplit(gsub("HET.|KO.", "", names(glm_results)), "\\."), rev),
+    function(x) paste(x, collapse = " ")
+  )
 })
 names(glm_results) <- namen
 
 # Remove Row.names column.
-f <- function(x) { x$Row.names=NULL; return(x) }
+f <- function(x) {
+  x$Row.names <- NULL
+  return(x)
+}
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
@@ -484,7 +491,7 @@ for (i in 1:length(glm_results)) {
   Experiment <- names(glm_results)[i]
   df <- glm_results[[i]]
   df <- add_column(df, Experiment, .before = 1)
-  output[[i]] <- df[,c(1:11)]
+  output[[i]] <- df[, c(1:11)]
 }
 
 # Merge the results.
@@ -589,12 +596,12 @@ labels <- as.matrix(labels)
 # will be passed to enrichmentAnalysis().
 
 # Build a GO annotation collection:
-myfile <- file.path(Rdatadir,"musGOcollection.RData")
-if (file.exists(myfile)){
-	musGOcollection <- readRDS(myfile)
+myfile <- file.path(Rdatadir, "musGOcollection.RData")
+if (file.exists(myfile)) {
+  musGOcollection <- readRDS(myfile)
 } else {
-	musGOcollection <- buildGOcollection(organism = "mouse")
-	saveRDS(musGOcollection, file.path(Rdatadir,"musGOcollection.RData"))
+  musGOcollection <- buildGOcollection(organism = "mouse")
+  saveRDS(musGOcollection, file.path(Rdatadir, "musGOcollection.RData"))
 }
 
 # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
@@ -608,7 +615,7 @@ GOenrichment <- enrichmentAnalysis(
   classLabels = labels,
   identifiers = entrez,
   refCollection = musGOcollection,
-  useBackground = "given", 
+  useBackground = "given",
   threshold = 0.05,
   thresholdType = "Bonferroni",
   getOverlapEntrez = TRUE,
@@ -723,47 +730,47 @@ all_plots[["TAMPOR_Condition_Overlap"]] <- plot
 
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
-traits <- alltraits[!out,]
-  traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+traits <- alltraits[!out, ]
+traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 traits$Condition <- traits$Tissue.Sample.Model
 traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
 traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
 # Levels for boxplots (order of the boxes):
 lvls <- c(
-    "Cortex.WT", "Striatum.WT",
-    "Cortex.KO.Shank2", "Striatum.KO.Shank2",
-    "Cortex.KO.Shank3", "Striatum.KO.Shank3",
-    "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
-    "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
+  "Cortex.WT", "Striatum.WT",
+  "Cortex.KO.Shank2", "Striatum.KO.Shank2",
+  "Cortex.KO.Shank3", "Striatum.KO.Shank3",
+  "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
+  "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
 )
 
 # Generate plots.
 plot_list <- ggplotProteinBoxPlot(
-    data_in = log2(cleanDat),
-    interesting.proteins = rownames(cleanDat),
-    traits = traits,
-    order = lvls,
-    scatter = TRUE
+  data_in = log2(cleanDat),
+  interesting.proteins = rownames(cleanDat),
+  traits = traits,
+  order = lvls,
+  scatter = TRUE
 )
 
 # Add custom colors.
 colors <- c(
-    "gray", "gray",
-    "#FFF200", "#FFF200",
-    "#00A2E8", "#00A2E8",
-    "#22B14C", "#22B14C",
-    "#A349A4", "#A349A4"
-  )
+  "gray", "gray",
+  "#FFF200", "#FFF200",
+  "#00A2E8", "#00A2E8",
+  "#22B14C", "#22B14C",
+  "#A349A4", "#A349A4"
+)
 plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
 ## Add significance stars.
 # Build a df with statistical results.
 stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
 stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
-  colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
-  rownames(stats) <- stats$Uniprot
-  stats$Uniprot <- NULL
+colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
+rownames(stats) <- stats$Uniprot
+stats$Uniprot <- NULL
 
 # Loop to add stars.
 plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
@@ -782,16 +789,16 @@ a <- c("black", "black", "red", "red", "black", "black", "black", "black", "blac
 b <- c("black", "black", "red", "black", "red", "red", "black", "black", "black", "red")
 c <- c("black", "black", "black", "black", "black", "red", "red", "red", "black", "black")
 d <- c("black", "black", "black", "black", "black", "black", "black", "red", "red", "red")
-  p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
-  p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
-  p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
-  p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
+p1 <- p1 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = a))
+p2 <- p2 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = b))
+p3 <- p3 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = c))
+p4 <- p4 + theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = d))
 
-  # Store plots in list.
-  all_plots[[paste(tissue, "Shank2_BP", sep = "_")]] <- p1
-  all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
-  all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
-  all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
+# Store plots in list.
+all_plots[[paste(tissue, "Shank2_BP", sep = "_")]] <- p1
+all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
+all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
+all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.

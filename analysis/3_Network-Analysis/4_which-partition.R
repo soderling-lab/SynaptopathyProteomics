@@ -33,7 +33,7 @@ source_myfun <- function() {
 source_myfun()
 
 # Load preserved partitions of co-expression graph:
-myfile <- list.files(rdatdir, pattern = "preservation",full.names=TRUE)
+myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 #-------------------------------------------------------------------------------
@@ -61,8 +61,8 @@ all_plots[["resolution_k"]] <- p1
 # Evaluate GO enrichment of modules in every partition.
 
 # Load previously compiled GO annotation collection:
-#musGOcollection <- buildGOcollection(organism = "mouse")
-myfile <- list.files(rdatdir,pattern="musGO",full.name=TRUE)
+# musGOcollection <- buildGOcollection(organism = "mouse")
+myfile <- list.files(rdatdir, pattern = "musGO", full.name = TRUE)
 musGOcollection <- readRDS(myfile)
 
 # Load adjacency matrices.
@@ -90,8 +90,8 @@ for (i in 1:nparts) {
   } else {
     setTxtProgressBar(pb, i)
   }
-  # Get WT and KO partitions. 
-  p1 <- as.integer(partitions[[i]]$wt) 
+  # Get WT and KO partitions.
+  p1 <- as.integer(partitions[[i]]$wt)
   p2 <- as.integer(partitions[[i]]$ko)
   names(p1) <- names(p2) <- prots
   # Get modules in partitions.
@@ -142,8 +142,8 @@ for (i in 1:nparts) {
 } # ENDS LOOP.
 
 # Save results.
-myfile <- file.path(rdatdir,"3_All_Resolution_GO.RData")
-saveRDS(out,myfile)
+myfile <- file.path(rdatdir, "3_All_Resolution_GO.RData")
+saveRDS(out, myfile)
 
 # Inspect a random result.
 resolution <- sample(nparts, 1)
@@ -176,8 +176,8 @@ df <- data.table(
 df <- data.table::melt(df, id.vars = c("resolution"))
 
 # Generate plot.
-plot <- ggplot(df, aes(x = resolution, y = log2(value), colour = variable)) + 
-	geom_point()
+plot <- ggplot(df, aes(x = resolution, y = log2(value), colour = variable)) +
+  geom_point()
 
 # Store plot.
 all_plots[["go_resolution2"]] <- plot

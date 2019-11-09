@@ -15,7 +15,7 @@ suppressPackageStartupMessages({
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-datadir <- file.path(root, "data")
+datadir <- file.path(root, "rdata")
 funcdir <- file.path(root, "R")
 
 # Functions.
@@ -31,9 +31,9 @@ wtAdjm <- silently(WGCNA::bicor(wtDat))
 koAdjm <- silently(WGCNA::bicor(koDat))
 
 # Load partitions.
-myfiles <- list.files(datadir,pattern="*partitions.csv",full.names=TRUE)
-koParts <- data.table::fread(myfiles[1], drop=1,skip = 1)
-wtParts <- data.table::fread(myfiles[2], drop=1,skip = 1)
+myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
+koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
+wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 
 #-------------------------------------------------------------------------------
