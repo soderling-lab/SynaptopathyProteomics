@@ -44,7 +44,7 @@ rootdir <- dirname(dirname(here))
 
 # Set any other directories.
 functiondir <- paste(rootdir, "R", sep = "/")
-datadir <- paste(rootdir, "input", sep = "/")
+datadir <- paste(rootdir, "data", sep = "/")
 Rdatadir <- paste(rootdir, "rdata", sep = "/")
 outputfigs <- paste(rootdir, "figs", tissue, sep = "/")
 outputtabs <- paste(rootdir, "tables", sep = "/")
@@ -764,6 +764,8 @@ traits <- alltraits[!out,]
 
   # Loop to add stars.
   plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
+
+  all_plots[["all_box_plots"]] <- plot_list
 
   # Top proteins.
   p1 <- plot_list$`Shank2|Q80Z38`

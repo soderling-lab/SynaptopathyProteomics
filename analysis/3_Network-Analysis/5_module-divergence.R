@@ -127,6 +127,33 @@ sigKO <- sigModules$ko
 message(paste("Number of WT modules that exhibit divergence:", length(sigWT)))
 message(paste("Number of KO modules that exhibit divergence:", length(sigKO)))
 
+
+# Compare edge strengths.
+kw_test <- function(module){
+prots <- names(module)
+idx <- idy <- colnames(wtAdjm) %in% prots
+subWT <- wtAdjm[idx, idy]
+subWT[lower.tri(subWT)] <- NA
+idx <- idy <- colnames(koAdjm) %in% prots
+subKO <- koAdjm[idx, idy]
+subKO[lower.tri(subKO)] <- NA
+wt <- na.omit(melt(subWT))
+wt$group <- "WT"
+ko <- na.omit(melt(subKO))
+ko$group <- "KO"
+df <- rbind(wt,ko)
+x <- df$value
+g <- df$group
+kw <- kruskal.test(x,g)
+return(kw)
+}
+
+kw_results <- lapply(wtModules,kw_test)
+
+p <- sapply(kw_results,function(x) x$p.value)
+q <- p.adjust(p,"bonferroni")
+
+
 #------------------------------------------------------------------------------
 ## Examine observed versus null distributions.
 #------------------------------------------------------------------------------
@@ -203,6 +230,10 @@ colnames(statsdf)[c(3:ncol(statsdf))] <- names(stats)
 # Proteins with any sig change.
 statsdf$sigProt <- apply(statsdf, 1, function(x) any(as.numeric(x[c(3:ncol(statsdf))]) < 0.05))
 
+# Add column for entrez.
+statsdf <- statsdf %>% 
+	tibble::add_column(Entrez = protmap$entrez[match(rownames(statsdf),protmap$ids)],.after=1)
+
 # Load protein identifier map for mapping protein names to entrez.
 protmap <- readRDS(list.files(rdatdir,pattern="Prot_Map",full.names=TRUE))
 
@@ -253,7 +284,7 @@ generate_heatmaps <- function(modules) {
       ) +
       coord_fixed() + ggtitle(namen)
     # Save.
-    ggsave(file.path(figsdir,paste0(namen, "heatmap.tiff"), plot))
+    ggsave(file.path(figsdir,paste0(namen, "heatmap.tiff")), plot)
   }
 }
 
@@ -262,10 +293,59 @@ generate_heatmaps(wtModules)
 generate_heatmaps(koModules)
 
 #------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+module = wtModules[[sigWT[1]]]
+m = get_data(module)
+
+statsdf[rownames(statsdf)=="Ache|P21836",]
+
+get_data <- function(module){
+# Collect data.
+prots <- names(module)
+idx <- idy <- colnames(wtAdjm) %in% prots
+subWT <- wtAdjm[idx, idy]
+subWT[lower.tri(subWT)] <- NA
+idx <- idy <- colnames(koAdjm) %in% prots
+subKO <- koAdjm[idx, idy]
+subKO[lower.tri(subKO)] <- NA
+dc <- apply(subWT,1,function(x) sum(x,na.rm=TRUE))
+dc <- dc[order(dc,decreasing=TRUE)]
+message("WT hubs:")
+print(names(head(dc)))
+dc <- apply(subKO,1,function(x) sum(x,na.rm=TRUE))
+dc <- dc[order(dc,decreasing=TRUE)]
+message("KO hubs:")
+print(names(head(dc)))
+# Build df.
+df <- na.omit(data.frame(
+		 protA = melt(subWT)$Var1,
+		 protB = melt(subWT)$Var2,
+		 wt = melt(subWT)$value,
+		 ko = melt(subKO)$value))
+# Remove self-interactions.
+df <- df[!df$protA == df$protB, ]
+df$delta <- df$wt - df$ko
+# Sort.
+df <- df[order(df$delta, decreasing = TRUE), ]
+# Which are sig?
+sigProts <- rownames(statsdf)[statsdf$sigProt]
+df$sigProtA <- df$protA %in% sigProts
+df$sigProtB <- df$protB %in% sigProts
+return(df)
+}
+
+
+df <- get_data(wtModules[[sigWT[6]]])
+x = subset(df,df$sigProtA & df$sigProtB)
+head(x)
+
+#------------------------------------------------------------------------------
 # 2. Examine changes in edge weight...
 #------------------------------------------------------------------------------
 
 generate_corplots <- function(modules) {
+	output <- list()
   for (i in 1:length(modules)) {
     prots <- names(modules[[i]])
     idx <- idy <- colnames(wtAdjm) %in% prots
@@ -289,38 +369,38 @@ generate_corplots <- function(modules) {
       prot2 <- as.character(df$protB[n])
       p1 <- ggplotProteinScatterPlot(wtDat, prot1, prot2)
       p2 <- ggplotProteinScatterPlot(koDat, prot1, prot2)
+      plots <- list(p1,p2)
     }
+    output[[i]] <- plots
   }
+return(output)
 }
 
 # Generate corplots.
 wtPlots <- generate_corplots(wtModules)
 koPlots <- generate_corplots(koModules)
 
-# Any sig in random module...
-anySig <- rownames(statsdf)[statsdf$sigProt]
-sum(prots %in% anySig)
-
-# sig prots.
-x <- subset(statsdf, rownames(statsdf) %in% prots & statsdf$sigProt == TRUE)
-
-library(getPPIs)
-data(musInteractome)
-
 # Build  networks
 generate_networks <- function(modules) {
   require(getPPIs)
-  g <- list()
+if(!exists("musInteractome")) { data(musInteractome) }
+  output <- list()
   for (i in 1:length(modules)) {
+
     prots <- names(modules[[i]])
     idx <- idy <- colnames(wtAdjm) %in% prots
     subWT <- wtAdjm[idx, idy]
     idx <- idy <- colnames(koAdjm) %in% prots
     subKO <- koAdjm[idx, idy]
     entrez <- protmap$entrez[match(colnames(subWT), protmap$ids)]
-    g[[i]] <- buildNetwork(musInteractome, entrez, taxid = 10090)
+    g <- buildNetwork(musInteractome, entrez, taxid = 10090)
+    sp <- statsdf$sigProt[match(names(V(g)),statsdf$Symbol)] 
+
+    g <- set_vertex_attr(g, "sigProt",value=sp)
+
+    output[[i]] <- g
   }
-  return(g)
+  return(output)
 }
 
 # Some modules are densely interconnected!
