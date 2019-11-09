@@ -13,7 +13,7 @@ from pandas import read_csv
 
 # Which analysis are we doing?
 # WT or KO network (0,1)
-data_type = 0 
+data_type = 1 
 geno = ['KO','WT'][data_type]
 print("Performing Leiden algorithm clustering of the " + geno + " protein co-expression network.", file = stderr)
 
@@ -21,7 +21,7 @@ print("Performing Leiden algorithm clustering of the " + geno + " protein co-exp
 here = os.getcwd()
 root = dirname(dirname(here))
 datadir = os.path.join(root,"rdata")
-myfiles = glob.glob(os.path.join(datadir,"*.csv"))
+myfiles = glob.glob(os.path.join(datadir,"*Adjm.csv"))
 adjm = read_csv(myfiles[data_type], header = 0, index_col = 0)
 
 # Add rownames.
