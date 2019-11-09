@@ -461,12 +461,15 @@ glm_results <- glm_results[idx]
 
 # Final renaming.
 my_results <- glm_results
-
 namen <- unlist({
 	lapply(lapply(strsplit(gsub("HET.|KO.","",names(my_results)),"\\."),rev),
 	       function(x) paste(x,collapse=" "))
 })
 names(my_results) <- namen
+
+# Remove Row.names column.
+f <- function(x) { x$Row.names=NULL; return(x) }
+my_results <- lapply(my_results, f)
 
 # Save results to file.
 myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
@@ -556,7 +559,7 @@ all_plots[["Ube3a_VP"]] <- vp4
 #-------------------------------------------------------------------------------
 
 # Build a df with the combined statistical results.
-stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
+stats <- lapply(my_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
 names(stats) <- names(glm_results)
 df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 colnames(df)[c(2:ncol(df))] <- names(stats)
@@ -566,7 +569,7 @@ labels <- data.frame(
   Shank2 = df$Cortex.KO.Shank2 < 0.05 | df$Striatum.KO.Shank2 < 0.05,
   Shank3 = df$Cortex.KO.Shank3 < 0.05 | df$Striatum.KO.Shank3 < 0.05,
   Syngap1 = df$Cortex.HET.Syngap1 < 0.05 | df$Striatum.HET.Syngap1 < 0.05,
-  Ube3a3 = df$Cortex.KO.Ube3a < 0.05 | df$Striatum.KO.Ube3a < 0.05
+  Ube3a = df$Cortex.KO.Ube3a < 0.05 | df$Striatum.KO.Ube3a < 0.05
 )
 rownames(labels) <- df$Uniprot
 
@@ -584,14 +587,14 @@ entrez <- prot_map$entrez[match(rownames(labels), prot_map$uniprot)]
 # Insure that labels is a matrix.
 labels <- as.matrix(labels)
 
-# look at the number of genes assigned to each cluster.
-table(labels)
-
 # The labels matrix and vector of cooresponding entrez IDs
 # will be passed to enrichmentAnalysis().
 
 # Build a GO annotation collection:
 musGOcollection <- buildGOcollection(organism = "mouse")
+
+# Save GO collection.
+saveRDS(musGOcollection, file.path(Rdatadir,"musGOcollection.RData"))
 
 # Perform GO analysis for each module using hypergeometric (Fisher.test) test.
 # As implmented by the WGCNA function enrichmentAnalysis().
@@ -620,11 +623,11 @@ for (i in 1:length(GOenrichment$setResults)) {
 names(results_GOenrichment) <- colnames(labels)
 
 # Save as excel workbook.
-myfile <- file.path(rootdir, "tables", paste0(outputMatName, "_GO_Analysis.xlsx"))
+myfile <- file.path(outputtabs, paste0(outputMatName, "_GO_Analysis.xlsx"))
 write_excel(results_GOenrichment, myfile)
 
 #-------------------------------------------------------------------------------
-## Condition overlap.
+## Condition overlap plot.
 #-------------------------------------------------------------------------------
 
 # Load statistical results..
@@ -765,6 +768,7 @@ traits <- alltraits[!out,]
   # Loop to add stars.
   plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))
 
+  # Store boxplots.
   all_plots[["all_box_plots"]] <- plot_list
 
   # Top proteins.
@@ -788,8 +792,6 @@ traits <- alltraits[!out,]
   all_plots[[paste(tissue, "Shank3_BP", sep = "_")]] <- p2
   all_plots[[paste(tissue, "Syngap1_BP", sep = "_")]] <- p3
   all_plots[[paste(tissue, "Ube3a_BP", sep = "_")]] <- p4
-
-## Save all these boxplots as a multipage pdf.
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.

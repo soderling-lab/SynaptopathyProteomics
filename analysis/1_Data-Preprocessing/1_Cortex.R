@@ -63,7 +63,6 @@ funcdir <- file.path(rootdir, "R")
 datadir <- file.path(rootdir, "data")
 Rdatadir <- file.path(rootdir, "rdata")
 figsdir <- file.path(rootdir, "figures")
-tabsdir <- file.path(rootdir, "tables")
 
 # Load required custom functions.
 source_myfun <- function() {

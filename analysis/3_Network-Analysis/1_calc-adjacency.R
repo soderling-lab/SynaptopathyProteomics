@@ -14,7 +14,6 @@
 here <- getwd()
 root <- dirname(dirname(here))
 rdatadir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables")
 
 # Load misc functions.
 suppressPackageStartupMessages({
@@ -57,8 +56,8 @@ wtAdjm <- WGCNA::bicor(t(wtDat))
 koAdjm <- WGCNA::bicor(t(koDat))
 
 # Write adjm to .csv.
-fwrite(wtAdjm, file.path(tabsdir, "3_WT_Adjm.csv"), row.names = TRUE)
-fwrite(koAdjm, file.path(tabsdir, "3_KO_Adjm.csv"), row.names = TRUE)
+fwrite(wtAdjm, file.path(rdatadir, "3_WT_Adjm.csv"), row.names = TRUE)
+fwrite(koAdjm, file.path(rdatadir, "3_KO_Adjm.csv"), row.names = TRUE)
 
 # Save WT and KO correlation matrixes file.
 saveRDS(wtAdjm, file.path(rdatadir, "3_WT_Adjm.RData"))
