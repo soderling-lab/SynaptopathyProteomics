@@ -40,10 +40,10 @@ koDat <- t(readRDS(list.files(rdatdir, pattern = "KO_cleanDat", full.names = TRU
 wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData", full.names = TRUE)))
 koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", full.names = TRUE)))
 
-# ~Best resolutions.
-# Most biological (GO) information:
-r_wt <- 52
-r_ko <- 31
+# Which resolution to analyze?
+# ~Best resolutions: most biological (GO) information:
+r_wt <- 1 # 52
+r_ko <- 1 # 31
 
 # Load network partitions.
 myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
@@ -56,6 +56,10 @@ koPartition <- partitions[[r_ko]][["ko"]]
 # Split into modules.
 wtModules <- split(wtPartition, wtPartition)
 koModules <- split(koPartition, koPartition)
+
+# Number of modules (subract 1 for background module = "0").
+message(paste("Total WT Modules:",length(wtModules)-1))
+message(paste("Total KO Modules:",length(koModules)-1))
 
 # Checks:
 if (!all(colnames(wtDat) == colnames(koDat))) {
@@ -75,17 +79,36 @@ if (!all(names(koPartition) %in% colnames(koDat))) {
 ## Utilize permutation approach to identify divergent modules.
 #-------------------------------------------------------------------------------
 
+# There are several ways you might approach this problem:
+# 1. Compare WT and KO networks (discovery/test).
+
+# THIS SEEMS BEST:
+# 2. Test self-preservation of WT modules in KO network (and vice versa).
+# Modules that have observed stat significantly less than NULL are divergent.
+# Modules that have observed stat significantly greater than NULL are preserved.
+
+# 3. Compute difference in networks (e.g. WT-KO) and then test for
+# self-preservation. Modules may get stronger or weaker...
+
 # Input for NetRep:
 # Note the networks are what are used to calc the avg edge weight statistic.
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
 network_list <- list(wt = wtAdjm, ko = koAdjm)
-module_list <- list(wt = wtPartition, ko = koPartition)
+module_list <- list(wt = koPartition, ko = wtPartition) # Switch!
+#network_list <- list(wt = wtAdjm-koAdkm, ko = koAdjm-wtAdjm)
+#module_list <- list(wt = wtPartition, ko = koPartition) 
 
-# Generalize for discovery/test.
+# Option 1. Generalize for discovery/test comparison.
 h0 <- list(
   wt = c(discovery = "wt", test = "ko"),
   ko = c(discovery = "ko", test = "wt")
+)
+
+# Option 2 and 3. Hypothesis for self-preservation.
+h0 <- list(
+  wt = c(discovery = "wt", test = "wt"),
+  ko = c(discovery = "ko", test = "ko")
 )
 
 # Perform permutation testing.
@@ -98,8 +121,8 @@ preservation <- lapply(h0, function(x) {
     modules = NULL,
     backgroundLabel = 0,
     discovery = x["discovery"],
-    test = x["test"],
-    selfPreservation = FALSE,
+    test = x["discovery"],   # Was test
+    selfPreservation = TRUE, # Was FALSE
     nThreads = 8,
     # nPerm = 100000,  # determined by the function.
     null = "overlap",
@@ -111,14 +134,15 @@ preservation <- lapply(h0, function(x) {
 
 ## Identify divergent modules.
 # Divergent modules are those whose observed correlation structure is significantly
-# less than the null model.
+# less? than the null model.
 
 # Just avg.weight.
 q <- lapply(preservation, function(x) p.adjust(x$p.values[, 1], "bonferroni"))
 
 # Require all to be less than 0.05.
-# q <- lapply(preservation, function(x) p.adjust(apply(x$p.values, 1, max)))
+ q <- lapply(preservation, function(x) p.adjust(apply(x$p.values, 1, max)))
 
+# Which modules have significant statistics?
 sigModules <- lapply(q, function(x) names(x)[x < 0.05])
 
 # Status.
@@ -127,37 +151,11 @@ sigKO <- sigModules$ko
 message(paste("Number of WT modules that exhibit divergence:", length(sigWT)))
 message(paste("Number of KO modules that exhibit divergence:", length(sigKO)))
 
-
-# Compare edge strengths.
-kw_test <- function(module) {
-  prots <- names(module)
-  idx <- idy <- colnames(wtAdjm) %in% prots
-  subWT <- wtAdjm[idx, idy]
-  subWT[lower.tri(subWT)] <- NA
-  idx <- idy <- colnames(koAdjm) %in% prots
-  subKO <- koAdjm[idx, idy]
-  subKO[lower.tri(subKO)] <- NA
-  wt <- na.omit(melt(subWT))
-  wt$group <- "WT"
-  ko <- na.omit(melt(subKO))
-  ko$group <- "KO"
-  df <- rbind(wt, ko)
-  x <- df$value
-  g <- df$group
-  kw <- kruskal.test(x, g)
-  return(kw)
-}
-
-kw_results <- lapply(wtModules, kw_test)
-
-p <- sapply(kw_results, function(x) x$p.value)
-q <- p.adjust(p, "bonferroni")
-
-
 #------------------------------------------------------------------------------
 ## Examine observed versus null distributions.
 #------------------------------------------------------------------------------
 
+# Function to plot observed versus NULL distributions for module stats.
 plot_distributions <- function(x) {
   module_results <- list()
   for (module in 1:length(x$propVarsPresent)) {
@@ -193,14 +191,19 @@ plots <- list(
   ko = plot_distributions(preservation$ko)
 )
 
-# Save plots for average edge strength.
-all_plots[["perm_hists"]] <- plots
-
-plots <- ko
+# Save plots.
+p <- sapply(plots$wt,"[",1)
 library(gridExtra)
+pdf("wt_plots.pdf", onefile = TRUE)
+for (i in seq(length(p))) {
+  grid.arrange(p[[i]])
+}
+dev.off()
+
+p <- sapply(plots$ko,"[",1)
 pdf("ko_plots.pdf", onefile = TRUE)
-for (i in seq(length(plots))) {
-  grid.arrange(plots[[i]])
+for (i in seq(length(p))) {
+  grid.arrange(p[[i]])
 }
 dev.off()
 

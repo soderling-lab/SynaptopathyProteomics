@@ -193,5 +193,6 @@ x <- df %>% dplyr::filter(variable == "ko")
 r_best <- as.integer(dplyr::filter(x, value == max(x$value)))[1]
 print(paste("best ko resolution:", r_best))
 
+# Best resolutions:
 # WT: 52
 # KO: 31
