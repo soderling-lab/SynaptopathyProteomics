@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Loop through all resolutions of WT and KO graphs, comapring modules with 
+# Loop through all resolutions of WT and KO graphs, comparing modules with 
 # permutation test in order to identify perserved and divergent modules.
 
 #-------------------------------------------------------------------------------
@@ -80,7 +80,9 @@ for (r in 1:nres) {
 	data_list <- list(wt = wtDat, ko = koDat)
 	correlation_list <- list(wt = wtAdjm, ko = koAdjm)
 	network_list <- list(wt = wtAdjm, ko = koAdjm)
-	module_list <- list(wt = koPartition, ko = wtPartition) # Switch!
+	module_list <- list(wt = koPartition, ko = wtPartition) 
+	# ^This is correct. We are asking, given the WT data and graph and the KO modules, 
+	# are modules preserved (the same) or divergent (different) in the KO graph.
 	# Hypothesis for self-preservation.
 	h0 <- list(
 	  wt = c(discovery = "wt", test = "wt"),
@@ -109,30 +111,36 @@ for (r in 1:nres) {
 })
 	})
 	## Identify divergent modules.
-	# Function to check if modules are preserved, or divergent.
+	# Function to check if modules are preserved, or divergent. 
+	# Uses average edge weight only!
+	# Strong preservation & Divergence may be enforced by asking all stats to be signficant.
 	check_modules <- function(x){
-	obs <-  x$observed[,1]
-	nullx <- apply(x$nulls[,1,],1,mean)
-	p <- x$p.values[,1]
+	obs <-  x$observed[,1]              # 1 = average edge weight.
+	nullx <- apply(x$nulls[,1,],1,mean) # 1 = average edge weight.
+	p <- x$p.values[,1]                 # 1 = average edge weight.
 	q <- p.adjust(p, "bonferroni")
 	q[is.na(q)] <- 1
 	n <- length(x$nVarsPresent)
 	v <- rep("ns",n)
-	# PRESERVED MODULES = obs > NULL & p < 0.05
-	v[obs > nullx & p < 0.05] <- "preserved"
-	# DIVERGENT MODULES = obs < NULL & p < 0.05
-	v[obs < nullx & p < 0.05] <- "divergent"
+	# PRESERVED MODULES = obs > NULL & q < 0.05
+	v[obs > nullx & q < 0.05] <- "preserved"
+	# DIVERGENT MODULES = obs < NULL & q < 0.05
+	v[obs < nullx & q < 0.05] <- "divergent"
 	return(v)
 	}
 	module_changes <- lapply(preservation, check_modules)
-	# Status.
+	# Status report.
 	message(paste("... Total number of WT modules:",nModules["wt"]))
-	message(paste("... ... Number of preserved WT modules:", sum(module_changes$wt=="preserved")))
-	message(paste("... ... Number of divergent WT modules:", sum(module_changes$wt=="divergent")))
+	message(paste("... ... Number of WT modules preserved in KO graph:", 
+		      sum(module_changes$wt=="preserved")))
+	message(paste("... ... Number of WT modules divergent in KO graph:", 
+		      sum(module_changes$wt=="divergent")))
 	message(paste("... Total number of KO modules:",nModules["ko"]))
-	message(paste("... ... Number of preserved KO modules:", sum(module_changes$ko=="preserved")))
-	message(paste("... ... Number of divergent KO modules:", sum(module_changes$ko=="divergent")))
-	# Return module changes.
+	message(paste("... ... Number of KO modules preserved in WT graph:",
+		      sum(module_changes$ko=="preserved")))
+	message(paste("... ... Number of KO modules divergent in WT graph:", 
+		      sum(module_changes$ko=="divergent")))
+	# Return resolution, total number of modules, and module changes.
 	output[[i]] <- list("resolution"=r,"nModules"=nModules,"Changes"=module_changes)
 } # END LOOP.
 
