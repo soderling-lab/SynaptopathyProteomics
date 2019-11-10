@@ -142,8 +142,8 @@ for (r in 1:nres) {
 		      sum(module_changes$ko=="divergent")))
 	# Return resolution, total number of modules, and module changes.
 	output[[i]] <- list("resolution"=r,"nModules"=nModules,"Changes"=module_changes)
-} # END LOOP.
+} # ENDS LOOP.
 
 # Save output to file.
-myfile <- file.path(rdatdir,"Module_Divergence_Preservation.RData")
+myfile <- file.path(rdatdir,"Network_Comparisons.RData")
 saveRDS(output,myfile)
