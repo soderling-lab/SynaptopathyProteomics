@@ -81,14 +81,12 @@ if (!all(names(koPartition) %in% colnames(koDat))) {
 
 # There are several ways you might approach this problem:
 # 1. Compare WT and KO networks (discovery/test).
+# 3. Compute difference in networks (e.g. WT-KO) and then test for
 
 # THIS SEEMS BEST:
 # 2. Test self-preservation of WT modules in KO network (and vice versa).
 # Modules that have observed stat significantly less than NULL are divergent.
 # Modules that have observed stat significantly greater than NULL are preserved.
-
-# 3. Compute difference in networks (e.g. WT-KO) and then test for
-# self-preservation. Modules may get stronger or weaker...
 
 # Input for NetRep:
 # Note the networks are what are used to calc the avg edge weight statistic.
@@ -96,16 +94,8 @@ data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
 network_list <- list(wt = wtAdjm, ko = koAdjm)
 module_list <- list(wt = koPartition, ko = wtPartition) # Switch!
-#network_list <- list(wt = wtAdjm-koAdkm, ko = koAdjm-wtAdjm)
-#module_list <- list(wt = wtPartition, ko = koPartition) 
 
-# Option 1. Generalize for discovery/test comparison.
-h0 <- list(
-  wt = c(discovery = "wt", test = "ko"),
-  ko = c(discovery = "ko", test = "wt")
-)
-
-# Option 2 and 3. Hypothesis for self-preservation.
+# Hypothesis for self-preservation.
 h0 <- list(
   wt = c(discovery = "wt", test = "wt"),
   ko = c(discovery = "ko", test = "ko")
@@ -121,7 +111,7 @@ preservation <- lapply(h0, function(x) {
     modules = NULL,
     backgroundLabel = 0,
     discovery = x["discovery"],
-    test = x["discovery"],   # Was test
+    test = x["test"],   
     selfPreservation = TRUE, # Was FALSE
     nThreads = 8,
     # nPerm = 100000,  # determined by the function.
