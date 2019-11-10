@@ -33,6 +33,7 @@ myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
+# Using partitions with self-resolution already enforced.
 output <- list()
 for (r in 1:100) {
 	r_wt <- r_ko <- r
@@ -83,7 +84,7 @@ for (r in 1:100) {
 	    null = "overlap",
 	    alternative = "two.sided", # c(greater,less,two.sided)
 	    simplify = TRUE,
-	    verbose = TRUE
+	    verbose = FALSE
 	    )
 	})
 	output[[r]] <- preservation
