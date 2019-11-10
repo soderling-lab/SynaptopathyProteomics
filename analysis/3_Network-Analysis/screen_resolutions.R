@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+# Loop through all resolutions of WT and KO graphs, comapring modules with 
+# permutation test in order to identify perserved and divergent modules.
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
@@ -46,6 +48,7 @@ for (i in 1:nrow(wtParts)){
 #partitions <- readRDS(myfile)
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
+# Using partitions with self-resolution already enforced.
 output <- list()
 nres <- 100
 
@@ -107,6 +110,10 @@ for (r in 1:nres) {
 	    )
 })
 	})
+<<<<<<< HEAD
+	output[[r]] <- preservation
+=======
+>>>>>>> bee21e03ae3115a4fe9aaac006d4966e403530b8
 	## Identify divergent modules.
 	# Function to check if modules are preserved, or divergent.
 	check_modules <- function(x){
