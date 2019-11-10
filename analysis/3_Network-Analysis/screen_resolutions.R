@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+# Loop through all resolutions of WT and KO graphs, comapring modules with 
+# permutation test in order to identify perserved and divergent modules.
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
@@ -84,7 +86,7 @@ for (r in 1:100) {
 	    verbose = TRUE
 	    )
 	})
-	output[[i]] <- preservation
+	output[[r]] <- preservation
 	## Identify divergent modules.
 	# Divergent modules are those whose observed correlation structure is significantly
 	# less? than the null model.
