@@ -50,7 +50,6 @@ for (i in 1:nrow(wtParts)){
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
 nres <- 100
-
 for (r in 1:nres) {
 	# Status
 	message(paste("Working on resolution:",r,"..."))	
@@ -100,7 +99,7 @@ for (r in 1:nres) {
 	    discovery = x["discovery"],
 	    test = x["test"],  
 	    selfPreservation = TRUE, 
-	    nThreads = 8,
+	    nThreads = 24,
 	    # nPerm = 100000,  # determined by the function.
 	    null = "overlap",
 	    alternative = "two.sided", # c(greater,less,two.sided)
@@ -127,11 +126,15 @@ for (r in 1:nres) {
 	}
 	module_changes <- lapply(preservation, check_modules)
 	# Status.
-	message(paste("Total number of WT modules:",nModules["wt"]))
-	message(paste("Number of preserved WT modules:", sum(module_changes$wt=="preserved")))
-	message(paste("Number of divergent WT modules:", sum(module_changes$wt=="divergent")))
+	message(paste("... Total number of WT modules:",nModules["wt"]))
+	message(paste("... ... Number of preserved WT modules:", sum(module_changes$wt=="preserved")))
+	message(paste("... ... Number of divergent WT modules:", sum(module_changes$wt=="divergent")))
+	message("/n")
+	message(paste("... Total number of KO modules:",nModules["ko"]))
+	message(paste("... Number of preserved KO modules:", sum(module_changes$ko=="preserved")))
+	message(paste("... Number of divergent KO modules:", sum(module_changes$ko=="divergent")))
 	# Return module changes.
-	output[[i]] <- list(r,nModules,module_changes)
+	output[[i]] <- list("resolution"=r,"nModules"=nModules,"Changes"=module_changes)
 } # END LOOP.
 
 # Save output to file.
