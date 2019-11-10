@@ -129,10 +129,9 @@ for (r in 1:nres) {
 	message(paste("... Total number of WT modules:",nModules["wt"]))
 	message(paste("... ... Number of preserved WT modules:", sum(module_changes$wt=="preserved")))
 	message(paste("... ... Number of divergent WT modules:", sum(module_changes$wt=="divergent")))
-	message("/n")
 	message(paste("... Total number of KO modules:",nModules["ko"]))
-	message(paste("... Number of preserved KO modules:", sum(module_changes$ko=="preserved")))
-	message(paste("... Number of divergent KO modules:", sum(module_changes$ko=="divergent")))
+	message(paste("... ... Number of preserved KO modules:", sum(module_changes$ko=="preserved")))
+	message(paste("... ... Number of divergent KO modules:", sum(module_changes$ko=="divergent")))
 	# Return module changes.
 	output[[i]] <- list("resolution"=r,"nModules"=nModules,"Changes"=module_changes)
 } # END LOOP.
