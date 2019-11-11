@@ -141,7 +141,7 @@ for (r in 1:nres) {
   } # ENDS function
   # Identify strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
-  module_changes <- sapply(module_changes,"[",strenght)
+  module_changes <- sapply(module_changes,"[",strength)
   names(module_changes) <- c("wt","ko")
   # Status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
