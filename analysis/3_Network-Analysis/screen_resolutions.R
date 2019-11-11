@@ -47,8 +47,7 @@ for (i in 1:nrow(wtParts)) {
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
-nres <- length(wtPartition)
-nres <- 1 
+nres <- length(partitions)
 strength <- 1 # c(strong, weak)
 
 for (r in 1:nres) {
@@ -140,7 +139,7 @@ for (r in 1:nres) {
     v[obs < nullx & q < 0.05] <- "divergent"
     return(list("weak"=v,"strong"=vmax))
   } # ENDS function
-  # Strong or weak changes...
+  # Identify strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
   module_changes <- sapply(module_changes,"[",strenght)
   names(module_changes) <- c("wt","ko")
