@@ -47,7 +47,7 @@ for (i in 1:nrow(wtParts)) {
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
-nres <- 100
+nres <- 1
 for (r in 1:nres) {
   # Status
   message(paste("Working on resolution:", r, "..."))
@@ -113,7 +113,6 @@ for (r in 1:nres) {
   #  p-values for all stats = sig, obs.avg.edge.weight < NULL.
   maxp <- function(preservation) {
 	  # Maximum p.value and p.adjust.
-	  p <- apply(preservation$p.valuse,1,function(x) max(x,na.rm=TRUE))
 	  q <- p.adjust(p,"bonferroni")
 	  # Total number of modules.
 	  n <- length(Preservation$nVarsPresent)
@@ -134,8 +133,13 @@ for (r in 1:nres) {
   check_modules <- function(x) {
     obs <- x$observed[, 1] # 1 = average edge weight.
     nullx <- apply(x$nulls[, 1, ], 1, mean) # 1 = average edge weight.
+
+    apply(x$nulls,2,mean)
+
     p <- x$p.values[, 1] # 1 = average edge weight.
     q <- p.adjust(p, "bonferroni")
+    pmax <- apply(preservation$p.valuse,1,function(x) max(x,na.rm=TRUE))
+    qmax <- p.adjust(pmax, "bonferroni")
     q[is.na(q)] <- 1
     n <- length(x$nVarsPresent)
     v <- rep("ns", n)
