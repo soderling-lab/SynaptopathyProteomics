@@ -45,10 +45,6 @@ for (i in 1:nrow(wtParts)) {
   )
 }
 
-# Load network partitions - self-preservation enforced.
-# myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
-# partitions <- readRDS(myfile)
-
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
 nres <- 100
@@ -83,8 +79,8 @@ for (r in 1:nres) {
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
   network_list <- list(wt = wtAdjm, ko = koAdjm)
   module_list <- list(wt = koPartition, ko = wtPartition)
-  # ^This is correct. We are asking, given the WT data and graph and the KO modules,
-  # are modules preserved (the same) or divergent (different) in the KO graph.
+  # ^This is correct: given the WT data/graph and the KO modules,
+  # are modules preserved (the same) or divergent (different) in the KO graph?
   # Hypothesis for self-preservation.
   h0 <- list(
     wt = c(discovery = "wt", test = "wt"),
@@ -113,6 +109,25 @@ for (r in 1:nres) {
     })
   })
   ## Identify divergent modules.
+  # Stringent approach: 
+  #  p-values for all stats = sig, obs.avg.edge.weight < NULL.
+  maxp <- function(preservation) {
+	  # Maximum p.value and p.adjust.
+	  p <- apply(preservation$p.valuse,1,function(x) max(x,na.rm=TRUE))
+	  q <- p.adjust(p,"bonferroni")
+	  # Total number of modules.
+	  n <- length(Preservation$nVarsPresent)
+	  v <- rep("ns", n)
+	  # PRESERVED MODULES = obs > NULL & q < 0.05
+	  obs <- x$observed[, 1] # 1 = average edge weight.
+	  nullx <- apply(x$nulls[, 1, ], 1, mean) # 1 = average edge weight.
+	  v[obs > nullx & q < 0.05] <- "preserved"
+	  # DIVERGENT MODULES = obs < NULL & q < 0.05
+	  v[obs < nullx & q < 0.05] <- "divergent"
+	  return(v)
+  }
+  #module_changes <- lapply(preservation, maxp)
+  #
   # Function to check if modules are preserved, or divergent.
   # Uses average edge weight only!
   # Strong preservation & Divergence may be enforced by asking all stats to be signficant.
