@@ -64,6 +64,7 @@ message(paste("Criterion for module preservation/divergence:",c("strong","weak")
 output <- list()
 
 for (r in seq_along(1:nres)) {
+
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   r_wt <- r_ko <- r
@@ -88,12 +89,14 @@ for (r in seq_along(1:nres)) {
   if (!all(names(koPartition) %in% colnames(koDat))) {
     stop("Input data don't match!")
   }
+
   # Input for NetRep:
   # Note the networks are what are used to calc the avg edge weight statistic.
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
   network_list <- list(wt = wtAdjm, ko = koAdjm)
   module_list <- list(wt = koPartition, ko = wtPartition)
+
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
   # Hypothesis for self-preservation.
@@ -101,6 +104,7 @@ for (r in seq_along(1:nres)) {
     wt = c(discovery = "wt", test = "wt"),
     ko = c(discovery = "ko", test = "ko")
   )
+
   # Perform permutation testing.
   # Suppress warnings which arise from small modules; NA p.vals are replaced with 1.
   suppressWarnings({
@@ -115,7 +119,7 @@ for (r in seq_along(1:nres)) {
         discovery = x["discovery"],
         test = x["test"],
         selfPreservation = TRUE,
-        nThreads = 48,
+        nThreads = 8,
         # nPerm = 100000,  # determined by the function.
         null = "overlap",
         alternative = "two.sided", # c(greater,less,two.sided)
@@ -124,6 +128,7 @@ for (r in seq_along(1:nres)) {
       )
     })
   })
+
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
     # Strong preservation. All stats.
@@ -150,9 +155,12 @@ for (r in seq_along(1:nres)) {
     v[obs < nullx & q < 0.05] <- "divergent"
     return(list("weak" = v, "strong" = vmax))
   } # ENDS function
+
   # Collect strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
   module_changes <- sapply(module_changes, "[", strength)
+  
+
   names(module_changes) <- c("wt", "ko")
   # Status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
@@ -173,6 +181,7 @@ for (r in seq_along(1:nres)) {
     "... ... Number of KO modules divergent in WT graph:",
     sum(module_changes$ko == "divergent")
   ))
+
   # Return resolution, total number of modules, and module changes.
   output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes)
 } # ENDS LOOP.
