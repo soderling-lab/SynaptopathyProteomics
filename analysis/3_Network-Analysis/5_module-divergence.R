@@ -58,8 +58,8 @@ wtModules <- split(wtPartition, wtPartition)
 koModules <- split(koPartition, koPartition)
 
 # Number of modules (subract 1 for background module = "0").
-message(paste("Total WT Modules:",length(wtModules)-1))
-message(paste("Total KO Modules:",length(koModules)-1))
+message(paste("Total WT Modules:", length(wtModules) - 1))
+message(paste("Total KO Modules:", length(koModules) - 1))
 
 # Checks:
 if (!all(colnames(wtDat) == colnames(koDat))) {
@@ -111,7 +111,7 @@ preservation <- lapply(h0, function(x) {
     modules = NULL,
     backgroundLabel = 0,
     discovery = x["discovery"],
-    test = x["test"],   
+    test = x["test"],
     selfPreservation = TRUE, # Was FALSE
     nThreads = 8,
     # nPerm = 100000,  # determined by the function.
@@ -130,7 +130,7 @@ preservation <- lapply(h0, function(x) {
 q <- lapply(preservation, function(x) p.adjust(x$p.values[, 1], "bonferroni"))
 
 # Require all to be less than 0.05.
- q <- lapply(preservation, function(x) p.adjust(apply(x$p.values, 1, max)))
+q <- lapply(preservation, function(x) p.adjust(apply(x$p.values, 1, max)))
 
 # Which modules have significant statistics?
 sigModules <- lapply(q, function(x) names(x)[x < 0.05])
@@ -182,7 +182,7 @@ plots <- list(
 )
 
 # Save plots.
-p <- sapply(plots$wt,"[",1)
+p <- sapply(plots$wt, "[", 1)
 library(gridExtra)
 pdf("wt_plots.pdf", onefile = TRUE)
 for (i in seq(length(p))) {
@@ -190,7 +190,7 @@ for (i in seq(length(p))) {
 }
 dev.off()
 
-p <- sapply(plots$ko,"[",1)
+p <- sapply(plots$ko, "[", 1)
 pdf("ko_plots.pdf", onefile = TRUE)
 for (i in seq(length(p))) {
   grid.arrange(p[[i]])
