@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 1 # c(strong, weak)
+strength <- 2 # c(strong, weak)
 nres <- 100
 
 # SLURM job notes - sent to job_*.info
