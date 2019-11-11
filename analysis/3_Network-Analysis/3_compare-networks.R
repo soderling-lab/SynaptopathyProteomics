@@ -8,16 +8,14 @@
 
 # User parameters:
 strength <- 1 # c(strong, weak)
-nres <- 1     
-output_name <- "Network_Comparisons_Strong.RData"
+nres <- 100
 
-# SLURM Job notes - sent to job_*.out
-job <- Sys.getenv('SLURM_JOBID')
-txt <- paste0("SLURM Job ID : ", job,"\n",
-	     "Comparing networks at all resolutions,","\n",
-	     "... criterion for module preservation/divergence: ",
-	     c("strong","weak")[strength],"\n")
-cat(txt)
+# SLURM job notes - sent to job_*.info
+job <- as.integer(Sys.getenv('SLURM_JOBID'))
+info <- as.matrix(Sys.getenv())
+idx <- grepl("SLURM",rownames(info))
+myfile <- file.path("./out",paste0("job_",job,".info"))
+write.table(info[idx,],myfile,col.names=FALSE,quote=FALSE,sep="\t")
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -58,10 +56,14 @@ for (i in 1:nrow(wtParts)) {
   )
 }
 
+# Status report:
+message(paste("Analyzing all resolutions in:",nres))
+message(paste("Criterion for module preservation/divergence:",c("strong","weak")[strength]))
+
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
 
-for (r in seq_along(nres)) {
+for (r in seq_along(1:nres)) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   r_wt <- r_ko <- r
@@ -176,5 +178,6 @@ for (r in seq_along(nres)) {
 } # ENDS LOOP.
 
 # Save output to file.
+output_name <- paste0(job,"_Network_Comparisons_Strong.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
