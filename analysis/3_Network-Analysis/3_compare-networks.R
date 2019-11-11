@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 2 # c(strong, weak)
+strength <- 1 # c(strong, weak)
 nres <- 100
 
 # SLURM job notes - sent to job_*.info
@@ -156,6 +156,8 @@ for (r in seq_along(1:nres)) {
   module_changes <- sapply(module_changes, "[", strength)
   names(module_changes) <- c("wt", "ko")
   # Calculate percent NS, divergent, preserved.
+  # percent preserved = ~60% means 60% of proteins are assigned to modules that
+  # are preserved in WT and KO graphs.
   wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="preserved"]] <- "preserved"  
   wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="divergent"]] <- "divergent"
   wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="ns"]] <- "ns"
@@ -168,8 +170,6 @@ for (r in seq_along(1:nres)) {
   percent_divergent <- n_divergent/(n_divergent+n_preserved+n_ns)
   percent_preserved <- n_preserved/(n_divergent+n_preserved+n_ns)
   percent_ns <- n_ns/(n_divergent+n_preserved+n_ns)
-  # percent preserved = ~60% means 60% of proteins are assigned to modules that
-  # are preserved in WT and KO graphs.
   # Status report.
   message(paste("Percent divergence:", percent_divergent))
   message(paste("... Total number of WT modules:", nModules["wt"]))
