@@ -11,11 +11,11 @@ strength <- 2 # c(strong, weak)
 nres <- 100
 
 # SLURM job notes - sent to job_*.info
-job <- as.integer(Sys.getenv('SLURM_JOBID'))
-info <- as.matrix(Sys.getenv())
-idx <- grepl("SLURM",rownames(info))
-myfile <- file.path("./out",paste0("job_",job,".info"))
-write.table(info[idx,],myfile,col.names=FALSE,quote=FALSE,sep="\t")
+#job <- as.integer(Sys.getenv('SLURM_JOBID'))
+#info <- as.matrix(Sys.getenv())
+#idx <- grepl("SLURM",rownames(info))
+#myfile <- file.path("./out",paste0("job_",job,".info"))
+#write.table(info[idx,],myfile,col.names=FALSE,quote=FALSE,sep="\t")
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -67,10 +67,9 @@ for (r in seq_along(1:nres)) {
 
   # Status report.
   message(paste("Working on resolution:", r, "..."))
-  r_wt <- r_ko <- r
   # Extract from list.
-  wtPartition <- partitions[[r_wt]][["wt"]]
-  koPartition <- partitions[[r_ko]][["ko"]]
+  wtPartition <- partitions[[r]][["wt"]]
+  koPartition <- partitions[[r]][["ko"]]
   # Split into modules.
   wtModules <- split(wtPartition, wtPartition)
   koModules <- split(koPartition, koPartition)
@@ -89,14 +88,12 @@ for (r in seq_along(1:nres)) {
   if (!all(names(koPartition) %in% colnames(koDat))) {
     stop("Input data don't match!")
   }
-
   # Input for NetRep:
   # Note the networks are what are used to calc the avg edge weight statistic.
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
   network_list <- list(wt = wtAdjm, ko = koAdjm)
   module_list <- list(wt = koPartition, ko = wtPartition)
-
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
   # Hypothesis for self-preservation.
@@ -104,7 +101,6 @@ for (r in seq_along(1:nres)) {
     wt = c(discovery = "wt", test = "wt"),
     ko = c(discovery = "ko", test = "ko")
   )
-
   # Perform permutation testing.
   # Suppress warnings which arise from small modules; NA p.vals are replaced with 1.
   suppressWarnings({
@@ -131,7 +127,7 @@ for (r in seq_along(1:nres)) {
 
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
-    # Strong preservation. All stats.
+    # Strong preservation. All stats sig.
     all_obs <- x$observed
     all_nulls <- apply(x$nulls, 2, function(x) apply(x, 1, mean))
     pmax <- apply(x$p.values, 1, function(x) max(x, na.rm = TRUE))
@@ -143,7 +139,7 @@ for (r in seq_along(1:nres)) {
     vmax[apply(all_obs > all_nulls, 1, all) & qmax < 0.05] <- "preserved"
     # DIVERGENT MODULES = obs < NULL & q < 0.05
     vmax[apply(all_obs < all_nulls, 1, all) & qmax < 0.05] <- "divergent"
-    # Just average edge weight = 1.
+    # Weak preservation. Just average edge weight.
     obs <- x$observed[, 1]
     nullx <- apply(x$nulls[, 1, ], 1, mean)
     p <- x$p.values[, 1]
@@ -155,14 +151,27 @@ for (r in seq_along(1:nres)) {
     v[obs < nullx & q < 0.05] <- "divergent"
     return(list("weak" = v, "strong" = vmax))
   } # ENDS function
-
   # Collect strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
   module_changes <- sapply(module_changes, "[", strength)
-  
-
   names(module_changes) <- c("wt", "ko")
+  # Calculate percent NS, divergent, preserved.
+  wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="preserved"]] <- "preserved"  
+  wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="divergent"]] <- "divergent"
+  wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="ns"]] <- "ns"
+  koPartition[koPartition %in% c(1:length(koModules))[module_changes$ko=="preserved"]] <- "preserved" 
+  koPartition[koPartition %in% c(1:length(koModules))[module_changes$ko=="divergent"]] <- "divergent" 
+  koPartition[koPartition %in% c(1:length(koModules))[module_changes$ko=="ns"]] <- "ns" 
+  n_divergent <- sum(wtPartition=="divergent") + sum(koPartition=="divergent")
+  n_preserved <- sum(wtPartition=="preserved") + sum(koPartition=="preserved")
+  n_ns <- sum(wtPartition=="ns") + sum(koPartition=="ns")
+  percent_divergent <- n_divergent/(n_divergent+n_preserved+n_ns)
+  percent_preserved <- n_preserved/(n_divergent+n_preserved+n_ns)
+  percent_ns <- n_ns/(n_divergent+n_preserved+n_ns)
+  # percent preserved = ~60% means 60% of proteins are assigned to modules that
+  # are preserved in WT and KO graphs.
   # Status report.
+  message(paste("Percent divergence:", percent_divergent))
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste(
     "... ... Number of WT modules preserved in KO graph:",
@@ -181,12 +190,21 @@ for (r in seq_along(1:nres)) {
     "... ... Number of KO modules divergent in WT graph:",
     sum(module_changes$ko == "divergent")
   ))
-
   # Return resolution, total number of modules, and module changes.
-  output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes)
+  output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes,
+		      "percent_preserved" = percent_preserved, 
+		      "percent_divergent" = percent_divergent,
+		      "percent_ns" = percent_ns)
 } # ENDS LOOP.
 
 # Save output to file.
 output_name <- paste0(job,"_Network_Comparisons.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
+bal options and imports.
+suppressPackageStartupMessages({
+	  library(data.table)
+	    library(dplyr)
+	    library(NetRep)
+})
+
