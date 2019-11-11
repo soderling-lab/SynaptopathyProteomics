@@ -89,7 +89,7 @@ for (r in 1:nres) {
     ko = c(discovery = "ko", test = "ko")
   )
   # Perform permutation testing.
-  # Suppress warnings which arise from small modules; NA p.vals are replaced with 1. 
+  # Suppress warnings which arise from small modules; NA p.vals are replaced with 1.
   suppressWarnings({
     preservation <- lapply(h0, function(x) {
       NetRep::modulePreservation(
@@ -115,19 +115,19 @@ for (r in 1:nres) {
   check_modules <- function(x) {
     # Strong preservation. All stats.
     all_obs <- x$observed
-    all_nulls <- apply(x$nulls, 2, function(x) apply(x,1,mean))
-    pmax <- apply(x$p.values,1,function(x) max(x,na.rm=TRUE))
+    all_nulls <- apply(x$nulls, 2, function(x) apply(x, 1, mean))
+    pmax <- apply(x$p.values, 1, function(x) max(x, na.rm = TRUE))
     qmax <- p.adjust(pmax, "bonferroni")
     qmax[is.na(qmax)] <- 1
     n <- length(x$nVarsPresent)
     v <- vmax <- rep("ns", n)
     # PRESERVED MODULES = obs > NULL & q < 0.05
-   vmax[apply(all_obs > all_nulls,1,all) & qmax < 0.05] <- "preserved"
+    vmax[apply(all_obs > all_nulls, 1, all) & qmax < 0.05] <- "preserved"
     # DIVERGENT MODULES = obs < NULL & q < 0.05
-   vmax[apply(all_obs < all_nulls,1,all) & qmax < 0.05] <- "divergent"
-   # Just average edge weight = 1.
+    vmax[apply(all_obs < all_nulls, 1, all) & qmax < 0.05] <- "divergent"
+    # Just average edge weight = 1.
     obs <- x$observed[, 1]
-    nullx <- apply(x$nulls[, 1, ], 1, mean) 
+    nullx <- apply(x$nulls[, 1, ], 1, mean)
     p <- x$p.values[, 1]
     q <- p.adjust(p, "bonferroni")
     q[is.na(q)] <- 1
@@ -135,12 +135,12 @@ for (r in 1:nres) {
     v[obs > nullx & q < 0.05] <- "preserved"
     # DIVERGENT MODULES = obs < NULL & q < 0.05
     v[obs < nullx & q < 0.05] <- "divergent"
-    return(list("weak"=v,"strong"=vmax))
+    return(list("weak" = v, "strong" = vmax))
   } # ENDS function
   # Collect strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
-  module_changes <- sapply(module_changes,"[",strength)
-  names(module_changes) <- c("wt","ko")
+  module_changes <- sapply(module_changes, "[", strength)
+  names(module_changes) <- c("wt", "ko")
   # Status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste(
