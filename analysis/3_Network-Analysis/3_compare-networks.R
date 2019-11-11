@@ -8,14 +8,14 @@
 
 # User parameters:
 strength <- 1 # c(strong, weak)
-nres <- 100
+nres <- 1
 
 # SLURM job notes - sent to job_*.info
-#job <- as.integer(Sys.getenv('SLURM_JOBID'))
-#info <- as.matrix(Sys.getenv())
-#idx <- grepl("SLURM",rownames(info))
-#myfile <- file.path("./out",paste0("job_",job,".info"))
-#write.table(info[idx,],myfile,col.names=FALSE,quote=FALSE,sep="\t")
+job <- as.integer(Sys.getenv('SLURM_JOBID'))
+info <- as.matrix(Sys.getenv())
+idx <- grepl("SLURM",rownames(info))
+myfile <- file.path("./out",paste0("job_",job,".info"))
+write.table(info[idx,],myfile,col.names=FALSE,quote=FALSE,sep="\t")
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -64,7 +64,6 @@ message(paste("Criterion for module preservation/divergence:",c("strong","weak")
 output <- list()
 
 for (r in seq_along(1:nres)) {
-
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
@@ -124,7 +123,6 @@ for (r in seq_along(1:nres)) {
       )
     })
   })
-
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
     # Strong preservation. All stats sig.
@@ -171,7 +169,7 @@ for (r in seq_along(1:nres)) {
   percent_preserved <- n_preserved/(n_divergent+n_preserved+n_ns)
   percent_ns <- n_ns/(n_divergent+n_preserved+n_ns)
   # Status report.
-  message(paste("Percent divergence:", percent_divergent))
+  message(paste("Percent divergence:", round(percent_divergent,3)))
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste(
     "... ... Number of WT modules preserved in KO graph:",
@@ -201,10 +199,3 @@ for (r in seq_along(1:nres)) {
 output_name <- paste0(job,"_Network_Comparisons.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
-bal options and imports.
-suppressPackageStartupMessages({
-	  library(data.table)
-	    library(dplyr)
-	    library(NetRep)
-})
-
