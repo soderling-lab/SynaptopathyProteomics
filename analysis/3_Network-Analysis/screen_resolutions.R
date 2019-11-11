@@ -111,35 +111,33 @@ for (r in 1:nres) {
       )
     })
   })
-  ## Identify preserved and divergent modules.
+  # Identify preserved and divergent modules.
   check_modules <- function(x) {
-    ## Strong preservation. All stats.
+    # Strong preservation. All stats.
     all_obs <- x$observed
     all_nulls <- apply(x$nulls, 2, function(x) apply(x,1,mean))
     pmax <- apply(x$p.values,1,function(x) max(x,na.rm=TRUE))
     qmax <- p.adjust(pmax, "bonferroni")
     qmax[is.na(qmax)] <- 1
     n <- length(x$nVarsPresent)
-    vmax <- rep("ns", n)
+    v <- vmax <- rep("ns", n)
     # PRESERVED MODULES = obs > NULL & q < 0.05
    vmax[apply(all_obs > all_nulls,1,all) & qmax < 0.05] <- "preserved"
     # DIVERGENT MODULES = obs < NULL & q < 0.05
    vmax[apply(all_obs < all_nulls,1,all) & qmax < 0.05] <- "divergent"
-   ## Just average edge weight = 1.
+   # Just average edge weight = 1.
     obs <- x$observed[, 1]
     nullx <- apply(x$nulls[, 1, ], 1, mean) 
     p <- x$p.values[, 1]
     q <- p.adjust(p, "bonferroni")
     q[is.na(q)] <- 1
-    n <- length(x$nVarsPresent)
-    v <- rep("ns", n)
     # PRESERVED MODULES = obs > NULL & q < 0.05
     v[obs > nullx & q < 0.05] <- "preserved"
     # DIVERGENT MODULES = obs < NULL & q < 0.05
     v[obs < nullx & q < 0.05] <- "divergent"
     return(list("weak"=v,"strong"=vmax))
   } # ENDS function
-  # Identify strong or weak changes...
+  # Collect strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
   module_changes <- sapply(module_changes,"[",strength)
   names(module_changes) <- c("wt","ko")
@@ -167,5 +165,5 @@ for (r in 1:nres) {
 } # ENDS LOOP.
 
 # Save output to file.
-myfile <- file.path(rdatdir, "Network_Comparisons.RData")
+myfile <- file.path(rdatdir, "Network_Comparisons_Strong.RData")
 saveRDS(output, myfile)
