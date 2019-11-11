@@ -4,8 +4,8 @@
 #SBATCH -e ./out/job_%j.err
 #SBATCH -o ./out/job_%j.out 
 #SBATCH -N 1          
-#SBATCH -c 24         
-#SBATCH --mem=64G      
+#SBATCH -c 48         
+#SBATCH --mem=6G      
 #SBATCH -p scavenger
 module load R/3.6.0
 Rscript screen_resolutions.R

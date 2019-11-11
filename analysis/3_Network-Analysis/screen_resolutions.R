@@ -35,7 +35,7 @@ wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 
 # Use a loop to make a list of partitions.
-# Same format as other partitions RData object.
+# Enforce the same format as other partitions.RData object.
 # Add one such that all module indices are non-zero.
 partitions <- list()
 for (i in 1:nrow(wtParts)) {
@@ -47,9 +47,12 @@ for (i in 1:nrow(wtParts)) {
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
-nres <- 1
+nres <- length(wtPartition)
+nres <- 1 
+strength <- 1 # c(strong, weak)
+
 for (r in 1:nres) {
-  # Status
+  # Status report.
   message(paste("Working on resolution:", r, "..."))
   r_wt <- r_ko <- r
   # Extract from list.
@@ -87,6 +90,7 @@ for (r in 1:nres) {
     ko = c(discovery = "ko", test = "ko")
   )
   # Perform permutation testing.
+  # Suppress warnings which arise from small modules; NA p.vals are replaced with 1. 
   suppressWarnings({
     preservation <- lapply(h0, function(x) {
       NetRep::modulePreservation(
@@ -99,7 +103,7 @@ for (r in 1:nres) {
         discovery = x["discovery"],
         test = x["test"],
         selfPreservation = TRUE,
-        nThreads = 24,
+        nThreads = 48,
         # nPerm = 100000,  # determined by the function.
         null = "overlap",
         alternative = "two.sided", # c(greater,less,two.sided)
@@ -108,38 +112,25 @@ for (r in 1:nres) {
       )
     })
   })
-  ## Identify divergent modules.
-  # Stringent approach: 
-  #  p-values for all stats = sig, obs.avg.edge.weight < NULL.
-  maxp <- function(preservation) {
-	  # Maximum p.value and p.adjust.
-	  q <- p.adjust(p,"bonferroni")
-	  # Total number of modules.
-	  n <- length(Preservation$nVarsPresent)
-	  v <- rep("ns", n)
-	  # PRESERVED MODULES = obs > NULL & q < 0.05
-	  obs <- x$observed[, 1] # 1 = average edge weight.
-	  nullx <- apply(x$nulls[, 1, ], 1, mean) # 1 = average edge weight.
-	  v[obs > nullx & q < 0.05] <- "preserved"
-	  # DIVERGENT MODULES = obs < NULL & q < 0.05
-	  v[obs < nullx & q < 0.05] <- "divergent"
-	  return(v)
-  }
-  #module_changes <- lapply(preservation, maxp)
-  #
-  # Function to check if modules are preserved, or divergent.
-  # Uses average edge weight only!
-  # Strong preservation & Divergence may be enforced by asking all stats to be signficant.
+  ## Identify preserved and divergent modules.
   check_modules <- function(x) {
-    obs <- x$observed[, 1] # 1 = average edge weight.
-    nullx <- apply(x$nulls[, 1, ], 1, mean) # 1 = average edge weight.
-
-    apply(x$nulls,2,mean)
-
-    p <- x$p.values[, 1] # 1 = average edge weight.
-    q <- p.adjust(p, "bonferroni")
-    pmax <- apply(preservation$p.valuse,1,function(x) max(x,na.rm=TRUE))
+    ## Strong preservation. All stats.
+    all_obs <- x$observed
+    all_nulls <- apply(x$nulls, 2, function(x) apply(x,1,mean))
+    pmax <- apply(x$p.values,1,function(x) max(x,na.rm=TRUE))
     qmax <- p.adjust(pmax, "bonferroni")
+    qmax[is.na(qmax)] <- 1
+    n <- length(x$nVarsPresent)
+    vmax <- rep("ns", n)
+    # PRESERVED MODULES = obs > NULL & q < 0.05
+   vmax[apply(all_obs > all_nulls,1,all) & qmax < 0.05] <- "preserved"
+    # DIVERGENT MODULES = obs < NULL & q < 0.05
+   vmax[apply(all_obs < all_nulls,1,all) & qmax < 0.05] <- "divergent"
+   ## Just average edge weight = 1.
+    obs <- x$observed[, 1]
+    nullx <- apply(x$nulls[, 1, ], 1, mean) 
+    p <- x$p.values[, 1]
+    q <- p.adjust(p, "bonferroni")
     q[is.na(q)] <- 1
     n <- length(x$nVarsPresent)
     v <- rep("ns", n)
@@ -147,9 +138,12 @@ for (r in 1:nres) {
     v[obs > nullx & q < 0.05] <- "preserved"
     # DIVERGENT MODULES = obs < NULL & q < 0.05
     v[obs < nullx & q < 0.05] <- "divergent"
-    return(v)
-  }
+    return(list("weak"=v,"strong"=vmax))
+  } # ENDS function
+  # Strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
+  module_changes <- sapply(module_changes,"[",strenght)
+  names(module_changes) <- c("wt","ko")
   # Status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste(
@@ -170,7 +164,7 @@ for (r in 1:nres) {
     sum(module_changes$ko == "divergent")
   ))
   # Return resolution, total number of modules, and module changes.
-  output[[i]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes)
+  output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes)
 } # ENDS LOOP.
 
 # Save output to file.
