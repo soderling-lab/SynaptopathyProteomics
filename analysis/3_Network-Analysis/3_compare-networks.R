@@ -187,6 +187,6 @@ for (r in seq_along(1:nres)) {
 } # ENDS LOOP.
 
 # Save output to file.
-output_name <- paste0(job,"_Network_Comparisons_Strong.RData")
+output_name <- paste0(job,"_Network_Comparisons.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
