@@ -6,6 +6,19 @@
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# User parameters:
+strength <- 1 # c(strong, weak)
+nres <- 1     
+output_name <- "Network_Comparisons_Strong.RData"
+
+# SLURM Job notes - sent to job_*.out
+job <- Sys.getenv('SLURM_JOBID')
+txt <- paste0("SLURM Job ID : ", job,"\n",
+	     "Comparing networks at all resolutions,","\n",
+	     "... criterion for module preservation/divergence: ",
+	     c("strong","weak")[strength],"\n")
+cat(txt)
+
 # Global options and imports.
 suppressPackageStartupMessages({
   library(data.table)
@@ -47,10 +60,8 @@ for (i in 1:nrow(wtParts)) {
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
-nres <- length(partitions)
-strength <- 1 # c(strong, weak)
 
-for (r in 1:nres) {
+for (r in seq_along(nres)) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   r_wt <- r_ko <- r
@@ -165,5 +176,5 @@ for (r in 1:nres) {
 } # ENDS LOOP.
 
 # Save output to file.
-myfile <- file.path(rdatdir, "Network_Comparisons_Strong.RData")
+myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
