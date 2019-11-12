@@ -9,7 +9,7 @@
 # User parameters:
 strength <- 1  # c(strong, weak)
 nres <- 100    # Number of resolutions to analyze 
-nThreads <- 8 # Number of threads for parallel processing.
+nThreads <- 48 # Number of threads for parallel processing.
 
 # SLURM job notes - sent to job_*.info
 job <- as.integer(Sys.getenv('SLURM_JOBID'))
@@ -177,9 +177,6 @@ for (r in seq_along(1:nres)) {
   percent_preserved <- n_preserved/(n_divergent+n_preserved+n_ns)
   percent_ns <- n_ns/(n_divergent+n_preserved+n_ns)
   # Status report.
-  message(paste("Percent preserved:", 100*round(percent_preserved,3)))
-  message(paste("Percent divergent:", 100*round(percent_divergent,3)))
-  message(paste("Percent ns:", 100*round(percent_ns,3)))
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste(
     "... ... Number of WT modules preserved in KO graph:",
@@ -198,6 +195,9 @@ for (r in seq_along(1:nres)) {
     "... ... Number of KO modules divergent in WT graph:",
     sum(module_changes$wt == "divergent")
   ))
+  message(paste("... Percent preserved:", percent_preserved))
+  message(paste("... Percent divergent:", percent_divergent))
+  message(paste("... Percent ns:", percent_ns))
   # Return resolution, total number of modules, and module changes.
   output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes,
 		      "percent_preserved" = percent_preserved, 
