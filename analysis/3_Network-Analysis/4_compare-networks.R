@@ -3,11 +3,11 @@
 # permutation test in order to identify perserved and divergent modules.
 
 #-------------------------------------------------------------------------------
-## Set-up the workspace.
+# Set-up the workspace.
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 1  # c(strong, weak)
+strength <- 2  # c(strong, weak)
 nres <- 100    # Number of resolutions to analyze 
 nThreads <- 48 # Number of threads for parallel processing.
 
@@ -60,6 +60,10 @@ partitions <- readRDS(myfile)
 #    "ko" = unlist(koParts[i, ]) + 1
 #  )
 #}
+
+#------------------------------------------------------------------------------
+# Loop through all resolutions and perform permutation test. 
+#------------------------------------------------------------------------------
 
 # Status report:
 message(paste("Analyzing all resolutions in:",nres))
@@ -132,6 +136,11 @@ for (r in seq_along(1:nres)) {
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
     # Strong preservation. All stats sig.
+	  # Get observed statistics. (e.g. KO module in WT graph avg.edge.weight)
+	  # Get nulls -- 10,000 randomizations of the WT graph.
+	  # Get maximum p.value associated with all 7 module statistics.
+	  # BH correction
+	  # Require that ALL obseved module statistics are signficantly different from null distributions.
     all_obs <- x$observed
     all_nulls <- apply(x$nulls, 2, function(x) apply(x, 1, mean))
     pmax <- apply(x$p.values, 1, function(x) max(x, na.rm = TRUE))
