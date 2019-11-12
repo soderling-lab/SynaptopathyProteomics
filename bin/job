@@ -8,6 +8,6 @@
 #SBATCH --mem=16G      
 #SBATCH -p scavenger
 module load R/3.6.0
-Rscript 3_compare-networks.R
+Rscript ~/work/SynaptopathyProteomics/analysis/3_Network-Analysis/3_compare-networks.R
 
 
