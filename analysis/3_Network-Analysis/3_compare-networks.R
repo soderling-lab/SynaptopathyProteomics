@@ -7,8 +7,8 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 1 # c(strong, weak)
-nres <- 1
+strength <- 2 # c(strong, weak)
+nres <- 100
 
 # SLURM job notes - sent to job_*.info
 job <- as.integer(Sys.getenv('SLURM_JOBID'))
