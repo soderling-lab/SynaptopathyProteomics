@@ -9,7 +9,7 @@
 # User parameters:
 strength <- 1  # c(strong, weak)
 nres <- 100    # Number of resolutions to analyze 
-nThreads <- 48 # Number of threads for parallel processing.
+nThreads <- 8 # Number of threads for parallel processing.
 
 # SLURM job notes - sent to job_*.info
 job <- as.integer(Sys.getenv('SLURM_JOBID'))
@@ -162,9 +162,11 @@ for (r in seq_along(1:nres)) {
   # Calculate percent NS, divergent, preserved.
   # percent preserved = ~60% means 60% of proteins are assigned to modules that
   # are preserved in WT and KO graphs.
+  wtPartition[wtPartition=="0"] <- "ns"
   wtPartition[wtPartition %in% c(1:nModules['wt'])[module_changes$wt=="preserved"]] <- "preserved"  
   wtPartition[wtPartition %in% c(1:nModules['wt'])[module_changes$wt=="divergent"]] <- "divergent"
   wtPartition[wtPartition %in% c(1:nModules['wt'])[module_changes$wt=="ns"]] <- "ns"
+  koPartition[koPartition=="0"] <- "ns"
   koPartition[koPartition %in% c(1:nModules['ko'])[module_changes$ko=="preserved"]] <- "preserved" 
   koPartition[koPartition %in% c(1:nModules['ko'])[module_changes$ko=="divergent"]] <- "divergent" 
   koPartition[koPartition %in% c(1:nModules['ko'])[module_changes$ko=="ns"]] <- "ns" 
@@ -175,24 +177,26 @@ for (r in seq_along(1:nres)) {
   percent_preserved <- n_preserved/(n_divergent+n_preserved+n_ns)
   percent_ns <- n_ns/(n_divergent+n_preserved+n_ns)
   # Status report.
-  message(paste("Percent divergence:", round(percent_divergent,3)))
+  message(paste("Percent preserved:", 100*round(percent_preserved,3)))
+  message(paste("Percent divergent:", 100*round(percent_divergent,3)))
+  message(paste("Percent ns:", 100*round(percent_ns,3)))
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste(
     "... ... Number of WT modules preserved in KO graph:",
-    sum(module_changes$wt == "preserved")
+    sum(module_changes$ko == "preserved")
   ))
   message(paste(
     "... ... Number of WT modules divergent in KO graph:",
-    sum(module_changes$wt == "divergent")
+    sum(module_changes$ko == "divergent")
   ))
   message(paste("... Total number of KO modules:", nModules["ko"]))
   message(paste(
     "... ... Number of KO modules preserved in WT graph:",
-    sum(module_changes$ko == "preserved")
+    sum(module_changes$wt == "preserved")
   ))
   message(paste(
     "... ... Number of KO modules divergent in WT graph:",
-    sum(module_changes$ko == "divergent")
+    sum(module_changes$wt == "divergent")
   ))
   # Return resolution, total number of modules, and module changes.
   output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes,
@@ -205,3 +209,6 @@ for (r in seq_along(1:nres)) {
 output_name <- paste0(job,"_Network_Comparisons.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
+
+# Save R workspace.
+#save.image("work.RData")
