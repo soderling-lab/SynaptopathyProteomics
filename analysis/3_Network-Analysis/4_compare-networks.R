@@ -197,7 +197,7 @@ for (r in seq_along(1:nres)) {
   ))
   message(paste("... Percent preserved:", percent_preserved))
   message(paste("... Percent divergent:", percent_divergent))
-  message(paste("... Percent ns:", percent_ns))
+  message(paste("... ... .. Percent ns:", percent_ns,"\n"))
   # Return resolution, total number of modules, and module changes.
   output[[r]] <- list("resolution" = r, "nModules" = nModules, "Changes" = module_changes,
 		      "percent_preserved" = percent_preserved, 
