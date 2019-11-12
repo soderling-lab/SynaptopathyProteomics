@@ -32,9 +32,32 @@ source_myfun <- function() {
 }
 source_myfun()
 
+# Load adjmatrices.
+wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData", full.names = TRUE)))
+koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", full.names = TRUE)))
+
 # Load preserved partitions of co-expression graph:
 myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
+
+# Load network partitions.
+myfiles <- list.files(datadir, pattern = "*preservation.csv", full.names = TRUE)
+
+koParts <- data.table::fread(myfiles[1],drop=1,skip=1)
+wtParts <- data.table::fread(myfiles[2],drop=1,skip=1)
+
+# Use a loop to make a list of partitions.
+# Enforce the same format as other partitions.RData object.
+# Add one such that all module indices are non-zero.
+partitions <- list()
+for (i in 1:nrow(wtParts)) {
+  partitions[[i]] <- list(
+    "wt" = unlist(wtParts[i, ]) + 1,
+    "ko" = unlist(koParts[i, ]) + 1
+  )
+}
+
+
 
 #-------------------------------------------------------------------------------
 ## Compare resolution versus number of clusters (k).
