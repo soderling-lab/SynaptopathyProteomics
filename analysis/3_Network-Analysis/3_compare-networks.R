@@ -7,9 +7,9 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 1 # c(strong, weak)
-nres <- 100
-nThreads <- 48
+strength <- 1  # c(strong, weak)
+nres <- 100    # Number of resolutions to analyze 
+nThreads <- 48 # Number of threads for parallel processing.
 
 # SLURM job notes - sent to job_*.info
 job <- as.integer(Sys.getenv('SLURM_JOBID'))
