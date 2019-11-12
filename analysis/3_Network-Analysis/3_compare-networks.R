@@ -7,8 +7,9 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 2 # c(strong, weak)
+strength <- 1 # c(strong, weak)
 nres <- 100
+nThreads <- 8
 
 # SLURM job notes - sent to job_*.info
 job <- as.integer(Sys.getenv('SLURM_JOBID'))
@@ -39,22 +40,26 @@ koDat <- t(readRDS(list.files(rdatdir, pattern = "KO_cleanDat", full.names = TRU
 wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData", full.names = TRUE)))
 koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", full.names = TRUE)))
 
-# Load network partitions.
-myfiles <- list.files(rdatdir, pattern = "*.partitions.csv", full.names = TRUE)
-koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
-wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
-colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
+# Load network partitions. Self-preservation enforced.
+myfile <- list.files(rdatdir,pattern="preservation",full.names=TRUE)
+partitions <- readRDS(myfile)
+
+# Load network partitions. Self-preservation NOT enforced!
+#myfiles <- list.files(rdatdir, pattern = "*.partitions.csv", full.names = TRUE)
+#koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
+#wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
+#colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 
 # Use a loop to make a list of partitions.
 # Enforce the same format as other partitions.RData object.
 # Add one such that all module indices are non-zero.
-partitions <- list()
-for (i in 1:nrow(wtParts)) {
-  partitions[[i]] <- list(
-    "wt" = unlist(wtParts[i, ]) + 1,
-    "ko" = unlist(koParts[i, ]) + 1
-  )
-}
+#partitions <- list()
+#for (i in 1:nrow(wtParts)) {
+#  partitions[[i]] <- list(
+#    "wt" = unlist(wtParts[i, ]) + 1,
+#    "ko" = unlist(koParts[i, ]) + 1
+#  )
+#}
 
 # Status report:
 message(paste("Analyzing all resolutions in:",nres))
@@ -73,7 +78,8 @@ for (r in seq_along(1:nres)) {
   wtModules <- split(wtPartition, wtPartition)
   koModules <- split(koPartition, koPartition)
   # Total number of modules.
-  nModules <- c("wt" = length(wtModules), "ko" = length(koModules))
+  nModules <- c("wt" =  sum(names(table(wtPartition))!=0),
+		"ko" =  sum(names(table(koPartition))!=0))
   # Checks:
   if (!all(colnames(wtDat) == colnames(koDat))) {
     stop("Input data don't match!")
@@ -114,7 +120,7 @@ for (r in seq_along(1:nres)) {
         discovery = x["discovery"],
         test = x["test"],
         selfPreservation = TRUE,
-        nThreads = 8,
+        nThreads = nThreads,
         # nPerm = 100000,  # determined by the function.
         null = "overlap",
         alternative = "two.sided", # c(greater,less,two.sided)
@@ -156,12 +162,12 @@ for (r in seq_along(1:nres)) {
   # Calculate percent NS, divergent, preserved.
   # percent preserved = ~60% means 60% of proteins are assigned to modules that
   # are preserved in WT and KO graphs.
-  wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="preserved"]] <- "preserved"  
-  wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="divergent"]] <- "divergent"
-  wtPartition[wtPartition %in% c(1:length(wtModules))[module_changes$wt=="ns"]] <- "ns"
-  koPartition[koPartition %in% c(1:length(koModules))[module_changes$ko=="preserved"]] <- "preserved" 
-  koPartition[koPartition %in% c(1:length(koModules))[module_changes$ko=="divergent"]] <- "divergent" 
-  koPartition[koPartition %in% c(1:length(koModules))[module_changes$ko=="ns"]] <- "ns" 
+  wtPartition[wtPartition %in% c(1:nModules['wt'])[module_changes$wt=="preserved"]] <- "preserved"  
+  wtPartition[wtPartition %in% c(1:nModules['wt'])[module_changes$wt=="divergent"]] <- "divergent"
+  wtPartition[wtPartition %in% c(1:nModules['wt'])[module_changes$wt=="ns"]] <- "ns"
+  koPartition[koPartition %in% c(1:nModules['ko'])[module_changes$ko=="preserved"]] <- "preserved" 
+  koPartition[koPartition %in% c(1:nModules['ko'])[module_changes$ko=="divergent"]] <- "divergent" 
+  koPartition[koPartition %in% c(1:nModules['ko'])[module_changes$ko=="ns"]] <- "ns" 
   n_divergent <- sum(wtPartition=="divergent") + sum(koPartition=="divergent")
   n_preserved <- sum(wtPartition=="preserved") + sum(koPartition=="preserved")
   n_ns <- sum(wtPartition=="ns") + sum(koPartition=="ns")
