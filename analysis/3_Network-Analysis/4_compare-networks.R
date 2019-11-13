@@ -77,15 +77,15 @@ partitions <- readRDS(myfile)
 
 # All module statistics.
 module_stats <- c("avg.weight","coherence","cor.cor",
-		  "cor.degree","cor.contrib","avg.cor","avg.contrib")
+		  "cor.degree","cor.contrib","avg.cor","avg.contrib")[stats]
 
 # Status report:
 nres <- length(res)
 message(paste("Analyzing all resolutions in:", nres))
 message(paste("Module statistic used to evaluate module preservation:",
-	      module_stats[stats])
+	      module_stats))
 message(paste("Criterion for module preservation/divergence:", 
-	      c("strong"="all","weak"="any")[strength],"\n")
+	      c("strong"="all","weak"="any")[strength],"\n"))
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
