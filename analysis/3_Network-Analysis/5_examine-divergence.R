@@ -13,7 +13,6 @@ tabsdir <- file.path(rootdir, "tables")
 figsdir <- file.path(rootdir, "figures")
 funcdir <- file.path(rootdir, "R")
 
-
 # Global options and imports.
 suppressPackageStartupMessages({
   library(data.table)
@@ -68,6 +67,9 @@ names(koDiff) <- names(koModules)[-1]
 
 # koDiff.
 names(koDiff)[koDiff=="divergent"]
+# 4 - proteasome
+# 5 - ER
+# 11 - protein transport
 
 # Divergent KO modules (GOF).
 prots <- list(names(koModules[["4"]])
@@ -88,4 +90,5 @@ entrez <- lapply(prots,function(x) getEntrez(x,protmap))
 data(musInteractome)
 g <- lapply(entrez,function(x) buildNetwork(musInteractome,x,taxid=10090))
 
+fwrite(as.list(entrez[[3]]),"foo.csv")
 
