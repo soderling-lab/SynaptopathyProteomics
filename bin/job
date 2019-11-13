@@ -4,7 +4,7 @@
 #SBATCH -e ./out/job_%j.err
 #SBATCH -o ./out/job_%j.out 
 #SBATCH -N 1          
-#SBATCH -c 48         
+#SBATCH -c 48        
 #SBATCH --mem=16G      
 #SBATCH -p scavenger
 module load R/3.6.0

@@ -15,11 +15,13 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-stats <- 1 # Which of the seven module statistics to use.
-strength <- "all" # If using more than one stat, require any or all to be diff?
-res <- 44 # Resolutions to analyze
+stats <- c(1:7) # Which of the seven module statistics to use.
+strength <- "strong" # If using more than one stat, require any or all to be diff?
+res <- 44 #c(1:100) # Resolutions to analyze
+
 nThreads <- 48 # Number of threads for parallel processing.
 slurm <- TRUE # Is this a slurm job?
+
 save <- FALSE  # Save workspace?
 load <- FALSE # Load previously saved workspace?
 
@@ -73,11 +75,17 @@ partitions <- readRDS(myfile)
 # Loop through all resolutions and perform permutation test.
 #------------------------------------------------------------------------------
 
+# All module statistics.
+module_stats <- c("avg.weight","coherence","cor.cor",
+		  "cor.degree","cor.contrib","avg.cor","avg.contrib")
+
 # Status report:
 nres <- length(res)
 message(paste("Analyzing all resolutions in:", nres))
+message(paste("Module statistic used to evaluate module preservation:",
+	      module_stats[stats])
 message(paste("Criterion for module preservation/divergence:", 
-	      strength, "\n"))
+	      c("strong"="all","weak"="any")[strength],"\n")
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
@@ -149,16 +157,17 @@ for (r in res) {
   })
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
-	  # Collect observed values, nulls, and p.adj.
+	  # Collect observed values, nulls, and p.values -> p.adj.
 	  obs <- x$observed[,stats]
 	  nulls <- apply(x$nulls, 2, function(x) apply(x, 1, mean))[,stats]
 	  q <- apply(x$p.values,2,function(x) p.adjust(x,"bonferroni"))[,stats]
        	  q[is.na(q)] <- 1
 	  # If testing more than one statistic.
 	  if (length(stats)>1) {
-		  sig <- apply(q<0.05,1,eval(strength))
-		  greater <- apply(obs>nulls,1,eval(strength))
-		  less <- apply(obs<nulls,1,eval(strength))
+		  fx <- c("strong"="all","weak"="any")[strength]
+		  sig <- apply(q<0.05,1,eval(fx))
+		  greater <- apply(obs>nulls,1,eval(fx))
+		  less <- apply(obs<nulls,1,eval(fx))
 	  } else {
 		  # If testing a single statistic.
 		  sig <- q < 0.05
