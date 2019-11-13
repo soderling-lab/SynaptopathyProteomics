@@ -5,6 +5,21 @@
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# Is this a slurm job?
+slurm <- any(grepl("SLURM", names(Sys.getenv())))
+if (slurm) {
+	# SLURM job notes - sent to job_*.info
+	nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")) # Number of threads.
+	job <- as.integer(Sys.getenv("SLURM_JOBID"))
+      	info <- as.matrix(Sys.getenv())
+	idx <- grepl("SLURM", rownames(info))
+	myfile <- file.path("./out", paste0("job_", job, ".info"))
+	write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
+} else  {
+	nThreads <- 8
+	job <- ""
+}
+
 # Global options and imports.
 suppressPackageStartupMessages({
   library(dplyr)
@@ -29,6 +44,11 @@ koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
 # Compute adjmatrix:
 wtAdjm <- silently(WGCNA::bicor(wtDat))
 koAdjm <- silently(WGCNA::bicor(koDat))
+
+# Compute TOM adjcacency matrices--this insures that all edges are positve.
+wtTOM <- TOMsimilarity(wtAdjm,TOMType="signed",verbose=0)
+koTOM <- TOMsimilarity(koAdjm,TOMType="signed",verbose=0)
+rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 
 # Load partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
