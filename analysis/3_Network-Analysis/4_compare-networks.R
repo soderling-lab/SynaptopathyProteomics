@@ -55,7 +55,8 @@ message(paste("Criterion for module preservation/divergence:",c("strong","weak")
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
 
-for (r in seq_along(1:nres)) {
+#for (r in seq_along(1:nres)) {
+for (r in 44) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
@@ -203,4 +204,4 @@ myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
 
 # Save R workspace.
-#save.image("work.RData")
+save.image("work.RData")
