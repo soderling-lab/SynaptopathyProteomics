@@ -48,15 +48,15 @@ myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 # Look at resolution 44.
-wtParts <- partitions[[44]][['wt']]
-koParts <- partitions[[44]][['ko']]
+wtParts <- partitions[[44]][["wt"]]
+koParts <- partitions[[44]][["ko"]]
 
 # Modules.
-wtModules <- split(wtParts,wtParts)
-koModules <- split(koParts,koParts)
+wtModules <- split(wtParts, wtParts)
+koModules <- split(koParts, koParts)
 
 # Load the module changes.
-data <- readRDS(list.files(datadir,pattern="5595360",full.names=TRUE))
+data <- readRDS(list.files(datadir, pattern = "5595360", full.names = TRUE))
 subdat <- data[[44]]
 
 # Modules with changes.
@@ -66,29 +66,30 @@ names(wtDiff) <- names(wtModules)[-1]
 names(koDiff) <- names(koModules)[-1]
 
 # koDiff.
-names(koDiff)[koDiff=="divergent"]
+names(koDiff)[koDiff == "divergent"]
 # 4 - proteasome
 # 5 - ER
 # 11 - protein transport
 
 # Divergent KO modules (GOF).
-prots <- list(names(koModules[["4"]])
-	      ,names(koModules[["5"]]),
-	      names(koModules[["11"]]))
+prots <- list(
+  names(koModules[["4"]]),
+  names(koModules[["5"]]),
+  names(koModules[["11"]])
+)
 
 # Load protein map.
-protmap <- readRDS(file.path(rdatdir,"2_Prot_Map.RData"))
+protmap <- readRDS(file.path(rdatdir, "2_Prot_Map.RData"))
 
 # Get entrez genes for prots of interest.
-getEntrez <- function(prots,protmap){
-	return(protmap$entrez[match(prots,protmap$ids)])
+getEntrez <- function(prots, protmap) {
+  return(protmap$entrez[match(prots, protmap$ids)])
 }
-entrez <- lapply(prots,function(x) getEntrez(x,protmap))
+entrez <- lapply(prots, function(x) getEntrez(x, protmap))
 
 # Build ppi graph.
 # Load mouse interactome data.
 data(musInteractome)
-g <- lapply(entrez,function(x) buildNetwork(musInteractome,x,taxid=10090))
+g <- lapply(entrez, function(x) buildNetwork(musInteractome, x, taxid = 10090))
 
-fwrite(as.list(entrez[[3]]),"foo.csv")
-
+fwrite(as.list(entrez[[3]]), "foo.csv")
