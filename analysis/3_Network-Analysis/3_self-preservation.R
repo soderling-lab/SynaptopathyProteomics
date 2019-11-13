@@ -24,6 +24,7 @@ if (slurm) {
 suppressPackageStartupMessages({
   library(dplyr)
   library(data.table)
+  library(WGCNA)
   library(NetRep)
 })
 
@@ -63,7 +64,7 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 # Input for NetRep:
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-network_list <- list(wt = wtAdjm, ko = koAdjm)
+network_list <- list(wt = wtTOM, ko = koTOM)
 
 # Loop through partitions, evaluating self-preservation.
 n <- dim(koParts)[1]
@@ -91,7 +92,7 @@ for (i in 1:n) {
       discovery = x,
       test = x,
       selfPreservation = TRUE,
-      nThreads = 24,
+      nThreads = nThreads,
       # nPerm = 100000,
       null = "overlap",
       alternative = "greater",
