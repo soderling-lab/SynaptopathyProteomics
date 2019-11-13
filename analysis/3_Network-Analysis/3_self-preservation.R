@@ -50,6 +50,7 @@ koAdjm <- silently(WGCNA::bicor(koDat))
 wtTOM <- TOMsimilarity(wtAdjm,TOMType="signed",verbose=0)
 koTOM <- TOMsimilarity(koAdjm,TOMType="signed",verbose=0)
 rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
+rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
