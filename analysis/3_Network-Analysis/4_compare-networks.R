@@ -125,9 +125,11 @@ for (r in res) {
   }
   # Input for NetRep:
   # Note the networks are what are used to calc the avg edge weight statistic.
+  # Note that NetRep assumes all edges are positive in calculating 
+  # avg.edge.weight and cor.degree.
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-  network_list <- list(wt = wtTOM, ko = koTOM) # Distance matrix! NetRep assumes all edges are positive.
+  network_list <- list(wt = wtTOM, ko = koTOM) 
   module_list <- list(wt = koPartition, ko = wtPartition)
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
@@ -225,7 +227,7 @@ for (r in res) {
     "... ... Number of KO modules preserved in WT graph: ",
     sum(module_changes$ko == "preserved"), " (",round(100*ppKO),"% proteins)."
     ))
-  message(paste0(
+  messag(paste0(
     "... ... Number of KO modules divergent in WT graph: ",
     sum(module_changes$ko == "divergent"), " (",round(100*pdKO),"% proteins)."
     ))
