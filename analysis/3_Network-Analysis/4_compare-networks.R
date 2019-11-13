@@ -22,13 +22,9 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# Add percent unclustered.
-# Add percent WT divergent/preserved/ns
-# Add percent KO divergent/preserved/ns
-
 # User parameters to change:
 stats <- c(1:7)      # Which of the seven module statistics to use.
-strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
+strength <- "weak" # Preservation criterion strong = all, or weak = any sig stats.
 res <- c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
@@ -72,6 +68,9 @@ wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData",
 koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", 
 			       full.names = TRUE)))
 
+# Compute TOM adjcacency matrices.
+TOMsimilarity(adjMat,TOMType = "signed",verbose =1)
+
 # Load network partitions. Self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
@@ -85,11 +84,11 @@ module_stats <- paste(c("avg.weight","coherence","cor.cor","cor.degree",
 			"cor.contrib","avg.cor","avg.contrib")[stats],collapse=", ")
 # Status report:
 nres <- length(res)
-message(paste("Analyzing all resolutions in:", nres))
-message(paste("Module statistic(s) used to evaluate module preservation:",
-	      module_stats))
-message(paste("Criterion for module preservation/divergence:", 
-	     strength,"\n"))
+message(paste("Comparing WT and KO graphs at", nres,"resolution(s)."))
+message(paste0("Module statistic(s) used to evaluate module preservation: ",
+	      module_stats),".")
+message(paste0("Criterion for module preservation/divergence: ", 
+	     strength,".","\n"))
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
@@ -122,9 +121,11 @@ for (r in res) {
   }
   # Input for NetRep:
   # Note the networks are what are used to calc the avg edge weight statistic.
+
+
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-  network_list <- list(wt = wtAdjm, ko = koAdjm)
+  network_list <- list(wt = 1-wtAdjm, ko = 1-koAdjm) # Distance matrix! NetRep assumes all edges are positive.
   module_list <- list(wt = koPartition, ko = wtPartition)
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
@@ -210,30 +211,22 @@ for (r in res) {
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste0(
     "... ... Number of WT modules preserved in KO graph: ",
-    sum(module_changes$wt == "preserved")
+    sum(module_changes$wt == "preserved"), " (",round(100*ppWT,3),"% proteins)."
     ))
   message(paste0(
     "... ... Number of WT modules divergent in KO graph: ",
-    sum(module_changes$wt == "divergent")
+    sum(module_changes$wt == "divergent"), " (",round(100*pdWT,3),"% proteins)."
     ))
-  message(paste("... ... Percent proteins in preserved modules:", round(100*ppWT,3)))
-  message(paste("... ... Percent proteins in divergent modules:", round(100*pdWT,3)))
-  message(paste("... ... ... .. Percent proteins not-clustered:", round(100*pncWT,3)))
-  message(paste("... ... ... .. Percent proteins in ns modules:", round(100*pnWT,3)))
   # KO status report.
   message(paste("... Total number of KO modules:", nModules["ko"]))
   message(paste0(
     "... ... Number of KO modules preserved in WT graph: ",
-    sum(module_changes$ko == "preserved")
+    sum(module_changes$ko == "preserved"), " (",round(100*ppKO),"% proteins)."
     ))
   message(paste0(
     "... ... Number of KO modules divergent in WT graph: ",
-    sum(module_changes$ko == "divergent")
+    sum(module_changes$ko == "divergent"), " (",round(100*pdKO),"% proteins)."
     ))
-  message(paste("... ... Percent proteins in preserved modules:", round(100*ppKO,3)))
-  message(paste("... ... Percent proteins in divergent modules:", round(100*pdKO,3)))
-  message(paste("... ... ... .. Percent proteins not-clustered:", round(100*pncKO,3)))
-  message(paste("... ... ... .. Percent proteins in ns modules:", round(100*pnKO,3),"\n"))
   # Return.
   output[[r]] <- NULL
 } # ENDS LOOP.
