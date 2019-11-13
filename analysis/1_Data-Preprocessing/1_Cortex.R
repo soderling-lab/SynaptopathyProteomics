@@ -65,11 +65,8 @@ Rdatadir <- file.path(rootdir, "rdata")
 figsdir <- file.path(rootdir, "figures")
 
 # Load required custom functions.
-source_myfun <- function() {
-  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
-  invisible(sapply(myfun, source))
-}
-source_myfun()
+myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+invisible(sapply(myfun, source))
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("1_", tissue)
@@ -612,7 +609,7 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
 
 #-------------------------------------------------------------------------------
-## Identify and remove QC outliers.
+## Identify and remove QC sample outliers.
 #-------------------------------------------------------------------------------
 # IRS normalization utilizes QC samples as reference samples. Outlier QC
 # measurements (caused by interference or other artifact) would influence the
