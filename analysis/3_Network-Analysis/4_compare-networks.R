@@ -22,6 +22,10 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# Add percent unclustered.
+# Add percent WT divergent/preserved/ns
+# Add percent KO divergent/preserved/ns
+
 # User parameters to change:
 stats <- c(1:7)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
@@ -185,30 +189,35 @@ for (r in res) {
   names(module_changes) <- c("ko","wt")
   # Calculate percent NS, divergent, preserved.
   wtProts <- wtPartition
-  wtProts[wtProts == "0"] <- "ns"
+  wtProts[wtProts == "0"] <- "not-clustered"
   wtProts[wtProts %in% names(wtModules)[module_changes$wt == "preserved"]] <- "preserved"
   wtProts[wtProts %in% names(wtModules)[module_changes$wt == "divergent"]] <- "divergent"
   wtProts[wtProts %in% names(wtModules)[module_changes$wt == "ns"]] <- "ns"
   koProts <- koPartition
-  koProts[koProts == "0"] <- "ns"
+  koProts[koProts == "0"] <- "not-clustered"
   koProts[koProts %in% names(koModules)[module_changes$ko == "preserved"]] <- "preserved"
   koProts[koProts %in% names(koModules)[module_changes$ko == "divergent"]] <- "divergent"
   koProts[koProts %in% names(koModules)[module_changes$ko == "ns"]] <- "ns"
-  n_divergent <- sum(wtProts == "divergent") + sum(koProts == "divergent")
-  n_preserved <- sum(wtProts == "preserved") + sum(koProts == "preserved")
-  n_ns <- sum(wtProts == "ns") + sum(koProts == "ns")
-  percent_divergent <- n_divergent / (n_divergent + n_preserved + n_ns)
-  percent_preserved <- n_preserved / (n_divergent + n_preserved + n_ns)
-  percent_ns <- n_ns / (n_divergent + n_preserved + n_ns)
+
+  pdWT <- sum(wtProts=="divergent") / length(wtProts)
+  ppWT <- sum(wtProts=="preserved") / length(wtProts)
+  pnWT <- sum(wtProts=="ns") / length(wtProts)
+  pncWT <- sum(wtProts=="not-clustered") / length(wtProts)
+
+  pdKO <- sum(koProts=="divergent") / length(koProts)
+  ppKO <- sum(koProts=="preserved") / length(koProts)
+  pnKO <- sum(koProts=="ns") / length(koProts)
+  pncKO <- sum(koProts=="not-clustered") / length(koProts)
+
   # Status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
-  message(paste(
-    "... ... Number of WT modules preserved in KO graph:",
-    sum(module_changes$ko == "preserved")
+  message(paste0(
+    "... ... Number of WT modules preserved in KO graph: ",
+    sum(module_changes$ko == "preserved", " (",ppWT,")"
   ))
-  message(paste(
+  message(paste0(
     "... ... Number of WT modules divergent in KO graph:",
-    sum(module_changes$ko == "divergent")
+    sum(module_changes$ko == "divergent"), "(",
   ))
   message(paste("... Total number of KO modules:", nModules["ko"]))
   message(paste(
