@@ -3,42 +3,42 @@
 # permutation test in order to identify perserved and divergent modules.
 
 # For example:
-    # Get observed statistics (e.g. KO module avg.edge weight in WT graph)
-    # Get nulls from 10,000 randomizations of the WT graph.
+    # Given a network partition at a given resolution:
+    # Get observed statistics for a module in the opposite (test) graph (e.g. KO module avg.edge weight in WT graph).
+    # Get nulls from 10,000 randomizations of the test graph.
     # Compare observed versus NULL distributions.
-    # Get maximum p.value associated with all 7 module statistics.
-    # BH correction.
-    # Require that ALL obs mod stats are sig diff from null distribs.
+    # Correct p.values for n comparisons.
+    # If observed statistic is significantly greater than null -> preserved.
+    # If observed statistic is significantly less than null --> divergent.
+    # WT Modules that are divergent in the KO graph coorespond to LOF.
+    # KO Modules that are divergent in the WT graph coorespond to GOF.
+   
+# Criterion for preservation/divergence can be weak or strong.
+# If weak, then requirement is ANY significant stats.
+# If strong, then requirement is ALL significant stats.
 
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# User parameters:
-stats <- c(1:7) # Which of the seven module statistics to use.
-strength <- "strong" # If using more than one stat, require any or all to be diff?
-res <- 44 #c(1:100) # Resolutions to analyze
+# User parameters to change:
+stats <- c(1:7)      # Which of the seven module statistics to use.
+strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
+res <- 44            # Resolutions to analyze.
 
-nThreads <- 48 # Number of threads for parallel processing.
-slurm <- TRUE # Is this a slurm job?
-
-save <- FALSE  # Save workspace?
-load <- FALSE # Load previously saved workspace?
-
-# Load workspace file.
-if (load) {
-  load("work.RData")
-}
-
-# SLURM job notes - sent to job_*.info
+# Is this a slurm job?
+slurm <- any(grepl("SLURM", names(Sys.getenv())))
 if (slurm) {
-  job <- as.integer(Sys.getenv("SLURM_JOBID"))
-  info <- as.matrix(Sys.getenv())
-  idx <- grepl("SLURM", rownames(info))
-  myfile <- file.path("./out", paste0("job_", job, ".info"))
-  write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
-} else {
-  job <- ""
+	# SLURM job notes - sent to job_*.info
+	nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")) # Number of threads.
+	job <- as.integer(Sys.getenv("SLURM_JOBID"))
+      	info <- as.matrix(Sys.getenv())
+	idx <- grepl("SLURM", rownames(info))
+	myfile <- file.path("./out", paste0("job_", job, ".info"))
+	write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
+} else  {
+	nThreads <- 8
+	job <- ""
 }
 
 # Global options and imports.
@@ -242,6 +242,3 @@ for (r in res) {
 output_name <- paste0(job, "_Network_Comparisons.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
-
-# Save R workspace.
-if (save) { save.image("work.RData") }
