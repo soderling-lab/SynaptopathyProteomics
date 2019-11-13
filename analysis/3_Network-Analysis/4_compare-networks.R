@@ -24,8 +24,8 @@
 
 # User parameters to change:
 stats <- c(1:7)      # Which of the seven module statistics to use.
-strength <- "weak" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)      # Resolutions to analyze.
+strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
+res <- 44 #c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -46,6 +46,7 @@ if (slurm) {
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
+  library(WGCNA)
   library(NetRep)
 })
 
@@ -68,8 +69,11 @@ wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData",
 koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", 
 			       full.names = TRUE)))
 
-# Compute TOM adjcacency matrices.
-TOMsimilarity(adjMat,TOMType = "signed",verbose =1)
+# Compute TOM adjcacency matrices--this insures that all edges are positve.
+wtTOM <- TOMsimilarity(wtAdjm,TOMType="signed",verbose=0)
+koTOM <- TOMsimilarity(koAdjm,TOMType="signed",verbose=0)
+rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
+rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
@@ -121,11 +125,9 @@ for (r in res) {
   }
   # Input for NetRep:
   # Note the networks are what are used to calc the avg edge weight statistic.
-
-
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-  network_list <- list(wt = 1-wtAdjm, ko = 1-koAdjm) # Distance matrix! NetRep assumes all edges are positive.
+  network_list <- list(wt = wtTOM, ko = koTOM) # Distance matrix! NetRep assumes all edges are positive.
   module_list <- list(wt = koPartition, ko = wtPartition)
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
