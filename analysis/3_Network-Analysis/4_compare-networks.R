@@ -46,6 +46,7 @@ if (slurm) {
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
+  library(WGCNA)
   library(NetRep)
 })
 
@@ -69,7 +70,11 @@ koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData",
 			       full.names = TRUE)))
 
 # Compute TOM adjcacency matrices.
-TOMsimilarity(adjMat,TOMType = "signed",verbose =1)
+# This insures edges are positve.
+wtTOM <- TOMsimilarity(wtAdjm,TOMType="signed",verbose=0)
+koTOM <- TOMsimilarity(koAdjm,TOMType="signed",verbose=0)
+rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
+rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
@@ -121,11 +126,9 @@ for (r in res) {
   }
   # Input for NetRep:
   # Note the networks are what are used to calc the avg edge weight statistic.
-
-
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-  network_list <- list(wt = 1-wtAdjm, ko = 1-koAdjm) # Distance matrix! NetRep assumes all edges are positive.
+  network_list <- list(wt = wtTOM, ko = koTOM) # Distance matrix! NetRep assumes all edges are positive.
   module_list <- list(wt = koPartition, ko = wtPartition)
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
