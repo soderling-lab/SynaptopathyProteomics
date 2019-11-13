@@ -83,7 +83,6 @@ partitions <- readRDS(myfile)
 # All module statistics.
 module_stats <- paste(c("avg.weight","coherence","cor.cor","cor.degree",
 			"cor.contrib","avg.cor","avg.contrib")[stats],collapse=", ")
-
 # Status report:
 nres <- length(res)
 message(paste("Analyzing all resolutions in:", nres))
@@ -186,7 +185,8 @@ for (r in res) {
   } # ENDS function
   # Collect strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
-  names(module_changes) <- c("ko","wt")
+  names(module_changes) <- c("ko","wt") # fix names bc they were confusing.
+
   # Calculate percent NS, divergent, preserved.
   wtProts <- wtPartition
   wtProts[wtProts == "0"] <- "not-clustered"
@@ -198,52 +198,44 @@ for (r in res) {
   koProts[koProts %in% names(koModules)[module_changes$ko == "preserved"]] <- "preserved"
   koProts[koProts %in% names(koModules)[module_changes$ko == "divergent"]] <- "divergent"
   koProts[koProts %in% names(koModules)[module_changes$ko == "ns"]] <- "ns"
-
   pdWT <- sum(wtProts=="divergent") / length(wtProts)
   ppWT <- sum(wtProts=="preserved") / length(wtProts)
   pnWT <- sum(wtProts=="ns") / length(wtProts)
   pncWT <- sum(wtProts=="not-clustered") / length(wtProts)
-
   pdKO <- sum(koProts=="divergent") / length(koProts)
   ppKO <- sum(koProts=="preserved") / length(koProts)
   pnKO <- sum(koProts=="ns") / length(koProts)
   pncKO <- sum(koProts=="not-clustered") / length(koProts)
-
-  # Status report.
+  # WT status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste0(
     "... ... Number of WT modules preserved in KO graph: ",
-    sum(module_changes$ko == "preserved", " (",ppWT,")"
-  ))
-  message(paste0(
-    "... ... Number of WT modules divergent in KO graph:",
-    sum(module_changes$ko == "divergent"), "(",
-  ))
-  message(paste("... Total number of KO modules:", nModules["ko"]))
-  message(paste(
-    "... ... Number of KO modules preserved in WT graph:",
     sum(module_changes$wt == "preserved")
-  ))
-  message(paste(
-    "... ... Number of KO modules divergent in WT graph:",
+    ))
+  message(paste0(
+    "... ... Number of WT modules divergent in KO graph: ",
     sum(module_changes$wt == "divergent")
-  ))
-  message(paste("... Percent preserved:", percent_preserved))
-  message(paste("... Percent divergent:", percent_divergent))
-  message(paste("... ... .. Percent ns:", percent_ns, "\n"))
-  # Return resolution, total number of modules, and module changes.
-  output[[r]] <- list(
-    "resolution" = r, "nModules" = nModules, 
-    "wtChanges" = module_changes$wt,
-    "koChanges" = module_changes$ko,
-    "wtPartition" = wtPartition,
-    "wtProteins" = wtProts,
-    "koPartition" = koPartition,
-    "koProteins" = koProts,
-    "percent_preserved" = percent_preserved,
-    "percent_divergent" = percent_divergent,
-    "percent_ns" = percent_ns
-  )
+    ))
+  message(paste("... ... Percent proteins in preserved modules:", round(100*ppWT,3)))
+  message(paste("... ... Percent proteins in divergent modules:", round(100*pdWT,3)))
+  message(paste("... ... ... .. Percent proteins not-clustered:", round(100*pncWT,3)))
+  message(paste("... ... ... .. Percent proteins in ns modules:", round(100*pnWT,3)))
+  # KO status report.
+  message(paste("... Total number of KO modules:", nModules["ko"]))
+  message(paste0(
+    "... ... Number of KO modules preserved in WT graph: ",
+    sum(module_changes$ko == "preserved")
+    ))
+  message(paste0(
+    "... ... Number of KO modules divergent in WT graph: ",
+    sum(module_changes$ko == "divergent")
+    ))
+  message(paste("... ... Percent proteins in preserved modules:", round(100*ppKO,3)))
+  message(paste("... ... Percent proteins in divergent modules:", round(100*pdKO,3)))
+  message(paste("... ... ... .. Percent proteins not-clustered:", round(100*pncKO,3)))
+  message(paste("... ... ... .. Percent proteins in ns modules:", round(100*pnKO,3),"\n"))
+  # Return.
+  output[[r]] <- NULL
 } # ENDS LOOP.
 
 # Save output to file.
