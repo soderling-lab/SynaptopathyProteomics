@@ -16,12 +16,10 @@ flash frozen. Striatum tissue was disected from slices
 beween from -3.5 mm and -6.0 mm posterior to the anterior olfactory bulb.
 Tissue was stored in liquid nitrogen until synaptosome purification. 
 
-
+Protease inhibitors:
 AEBSF (100mM) 1:100
 Sodium Orthovanadate 100mM 1:700
 Leupeptin/Pepstatin (2mg/mL) 1:1000
-
-
 
 Approximately 100-1=300 mg of tissue was homogenizing in 1mL isotonic sucrose
 buffer (320 mM sucrose, 5 mM HEPES, 1mM EGTA, pH 7.4) containing protease
@@ -257,6 +255,20 @@ Thus we identified 1 optimized WT and 1 optimized KO resolution.
 Modules with any insignificant quality statistics were removed.
 
 ## Comparing WT and KO networks
+In order to identify modules that are divergent in WT and KO coexpression graphs,
+we again utilized a permutation approach. (Ritchie et al., 2016).
+
+A permutation procedure was employed to characterize the distribution of
+each statistical test under the null hypothesis of non-replication and non-preservation. Specifically, each module preservation statistic was re-calculated
+when shuffling the node labels in the test dataset. The node labels in the discovery dataset were left unchanged. Nodes that were not present in both the
+discovery and test dataset were ignored both when calculating the module
+preservation statistics and when shuffling the node labels in the test dataset.
+Under the alternate hypothesis of replication/preservation, the test statistics
+calculated on the non-permuted dataset were expected to be higher than
+when calculated on random sub-graphs in the test dataset. Permutation
+p values were then calculated from these null distributions using the estimator
+described by Phipson and Smyth (2010), which provides a conservative estimate of the p value appropriate for multiple testing adjustment (Supplemental
+Experimental Procedures).
 
 ## Data and Software availability
 Data processing and statistical analyses were performed using R version 3.5.1
