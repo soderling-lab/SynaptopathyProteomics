@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 
 # User parameters:
-strength <- 2  # c(strong, weak)
+strength <- 1  # c(strong, weak)
 nres <- 100    # Number of resolutions to analyze 
 nThreads <- 48 # Number of threads for parallel processing.
 
@@ -44,30 +44,13 @@ koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", full.names = 
 myfile <- list.files(rdatdir,pattern="preservation",full.names=TRUE)
 partitions <- readRDS(myfile)
 
-# Load network partitions. Self-preservation NOT enforced!
-#myfiles <- list.files(rdatdir, pattern = "*.partitions.csv", full.names = TRUE)
-#koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
-#wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
-#colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
-
-# Use a loop to make a list of partitions.
-# Enforce the same format as other partitions.RData object.
-# Add one such that all module indices are non-zero.
-#partitions <- list()
-#for (i in 1:nrow(wtParts)) {
-#  partitions[[i]] <- list(
-#    "wt" = unlist(wtParts[i, ]) + 1,
-#    "ko" = unlist(koParts[i, ]) + 1
-#  )
-#}
-
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test. 
 #------------------------------------------------------------------------------
 
 # Status report:
 message(paste("Analyzing all resolutions in:",nres))
-message(paste("Criterion for module preservation/divergence:",c("strong","weak")[strength]))
+message(paste("Criterion for module preservation/divergence:",c("strong","weak")[strength],"\n"))
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
