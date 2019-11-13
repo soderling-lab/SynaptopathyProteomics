@@ -24,8 +24,8 @@
 
 # User parameters to change:
 stats <- c(1:7)      # Which of the seven module statistics to use.
-strength <- "weak" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)      # Resolutions to analyze.
+strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
+res <- 44 #c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -69,8 +69,7 @@ wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData",
 koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", 
 			       full.names = TRUE)))
 
-# Compute TOM adjcacency matrices.
-# This insures edges are positve.
+# Compute TOM adjcacency matrices--this insures that all edges are positve.
 wtTOM <- TOMsimilarity(wtAdjm,TOMType="signed",verbose=0)
 koTOM <- TOMsimilarity(koAdjm,TOMType="signed",verbose=0)
 rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
