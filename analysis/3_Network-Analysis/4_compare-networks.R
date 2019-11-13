@@ -16,6 +16,7 @@
 # Criterion for preservation/divergence can be weak or strong.
 # If weak, then requirement is ANY significant stats.
 # If strong, then requirement is ALL significant stats.
+# User can select which stats to use.
 
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
