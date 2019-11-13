@@ -100,7 +100,6 @@ for (i in 1:n) {
       verbose = FALSE
     )
   })
-
   # Function to get max pvalue.
   maxp <- function(preservation) {
     p <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))
