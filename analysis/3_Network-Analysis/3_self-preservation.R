@@ -65,13 +65,13 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 # Input for NetRep:
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-network_list <- list(wt = wtTOM, ko = koTOM)
+network_list <- list(wt = wtTOM, ko = koTOM) # Use adjmatrices!
 
 # Loop through partitions, evaluating self-preservation.
 n <- dim(koParts)[1]
 results <- list()
 
-for (i in 1:n) {
+for (i in 1:100) {
   # status
   message(paste("working on partition", i, "..."))
   # Get partition.
@@ -82,6 +82,7 @@ for (i in 1:n) {
   # Perform permutation test for module self-preservation.
   # Done for both wt and ko networks...
   self <- as.list(c("wt", "ko"))
+  suppressWarnings({
   selfPreservation <- lapply(self, function(x) {
     NetRep::modulePreservation(
       network = network_list,
@@ -101,6 +102,7 @@ for (i in 1:n) {
       verbose = FALSE
     )
   })
+  })
   # Function to get max pvalue.
   maxp <- function(preservation) {
     p <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))
@@ -118,4 +120,5 @@ for (i in 1:n) {
 } # END LOOP.
 
 # Save to Rdata.
-saveRDS(results, file.path(datadir, "3_self_preservation_results.RDS"))
+output_name <- paste0(job,"_self_preservation_results.RDS")
+saveRDS(results, file.path(datadir,output_name))
