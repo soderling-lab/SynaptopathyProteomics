@@ -31,7 +31,7 @@
 # User parameters to change:
 stats <- c(1:7)   # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- 1 #c(1:100)   # Resolutions to analyze.
+res <- c(1:100)   # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
