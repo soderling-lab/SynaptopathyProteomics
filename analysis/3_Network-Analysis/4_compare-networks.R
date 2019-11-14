@@ -1,6 +1,10 @@
 #!/usr/bin/env Rscript
-# Loop through all resolutions of WT and KO graphs, comparing modules with
-# permutation test in order to identify perserved and divergent modules.
+
+#' ---
+#' title:
+#' description: Compare networks with permutation test
+#' authors: Tyler W Bradshaw
+#' ---
 
 # For example:
 # Given a network partition at a given resolution:
@@ -18,14 +22,16 @@
 # If strong, then requirement is ALL significant stats.
 # User can select which stats to use.
 
+# No divergent modules using strength = strong?
+
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1:7) # Which of the seven module statistics to use.
+stats <- c(1:7)   # Which of the seven module statistics to use.
 strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
-res <- 1 #c(1:100)      # Resolutions to analyze.
+res <- c(1:100)   # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
