@@ -116,6 +116,7 @@ message(paste0(
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
+
 for (r in res) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
@@ -251,7 +252,7 @@ for (r in res) {
     sum(module_changes$ko == "divergent"), " (", round(100 * pdKO), "% proteins)."
   ))
   # Return.
-  output[[r]] <- NULL
+  output[[r]] <- module_changes
 } # ENDS LOOP.
 
 # Save output to file.
