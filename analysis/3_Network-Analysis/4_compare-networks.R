@@ -24,9 +24,15 @@
 
 # User parameters to change:
 <<<<<<< HEAD
+<<<<<<< HEAD
 stats <- c(1:7) # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
 res <- 44 # c(1:100)      # Resolutions to analyze.
+=======
+stats <- c(1:7)      # Which of the seven module statistics to use.
+strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
+res <- 1 #c(1:100)      # Resolutions to analyze.
+>>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
 =======
 stats <- c(1:7)      # Which of the seven module statistics to use.
 strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
@@ -253,6 +259,9 @@ for (r in res) {
     sum(module_changes$ko == "preserved"), " (",round(100*ppKO),"% proteins)."
     ))
   message(paste0(
+<<<<<<< HEAD
+>>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
+=======
 >>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
     "... ... Number of KO modules divergent in WT graph: ",
     sum(module_changes$ko == "divergent"), " (", round(100 * pdKO), "% proteins)."
