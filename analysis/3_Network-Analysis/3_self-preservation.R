@@ -8,16 +8,16 @@
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
 if (slurm) {
-	# SLURM job notes - sent to job_*.info
-	nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")) # Number of threads.
-	job <- as.integer(Sys.getenv("SLURM_JOBID"))
-      	info <- as.matrix(Sys.getenv())
-	idx <- grepl("SLURM", rownames(info))
-	myfile <- file.path("./out", paste0("job_", job, ".info"))
-	write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
-} else  {
-	nThreads <- 8
-	job <- ""
+  # SLURM job notes - sent to job_*.info
+  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")) # Number of threads.
+  job <- as.integer(Sys.getenv("SLURM_JOBID"))
+  info <- as.matrix(Sys.getenv())
+  idx <- grepl("SLURM", rownames(info))
+  myfile <- file.path("./out", paste0("job_", job, ".info"))
+  write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
+} else {
+  nThreads <- 8
+  job <- ""
 }
 
 # Global options and imports.
@@ -47,8 +47,8 @@ wtAdjm <- silently(WGCNA::bicor(wtDat))
 koAdjm <- silently(WGCNA::bicor(koDat))
 
 # Compute TOM adjcacency matrices--this insures that all edges are positve.
-wtTOM <- TOMsimilarity(wtAdjm,TOMType="signed",verbose=0)
-koTOM <- TOMsimilarity(koAdjm,TOMType="signed",verbose=0)
+wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
+koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
 rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
@@ -83,25 +83,25 @@ for (i in 1:100) {
   # Done for both wt and ko networks...
   self <- as.list(c("wt", "ko"))
   suppressWarnings({
-  selfPreservation <- lapply(self, function(x) {
-    NetRep::modulePreservation(
-      network = network_list,
-      data = data_list,
-      correlation = correlation_list,
-      moduleAssignments = module_list,
-      modules = NULL,
-      backgroundLabel = 0,
-      discovery = x,
-      test = x,
-      selfPreservation = TRUE,
-      nThreads = nThreads,
-      # nPerm = 100000,
-      null = "overlap",
-      alternative = "greater",
-      simplify = TRUE,
-      verbose = FALSE
-    )
-  })
+    selfPreservation <- lapply(self, function(x) {
+      NetRep::modulePreservation(
+        network = network_list,
+        data = data_list,
+        correlation = correlation_list,
+        moduleAssignments = module_list,
+        modules = NULL,
+        backgroundLabel = 0,
+        discovery = x,
+        test = x,
+        selfPreservation = TRUE,
+        nThreads = nThreads,
+        # nPerm = 100000,
+        null = "overlap",
+        alternative = "greater",
+        simplify = TRUE,
+        verbose = FALSE
+      )
+    })
   })
   # Function to get max pvalue.
   maxp <- function(preservation) {
@@ -120,5 +120,5 @@ for (i in 1:100) {
 } # END LOOP.
 
 # Save to Rdata.
-output_name <- paste0(job,"_self_preservation_results.RDS")
-saveRDS(results, file.path(datadir,output_name))
+output_name <- paste0(job, "_self_preservation_results.RDS")
+saveRDS(results, file.path(datadir, output_name))
