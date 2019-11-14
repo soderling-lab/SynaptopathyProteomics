@@ -185,10 +185,9 @@ for (r in res) {
     q[is.na(q)] <- 1
     # If testing more than one statistic.
     if (length(stats) > 1) {
-      fx <- c("strong" = "all", "weak" = "any")[strength]
-      sig <- apply(q < 0.05, 1, eval(fx))
-      greater <- apply(obs > nulls, 1, eval(fx))
-      less <- apply(obs < nulls, 1, eval(fx))
+      sig <- apply(q < 0.05, 1, eval(strength))
+      greater <- apply(obs > nulls, 1, eval(strength))
+      less <- apply(obs < nulls, 1, eval(strength))
     } else {
       # If testing a single statistic.
       sig <- q < 0.05
