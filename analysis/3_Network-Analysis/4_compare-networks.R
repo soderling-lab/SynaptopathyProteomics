@@ -30,8 +30,8 @@
 
 # User parameters to change:
 stats <- c(1:7)   # Which of the seven module statistics to use.
-strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)   # Resolutions to analyze.
+strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
+res <- 1 #c(1:100)   # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -190,10 +190,11 @@ for (r in res) {
     q <- apply(x$p.values, 2, function(x) p.adjust(x, "bonferroni"))[, stats]
     q[is.na(q)] <- 1
     # If testing more than one statistic.
+    fx <- c("strong"="all","weak"="any")[strength]
     if (length(stats) > 1) {
-      sig <- apply(q < 0.05, 1, eval(strength))
-      greater <- apply(obs > nulls, 1, eval(strength))
-      less <- apply(obs < nulls, 1, eval(strength))
+      sig <- apply(q < 0.05, 1, eval(fx))
+      greater <- apply(obs > nulls, 1, eval(fx))
+      less <- apply(obs < nulls, 1, eval(fx))
     } else {
       # If testing a single statistic.
       sig <- q < 0.05
