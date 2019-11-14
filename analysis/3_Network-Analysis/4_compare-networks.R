@@ -84,7 +84,7 @@ rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
-myfile <- list.files(rdatdir, pattern = "self_preservation", full.names = TRUE)
+myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
