@@ -23,21 +23,9 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-<<<<<<< HEAD
-<<<<<<< HEAD
 stats <- c(1:7) # Which of the seven module statistics to use.
-strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- 44 # c(1:100)      # Resolutions to analyze.
-=======
-stats <- c(1:7)      # Which of the seven module statistics to use.
 strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
 res <- 1 #c(1:100)      # Resolutions to analyze.
->>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
-=======
-stats <- c(1:7)      # Which of the seven module statistics to use.
-strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
-res <- 1 #c(1:100)      # Resolutions to analyze.
->>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -96,7 +84,7 @@ rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
-myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
+myfile <- list.files(rdatdir, pattern = "self_preservation", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
@@ -217,7 +205,6 @@ for (r in res) {
   # Collect strong or weak changes...
   module_changes <- lapply(preservation, check_modules)
   names(module_changes) <- c("ko", "wt") # fix names bc they were confusing.
-
   # Calculate percent NS, divergent, preserved.
   wtProts <- wtPartition
   wtProts[wtProts == "0"] <- "not-clustered"
@@ -251,18 +238,9 @@ for (r in res) {
   message(paste("... Total number of KO modules:", nModules["ko"]))
   message(paste0(
     "... ... Number of KO modules preserved in WT graph: ",
-<<<<<<< HEAD
-    sum(module_changes$ko == "preserved"), " (", round(100 * ppKO), "% proteins)."
-  ))
-  messag(paste0(
-=======
-    sum(module_changes$ko == "preserved"), " (",round(100*ppKO),"% proteins)."
+    sum(module_changes$ko == "preserved"), " (", round(100 * ppKO, 3), "% proteins)."
     ))
   message(paste0(
-<<<<<<< HEAD
->>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
-=======
->>>>>>> e63b53fcbbdf565f773daae909d0dd57e9a88f17
     "... ... Number of KO modules divergent in WT graph: ",
     sum(module_changes$ko == "divergent"), " (", round(100 * pdKO), "% proteins)."
   ))
