@@ -33,11 +33,7 @@ stats <- c(1:2)   # Which of the seven module statistics to use.
 # c("avg.weight", "coherence", "cor.cor", "cor.degree","cor.contrib", "avg.cor",
 # "avg.contrib")
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-<<<<<<< HEAD
-res <- 55 #c(1:100)   # Resolutions to analyze.
-=======
 res <- c(1:100)   # Resolutions to analyze.
->>>>>>> f69dae7183c99952d0499528985c458a96b597e5
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
