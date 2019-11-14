@@ -24,8 +24,8 @@
 
 # User parameters to change:
 stats <- c(1:7)      # Which of the seven module statistics to use.
-strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- 44 #c(1:100)      # Resolutions to analyze.
+strength <- "any" # Preservation criterion strong = all, or weak = any sig stats.
+res <- 1 #c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -76,7 +76,7 @@ rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
-myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
+myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
@@ -227,7 +227,7 @@ for (r in res) {
     "... ... Number of KO modules preserved in WT graph: ",
     sum(module_changes$ko == "preserved"), " (",round(100*ppKO),"% proteins)."
     ))
-  messag(paste0(
+  message(paste0(
     "... ... Number of KO modules divergent in WT graph: ",
     sum(module_changes$ko == "divergent"), " (",round(100*pdKO),"% proteins)."
     ))
