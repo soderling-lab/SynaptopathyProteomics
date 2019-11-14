@@ -28,12 +28,19 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# Module statistics:
+# 1. avg.weight 
+# 2. coherence 
+# 3. cor.cor 
+# 4. cor.degree 
+# 5. cor.contrib 
+# 6. avg.cor 
+# 7. avg.contrib
+
 # User parameters to change:
-stats <- c(1:2)   # Which of the seven module statistics to use.
-# c("avg.weight", "coherence", "cor.cor", "cor.degree","cor.contrib", "avg.cor",
-# "avg.contrib")
+stats <- c(1:2)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)   # Resolutions to analyze.
+res <- c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
