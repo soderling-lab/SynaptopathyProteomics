@@ -52,7 +52,7 @@
 # User parameters to change:
 stats <- c(1:2)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)      # Resolutions to analyze.
+res <- 1# c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -292,7 +292,8 @@ for (r in res) {
     round(100*total_divergent), " (%)."
 	  ))
   # Return.
-  output[[r]] <- module_changes
+  output[[r]] <- c("wtPartition" = wtPartition, "wtProts" = wtProts, 
+		   "koPartition" = koPartition, "koProts" = koProts)
 } # ENDS LOOP.
 
 # Save output to file.
