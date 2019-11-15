@@ -141,23 +141,32 @@ message(paste0(
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
+
 for (r in res) {
+
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
   wtPartition <- partitions[[r]][["wt"]]
   koPartition <- partitions[[r]][["ko"]]
-  # Split into modules.
-  wtModules <- split(wtPartition, wtPartition)
-  koModules <- split(koPartition, koPartition)
   # Remove small modules.
-  size_cutoff <- 5
-  out <- lapply(wtModules,function(x) names(table(x)<size_cutoff)
+  filter_modules <- function(partition,cutoff=5){
+	  modules <- split(partition,partition)
+	  out <- names(modules)[sapply(modules,function(x) table(x)<cutoff)]
+	  partition[partition %in% out] <- 0 
+	  return(partition)
+  }
+  wtPartition <- filter_modules(wtPartition)
+  koPartition <- filter_modules(koPartition)
   # Total number of modules.
   nModules <- c(
     "wt" = sum(names(table(wtPartition)) != 0),
     "ko" = sum(names(table(koPartition)) != 0)
   )
+  # Split into modules.
+  wtModules <- split(wtPartition, wtPartition)
+  koModules <- split(koPartition, koPartition)
+
   # Checks:
   if (!all(colnames(wtDat) == colnames(koDat))) {
     stop("Input data don't match!")
