@@ -27,10 +27,12 @@
 #    * strong preservation -- all stats - NO DIVERGENT WT MODULES
 #    * weak preservation -- all stats
 #    * strong preservation -- 2 stats - NO DIVERGENT WT MODULES?
-# 2. no self-pres --> need to remove small modules... what is size cut off?
+
+# 2. no self-pres --> remove modules smaller than 5 proteins
 #    * strong preservation -- all stats
 #    * weak preservation -- all stats
-#    * strong preservation -- 2 stats
+#    * strong preservation -- 2 stats *** THIS seems like the prefered option ***
+
 # 3. Single resolution : best biological "signal" - self-pres with TOM -> recalculate best resolution.
 #    * strong preservation -- all stats
 #    * weak preservation -- all stats
