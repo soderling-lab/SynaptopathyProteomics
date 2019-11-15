@@ -24,14 +24,14 @@
 
 # Possible permutations:
 # 1. enforce self-preservation
+#    * strong preservation -- all stats - NO DIVERGENT WT MODULES
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats - NO DIVERGENT WT MODULES?
+# 2. no self-pres --> need to remove small modules... what is size cut off?
 #    * strong preservation -- all stats
 #    * weak preservation -- all stats
 #    * strong preservation -- 2 stats
-# 2. no self-pres
-#    * strong preservation -- all stats
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats
-# 3. Single resolution : best biological "signal"
+# 3. Single resolution : best biological "signal" - self-pres with TOM -> recalculate best resolution.
 #    * strong preservation -- all stats
 #    * weak preservation -- all stats
 #    * strong preservation -- 2 stats
@@ -150,6 +150,9 @@ for (r in res) {
   # Split into modules.
   wtModules <- split(wtPartition, wtPartition)
   koModules <- split(koPartition, koPartition)
+  # Remove small modules.
+  size_cutoff <- 5
+  out <- lapply(wtModules,function(x) names(table(x)<size_cutoff)
   # Total number of modules.
   nModules <- c(
     "wt" = sum(names(table(wtPartition)) != 0),
