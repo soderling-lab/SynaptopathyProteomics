@@ -58,17 +58,6 @@ koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
 wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 
-#x = list()
-#for (i in 1:100){
-#       wt = as.numeric(as.data.frame(wtParts)[i,])
-#       ko = as.numeric(as.data.frame(koParts)[i,])
-#       names(wt) <- names(ko) <- colnames(wtParts)
-#       x[[i]] <- list(wt=wt,ko=ko)
-#}
-#myfile <- file.path(datadir,"3_la_partitions.RData")
-#saveRDS(x,myfile)
-
-
 #-------------------------------------------------------------------------------
 ## Permutation testing.
 #-------------------------------------------------------------------------------

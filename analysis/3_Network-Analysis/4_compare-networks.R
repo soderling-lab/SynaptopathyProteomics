@@ -103,7 +103,7 @@ rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 #partitions <- readRDS(myfile)
 
 # Load network partitions. No self-preservation.
-myfile <- list.files(rdatdir, pattern = "3_la_partition", full.names = TRUE)
+myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
@@ -129,13 +129,15 @@ message(paste0(
 
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
-
 for (r in res) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
-  wtPartition <- partitions[[r]][["wt"]]
-  koPartition <- partitions[[r]][["ko"]]
+  #wtPartition <- partitions[[r]][["wt"]]
+  #koPartition <- partitions[[r]][["ko"]]
+  # Extract from list. Add one if self-preservation not enforced.
+  wtPartition <- partitions[[r]][["wt"]] + 1
+  koPartition <- partitions[[r]][["ko"]] + 1
   # Split into modules.
   wtModules <- split(wtPartition, wtPartition)
   koModules <- split(koPartition, koPartition)
