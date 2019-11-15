@@ -40,7 +40,7 @@
 # User parameters to change:
 stats <- c(1:2)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)      # Resolutions to analyze.
+res <- 1 #c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -133,11 +133,8 @@ for (r in res) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
-  #wtPartition <- partitions[[r]][["wt"]]
-  #koPartition <- partitions[[r]][["ko"]]
-  # Extract from list. Add one if self-preservation not enforced.
-  wtPartition <- partitions[[r]][["wt"]] + 1
-  koPartition <- partitions[[r]][["ko"]] + 1
+  wtPartition <- partitions[[r]][["wt"]]
+  koPartition <- partitions[[r]][["ko"]]
   # Split into modules.
   wtModules <- split(wtPartition, wtPartition)
   koModules <- split(koPartition, koPartition)
