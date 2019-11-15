@@ -288,7 +288,7 @@ for (r in res) {
   ))
   # Total divergent.
   message(paste0(
-    "... Total percent proteins assigned to divergent modules: ",
+    "... Number of proteins assigned to divergent modules: ",
     round(100*total_divergent), " (%)."
 	  ))
   # Return.
