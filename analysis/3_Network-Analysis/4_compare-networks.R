@@ -261,12 +261,8 @@ for (r in res) {
   koProts[koProts %in% names(koModules)[module_changes$ko == "ns"]] <- "ns"
   pdWT <- sum(wtProts == "divergent") / length(wtProts)
   ppWT <- sum(wtProts == "preserved") / length(wtProts)
-  pnWT <- sum(wtProts == "ns") / length(wtProts)
-  pncWT <- sum(wtProts == "not-clustered") / length(wtProts)
   pdKO <- sum(koProts == "divergent") / length(koProts)
   ppKO <- sum(koProts == "preserved") / length(koProts)
-  pnKO <- sum(koProts == "ns") / length(koProts)
-  pncKO <- sum(koProts == "not-clustered") / length(koProts)
   total_divergent <- (sum(wtProts == "divergent") + sum(koProts == "divergent"))/(2*length(wtProts))
   # WT status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
@@ -294,11 +290,21 @@ for (r in res) {
     round(100*total_divergent), " (%).","\n"
 	  ))
   # Return.
-  output[[r]] <- c("wtPartition" = wtPartition, "wtProts" = wtProts, 
-		   "koPartition" = koPartition, "koProts" = koProts)
+  output[[r]] <- list("wtPartition" = wtPartition, "wtProts" = wtProts, 
+		      "koPartition" = koPartition, "koProts" = koProts)
 } # ENDS LOOP.
+
+# Combine output into df.
+df <- data.frame(
+		"nWT" =  unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
+		"nKO" = unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
+		"nPresWT" = unlist(lapply(output, function(x) sum(x$wtProts == "preserved"))),
+		"nDivWT" = unlist(lapply(output, function(x) sum(x$wtProts == "divergent"))),
+		"nPresKO" = unlist(lapply(output, function(x) sum(x$koProts == "preserved"))),
+		"nDivKO" = unlist(lapply(output, function(x) sum(x$koProts == "divergent"))))
+df$percentTotalDivergence <- (df$nDivWT + df$nDivKO)/(2918*2)
 
 # Save output to file.
 output_name <- paste0(job, "_Network_Comparisons.RData")
-myfile <- file.path(rdatdir, output_name)
+myfile <- file.path(df, output_name)
 saveRDS(output, myfile)
