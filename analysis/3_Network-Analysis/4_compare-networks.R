@@ -288,8 +288,8 @@ for (r in res) {
   ))
   # Total divergent.
   message(paste0(
-    "... Number of proteins assigned to divergent modules: ",
-    round(100*total_divergent), " (%)."
+    "... Total percentage of proteins assigned to divergent modules: ",
+    round(100*total_divergent), " (%).","\n"
 	  ))
   # Return.
   output[[r]] <- module_changes
