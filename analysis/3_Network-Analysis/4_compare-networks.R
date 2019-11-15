@@ -22,7 +22,19 @@
 # If strong, then requirement is ALL significant stats.
 # User can select which stats to use.
 
-# No divergent modules using strength = strong?
+# Possible permutations:
+# 1. enforce self-preservation
+#    * strong preservation -- all stats
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats
+# 2. no self-pres
+#    * strong preservation -- all stats
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats
+# 3. Single resolution : best biological "signal"
+#    * strong preservation -- all stats
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats
 
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
