@@ -25,14 +25,13 @@ suppressPackageStartupMessages({
 })
 
 # Load required custom functions.
-source_myfun <- function() {
-  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
-  invisible(sapply(myfun, source))
-}
-source_myfun()
+myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
+invisible(sapply(myfun, source))
 
 # Store all plots in list.
 all_plots <- list()
+
+# ggplot theme
 ggtheme()
 
 # Load expression data.
@@ -44,52 +43,35 @@ wtAdjm <- t(readRDS(list.files(rdatdir, pattern = "WT_Adjm.RData", full.names = 
 koAdjm <- t(readRDS(list.files(rdatdir, pattern = "KO_Adjm.RData", full.names = TRUE)))
 
 # Load preserved partitions of co-expression graph:
-myfile <- list.files(rdatdir, pattern = "preservation", full.names = TRUE)
+myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
 partitions <- readRDS(myfile)
 
-# Look at resolution 44.
-wtParts <- partitions[[44]][["wt"]]
-koParts <- partitions[[44]][["ko"]]
+# Which resolution?
+res <- 23
+wtParts <- partitions[[res]][["wt"]]
+koParts <- partitions[[res]][["ko"]]
 
 # Modules.
 wtModules <- split(wtParts, wtParts)
 koModules <- split(koParts, koParts)
-
-# Load the module changes.
-data <- readRDS(list.files(datadir, pattern = "5595360", full.names = TRUE))
-subdat <- data[[44]]
-
-# Modules with changes.
-wtDiff <- subdat$Changes$ko
-koDiff <- subdat$Changes$wt
-names(wtDiff) <- names(wtModules)[-1]
-names(koDiff) <- names(koModules)[-1]
-
-# koDiff.
-names(koDiff)[koDiff == "divergent"]
-# 4 - proteasome
-# 5 - ER
-# 11 - protein transport
-
-# Divergent KO modules (GOF).
-prots <- list(
-  names(koModules[["4"]]),
-  names(koModules[["5"]]),
-  names(koModules[["11"]])
-)
+nWT <- length(wtModules)
+nKO <- length(koModules)
 
 # Load protein map.
 protmap <- readRDS(file.path(rdatdir, "2_Prot_Map.RData"))
 
 # Get entrez genes for prots of interest.
 getEntrez <- function(prots, protmap) {
-  return(protmap$entrez[match(prots, protmap$ids)])
+  return(protmap$entrez[match(names(prots), protmap$ids)])
 }
-entrez <- lapply(prots, function(x) getEntrez(x, protmap))
+wtEntrez <- lapply(wtModules, function(x) getEntrez(x, protmap))
+koEntrez <- lapply(koModules, function(x) getEntrez(x, protmap))
 
 # Build ppi graph.
 # Load mouse interactome data.
 data(musInteractome)
-g <- lapply(entrez, function(x) buildNetwork(musInteractome, x, taxid = 10090))
+wtGraphs <- lapply(wtEntrez, function(x) buildNetwork(musInteractome, x, taxid = 10090))
+koGraphs <- lapply(koEntrez, function(x) buildNetwork(musInteractome, x, taxid = 10090))
 
-fwrite(as.list(entrez[[3]]), "foo.csv")
+#
+
