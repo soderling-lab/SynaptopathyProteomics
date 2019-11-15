@@ -102,6 +102,10 @@ rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
 partitions <- readRDS(myfile)
 
+# Load network partitions. No self-preservation.
+#myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
+#partitions <- readRDS(myfile)
+
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test.
 #------------------------------------------------------------------------------
