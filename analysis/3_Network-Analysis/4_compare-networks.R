@@ -143,7 +143,6 @@ message(paste0(
 output <- list()
 
 for (r in res) {
-
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
@@ -166,7 +165,6 @@ for (r in res) {
   # Split into modules.
   wtModules <- split(wtPartition, wtPartition)
   koModules <- split(koPartition, koPartition)
-
   # Checks:
   if (!all(colnames(wtDat) == colnames(koDat))) {
     stop("Input data don't match!")
@@ -267,6 +265,7 @@ for (r in res) {
   ppKO <- sum(koProts == "preserved") / length(koProts)
   pnKO <- sum(koProts == "ns") / length(koProts)
   pncKO <- sum(koProts == "not-clustered") / length(koProts)
+  total_divergent <- (sum(wtProts == "divergent") + sum(koProts == "divergent"))/(2*length(wtProts))
   # WT status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste0(
@@ -286,6 +285,11 @@ for (r in res) {
   message(paste0(
     "... ... Number of KO modules divergent in WT graph: ",
     sum(module_changes$ko == "divergent"), " (", round(100 * pdKO), "% proteins)."
+  ))
+  # Total divergent.
+  message(paste0(
+    "... Total percent proteins assigned to divergent modules: ",
+    round(100*total_divergent, " (%)."
   ))
   # Return.
   output[[r]] <- module_changes
