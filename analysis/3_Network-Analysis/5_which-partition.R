@@ -23,7 +23,7 @@ myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 # Load network comparison results.
-myfile <- list.files(rdatdir,pattern="5933053",full.names=TRUE)
+myfile <- list.files(rdatdir,pattern="5945001",full.names=TRUE)
 output <- readRDS(myfile)
 
 # Combine output into df.
