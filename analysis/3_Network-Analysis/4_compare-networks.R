@@ -54,7 +54,7 @@
 # User parameters to change:
 stats <- c(1:2)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- 1# c(1:100)      # Resolutions to analyze.
+res <- 1 #c(1:100)      # Resolutions to analyze.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -307,4 +307,4 @@ df$percentTotalDivergence <- (df$nDivWT + df$nDivKO)/(2918*2)
 # Save output to file.
 output_name <- paste0(job, "_Network_Comparisons.RData")
 myfile <- file.path(df, output_name)
-saveRDS(output, myfile)
+saveRDS(df, myfile)
