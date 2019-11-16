@@ -294,6 +294,11 @@ for (r in res) {
 		      "koPartition" = koPartition, "koProts" = koProts)
 } # ENDS LOOP.
 
+# Save output to file.
+output_name <- paste0(job, "_Network_Comparison_Modules.RData")
+myfile <- file.path(rdatdir, output_name)
+saveRDS(output, myfile)
+
 # Combine output into df.
 df <- data.frame(
 		"nWT" =  unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
@@ -304,7 +309,8 @@ df <- data.frame(
 		"nDivKO" = unlist(lapply(output, function(x) sum(x$koProts == "divergent"))))
 df$percentTotalDivergence <- (df$nDivWT + df$nDivKO)/(2918*2)
 
-# Save output to file.
-output_name <- paste0(job, "_Network_Comparisons.RData")
+# Save df to file.
+output_name <- paste0(job, "_Network_Comparisons_df.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(df, myfile)
+

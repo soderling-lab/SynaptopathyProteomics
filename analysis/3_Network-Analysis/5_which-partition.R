@@ -26,6 +26,28 @@ rdatdir <- file.path(root, "rdata")
 myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
 partitions <- readRDS(myfile)
 
+# Load preservation df.
+df <- readRDS(file.path(rdatdir,"5933053_Network_Comparisons.RData"))
+
+# Most divergent resolution.
+subdf <- subset(df,df$percentTotalDivergence==max(df$percentTotalDivergence))
+rownames(subdf)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Compare resolutions with Folkes Mallow.
 fmi <- sapply(partitions,function(x) FM_index_R(x[["wt"]], x[["ko"]])[1])
 
