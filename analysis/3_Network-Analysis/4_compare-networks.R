@@ -306,5 +306,5 @@ df$percentTotalDivergence <- (df$nDivWT + df$nDivKO)/(2918*2)
 
 # Save output to file.
 output_name <- paste0(job, "_Network_Comparisons.RData")
-myfile <- file.path(df, output_name)
+myfile <- file.path(rdatdir, output_name)
 saveRDS(df, myfile)
