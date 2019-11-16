@@ -26,8 +26,19 @@ rdatdir <- file.path(root, "rdata")
 myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
 partitions <- readRDS(myfile)
 
-# Load preservation df.
-df <- readRDS(file.path(rdatdir,"5933053_Network_Comparisons.RData"))
+# Load network comparison results.
+myfile <- file.path(rdatdir,list.files("Network_Comparisons.RData"))
+output <- readRDS(myfile)
+
+# Combine output into df.
+df <- data.frame(
+		"nWT" =  unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
+		"nKO" = unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
+		"nPresWT" = unlist(lapply(output, function(x) sum(x$wtProts == "preserved"))),
+		"nDivWT" = unlist(lapply(output, function(x) sum(x$wtProts == "divergent"))),
+		"nPresKO" = unlist(lapply(output, function(x) sum(x$koProts == "preserved"))),
+		"nDivKO" = unlist(lapply(output, function(x) sum(x$koProts == "divergent"))))
+df$percentTotalDivergence <- (df$nDivWT + df$nDivKO)/(2918*2)
 
 # Most divergent resolution.
 subdf <- subset(df,df$percentTotalDivergence==max(df$percentTotalDivergence))
