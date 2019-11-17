@@ -52,11 +52,11 @@
 # 7. avg.contrib
 
 # User parameters to change:
-stats <- c(1:2)      # Which of the seven module statistics to use.
-strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)      # Resolutions to analyze.
+stats <- c(1:2)        # Which of the seven module statistics to use for perm test.
+strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
+res <- c(1:100)        # Resolutions to analyze.
 partition <- "6027425" # Pattern for partition file.
-cutoff <- 1          # Size cutoff to be a module.
+cutoff <- 1            # Size cutoff to be a module.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
