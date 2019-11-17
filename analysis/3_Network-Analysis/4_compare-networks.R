@@ -55,6 +55,7 @@
 stats <- c(1:2)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
 res <- c(1:100)      # Resolutions to analyze.
+cutoff <- 1          # Size cutoff to be a module.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -113,12 +114,12 @@ rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
-#myfile <- list.files(rdatdir, pattern = "5716254", full.names = TRUE)
-#partitions <- readRDS(myfile)
+myfile <- list.files(rdatdir, pattern ="6027425", full.names = TRUE)
+partitions <- readRDS(myfile)
 
 # Load network partitions. No self-preservation.
-myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
-partitions <- readRDS(myfile)
+#myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
+#partitions <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test.
@@ -151,14 +152,14 @@ for (r in res) {
   wtPartition <- partitions[[r]][["wt"]]
   koPartition <- partitions[[r]][["ko"]]
   # Remove small modules.
-  filter_modules <- function(partition,cutoff=5){
+  filter_modules <- function(partition,cutoff){
 	  modules <- split(partition,partition)
 	  out <- names(modules)[sapply(modules,function(x) table(x)<cutoff)]
 	  partition[partition %in% out] <- 0 
 	  return(partition)
   }
-  wtPartition <- filter_modules(wtPartition)
-  koPartition <- filter_modules(koPartition)
+  wtPartition <- filter_modules(wtPartition,cutoff)
+  koPartition <- filter_modules(koPartition,cutoff)
   # Total number of modules.
   nModules <- c(
     "wt" = sum(names(table(wtPartition)) != 0),

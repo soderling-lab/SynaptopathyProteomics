@@ -41,26 +41,3 @@ df$percentTotalPreservation <- (df$nPresWT+df$nPresKO)/(2*2918)
 best_div <- rownames(subset(df,df$percentTotalDivergence==max(df$percentTotalDivergence)))
 # Most preserved resolution.
 best_pres <- rownames(subset(df,df$percentTotalPreservation==max(df$percentTotalPreservation)))
-
-# Resolution versus k.
-
-
-
-
-# Resolution versus percent NS, divergent, preserved.
-
-
-
-
-
-
-
-
-
-
-# Compare resolutions with Folkes Mallow.
-fmi <- sapply(partitions,function(x) FM_index_R(x[["wt"]], x[["ko"]])[1])
-
-# Most divergent partitions == min(FMI)
-c(1:length(fmi))[fmi==min(fmi)]
-

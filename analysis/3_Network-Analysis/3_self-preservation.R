@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
-# Examine module self-preservation.
+# Self-preservation of modules identified in WT and KO graphs are examined by
+# permutation testing. The bicor co-expression matrices are transformed into 
+# signed toplographical overlap matrices so that all edges are positive.
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
