@@ -55,6 +55,7 @@
 stats <- c(1:2)      # Which of the seven module statistics to use.
 strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
 res <- c(1:100)      # Resolutions to analyze.
+partition <- "6027425" # Pattern for partition file.
 cutoff <- 1          # Size cutoff to be a module.
 
 # Is this a slurm job?
@@ -114,12 +115,8 @@ rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
 rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
-myfile <- list.files(rdatdir, pattern ="6027425", full.names = TRUE)
+myfile <- list.files(rdatdir, pattern = partition, full.names = TRUE)
 partitions <- readRDS(myfile)
-
-# Load network partitions. No self-preservation.
-#myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
-#partitions <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test.
