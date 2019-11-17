@@ -122,5 +122,5 @@ for (i in 1:100) {
 } # END LOOP.
 
 # Save to Rdata.
-output_name <- paste0(job, "_self_preservation_results.RDS")
+output_name <- paste0(job, "_Module_Self_Preservation.RDS")
 saveRDS(results, file.path(datadir, output_name))
