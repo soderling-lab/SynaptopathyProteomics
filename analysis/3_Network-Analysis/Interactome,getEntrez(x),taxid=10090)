@@ -1,0 +1,34 @@
+buildNetwork              package:getPPIs              R Documentation
+
+_b_u_i_l_d_N_e_t_w_o_r_k
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     Given a HitPredict data.frame (PPIs) and a vector of entrez IDs,
+     build a protein-protein interaction graph.
+
+_U_s_a_g_e:
+
+     buildNetwork(hitpredict, mygenes, taxid)
+     
+_A_r_g_u_m_e_n_t_s:
+
+    none:
+
+_V_a_l_u_e:
+
+     none
+
+_A_u_t_h_o_r(_s):
+
+     Tyler W Bradshaw, <email: tyler.w.bradshaw@duke.edu>
+
+_R_e_f_e_r_e_n_c_e_s:
+
+     none
+
+_E_x_a_m_p_l_e_s:
+
+     buildNetwork()
+     
+

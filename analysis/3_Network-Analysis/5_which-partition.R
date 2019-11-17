@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
   library(dendextend)
+  library(getPPIs) 
 })
 
 # Directories.
@@ -18,49 +19,84 @@ funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 
-# Load network partitions. No self-preservation.
-myfile <- list.files(rdatdir, pattern = "3_la_partitions", full.names = TRUE)
-partitions <- readRDS(myfile)
+# Load protein map.
+protmap <- readRDS(file.path(rdatdir,"2_Prot_Map.RData"))
+
+# Load mouse PPIs.
+data(musInteractome)
+
+# Load expression data.
+wtDat <- t(readRDS(list.files(rdatdir,
+  pattern = "WT_cleanDat",
+  full.names = TRUE
+)))
+koDat <- t(readRDS(list.files(rdatdir,
+  pattern = "KO_cleanDat",
+  full.names = TRUE
+)))
+
+# Load adjmatrices.
+wtAdjm <- t(readRDS(list.files(rdatdir,
+  pattern = "WT_Adjm.RData",
+  full.names = TRUE
+)))
+koAdjm <- t(readRDS(list.files(rdatdir,
+  pattern = "KO_Adjm.RData",
+  full.names = TRUE
+)))
+
+# Compute TOM adjcacency matrices--this insures that all edges are positve.
+wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
+koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
+rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
+rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network comparison results.
 myfile <- list.files(rdatdir,pattern="5945001",full.names=TRUE)
 output <- readRDS(myfile)
 
 # Combine output into df.
-df <- data.frame(
+res <- data.frame(
 		"nWT" =  unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
 		"nKO" = unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
 		"nPresWT" = unlist(lapply(output, function(x) sum(x$wtProts == "preserved"))),
 		"nDivWT" = unlist(lapply(output, function(x) sum(x$wtProts == "divergent"))),
 		"nPresKO" = unlist(lapply(output, function(x) sum(x$koProts == "preserved"))),
 		"nDivKO" = unlist(lapply(output, function(x) sum(x$koProts == "divergent"))))
-df$percentTotalDivergence <- (df$nDivWT + df$nDivKO)/(2*2918)
-df$percentTotalPreservation <- (df$nPresWT+df$nPresKO)/(2*2918)
+res$percentTotalDivergence <- (res$nDivWT + res$nDivKO)/(2*2918)
+res$percentTotalPreservation <- (res$nPresWT+res$nPresKO)/(2*2918)
+df <- list()
+for (i in 1:length(output)){
+	x <- output[[i]]
+	df[[i]] <- data.frame(
+			 k_WT_NS = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="ns"),
+			 k_WT_Di = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="divergent"),
+			 k_WT_Pr = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="preserved"),
+			 k_WT_NC = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="not-clustered"),
+			 k_KO_NS = sum(sapply(split(x$koProts,x$koPartition),unique)=="ns"),
+			 k_KO_Di = sum(sapply(split(x$koProts,x$koPartition),unique)=="divergent"),
+			 k_KO_Pr = sum(sapply(split(x$koProts,x$koPartition),unique)=="preserved"),
+			 k_KO_NC = sum(sapply(split(x$koProts,x$koPartition),unique)=="not-clustered")
+			 )
+}
+df <- do.call(rbind,df)
+df <- cbind(res,df)
 
-# Most divergent resolution.
-best_div <- rownames(subset(df,df$percentTotalDivergence==max(df$percentTotalDivergence)))
-# Most preserved resolution.
-best_pres <- rownames(subset(df,df$percentTotalPreservation==max(df$percentTotalPreservation)))
+# Examine a partition.
+res <- 40
+dat <- output[[res]]
 
-# Resolution versus k.
+# WT modules.
+modules <- split(dat$wtProts,dat$wtPartition)
+sapply(modules, unique)
 
+# Divergent modules.
+myprots <- names(modules[[1]])
+getEntrez <- function(prots) {return(protmap$entrez[match(prots,protmap$ids)])}
+g <- buildNetwork(hitpredict=musInteractome,getEntrez(myprots),taxid=10090)
 
+idx <- idy <- match(myprots,colnames(wtAdjm))
+subWT <- wtAdjm[idx,idy]
+subKO <- koAdjm[idx,idy]
 
-
-# Resolution versus percent NS, divergent, preserved.
-
-
-
-
-
-
-
-
-
-
-# Compare resolutions with Folkes Mallow.
-fmi <- sapply(partitions,function(x) FM_index_R(x[["wt"]], x[["ko"]])[1])
-
-# Most divergent partitions == min(FMI)
-c(1:length(fmi))[fmi==min(fmi)]
 
