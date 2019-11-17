@@ -99,4 +99,11 @@ idx <- idy <- match(myprots,colnames(wtAdjm))
 subWT <- wtAdjm[idx,idy]
 subKO <- koAdjm[idx,idy]
 
+<<<<<<< HEAD
 
+=======
+# Most divergent resolution.
+best_div <- rownames(subset(df,df$percentTotalDivergence==max(df$percentTotalDivergence)))
+# Most preserved resolution.
+best_pres <- rownames(subset(df,df$percentTotalPreservation==max(df$percentTotalPreservation)))
+>>>>>>> b50dffd0a353cf1596b67eeefdfad363543f55fe
