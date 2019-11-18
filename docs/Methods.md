@@ -258,3 +258,51 @@ Rumbaugh for his generous donation of the Syngap1 mice used in this study. We
 would also like to thank Dr. Peter Mucha for helpful discussions about the
 analysis. 
 
+
+## module comparison notes.
+
+# For example:
+# Given a network partition at a given resolution:
+# Get observed statistics for a module in the opposite (test) graph (e.g. KO module avg.edge weight in WT graph).
+# Get nulls from 10,000 randomizations of the test graph.
+# Compare observed versus NULL distributions.
+# Correct p.values for n comparisons.
+# If observed statistic is significantly greater than null -> preserved.
+# If observed statistic is significantly less than null --> divergent.
+# WT Modules that are divergent in the KO graph coorespond to LOF.
+# KO Modules that are divergent in the WT graph coorespond to GOF.
+
+# Criterion for preservation/divergence can be weak or strong.
+# If weak, then requirement is ANY significant stats.
+# If strong, then requirement is ALL significant stats.
+# User can select which stats to use.
+
+# Possible permutations:
+# 1. enforce self-preservation
+#    * strong preservation -- all stats - NO DIVERGENT WT MODULES
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats - NO DIVERGENT WT MODULES?
+
+# 2. no self-pres --> remove modules smaller than 5 proteins
+#    * strong preservation -- all stats
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats *** THIS seems like the prefered option ***
+
+# 3. Single resolution : best biological "signal" - self-pres with TOM -> recalculate best resolution.
+#    * strong preservation -- all stats
+#    * weak preservation -- all stats
+#    * strong preservation -- 2 stats
+
+
+# Module statistics:
+# 1. avg.weight - (average edge weight) assumes positive edges - calculated 
+#    from network.
+# 2. coherence (module coherence) - calculated from modules summary profile.
+# 3. cor.cor (concordance of correlation structure) - calculated from
+#    correlation matrix.
+# 4. cor.degree - assumes positive edges - calculated from network.
+# 5. cor.contrib (concordance of node contribution) - calculated from modules 
+#    summary profile. 
+# 6. avg.cor (density of correlation structure) - calculate from correlation 
+#    matrix.
+# 7. avg.contrib (average node contribution) - calculated from modules summary

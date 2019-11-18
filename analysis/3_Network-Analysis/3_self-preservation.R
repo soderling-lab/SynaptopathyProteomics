@@ -96,19 +96,19 @@ correlation_list <- list(wt = wtAdjm, ko = koAdjm)
 network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"])) 
 
 # Loop through partitions, evaluating self-preservation.
-n <- dim(koParts)[1]
+nres <- dim(koParts)[1]
 results <- list()
 
-for (i in 1:n) {
-  # status
+for (i in 1:nres) {
+  # Status report.
   message(paste("working on partition", i, "..."))
-  # Get partition.
+  # Get partition--adding 1 so that all module assignments >0.
   wtPartition <- as.integer(wtParts[i, ]) + 1
   koPartition <- as.integer(koParts[i, ]) + 1
   names(wtPartition) <- names(koPartition) <- colnames(wtAdjm)
   module_list <- list(wt = wtPartition, ko = koPartition)
   # Perform permutation test for module self-preservation.
-  # Done for both wt and ko networks...
+  # Use lapply to do for both wt and ko networks...
   self <- as.list(c("wt", "ko"))
   suppressWarnings({
     selfPreservation <- lapply(self, function(x) {
@@ -123,7 +123,7 @@ for (i in 1:n) {
         test = x,
         selfPreservation = TRUE,
         nThreads = nThreads,
-        # nPerm = 100000,
+        # nPerm = 100000, # Determined automatically by the function.
         null = "overlap",
         alternative = "greater",
         simplify = TRUE,
@@ -131,41 +131,42 @@ for (i in 1:n) {
       )
     })
   })
-
+  # Function to check module preservation/divergence.
   check_modules <- function(x) {
     # Collect observed values, nulls, and p.values -> p.adj.
     obs <- x$observed[, stats]
     nulls <- apply(x$nulls, 2, function(x) apply(x, 1, mean))[, stats]
     q <- apply(x$p.values, 2, function(x) p.adjust(x, "bonferroni"))[, stats]
     q[is.na(q)] <- 1
-    # If testing more than one statistic.
+    # If testing more than one statistic, consider strong or weak preservation.
     fx <- c("strong"="all","weak"="any")[strength]
     if (length(stats) > 1) {
       sig <- apply(q < 0.05, 1, eval(fx))
       greater <- apply(obs > nulls, 1, eval(fx))
       less <- apply(obs < nulls, 1, eval(fx))
     } else {
-      # If testing a single statistic.
+      # If testing a single statistic...
       sig <- q < 0.05
       greater <- obs > nulls
       less <- obs < nulls
     }
-    # Preserved, divergent, and ns modules.
-    n <- length(x$nVarsPresent)
-    v <- rep("ns", n)
+    # Define preserved, divergent, and ns modules.
+    nModules <- length(x$nVarsPresent)
+    v <- rep("ns", nModules)
     v[greater & sig] <- "preserved"
     v[less & sig] <- "divergent"
     names(v) <- names(x$nVarsPresent)
     return(v)
-  } # ENDS function
-  # Set ns modules to 0.
-  v <- lapply(selfPreservation,check_modules) 
-  out <- lapply(v, function(x) names(x)[x == "ns"])
+  }
+  # Remove NS modules--set NS modules to 0.
+  preservedPartitions <- lapply(selfPreservation,check_modules)
+  out <- lapply(preservedPartitions, function(x) names(x)[x == "ns"])
   wtPartition[wtPartition %in% out[[1]]] <- 0
   koPartition[koPartition %in% out[[2]]] <- 0
+  # Return results.
   results[[i]] <- list(wt = wtPartition, ko = koPartition)
 } # END LOOP.
 
 # Save to Rdata.
-output_name <- paste0("1023746", "_Module_Self_Preservation.RDS")
+output_name <- paste0(job, "_Module_Self_Preservation.RDS")
 saveRDS(results, file.path(datadir, output_name))
