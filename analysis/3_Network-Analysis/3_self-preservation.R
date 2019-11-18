@@ -49,10 +49,10 @@ wtAdjm <- silently(WGCNA::bicor(wtDat))
 koAdjm <- silently(WGCNA::bicor(koDat))
 
 # Compute TOM adjcacency matrices--this insures that all edges are positve.
-wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
-koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
-rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
-rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
+#wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
+#koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
+#rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
+#rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
@@ -67,7 +67,7 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 # Input for NetRep:
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-network_list <- list(wt = wtTOM, ko = koTOM) # Use adjmatrices!
+network_list <- list(wt = wtAdjm, ko = koAdjm) # Use adjmatrices!
 
 # Loop through partitions, evaluating self-preservation.
 n <- dim(koParts)[1]
@@ -105,6 +105,33 @@ for (i in 1:100) {
       )
     })
   })
+  check_modules <- function(x) {
+    # Collect observed values, nulls, and p.values -> p.adj.
+    obs <- x$observed[, stats]
+    nulls <- apply(x$nulls, 2, function(x) apply(x, 1, mean))[, stats]
+    q <- apply(x$p.values, 2, function(x) p.adjust(x, "bonferroni"))[, stats]
+    q[is.na(q)] <- 1
+    # If testing more than one statistic.
+    fx <- c("strong"="all","weak"="any")[strength]
+    if (length(stats) > 1) {
+      sig <- apply(q < 0.05, 1, eval(fx))
+      greater <- apply(obs > nulls, 1, eval(fx))
+      less <- apply(obs < nulls, 1, eval(fx))
+    } else {
+      # If testing a single statistic.
+      sig <- q < 0.05
+      greater <- obs > nulls
+      less <- obs < nulls
+    }
+    # Preserved, divergent, and ns modules.
+    n <- length(x$nVarsPresent)
+    v <- rep("ns", n)
+    v[greater & sig] <- "preserved"
+    v[less & sig] <- "divergent"
+    return(v)
+  } # ENDS function
+  save.image("work.RData")
+  stop()
   # Function to get max pvalue.
   maxp <- function(preservation) {
     p <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))

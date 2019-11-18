@@ -43,19 +43,21 @@
 #-------------------------------------------------------------------------------
 
 # Module statistics:
-# 1. avg.weight 
+# 1. avg.weight - assumes positive edges.
 # 2. coherence 
 # 3. cor.cor 
-# 4. cor.degree 
+# 4. cor.degree - assumes positive edges.
 # 5. cor.contrib 
 # 6. avg.cor 
 # 7. avg.contrib
 
 # User parameters to change:
-stats <- c(1:2)        # Which of the seven module statistics to use for perm test.
+#stats <- c(1:2)        # Which of the seven module statistics to use for perm test.
+stats <- c(2,3,5,6,7)
 strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
 res <- c(1:100)        # Resolutions to analyze.
-partition <- "6027425" # Pattern for partition file.
+#partition <- "6027425" # Pattern for partition file.
+partition <- "5716254"
 cutoff <- 1            # Size cutoff to be a module.
 
 # Is this a slurm job?
