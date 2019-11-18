@@ -7,6 +7,10 @@
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# User parameters to change:
+stats <- c(2,3,5,6,7)
+strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
+
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
 if (slurm) {
@@ -73,7 +77,8 @@ network_list <- list(wt = wtAdjm, ko = koAdjm) # Use adjmatrices!
 n <- dim(koParts)[1]
 results <- list()
 
-for (i in 1:100) {
+for (i in 1:n) {
+
   # status
   message(paste("working on partition", i, "..."))
   # Get partition.
@@ -105,6 +110,7 @@ for (i in 1:100) {
       )
     })
   })
+
   check_modules <- function(x) {
     # Collect observed values, nulls, and p.values -> p.adj.
     obs <- x$observed[, stats]
@@ -128,23 +134,14 @@ for (i in 1:100) {
     v <- rep("ns", n)
     v[greater & sig] <- "preserved"
     v[less & sig] <- "divergent"
+    names(v) <- names(x$nVarsPresent)
     return(v)
   } # ENDS function
-  save.image("work.RData")
-  stop()
-  # Function to get max pvalue.
-  maxp <- function(preservation) {
-    p <- apply(preservation$p.values, 1, function(x) max(x, na.rm = TRUE))
-    q <- p.adjust(p, "bonferroni")
-    return(q)
-  }
-  q <- lapply(selfPreservation, maxp)
-  # Modules with NS preservation stats.
-  out <- lapply(q, function(x) names(x)[x > 0.05])
-  # For NS modules, set module membership to 0.
+  # Set ns modules to 0.
+  v <- lapply(selfPreservation,check_modules) 
+  out <- lapply(v, function(x) names(x)[x == "ns"])
   wtPartition[wtPartition %in% out[[1]]] <- 0
   koPartition[koPartition %in% out[[2]]] <- 0
-  # Return results.
   results[[i]] <- list(wt = wtPartition, ko = koPartition)
 } # END LOOP.
 
