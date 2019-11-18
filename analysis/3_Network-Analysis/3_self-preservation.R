@@ -111,7 +111,7 @@ for (i in 1:nres) {
         nThreads = nThreads,
         # nPerm = 100000, # Determined automatically by the function.
         null = "overlap",
-        alternative = "greater",
+        alternative = "greater", # Greater for self-preservation.
         simplify = TRUE,
         verbose = FALSE
       )

@@ -47,6 +47,10 @@ funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 
+# Functions.
+myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
+invisible(sapply(myfun, source))
+
 # Load expression data.
 wtDat <- t(readRDS(list.files(rdatdir,
   pattern = "WT_cleanDat",
@@ -66,6 +70,16 @@ koAdjm <- t(readRDS(list.files(rdatdir,
   pattern = "KO_Adjm.RData",
   full.names = TRUE
 )))
+
+# Calculate power for approximate scale free fit.
+sft <- silently({
+	sapply(list(wtDat,koDat),function(x) 
+	       pickSoftThreshold(x,
+				 corFnc="bicor",
+				 networkType="signed",
+				 RsquaredCut=0.8)$powerEstimate)
+})
+names(sft) <- c("wt","ko")
 
 # Load network partitions. Self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = partition, full.names = TRUE)
@@ -135,10 +149,11 @@ for (r in res) {
   # Note the networks are what are used to calc the avg edge weight statistic.
   # Note that NetRep assumes all edges are positive in calculating
   # avg.edge.weight and cor.degree.
+  # Transform adjm with soft power and take absolute value.
   data_list <- list(wt = wtDat, ko = koDat)
   correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-  network_list <- list(wt = wtTOM, ko = koTOM)
-  module_list <- list(wt = koPartition, ko = wtPartition)
+  network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"]))
+  module_list <- list(wt = koPartition, ko = wtPartition) # Zero index modules will be ignored.
   # ^This is correct: given the WT data/graph and the KO modules,
   # are modules preserved (the same) or divergent (different) in the KO graph?
   # Hypothesis for self-preservation.
@@ -157,7 +172,7 @@ for (r in res) {
         correlation = correlation_list,
         moduleAssignments = module_list,
         modules = NULL,
-        backgroundLabel = 0,
+        backgroundLabel = "0",
         discovery = x["discovery"],
         test = x["test"],
         selfPreservation = TRUE,
