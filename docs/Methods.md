@@ -1,8 +1,8 @@
 # Methods
 
 ## Mice
-Shank2, Shank3, and Ube3a mice were gifts of Yong-Hui Jiang (Duke University).
-Syngap1 were recieved from Gavin Rumbaugh (Scripps).
+Shank2(-/-), Shank3(Δe4–22−/−; Wang et al., 2016), and Ube3a(m-/p+; Jiang et al., 1998; Jax:016590) mice were gifts of Yong-Hui Jiang (Duke University).
+Syngap1(+/-; Kim et al., 2003; Jax:008890) were recieved from Gavin Rumbaugh (Scripps).
 
 ## Synaptosome Isolation.  
 Synaptomes were prepared by sucrose gradient ultracentrifugation in a manner
@@ -22,6 +22,7 @@ buffer (320 mM sucrose, 5 mM HEPES, 1mM EGTA, pH 7.4) containing protease
 inhibitors (AEBSF 100mM, Sodium Orthovanadate 100mM, Leupeptin/peptstatin 2mg/mL). 
 All steps were performed on ice or at 4*C and all buffers contained protease
 inhibitors.
+
 The crude homogenant was transfered into a 1.5 mL tube and centrifuged
 for 10 min @ 1,000 g 4*C.  The supernatant containing the crude cytosolic fraction
 was removed by pipette and transfered into a new 1.5 mL tube and centrifuged again 
@@ -31,9 +32,9 @@ pellet was resuspended in 500 uL resuspension buffer (320 mM sucrose,
 
 The resuspened crude synaptosome fraction was layered over a 0.8M-1.0M-1.2M 
 discontinuos sucrose gradient, prepared from HEPES buffered sucrose in a 
-Beckman Ultra-Clear 14x89mm tube (344059). 
+Beckman Ultra-Clear 14x89 mm tube (344059). 
 
-Theis was centrifuged for 2 hours at 85,000 x g in SW 41 Ti Rotor.
+The sucros gradient was centrifuged for 2 hours at 85,000 x g in SW 41 Ti Rotor.
 Ultracentrifugation yielded a floating myelin fraction, a light membrane mixture
 (0.8 M/1.0 M interface), a purified synaptosome fraction (1.0 M/1.2 M
 interface), and a mitochondrial pellet. The purified synaptosome fraction was
@@ -59,9 +60,7 @@ Sample loading normalization was performed to equalize total TMT-channel
 intensities within experimental batches. Sample loading normalization scales the
 run-level intensity sums across all 11 channels within an experiment to be
 equal. Intensity data were multiplied by a factor such that the mean sum of all columns
-within an experiment were equal. This normalization step reflects the assumption
-that an equal amount of protein was processed for MS from each TMT-replicate. 
-
+within an experiment were equal. 
 
 ### Peptide level filtering
 Peptides that contained any missing QC values, more than two missing biological replicates, 
@@ -78,10 +77,10 @@ algorithm as implemented by the impute.knn function from the impute package.
 ### QC filtering 
 Each 11-plex TMT experiment included a common quality control (QC)
 sample analyzed in triplicate. These QC samples were used to assess
-intra-experimental variability as well as normalize between experiments.
+intra-experimental variability.
 
 Peptides that exhibit highly variable QC measurements were removed in a 
-manner that was previously decribed. [Ping et al.,
+manner similar to that previously decribed by [Ping et al.,
 2018](https://www.nature.com/articles/sdata201836).
 
 Briefly, the three QC technical replicates within a batch
@@ -89,16 +88,10 @@ should yield identical measurements, and therefore the distribution of log2
 ratios of the three QC channels for all peptides measured should fit a normal
 distribution centered around zero. The standard deviation of this distribution
 reflects technical variation in a peptide’s measurement and allows one to
-evaluate a measurements precision. However, since variance differed based on
-peptide mean intensity, we subdivided all QC ratios into 5 quantile bins. 
-Peptides considered an outlier and removed if their mean QC
-ratio exceeded a threshold of 4 standard devaiates from the mean of a bin. 
-
-To identify peptides with highly variable QC measurements, peptide level QC data
-were binned by intensity and peptides whose mean ratio (QC1/QC2, QC2/QC3,
-QC1/QC3) were more than 4 standard deviations away from the mean the intensity
-bin were considered outliers and removed.
-
+evaluate the precision of a peptides measurments. 
+To account for the mean-variance relationship between peptide abundance and variance,
+we subdivided all QC ratios into 5 quantile bins, and then removed peptides if their mean QC
+ratio was greater than or less than 4 standard devaiates from the mean of a bin. 
 
 ## Protein level processing
 
@@ -109,20 +102,20 @@ Sample loading normalization was then performed across batches.
 ### Intrabatch regression 
 Each experimental cohort was prepared in two batches.
 This was necessary because the ultra-centrifuge used held a maximum of six
-samples. This intra-batch batch effect was recorded for 6/8 experiments.
+samples. This intra-batch batch effect was recorded for 6 of 8 experiments.
 
 This batch effect was quantified as the absolute value of the median biweight 
 correlation between batch and a sample’s first principal component. 
+We utilized the ComBat function from the sva package (Johnson et al., 2007), to 
+adjust data for this batch effect.
+If there was no evidence of a batch effect (bicor less than 0.1), then ComBat
+was not applied.
 A quantifiable batch effect was identified and removed
 for Shank3, Syngap1, and Ube3a (cortex) and Shank2 and Ube3a (striatum)
-experiments. If there was no evidence of a batch effect (bicor less than 0.1), then ComBat
-was not applied. We corrected for this batch effect using the ComBat function from the sva package 
-(Johnson et al., 2007). in two batches.
+experiments
 
 
 ### IRS Normalization 
-Internal reference scaling equalizes the protein-wise mean QC measurements 
-across experimental batches.
 We observed that although 82.7-87% (Cortex and Striatum, respectively) of
 proteins were reliably quantified across all four experiments, peptide
 identification overlap was considerably lower. Only 24-34% of peptides were
@@ -135,37 +128,33 @@ measurements to be equal, normalizing protein measurements between batches
 (Plubell et al., 2017).
 
 As IRS normalization assumes that IRS samples
-are identical, outlier QC samples were identified iteratively and removed using
+are identical, we sought to identify and eliminate any outlier QC samples prior
+to IRS normalizzation. Outlier QC samples were identified iteratively and removed using
 the method of Oldham et al., (2008). From cortex, two QC outliers (threshold =
 Z-score Normalized Connectivity -2.5) were removed: Abundance: F2: 129N, Sample,
 QC, 38824, Ube3a; Abundance: F1: 129N, Sample, QC, 36479, Syngap1 QC. No QC
-outliers were identified in the striatum experiments. 
-
+outliers were identified in striatum samples. 
 
 ### Protein level filtering and imputing 
 Proteins that were identified by a single peptide or identified 
-in less than 50% of all samples were removed (Cortex = 94, 15; Striatum = 119,10). 
+in less than 50% of all samples were removed.. 
 Any remaining missing values were inferred to be MNAR and imputed with the KNN
 algorithm.
 
 
 ### Combining Cortex and Striatum data 
 Data from cortex and striatum were combined, keeping proteins identified in both tissues. 
-We developed a normalization approach, TAMPOR normalization, to combine data from this tissues. TAMPOR
-normalizes data relative to WT samples.
+We developed a Tunable Approach for Median-Polish of Ratio or TAMPOR normalization approach,
+to combine data from both tissues.
 
-A Tunable Approach for Median-Polish of Ratio (TAMPOR). Briefly, this
-normalization method scales WT samples from cortex and striatum to be equal.
-Only proteins that were identified in both cortex and striatum datasets were
-used (N=3,022). Within a batch, biological replicates are multiplied by the same
+Briefly, this normalization method scales WT samples from cortex and striatum to be equal.
+Within a batch, biological replicates are multiplied by the same
 scaling factor, so this approach does not affect intra-batch comparisons.
-Finally, prior to differential expression and WGCNA analysis, samples with low
-sample z-score normalized network connectivity (Z.Ki less than −2.5) (outlier samples)
-were identified iteratively and removed Oldham et al., 2008. One cortex sample
-was identified as an outlier and removed. 
 
 ### Sample level outliers Outlier samples were identified using the method of
-Oldham et al.,.  I sample outlier was identified (Syngap1 HET b7.131N).
+Finally, prior to differential expression and network analysis, we removed samples with low
+z-score normalized network connectivity (Z.Ki less than −2.5) using the method of Oldham et al.
+One cortex sample was identified as an outlier and removed (Syngap1 HET b7.131N).
 
 In all, 2,918 proteins were reliably quantified across 63 biological samples.
 
@@ -177,7 +166,7 @@ between groups were evaluated using the glmQLFTest function.  P value correction
 Benjamini Hochberg.  Significant if p.value is less than 0.05.
 
 ## Coexpression network construction A WT and KO coexpression network were
-constructed using the bicor function from the WGCNA function. Bicor is a robust
+constructed using the bicor function from the WGCNA package. Bicor is a robust
 alternative to Spearman correlation.
 
 Define an adjacency matrix as the mxm correlation matrix of m genes.  A
@@ -185,14 +174,13 @@ correlation between gene m1 and mi is a measure of the distance between the two
 genes. The bicor correlation metric was used as a robust alternative to the
 Pearson correlation.
 
-The quality of a network partition can be described in terms of modularity,
-roughly how dense clusters are and well seperated...  Leiden algorithm performs
-clustering with optimization of a quality function like modularity.
-
 ## Clustering
 
-### WGCNA WGCNA is a heirarchical clustering approach used to identify modules
+### WGCNA 
+WGCNA is a heirarchical clustering approach used to identify modules
 or clusters of co-expressed genes or proteins.
+
+## Scale free toplogy of the Synaptosome proteome.
 
 The WGCNA function is expensive to evaluate and depends upon a large number of
 parameters. We optimized the parameters of the WGCNA function using Beyesian
@@ -215,7 +203,10 @@ limitation of modularity optimization based clustering approaches.
 To overcome this limitation, several different groups have added a resolution
 parameter...
 
-### Leiden algorithm The Leiden algorithm was used to perform meso-resolution
+### Leiden algorithm 
+Modularity (Newman and Girvan 2004). 
+CPM (Traag et al., 2011)
+The Leiden algorithm was used to perform meso-resolution
 clustering of the co-expression networks at 100 resolutions from 0-1.  As
 implemented by the Python leidenalg package.
 
@@ -224,10 +215,16 @@ summing the log10(pvalues) for enriched processes for every module.
 
 Thus we identified 1 optimized WT and 1 optimized KO resolution.
 
-## Module Sel-preservation Module quality was ensured by permutation testing.
-Modules with any insignificant quality statistics were removed.
+The quality of a network partition can be described in terms of modularity,
+roughly how dense clusters are and well seperated...  Leiden algorithm performs
+clustering with optimization of a quality function like modularity.
 
-## Comparing WT and KO networks
+## Module Self-preservation 
+Module quality was ensured by permutation testing.
+Modules with any insignificant quality statistics were removed.
+NetRep (Ritchie et al., 2016).
+
+## Comparing modules identified in WT and KO networks.
 In order to identify modules that are divergent in WT and KO coexpression graphs,
 we again utilized a permutation approach. (Ritchie et al., 2016).
 
@@ -242,6 +239,33 @@ when calculated on random sub-graphs in the test dataset. Permutation
 p values were then calculated from these null distributions using the estimator
 described by Phipson and Smyth (2010), which provides a conservative estimate of the p value appropriate for multiple testing adjustment (Supplemental
 Experimental Procedures).
+
+Given a network partition at a given resolution:
+Get observed statistics for a module in the opposite (test) graph (e.g. KO module avg.edge weight in WT graph).
+Get nulls from 10,000 randomizations of the test graph.
+Compare observed versus NULL distributions.
+Correct p.values for n comparisons.
+If observed statistic is significantly greater than null -> preserved.
+If observed statistic is significantly less than null --> divergent.
+WT Modules that are divergent in the KO graph coorespond to LOF.
+KO Modules that are divergent in the WT graph coorespond to GOF.
+
+# Criterion for preservation/divergence can be weak or strong.
+If weak, then requirement is ANY significant stats.
+If strong, then requirement is ALL significant stats.
+
+# Module statistics:
+ 1. avg.weight - (average edge weight) assumes positive edges - calculated 
+    from network.
+ 2. coherence (module coherence) - calculated from modules summary profile.
+ 3. cor.cor (concordance of correlation structure) - calculated from
+    correlation matrix.
+ 4. cor.degree - assumes positive edges - calculated from network.
+ 5. cor.contrib (concordance of node contribution) - calculated from modules 
+    summary profile. 
+ 6. avg.cor (density of correlation structure) - calculate from correlation 
+    matrix.
+ 7. avg.contrib (average node contribution) - calculated from modules summary
 
 ## Data and Software availability
 Data processing and statistical analyses were performed using R version 3.5.1
@@ -259,50 +283,3 @@ would also like to thank Dr. Peter Mucha for helpful discussions about the
 analysis. 
 
 
-## module comparison notes.
-
-# For example:
-# Given a network partition at a given resolution:
-# Get observed statistics for a module in the opposite (test) graph (e.g. KO module avg.edge weight in WT graph).
-# Get nulls from 10,000 randomizations of the test graph.
-# Compare observed versus NULL distributions.
-# Correct p.values for n comparisons.
-# If observed statistic is significantly greater than null -> preserved.
-# If observed statistic is significantly less than null --> divergent.
-# WT Modules that are divergent in the KO graph coorespond to LOF.
-# KO Modules that are divergent in the WT graph coorespond to GOF.
-
-# Criterion for preservation/divergence can be weak or strong.
-# If weak, then requirement is ANY significant stats.
-# If strong, then requirement is ALL significant stats.
-# User can select which stats to use.
-
-# Possible permutations:
-# 1. enforce self-preservation
-#    * strong preservation -- all stats - NO DIVERGENT WT MODULES
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats - NO DIVERGENT WT MODULES?
-
-# 2. no self-pres --> remove modules smaller than 5 proteins
-#    * strong preservation -- all stats
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats *** THIS seems like the prefered option ***
-
-# 3. Single resolution : best biological "signal" - self-pres with TOM -> recalculate best resolution.
-#    * strong preservation -- all stats
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats
-
-
-# Module statistics:
-# 1. avg.weight - (average edge weight) assumes positive edges - calculated 
-#    from network.
-# 2. coherence (module coherence) - calculated from modules summary profile.
-# 3. cor.cor (concordance of correlation structure) - calculated from
-#    correlation matrix.
-# 4. cor.degree - assumes positive edges - calculated from network.
-# 5. cor.contrib (concordance of node contribution) - calculated from modules 
-#    summary profile. 
-# 6. avg.cor (density of correlation structure) - calculate from correlation 
-#    matrix.
-# 7. avg.contrib (average node contribution) - calculated from modules summary
