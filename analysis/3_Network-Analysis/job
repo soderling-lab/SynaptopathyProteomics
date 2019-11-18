@@ -10,4 +10,4 @@
 #SBATCH -p scavenger
 
 module load R/3.6.0
-Rscript ./$1
+Rscript ./$1 && Rscript ./$2

@@ -58,7 +58,7 @@ strength <- "strong"   # Preservation criterion strong = all, or weak = any sig 
 res <- c(1:100)        # Resolutions to analyze.
 #partition <- "6027425" # Pattern for partition file.
 #partition <- "5716254"
-partition <- "6091242"
+partition <- "1023746"
 cutoff <- 1            # Size cutoff to be a module.
 
 # Is this a slurm job?
