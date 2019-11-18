@@ -1,6 +1,6 @@
 #' ggplotScaleFreePlot
 #'
-#' generate scatter plot of k and obs prob
+#' evaluate the scale free fit of a graph
 #'
 #' @param
 #'
@@ -20,6 +20,11 @@
 #' ggplotScaleFreePlot(connectivity)
 ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
                                 removeFirst = FALSE, main = "", ...) {
+	suppressPackageStartupMessages({
+		require(WGCNA)
+		require(normalp)
+		require(ggplot2)
+	})
   k <- connectivity
   discretized.k <- cut(k, nBreaks)
   dk <- tapply(k, discretized.k, mean)
@@ -42,12 +47,10 @@ ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
   lm1 <- lm(log.p.dk ~ log.dk)
   pvalue <- lmp(lm1)
   print(pvalue)
-
   title <- paste0(
     main, " Scale Free R2 =", as.character(round(summary(lm1)$adj.r.squared, 2)),
     ", slope =", round(lm1$coefficients[[2]], 2)
   )
-
   OUTPUT <- data.frame(
     scaleFreeRsquared = round(summary(lm1)$adj.r.squared, 2),
     slope = round(lm1$coefficients[[2]], 2)
