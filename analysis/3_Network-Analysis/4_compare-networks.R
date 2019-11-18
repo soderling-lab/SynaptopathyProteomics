@@ -15,7 +15,7 @@ stats <- c(1:7)        # Which module statistics (7) to use for perm testing.
 strength <- "strong"   # Preservation criterion: strong = all, weak = any sig stats.
 res <- c(1:100)        # Resolutions to be analyzed.
 cutoff <- 1            # Size cutoff to be a module.
-partition <- "1023746" # Which partition file to use as input?
+partition <- "6142226" # Which partition file to use as input?
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
