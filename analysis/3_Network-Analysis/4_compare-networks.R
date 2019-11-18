@@ -6,71 +6,22 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-# For example:
-# Given a network partition at a given resolution:
-# Get observed statistics for a module in the opposite (test) graph (e.g. KO module avg.edge weight in WT graph).
-# Get nulls from 10,000 randomizations of the test graph.
-# Compare observed versus NULL distributions.
-# Correct p.values for n comparisons.
-# If observed statistic is significantly greater than null -> preserved.
-# If observed statistic is significantly less than null --> divergent.
-# WT Modules that are divergent in the KO graph coorespond to LOF.
-# KO Modules that are divergent in the WT graph coorespond to GOF.
-
-# Criterion for preservation/divergence can be weak or strong.
-# If weak, then requirement is ANY significant stats.
-# If strong, then requirement is ALL significant stats.
-# User can select which stats to use.
-
-# Possible permutations:
-# 1. enforce self-preservation
-#    * strong preservation -- all stats - NO DIVERGENT WT MODULES
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats - NO DIVERGENT WT MODULES?
-
-# 2. no self-pres --> remove modules smaller than 5 proteins
-#    * strong preservation -- all stats
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats *** THIS seems like the prefered option ***
-
-# 3. Single resolution : best biological "signal" - self-pres with TOM -> recalculate best resolution.
-#    * strong preservation -- all stats
-#    * weak preservation -- all stats
-#    * strong preservation -- 2 stats
-
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# Module statistics:
-# 1. avg.weight - (average edge weight) assumes positive edges - calculated 
-#    from network.
-# 2. coherence (module coherence) - calculated from modules summary profile.
-# 3. cor.cor (concordance of correlation structure) - calculated from
-#    correlation matrix.
-# 4. cor.degree - assumes positive edges - calculated from network.
-# 5. cor.contrib (concordance of node contribution) - calculated from modules 
-#    summary profile. 
-# 6. avg.cor (density of correlation structure) - calculate from correlation 
-#    matrix.
-# 7. avg.contrib (average node contribution) - calculated from modules summary
-#    profile.
-
 # User parameters to change:
-#stats <- c(1:2)        # Which of the seven module statistics to use for perm test.
-stats <- c(2,3,5,6,7)
-strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
-res <- c(1:100)        # Resolutions to analyze.
-#partition <- "6027425" # Pattern for partition file.
-#partition <- "5716254"
-partition <- "1023746"
+stats <- c(1:7)        # Which module statistics (7) to use for perm testing.
+strength <- "strong"   # Preservation criterion: strong = all, weak = any sig stats.
+res <- c(1:100)        # Resolutions to be analyzed.
 cutoff <- 1            # Size cutoff to be a module.
+partition <- "1023746" # Which partition file to use as input?
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
 if (slurm) {
   # SLURM job notes - sent to job_*.info
-  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")) # Number of threads.
+  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK"))
   job <- as.integer(Sys.getenv("SLURM_JOBID"))
   info <- as.matrix(Sys.getenv())
   idx <- grepl("SLURM", rownames(info))
@@ -115,12 +66,6 @@ koAdjm <- t(readRDS(list.files(rdatdir,
   pattern = "KO_Adjm.RData",
   full.names = TRUE
 )))
-
-# Compute TOM adjcacency matrices--this insures that all edges are positve.
-wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
-koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
-rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
-rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
 
 # Load network partitions. Self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = partition, full.names = TRUE)
