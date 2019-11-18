@@ -10,29 +10,15 @@
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# Module statistics:
-# 1. avg.weight - (average edge weight) assumes positive edges - calculated 
-#    from network.
-# 2. coherence (module coherence) - calculated from modules summary profile.
-# 3. cor.cor (concordance of correlation structure) - calculated from
-#    correlation matrix.
-# 4. cor.degree - assumes positive edges - calculated from network.
-# 5. cor.contrib (concordance of node contribution) - calculated from modules 
-#    summary profile. 
-# 6. avg.cor (density of correlation structure) - calculate from correlation 
-#    matrix.
-# 7. avg.contrib (average node contribution) - calculated from modules summary
-#    profile.
-
 # User parameters to change:
-stats <- c(1:7)  
+stats <- c(1:7)        # Module statistics to use for permutation testing.
 strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
 if (slurm) {
   # SLURM job notes - sent to job_*.info
-  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")) # Number of threads.
+  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK"))
   job <- as.integer(Sys.getenv("SLURM_JOBID"))
   info <- as.matrix(Sys.getenv())
   idx <- grepl("SLURM", rownames(info))
