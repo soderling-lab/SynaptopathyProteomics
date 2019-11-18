@@ -45,15 +45,13 @@ koAdjm <- t(readRDS(list.files(rdatdir,
   full.names = TRUE
 )))
 
-# Compute TOM adjcacency matrices--this insures that all edges are positve.
-wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
-koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
-rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
-rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
+# Load network partitions.
+myfile <- list.files(rdatdir,pattern="1023746",full.names=TRUE)
+partitions <- readRDS(myfile)
 
 # Load network comparison results.
-myfile <- list.files(rdatdir,pattern="5945001",full.names=TRUE)
-output <- readRDS(myfile)
+myfile <- list.files(rdatdir,pattern="6040093",full.names=TRUE)
+comparisons <- readRDS(myfile)
 
 # Combine output into df.
 res <- data.frame(
@@ -83,15 +81,15 @@ df <- do.call(rbind,df)
 df <- cbind(res,df)
 
 # Examine a partition.
-res <- 40
+res <- 37
 dat <- output[[res]]
 
-# WT modules.
-modules <- split(dat$wtProts,dat$wtPartition)
+# Modules.
+modules <- split(dat$koProts,dat$koPartition)
 sapply(modules, unique)
 
 # Divergent modules.
-myprots <- names(modules[[1]])
+myprots <- names(modules[[4]])
 getEntrez <- function(prots) {return(protmap$entrez[match(prots,protmap$ids)])}
 g <- buildNetwork(hitpredict=musInteractome,getEntrez(myprots),taxid=10090)
 

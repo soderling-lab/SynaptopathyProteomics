@@ -2,7 +2,7 @@
 
 #' ---
 #' title:
-#' description: Compare networks with permutation test
+#' description: Compare modules in WT and KO networks with permutation test.
 #' authors: Tyler W Bradshaw
 #' ---
 
@@ -43,13 +43,18 @@
 #-------------------------------------------------------------------------------
 
 # Module statistics:
-# 1. avg.weight - assumes positive edges.
-# 2. coherence 
-# 3. cor.cor 
-# 4. cor.degree - assumes positive edges.
-# 5. cor.contrib 
-# 6. avg.cor 
-# 7. avg.contrib
+# 1. avg.weight - (average edge weight) assumes positive edges - calculated 
+#    from network.
+# 2. coherence (module coherence) - calculated from modules summary profile.
+# 3. cor.cor (concordance of correlation structure) - calculated from
+#    correlation matrix.
+# 4. cor.degree - assumes positive edges - calculated from network.
+# 5. cor.contrib (concordance of node contribution) - calculated from modules 
+#    summary profile. 
+# 6. avg.cor (density of correlation structure) - calculate from correlation 
+#    matrix.
+# 7. avg.contrib (average node contribution) - calculated from modules summary
+#    profile.
 
 # User parameters to change:
 #stats <- c(1:2)        # Which of the seven module statistics to use for perm test.

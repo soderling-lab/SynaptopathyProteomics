@@ -1,14 +1,31 @@
 #!/usr/bin/env Rscript
-# Self-preservation of modules identified in WT and KO graphs are examined by
-# permutation testing. The bicor co-expression matrices are transformed into 
-# signed toplographical overlap matrices so that all edges are positive.
+
+#' ---
+#' title:
+#' description: Evaluate WT and KO module self-preservation with perm test.
+#' authors: Tyler W Bradshaw
+#' ---
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# Module statistics:
+# 1. avg.weight - (average edge weight) assumes positive edges - calculated 
+#    from network.
+# 2. coherence (module coherence) - calculated from modules summary profile.
+# 3. cor.cor (concordance of correlation structure) - calculated from
+#    correlation matrix.
+# 4. cor.degree - assumes positive edges - calculated from network.
+# 5. cor.contrib (concordance of node contribution) - calculated from modules 
+#    summary profile. 
+# 6. avg.cor (density of correlation structure) - calculate from correlation 
+#    matrix.
+# 7. avg.contrib (average node contribution) - calculated from modules summary
+#    profile.
+
 # User parameters to change:
-stats <- c(2,3,5,6,7)  # dont use average wedge weight and 
+stats <- c(1:7)  
 strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
 
 # Is this a slurm job?
@@ -52,11 +69,15 @@ koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
 wtAdjm <- silently(WGCNA::bicor(wtDat))
 koAdjm <- silently(WGCNA::bicor(koDat))
 
-# Compute TOM adjcacency matrices--this insures that all edges are positve.
-#wtTOM <- TOMsimilarity(wtAdjm, TOMType = "signed", verbose = 0)
-#koTOM <- TOMsimilarity(koAdjm, TOMType = "signed", verbose = 0)
-#rownames(wtTOM) <- colnames(wtTOM) <- colnames(wtAdjm)
-#rownames(koTOM) <- colnames(koTOM) <- colnames(koAdjm)
+# Calculate power for approximate scale free fit.
+sft <- silently({
+	sapply(list(wtDat,koDat),function(x) 
+	       pickSoftThreshold(x,
+				 corFnc="bicor",
+				 networkType="signed",
+				 RsquaredCut=0.8)$powerEstimate)
+})
+names(sft) <- c("wt","ko")
 
 # Load partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
@@ -69,9 +90,10 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
+# Networks should be transformed with power for scale free fit, and 
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-network_list <- list(wt = wtAdjm, ko = koAdjm) # Use adjmatrices!
+network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"])) 
 
 # Loop through partitions, evaluating self-preservation.
 n <- dim(koParts)[1]
