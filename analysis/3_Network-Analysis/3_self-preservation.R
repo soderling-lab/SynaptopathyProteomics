@@ -79,7 +79,7 @@ sft <- silently({
 })
 names(sft) <- c("wt","ko")
 
-# Load partitions.
+# Load Leidenalg graph partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
 koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
 wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
@@ -90,7 +90,7 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
-# Networks should be transformed with power for scale free fit, and 
+# Networks should be transformed with power for scale free fit, and positive.
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
 network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"])) 
