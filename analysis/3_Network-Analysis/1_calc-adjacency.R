@@ -2,7 +2,7 @@
 
 #' ---
 #' title: 1_calc-adjacency.R
-#' description: generate wt and ko bicor correlation matrice.
+#' description: generate wt and ko bicor correlation matrices.
 #' authors: Tyler W. Bradshaw
 #' ---
 
@@ -14,6 +14,7 @@
 here <- getwd()
 root <- dirname(dirname(here))
 rdatadir <- file.path(root, "rdata")
+tabsdir <- file.path(root,"tables")
 
 # Load misc functions.
 suppressPackageStartupMessages({

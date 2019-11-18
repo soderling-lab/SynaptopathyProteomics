@@ -569,6 +569,10 @@ names(stats) <- names(glm_results)
 df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 colnames(df)[c(2:ncol(df))] <- names(stats)
 
+# Save to Rdata.
+myfile <- file.path(outputtabs,"2_GLM_Results.RData")
+saveRDS(df, myfile)
+
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
 labels <- data.frame(
   Shank2 = df$"Shank2 Cortex" < 0.05 | df$"Shank2 Striatum" < 0.05,
