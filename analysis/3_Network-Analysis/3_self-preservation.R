@@ -8,7 +8,7 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(2,3,5,6,7)
+stats <- c(2,3,5,6,7)  # dont use average wedge weight and 
 strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
 
 # Is this a slurm job?
@@ -78,7 +78,6 @@ n <- dim(koParts)[1]
 results <- list()
 
 for (i in 1:n) {
-
   # status
   message(paste("working on partition", i, "..."))
   # Get partition.
