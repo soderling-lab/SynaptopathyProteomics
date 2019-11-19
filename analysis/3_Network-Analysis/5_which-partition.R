@@ -46,12 +46,12 @@ koAdjm <- t(readRDS(list.files(rdatdir,
 )))
 
 # Load network partitions.
-myfile <- list.files(rdatdir,pattern="1023746",full.names=TRUE)
+myfile <- list.files(rdatdir,pattern="6142226",full.names=TRUE)
 partitions <- readRDS(myfile)
 
 # Load network comparison results.
-myfile <- list.files(rdatdir,pattern="6040093",full.names=TRUE)
-comparisons <- readRDS(myfile)
+myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
+output <- readRDS(myfile)
 
 # Combine output into df.
 res <- data.frame(
@@ -81,15 +81,19 @@ df <- do.call(rbind,df)
 df <- cbind(res,df)
 
 # Examine a partition.
-res <- 37
-dat <- output[[res]]
+res = 60
+dat <- output[[as.numeric(res)]]
 
 # Modules.
 modules <- split(dat$koProts,dat$koPartition)
-sapply(modules, unique)
+changes <- sapply(modules,unique)
+changes[changes=="divergent"]
 
 # Divergent modules.
-myprots <- names(modules[[4]])
+myprots <- names(modules[["10"]])
+myprots <- myprots[order(myprots)]
+myprots
+
 getEntrez <- function(prots) {return(protmap$entrez[match(prots,protmap$ids)])}
 g <- buildNetwork(hitpredict=musInteractome,getEntrez(myprots),taxid=10090)
 
