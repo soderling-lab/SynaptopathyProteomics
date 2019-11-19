@@ -200,4 +200,3 @@ check_modules <- function(x) {
   output[[r]] <- list("wtPartition" = wtPartition, "wtProts" = wtProts, 
 		      "koPartition" = koPartition, "koProts" = koProts)
 } # ENDS LOOP.
-

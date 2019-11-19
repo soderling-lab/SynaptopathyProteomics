@@ -11,10 +11,10 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1:7)        # Which module statistics (7) to use for perm testing.
-strength <- "weak"      # Preservation criterion: strong = all, weak = any sig stats.
-res <- c(1:100)        # Resolutions to be analyzed.
-cutoff <- 1            # Size cutoff to be a module.
+stats <- c(1:7) # Which module statistics (7) to use for perm testing.
+strength <- "weak" # Preservation criterion: strong = all, weak = any sig stats.
+res <- c(1:100) # Resolutions to be analyzed.
+cutoff <- 1 # Size cutoff to be a module.
 partition <- "6142226" # Which partition file to use as input?
 
 # Is this a slurm job?
@@ -73,13 +73,15 @@ koAdjm <- t(readRDS(list.files(rdatdir,
 
 # Calculate power for approximate scale free fit.
 sft <- silently({
-	sapply(list(wtDat,koDat),function(x) 
-	       pickSoftThreshold(x,
-				 corFnc="bicor",
-				 networkType="signed",
-				 RsquaredCut=0.8)$powerEstimate)
+  sapply(list(wtDat, koDat), function(x) {
+    pickSoftThreshold(x,
+      corFnc = "bicor",
+      networkType = "signed",
+      RsquaredCut = 0.8
+    )$powerEstimate
+  })
 })
-names(sft) <- c("wt","ko")
+names(sft) <- c("wt", "ko")
 
 # Load network partitions. Self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = partition, full.names = TRUE)
@@ -116,14 +118,14 @@ for (r in res) {
   wtPartition <- partitions[[r]][["wt"]]
   koPartition <- partitions[[r]][["ko"]]
   # Remove small modules.
-  filter_modules <- function(partition,cutoff){
-	  modules <- split(partition,partition)
-	  out <- names(modules)[sapply(modules,function(x) table(x)<cutoff)]
-	  partition[partition %in% out] <- 0 
-	  return(partition)
+  filter_modules <- function(partition, cutoff) {
+    modules <- split(partition, partition)
+    out <- names(modules)[sapply(modules, function(x) table(x) < cutoff)]
+    partition[partition %in% out] <- 0
+    return(partition)
   }
-  wtPartition <- filter_modules(wtPartition,cutoff)
-  koPartition <- filter_modules(koPartition,cutoff)
+  wtPartition <- filter_modules(wtPartition, cutoff)
+  koPartition <- filter_modules(koPartition, cutoff)
   # Total number of modules.
   nModules <- c(
     "wt" = sum(names(table(wtPartition)) != 0),
@@ -193,7 +195,7 @@ for (r in res) {
     q <- apply(x$p.values, 2, function(x) p.adjust(x, "bonferroni"))[, stats]
     q[is.na(q)] <- 1
     # If testing more than one statistic.
-    fx <- c("strong"="all","weak"="any")[strength]
+    fx <- c("strong" = "all", "weak" = "any")[strength]
     if (length(stats) > 1) {
       sig <- apply(q < 0.05, 1, eval(fx))
       greater <- apply(obs > nulls, 1, eval(fx))
@@ -229,7 +231,7 @@ for (r in res) {
   ppWT <- sum(wtProts == "preserved") / length(wtProts)
   pdKO <- sum(koProts == "divergent") / length(koProts)
   ppKO <- sum(koProts == "preserved") / length(koProts)
-  total_divergent <- (sum(wtProts == "divergent") + sum(koProts == "divergent"))/(2*length(wtProts))
+  total_divergent <- (sum(wtProts == "divergent") + sum(koProts == "divergent")) / (2 * length(wtProts))
   # WT status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste0(
@@ -245,7 +247,7 @@ for (r in res) {
   message(paste0(
     "... ... Number of KO modules preserved in WT graph: ",
     sum(module_changes$ko == "preserved"), " (", round(100 * ppKO, 3), "% proteins)."
-    ))
+  ))
   message(paste0(
     "... ... Number of KO modules divergent in WT graph: ",
     sum(module_changes$ko == "divergent"), " (", round(100 * pdKO), "% proteins)."
@@ -253,11 +255,13 @@ for (r in res) {
   # Total divergent.
   message(paste0(
     "... Total percentage of proteins assigned to divergent modules: ",
-    round(100*total_divergent), " (%).","\n"
-	  ))
+    round(100 * total_divergent), " (%).", "\n"
+  ))
   # Return.
-  output[[r]] <- list("wtPartition" = wtPartition, "wtProts" = wtProts, 
-		      "koPartition" = koPartition, "koProts" = koProts)
+  output[[r]] <- list(
+    "wtPartition" = wtPartition, "wtProts" = wtProts,
+    "koPartition" = koPartition, "koProts" = koProts
+  )
 } # ENDS LOOP.
 
 # Save output to file.

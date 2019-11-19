@@ -11,8 +11,8 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1:7)        # Module statistics to use for permutation testing.
-strength <- "strong"   # Preservation criterion strong = all, or weak = any sig stats.
+stats <- c(1:7) # Module statistics to use for permutation testing.
+strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -57,13 +57,15 @@ koAdjm <- silently(WGCNA::bicor(koDat))
 
 # Calculate power for approximate scale free fit.
 sft <- silently({
-	sapply(list(wtDat,koDat),function(x) 
-	       pickSoftThreshold(x,
-				 corFnc="bicor",
-				 networkType="signed",
-				 RsquaredCut=0.8)$powerEstimate)
+  sapply(list(wtDat, koDat), function(x) {
+    pickSoftThreshold(x,
+      corFnc = "bicor",
+      networkType = "signed",
+      RsquaredCut = 0.8
+    )$powerEstimate
+  })
 })
-names(sft) <- c("wt","ko")
+names(sft) <- c("wt", "ko")
 
 # Load Leidenalg graph partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
@@ -79,7 +81,7 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 # Networks should be transformed with power for scale free fit, and positive.
 data_list <- list(wt = wtDat, ko = koDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"])) 
+network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"]))
 
 # Loop through partitions, evaluating self-preservation.
 nres <- dim(koParts)[1]
@@ -125,7 +127,7 @@ for (i in 1:nres) {
     q <- apply(x$p.values, 2, function(x) p.adjust(x, "bonferroni"))[, stats]
     q[is.na(q)] <- 1
     # If testing more than one statistic, consider strong or weak preservation.
-    fx <- c("strong"="all","weak"="any")[strength]
+    fx <- c("strong" = "all", "weak" = "any")[strength]
     if (length(stats) > 1) {
       sig <- apply(q < 0.05, 1, eval(fx))
       greater <- apply(obs > nulls, 1, eval(fx))
@@ -145,7 +147,7 @@ for (i in 1:nres) {
     return(v)
   }
   # Remove NS modules--set NS modules to 0.
-  preservedPartitions <- lapply(selfPreservation,check_modules)
+  preservedPartitions <- lapply(selfPreservation, check_modules)
   out <- lapply(preservedPartitions, function(x) names(x)[x == "ns"])
   wtPartition[wtPartition %in% out[[1]]] <- 0
   koPartition[koPartition %in% out[[2]]] <- 0

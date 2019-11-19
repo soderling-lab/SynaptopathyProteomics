@@ -14,7 +14,7 @@
 here <- getwd()
 root <- dirname(dirname(here))
 rdatadir <- file.path(root, "rdata")
-tabsdir <- file.path(root,"tables")
+tabsdir <- file.path(root, "tables")
 
 # Load misc functions.
 suppressPackageStartupMessages({
