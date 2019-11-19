@@ -478,7 +478,7 @@ f <- function(x) {
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
-myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
 
 #-------------------------------------------------------------------------------
