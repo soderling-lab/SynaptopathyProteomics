@@ -59,11 +59,14 @@ partitions <- readRDS(myfile)
 myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
 comparisons <- readRDS(myfile)
 
+geno = "wt"
+resolution = 1
+
 # Function to perform GO enrichment for all modules in a given partition.
 getModuleGO <- function(partitions,geno,resolution,protmap,musGOcollection) {
 	part <- partitions[[resolution]]
 	modules <- split(part[[geno]],part[[geno]])
-	dm <- sapply(c(1:length(modules)), function(x) part[[geno]]==x)
+	dm <- sapply(names(modules), function(x) part[[geno]]==x)
 	colnames(dm) <- paste0("R",resolution,"-M",names(modules))
 	logic <- dm == TRUE
 	for (i in 1:ncol(dm)){
@@ -84,7 +87,7 @@ getModuleGO <- function(partitions,geno,resolution,protmap,musGOcollection) {
 					   getOverlapEntrez = TRUE,
 					   getOverlapSymbols = TRUE,
 					   ignoreLabels = "FALSE",
-					   verbose = 1
+					   verbose = 0
 					   )
 	# Collect the results.
 	GO_results <- list()
