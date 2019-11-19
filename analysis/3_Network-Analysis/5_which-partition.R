@@ -11,6 +11,7 @@ suppressPackageStartupMessages({
   library(dendextend)
   library(getPPIs) 
   library(anRichment)
+  library(utils)
 })
 
 # Directories.
@@ -59,8 +60,9 @@ partitions <- readRDS(myfile)
 myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
 comparisons <- readRDS(myfile)
 
-geno = "wt"
-resolution = 1
+#-------------------------------------------------------------------------------
+# Define a function to do GO analysis.
+#-------------------------------------------------------------------------------
 
 # Function to perform GO enrichment for all modules in a given partition.
 getModuleGO <- function(partitions,geno,resolution,protmap,musGOcollection) {
@@ -98,13 +100,27 @@ getModuleGO <- function(partitions,geno,resolution,protmap,musGOcollection) {
 	return(GO_results)
 }
 
-# Perform WT GO enrichment.
-wtGO <- lapply(as.list(c(1:100)), function(x) 
-	       getModuleGO(partitions,"wt",x,protmap,musGOcollection))
+#-------------------------------------------------------------------------------
+# Perform GO analysis for WT And KO modules.
+#-------------------------------------------------------------------------------
 
 # Perform WT GO enrichment.
-koGO <- lapply(as.list(c(1:100)), function(x) 
-	       getModuleGO(partitions,"ko",x,protmap,musGOcollection))
+message("Evaluating GO enrichment of WT modules at every resolution!")
+pb <- txtProgressBar(min = 0, max = 100, style = 3)
+wtGO <- lapply(as.list(c(1:100)), function(x) {
+		       getModuleGO(partitions,"wt",x,protmap,musGOcollection)
+		       setTxtProgressBar(pb, x)
+					   })
+close(pb)
+
+# Perform KO GO enrichment.
+pb <- txtProgressBar(min = 0, max = 100, style = 3)
+message("Evaluating GO enrichment of WT modules at every resolution!")
+koGO <- lapply(as.list(c(1:100)), function(x) {
+	       getModuleGO(partitions,"ko",x,protmap,musGOcollection)
+	       setTxtProgressBar(pb, x)
+					   })
+close(pb)
 
 # Save/Load results.
 save = TRUE
@@ -118,6 +134,7 @@ if (save) {
 	koGO <- readRDS(myfiles[2])
 }
 
+# Stop aftter saving data.
 stop()
 
 # Evaluate "best" resolution = partition with most GO enrichment.
