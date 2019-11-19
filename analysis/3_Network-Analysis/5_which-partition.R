@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
 })
 
 # User params.
-save <- TRUE
+save <- FALSE # Save (TRUE) or load (FALSE) the module GO data?
 
 # Directories.
 here <- getwd()
@@ -65,7 +65,7 @@ myfile <- list.files(rdatdir, pattern = "6171865", full.names = TRUE)
 comparisons <- readRDS(myfile)
 
 #-------------------------------------------------------------------------------
-# Define a function to do GO analysis.
+# Define a function to do GO analysis of modules at a given resolution.
 #-------------------------------------------------------------------------------
 
 # Function to perform GO enrichment for all modules in a given partition.
@@ -105,43 +105,50 @@ getModuleGO <- function(partitions, geno, resolution, protmap, musGOcollection) 
 }
 
 #-------------------------------------------------------------------------------
-# Perform GO analysis for WT And KO modules.
+# For every resolution, perform GO analysis of WT And KO modules.
 #-------------------------------------------------------------------------------
 
-# Perform WT GO enrichment.
+# Number of resolutions to analyze.
+n <- 1
+
 if (save) {
+  # Perform WT GO enrichment.
   message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
-  pb <- txtProgressBar(min = 0, max = 100, style = 3)
-  wtGO <- lapply(as.list(c(1:100)), function(x) {
-    getModuleGO(partitions, "wt", x, protmap, musGOcollection)
-    setTxtProgressBar(pb, x)
-    if (x == 100) {
+  wtGO <- list()
+  pb <- txtProgressBar(min = 0, max = n, style = 3)
+  for (i in 1:n) {
+    wtGO[[i]] <- getModuleGO(partitions, "wt", i, protmap, musGOcollection)
+    setTxtProgressBar(pb, i)
+    if (i == n) {
       close(pb)
       myfile <- file.path(rdatdir, "3_WT_Module_GO_Results.RData")
-      saveRDS(wtGO, myfile)
+      saveRDS(koGO, myfile)
+      message("Done!")
     }
-  })
+  }
   # Perform KO GO enrichment.
   message(paste("Evaluating GO enrichment of KO modules at every resolution!", "\n"))
-  pb <- txtProgressBar(min = 0, max = 100, style = 3)
-  koGO <- lapply(as.list(c(1:100)), function(x) {
-    getModuleGO(partitions, "ko", x, protmap, musGOcollection)
-    setTxtProgressBar(pb, x)
-    if (x == 100) {
+  koGO <- list()
+  pb <- txtProgressBar(min = 0, max = n, style = 3)
+  for (i in 1:n) {
+    # Perform go analysis, update pb.
+    koGO[[i]] <- getModuleGO(partitions, "ko", i, protmap, musGOcollection)
+    setTxtProgressBar(pb, i)
+    if (i == n) {
+      # Close pb, save.
       close(pb)
       myfile <- file.path(rdatdir, "3_KO_Module_GO_Results.RData")
-      saveRDS(wtGO, myfile)
+      saveRDS(koGO, myfile)
+      message("Done!")
     }
-  })
-} else {
+  }
+} else if (!save) {
   # Load data.
-  myfiles <- c(
-    file.path(rdatdir, "3_WT_Module_GO_Results.RData"),
-    file.path(rdatdir, "3_KO_Module_GO_Results.RData")
-  )
-  wtGO <- readRDS(myfiles[1])
-  koGO <- readRDS(myfiles[2])
+  wtGO <- readRDS(list.files(rdatdir, pattern = "WT_Module_GO", full.names = TRUE))
+  koGO <- readRDS(list.files(rdatdir, pattern = "KO_Module_GO", full.names = TRUE))
 }
+
+stop()
 
 #------------------------------------------------------------------------------
 
