@@ -11,6 +11,7 @@ suppressPackageStartupMessages({
   library(dendextend)
   library(getPPIs) 
   library(anRichment)
+  library(org.Mm.eg.db)
   library(utils)
 })
 
@@ -114,8 +115,8 @@ wtGO <- lapply(as.list(c(1:100)), function(x) {
 close(pb)
 
 # Perform KO GO enrichment.
+message("Evaluating GO enrichment of KO modules at every resolution!")
 pb <- txtProgressBar(min = 0, max = 100, style = 3)
-message("Evaluating GO enrichment of WT modules at every resolution!")
 koGO <- lapply(as.list(c(1:100)), function(x) {
 	       getModuleGO(partitions,"ko",x,protmap,musGOcollection)
 	       setTxtProgressBar(pb, x)
