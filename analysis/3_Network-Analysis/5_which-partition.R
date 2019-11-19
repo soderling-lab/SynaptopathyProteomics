@@ -10,6 +10,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(dendextend)
   library(getPPIs) 
+  library(anRichment)
 })
 
 # Directories.
@@ -19,11 +20,16 @@ funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 
+# Functions.
+myfun <- list.files(funcdir,full.names = TRUE)
+invisible(sapply(myfun, source))
+
 # Load protein map.
 protmap <- readRDS(file.path(rdatdir,"2_Prot_Map.RData"))
 
-# Load mouse PPIs.
-data(musInteractome)
+# Load mouse GO collection.
+myfile <- list.files(rdatdir,"musGO",full.names=TRUE)
+musGOcollection <- readRDS(myfile)
 
 # Load expression data.
 wtDat <- t(readRDS(list.files(rdatdir,
@@ -51,53 +57,107 @@ partitions <- readRDS(myfile)
 
 # Load network comparison results.
 myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
-output <- readRDS(myfile)
+comparisons <- readRDS(myfile)
 
-# Combine output into df.
-res <- data.frame(
-		"nWT" =  unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
-		"nKO" = unlist(lapply(output, function(x) sum(names(table(x$wtPartition))!="0"))),
-		"nPresWT" = unlist(lapply(output, function(x) sum(x$wtProts == "preserved"))),
-		"nDivWT" = unlist(lapply(output, function(x) sum(x$wtProts == "divergent"))),
-		"nPresKO" = unlist(lapply(output, function(x) sum(x$koProts == "preserved"))),
-		"nDivKO" = unlist(lapply(output, function(x) sum(x$koProts == "divergent"))))
-res$percentTotalDivergence <- (res$nDivWT + res$nDivKO)/(2*2918)
-res$percentTotalPreservation <- (res$nPresWT+res$nPresKO)/(2*2918)
-df <- list()
-for (i in 1:length(output)){
-	x <- output[[i]]
-	df[[i]] <- data.frame(
-			 k_WT_NS = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="ns"),
-			 k_WT_Di = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="divergent"),
-			 k_WT_Pr = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="preserved"),
-			 k_WT_NC = sum(sapply(split(x$wtProts,x$wtPartition),unique)=="not-clustered"),
-			 k_KO_NS = sum(sapply(split(x$koProts,x$koPartition),unique)=="ns"),
-			 k_KO_Di = sum(sapply(split(x$koProts,x$koPartition),unique)=="divergent"),
-			 k_KO_Pr = sum(sapply(split(x$koProts,x$koPartition),unique)=="preserved"),
-			 k_KO_NC = sum(sapply(split(x$koProts,x$koPartition),unique)=="not-clustered")
-			 )
+# Function to perform GO enrichment for all modules in a given partition.
+getModuleGO <- function(partitions,geno,resolution,protmap,musGOcollection) {
+	part <- partitions[[resolution]]
+	modules <- split(part[[geno]],part[[geno]])
+	dm <- sapply(c(1:length(modules)), function(x) part[[geno]]==x)
+	colnames(dm) <- paste0("R",resolution,"-M",names(modules))
+	logic <- dm == TRUE
+	for (i in 1:ncol(dm)){
+		col_header <- colnames(dm)[i]
+		dm[logic[,i],i] <- col_header
+		dm[!logic[,i],i] <- "FALSE"
+		}
+	# Prots mapped to entrez.
+	entrez <- protmap$entrez[match(rownames(dm),protmap$ids)]
+	# Perform GO enrichment.
+	GOenrichment <- enrichmentAnalysis(
+					   classLabels = dm,
+					   identifiers = entrez,
+					   refCollection = musGOcollection,
+					   useBackground = "given",
+					   threshold = 0.05,
+					   thresholdType = "Bonferroni",
+					   getOverlapEntrez = TRUE,
+					   getOverlapSymbols = TRUE,
+					   ignoreLabels = "FALSE",
+					   verbose = 1
+					   )
+	# Collect the results.
+	GO_results <- list()
+	for (r in 1:length(GOenrichment$setResults)) {
+		GO_results[[r]] <- GOenrichment$setResults[[r]]$enrichmentTable
+	}
+	names(GO_results) <- colnames(dm)
+	return(GO_results)
 }
-df <- do.call(rbind,df)
-df <- cbind(res,df)
 
-# Examine a partition.
-res = 60
-dat <- output[[as.numeric(res)]]
+# Perform WT GO enrichment.
+wtGO <- lapply(as.list(c(1:100)), function(x) 
+	       getModuleGO(partitions,"wt",x,protmap,musGOcollection))
 
-# Modules.
-modules <- split(dat$koProts,dat$koPartition)
-changes <- sapply(modules,unique)
+# Perform WT GO enrichment.
+koGO <- lapply(as.list(c(1:100)), function(x) 
+	       getModuleGO(partitions,"ko",x,protmap,musGOcollection))
+
+# Save/Load results.
+save = TRUE
+if (save) {
+	myfiles <- c(file.path(rdatdir,"3_WT_Module_GO_Results.RData"),
+		     file.path(rdatdir,"3_KO_Module_GO_Results.RData"))
+	saveRDS(wtGO,myfiles[1])
+	saveRDS(koGO,myfiles[2])
+} else {
+	wtGO <- readRDS(myfiles[1])
+	koGO <- readRDS(myfiles[2])
+}
+
+stop()
+
+# Evaluate "best" resolution = partition with most GO enrichment.
+#p <- sapply(wtGO,function(x) sapply(x,function(y) sum(-log(y$pValue))))
+p <- sapply(koGO,function(x) sapply(x,function(y) sum(-log(y$pValue))))
+sump <- sapply(p,sum)
+rbest <- c(1:100)[sump==max(sump)]
+rbest # NO Sig divergent WT Modules!
+
+# Sum GO enrichment, but only for divergent modules!
+sumGO <- function(GO,comparisons,partition,prots) {
+	# Loop to calculate sum of p-values for divergent modules.
+	p <- rep(NA,100)
+	for (i in 1:length(GO)){
+	dat <- GO[[i]]
+	myprots <- comparisons[[i]][[prots]]
+	myparts <- comparisons[[i]][[partition]]
+	changes <- sapply(split(myprots,myparts),unique)
+	if (sum(changes=="divergent")>0) {
+		idx <- paste0("R",i,"-M",names(changes[changes=="divergent"]))
+		p[i] <- sum(sapply(dat[idx],function(x) sum(-log(x$pValue))))
+	} else {
+		p[i] <- 0
+	}
+}
+return(p)
+}
+
+pWT <- sumGO(wtGO,comparisons,partition="wtPartition",prots="wtProts")
+pKO <- sumGO(koGO,comparisons,partition="koPartition",prots="koProts")
+p <- pWT + pKO
+
+r_best <- c(1:100)[pWT==max(pWT)]
+r_best <- c(1:100)[pKO==max(pKO)]
+r_best
+
+# Look at GO enrichment.
+data <- koGO[[r_best]]
+write_excel(data,"go.xlsx")
+
+prots = comparisons[[r_best]][["koProts"]]
+partition = comparisons[[r_best]][["koPartition"]]
+changes = sapply(split(prots,partition),unique)
 changes[changes=="divergent"]
 
-# Divergent modules.
-myprots <- names(modules[["10"]])
-myprots <- myprots[order(myprots)]
-myprots
-
-getEntrez <- function(prots) {return(protmap$entrez[match(prots,protmap$ids)])}
-g <- buildNetwork(hitpredict=musInteractome,getEntrez(myprots),taxid=10090)
-
-idx <- idy <- match(myprots,colnames(wtAdjm))
-subWT <- wtAdjm[idx,idy]
-subKO <- koAdjm[idx,idy]
-
+# Repeat permutation test at best resolution...
