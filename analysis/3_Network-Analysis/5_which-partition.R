@@ -13,6 +13,7 @@ suppressPackageStartupMessages({
   library(anRichment)
   library(org.Mm.eg.db)
   library(utils)
+  library(GOSemSim)
 })
 
 # User params.
@@ -109,7 +110,7 @@ getModuleGO <- function(partitions, geno, resolution, protmap, musGOcollection) 
 #-------------------------------------------------------------------------------
 
 # Number of resolutions to analyze.
-n <- 1
+n <- 100
 
 if (save) {
   # Perform WT GO enrichment.
@@ -122,7 +123,7 @@ if (save) {
     if (i == n) {
       close(pb)
       myfile <- file.path(rdatdir, "3_WT_Module_GO_Results.RData")
-      saveRDS(koGO, myfile)
+      saveRDS(wtGO, myfile)
       message("Done!")
     }
   }
@@ -148,20 +149,32 @@ if (save) {
   koGO <- readRDS(list.files(rdatdir, pattern = "KO_Module_GO", full.names = TRUE))
 }
 
-stop()
-
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------
+# Load Results.
+#-----------------------------------------------------------
 
 # Evaluate "best" resolution = partition with most GO enrichment.
-# p <- sapply(wtGO,function(x) sapply(x,function(y) sum(-log(y$pValue))))
-p <- sapply(koGO, function(x) sapply(x, function(y) sum(-log(y$pValue))))
-sump <- sapply(p, sum)
-rbest <- c(1:100)[sump == max(sump)]
-rbest # NO Sig divergent WT Modules!
+best_res <- function(GO){
+	p <- sapply(GO,function(x) sapply(x,function(y) sum(-log(y$pValue)))) # Need to double check this!
+	sump <- sapply(p, sum)
+	rbest <- c(1:100)[sump == max(sump)]
+	return(rbest)
+}
 
-# Sum GO enrichment, but only for divergent modules!
-sumGO <- function(GO, comparisons, partition, prots) {
-  # Loop to calculate sum of p-values for divergent modules.
+x = wtGO[[1]]
+y = x[[1]]
+sum(-log(y$pValue)) # Sum of log10p-vals for first module
+# at resolution 1: sum all modules p-values 
+
+best_res(wtGO) # total go for all modules.
+
+best_res(koGO) # total go for all modules.
+
+# Evaluate "best" resolution as partition with most GO 
+# enrichment for DIVERGENT modules!
+best_resD <- function(GO, comparisons, partition, prots) {
+  # Loop to calculate sum of p-values for divergent modules
+	# in all resolutions.
   p <- rep(NA, 100)
   for (i in 1:length(GO)) {
     dat <- GO[[i]]
@@ -175,24 +188,80 @@ sumGO <- function(GO, comparisons, partition, prots) {
       p[i] <- 0
     }
   }
-  return(p)
+  r_best <- c(1:100)[p == max(p)]
+  return(list(r_best=r_best,pValue=p))
 }
 
-pWT <- sumGO(wtGO, comparisons, partition = "wtPartition", prots = "wtProts")
-pKO <- sumGO(koGO, comparisons, partition = "koPartition", prots = "koProts")
-p <- pWT + pKO
+## Total p for divergent modules.
 
-r_best <- c(1:100)[pWT == max(pWT)]
-r_best <- c(1:100)[pKO == max(pKO)]
-r_best
+# WT
+r1 <- best_resD(wtGO, comparisons, partition = "wtPartition", prots = "wtProts")
+r1$r_best # WT
 
-# Look at GO enrichment.
-data <- koGO[[r_best]]
-write_excel(data, "go.xlsx")
+# KO
+r2 <- best_resD(koGO, comparisons, partition = "koPartition", prots = "koProts")
+r2$r_best # KO
 
-prots <- comparisons[[r_best]][["koProts"]]
-partition <- comparisons[[r_best]][["koPartition"]]
-changes <- sapply(split(prots, partition), unique)
-changes[changes == "divergent"]
+# Best resolution for divergent WT AND KO modules:
+p <- r1$pValue + r2$pValue
+r_best <- c(1:100)[p == max(p)]
+r_best # Combined WT, KO divergent modules.
 
-# Repeat permutation test at best resolution...
+# Our ability to generate hypotheses as to module function is limited by known
+# knowledge about those genes/proteins. To maximize out ability to generate
+# biological inference we chose the resolution which maximized the go enrichment
+# of divergent modules.
+#print(r_best)
+
+stop()
+#----------------------------------------------------------
+# New strategy: biological COHESIVENESS OF MODULES.
+#----------------------------------------------------------
+
+# Calculate GO similarity among gene products.
+# Load GO data.
+# Use Molecular function ontology.
+msGO <- godata('org.Mm.eg.db', ont="MF")
+
+# Function that:
+# Loops through every resolution of WT or KO graph.
+# Gets genes for each module.
+# Calculate GO sim for those genes.
+# Return list containing GO sim scores for every module at every resolution.
+module_GOsemSim <- function(comparisons,myProts,myPartition){
+out <- list()
+for (i in 1:100) {
+	message(paste("Working on resolution",i))
+	# Get data for resolution i.
+	resdat <- comparisons[[i]]
+	# Split entrez ids by module partition.
+	entrez <- protmap$entrez[match(names(resdat[[myProts]]), protmap$ids)]
+	modules <- split(entrez,resdat[[myPartition]])
+	# Remove module 0.
+	modules <- modules[names(modules)[-1]]
+	# For every module in the resolution,
+	# compute its GOsemantic similarity. 
+	# This is a matrix of GO sem sim scores for every gene in the module.
+	# summarize a module as the mean of its edges.
+	module_gs <- sapply(modules, function(x) {
+				    mean(mgeneSim(genes, 
+					     semData=msGO, 
+					     measure="Wang", 
+					     verbose=FALSE))
+  })
+	# Return a list.
+	names(module_gs) <- names(modules)
+	out[[i]] <- module_gs
+} # ENDS LOOP.
+return(out)
+}
+
+# For every resolution in WT graph, get module go semantic similarity.
+wtModuleGOsim <- module_GOsemSim(comparisons,"wtProts","wtPartition")
+
+# For every resolution in WT graph, get module go semantic similarity.
+koModuleGOsim <- module_GOsemSim(comparisons,"koProts","koPartition")
+
+# Save data.
+saveRDS(wtModuleGOsim,file.path(rdatdir,"3_WT_Module_GO_SemSim.RData"))
+saveRDS(koModuleGOsim,file.path(rdatdir,"3_KO_Module_GO_SemSim.RData"))
