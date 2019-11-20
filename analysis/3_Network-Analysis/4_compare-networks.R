@@ -15,7 +15,8 @@ stats <- c(1:7) # Which module statistics (7) to use for perm testing.
 strength <- "weak" # Preservation criterion: strong = all, weak = any sig stats.
 res <- c(1:100) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
-partition <- "6142226" # Which partition file to use as input?
+partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
+save_results = FALSE # Should permutation results be saved?
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -187,6 +188,11 @@ for (r in res) {
       )
     })
   })
+  # Save preservation results.
+  if (save_results) {
+	  myfile <- paste0("3_Module_Preservation_Res",r,".RData")
+	  saveRDS(preservation,file.path(rdatdir,myfile))
+  }
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
     # Collect observed values, nulls, and p.values -> p.adj.

@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 
 # User params.
-save = FALSE
+save = FALSE # Save or Load 
 
 # Global options and imports.
 suppressPackageStartupMessages({
