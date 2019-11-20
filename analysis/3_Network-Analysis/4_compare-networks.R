@@ -20,7 +20,7 @@
 # 7. avg.contrib
 
 # User parameters to change:
-stats <- c(1,2,6,7) # Which permutation statistics to use for perm testing.
+stats <- c(1,2,6) # Which permutation statistics to use for perm testing.
 strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
 res <- c(1,25,45,55,65,75,85,95,100) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
