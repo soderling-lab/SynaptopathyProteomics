@@ -109,12 +109,10 @@ getModuleGO <- function(partitions, geno, resolution, protmap, musGOcollection) 
 # For every resolution, perform GO analysis of WT And KO modules.
 #-------------------------------------------------------------------------------
 
-# Number of resolutions to analyze.
-n <- 100
-
+# Loop to perform WT GO enrichment.
 if (save) {
-  # Perform WT GO enrichment.
   message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
+	n <- 100 # n resolutions.
   wtGO <- list()
   pb <- txtProgressBar(min = 0, max = n, style = 3)
   for (i in 1:n) {
@@ -145,8 +143,12 @@ if (save) {
   }
 } else if (!save) {
   # Load data.
-  wtGO <- readRDS(list.files(rdatdir, pattern = "WT_Module_GO", full.names = TRUE))
-  koGO <- readRDS(list.files(rdatdir, pattern = "KO_Module_GO", full.names = TRUE))
+  wtGO <- readRDS(list.files(rdatdir, 
+			     pattern = "WT_Module_GO_Results", 
+			     full.names = TRUE))
+  koGO <- readRDS(list.files(rdatdir, 
+			     pattern = "KO_Module_GO_Results", 
+			     full.names = TRUE))
 }
 
 #-----------------------------------------------------------
@@ -154,6 +156,7 @@ if (save) {
 #-----------------------------------------------------------
 
 # Evaluate "best" resolution = partition with most GO enrichment.
+# Does not differ if using pvalue or FDR. 
 best_res <- function(GO){
 	p <- sapply(GO,function(x) sapply(x,function(y) sum(-log(y$pValue)))) # Need to double check this!
 	sump <- sapply(p, sum)
@@ -161,12 +164,14 @@ best_res <- function(GO){
 	return(rbest)
 }
 
-best_res(wtGO) # total go for all modules.
+# Best resolution based on total go for all modules. 
+best_res(wtGO) # 52
 
-best_res(koGO) # total go for all modules.
+best_res(koGO) # 50
 
 # Evaluate "best" resolution as partition with most GO 
 # enrichment for DIVERGENT modules!
+# Result does not differ for pvalue or FDR.
 best_resD <- function(GO, comparisons, partition, prots) {
   # Loop to calculate sum of p-values for divergent modules
 	# in all resolutions.
@@ -178,7 +183,7 @@ best_resD <- function(GO, comparisons, partition, prots) {
     changes <- sapply(split(myprots, myparts), unique)
     if (sum(changes == "divergent") > 0) {
       idx <- paste0("R", i, "-M", names(changes[changes == "divergent"]))
-      p[i] <- sum(sapply(dat[idx], function(x) sum(-log(x$pValue))))
+      p[i] <- sum(sapply(dat[idx], function(x) sum(-log(x$FDR))))
     } else {
       p[i] <- 0
     }
@@ -187,20 +192,17 @@ best_resD <- function(GO, comparisons, partition, prots) {
   return(list(r_best=r_best,pValue=p))
 }
 
-## Total p for divergent modules.
-
-# WT
+## Best resolution based on p for divergent modules.
 r1 <- best_resD(wtGO, comparisons, partition = "wtPartition", prots = "wtProts")
-r1$r_best # WT
+r1$r_best # WT 42
 
-# KO
 r2 <- best_resD(koGO, comparisons, partition = "koPartition", prots = "koProts")
-r2$r_best # KO
+r2$r_best # KO 33
 
 # Best resolution for divergent WT AND KO modules combined:
 p <- r1$pValue + r2$pValue
 r_best <- c(1:100)[p == max(p)]
-r_best # Combined WT, KO divergent modules.
+r_best # Combined WT, KO divergent modules. # 33
 
 # Our ability to generate hypotheses as to module function is limited by known
 # knowledge about those genes/proteins. To maximize out ability to generate

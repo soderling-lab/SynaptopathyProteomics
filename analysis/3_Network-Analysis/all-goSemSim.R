@@ -61,6 +61,56 @@ rownames(goSim) <- protmap$ids[match(rownames(goSim),protmap$entrez)]
 colnames(goSim) <- protmap$ids[match(colnames(goSim),protmap$entrez)]
 
 #-------------------------------------------------------------------------------
+# Which partition is best? Evaluate how much divergent modules have changed.
+#-------------------------------------------------------------------------------
+
+# Load expression data.
+wtDat <- t(readRDS(list.files(rdatdir,
+  pattern = "WT_cleanDat",
+  full.names = TRUE
+)))
+koDat <- t(readRDS(list.files(rdatdir,
+  pattern = "KO_cleanDat",
+  full.names = TRUE
+)))
+
+# Load adjmatrices.
+wtAdjm <- t(readRDS(list.files(rdatdir,
+  pattern = "WT_Adjm.RData",
+  full.names = TRUE
+)))
+koAdjm <- t(readRDS(list.files(rdatdir,
+  pattern = "KO_Adjm.RData",
+  full.names = TRUE
+)))
+
+# Loop through all comparisons...
+pb <- txtProgressBar(min = 0, max = length(comparisons), style = 3)
+delta <- rep(NA,100)
+
+for (i in 1:length(comparisons)){
+    setTxtProgressBar(pb, i)
+	wtModules <- split(comparisons[[i]][["wtProts"]],comparisons[[i]][["wtPartition"]])
+	koModules <- split(comparisons[[i]][["koProts"]],comparisons[[i]][["koPartition"]])
+	wtModules <- wtModules[!names(wtModules) == "0"]
+	koModules <- koModules[!names(koModules) == "0"]
+	wtDelta <- sapply(wtModules,function(x) {
+		       idx <- idy <- match(names(x),colnames(wtAdjm))
+		       delta <- mean(koAdjm[idx,idy] - wtAdjm[idx,idy])
+})
+	koDelta <- sapply(koModules,function(x) {
+		       idx <- idy <- match(names(x),colnames(koAdjm))
+		       delta <- mean(wtAdjm[idx,idy] - koAdjm[idx,idy])
+})
+	delta[i] <- sum(abs(wtDelta),abs(koDelta))
+	# Close pb.
+	if (i == length(comparisons)){
+		close(pb)
+		message(" Complete!\n")
+	}
+}
+
+#-------------------------------------------------------------------------------
 # Which partition is best?
 #-------------------------------------------------------------------------------
 
