@@ -22,7 +22,7 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Which permutation statistics to use for perm testing.
 strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
-res <- c(90) # Resolutions to be analyzed.
+res <- c(1,25,45,55,65,75,85,95,100) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
 partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
 save_results = FALSE # Should permutation results be saved?
