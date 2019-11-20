@@ -23,10 +23,17 @@
 stats <- c(1,2,6,7) # Which permutation statistics to use for perm testing.
 strength <- "weak" # Preservation criterion: strong = all, weak = any sig stats.
 <<<<<<< HEAD
+<<<<<<< HEAD
 res <- c(43) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
 partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
 save_results = TRUE  # Should permutation results be saved?
+=======
+res <- c(99) # Resolutions to be analyzed.
+cutoff <- 1 # Size cutoff to be a module.
+partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
+save_results = TRUE # Should permutation results be saved?
+>>>>>>> 701f640153d8516d5179451a5a7d23be0728a5f3
 =======
 res <- c(99) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
