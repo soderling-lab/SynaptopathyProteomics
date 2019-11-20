@@ -22,24 +22,10 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Which permutation statistics to use for perm testing.
 strength <- "weak" # Preservation criterion: strong = all, weak = any sig stats.
-<<<<<<< HEAD
-<<<<<<< HEAD
 res <- c(43) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
 partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
 save_results = TRUE  # Should permutation results be saved?
-=======
-res <- c(99) # Resolutions to be analyzed.
-cutoff <- 1 # Size cutoff to be a module.
-partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
-save_results = TRUE # Should permutation results be saved?
->>>>>>> 701f640153d8516d5179451a5a7d23be0728a5f3
-=======
-res <- c(99) # Resolutions to be analyzed.
-cutoff <- 1 # Size cutoff to be a module.
-partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
-save_results = TRUE # Should permutation results be saved?
->>>>>>> 701f640153d8516d5179451a5a7d23be0728a5f3
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -225,20 +211,24 @@ for (r in res) {
     # If testing more than one statistic.
     fx <- c("strong" = "all", "weak" = "any")[strength]
     if (length(stats) > 1) {
-      sig <- apply(q < 0.05, 1, eval(fx))
-      greater <- apply(obs > nulls, 1, eval(fx))
-      less <- apply(obs < nulls, 1, eval(fx))
+      sig <- q < 0.05
+      greater <- obs > nulls
+      less <- obs < nulls
+      preserved <- apply(greater & sig,1,eval(fx))
+      divergent <- apply(less & sig,1,eval(fx))
     } else {
       # If testing a single statistic.
       sig <- q < 0.05
       greater <- obs > nulls
       less <- obs < nulls
+      preserved <- greater & sig
+      divergent <- less & sig
     }
     # Preserved, divergent, and ns modules.
     n <- length(x$nVarsPresent)
     v <- rep("ns", n)
-    v[greater & sig] <- "preserved"
-    v[less & sig] <- "divergent"
+    v[preserved] <- "preserved"
+    v[divergent] <- "divergent"
     return(v)
   } # ENDS function
   # Collect strong or weak changes...
