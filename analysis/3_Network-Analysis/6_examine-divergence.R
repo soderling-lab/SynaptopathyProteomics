@@ -39,6 +39,11 @@ myfiles <- list.files(rdatdir,pattern="Module_GO_Results",full.names=TRUE)
 koAllGO <- readRDS(myfiles[1])
 wtAllGO <- readRDS(myfiles[2])
 
+# Load permutation test results.
+myfiles <- list.files(rdatdir,pattern="Preservation_Res*",full.names=TRUE)
+preservation <- lapply(as.list(myfiles),readRDS)
+names(preservation) <- c("R89","R90")
+
 # Load statistical results.
 glmDat <- readRDS(file.path(rdatdir,"2_GLM_Results.RData"))
 rownames(glmDat) <- protmap$ids[match(glmDat$Uniprot,protmap$uniprot)]
@@ -80,6 +85,37 @@ names(sft) <- c("wt","ko")
 # Load network comparison results.
 myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
 comparisons <- readRDS(myfile)
+
+#------------------------------------------------------------------------------
+# Examine permutation data.
+#------------------------------------------------------------------------------
+
+res <- "R90"
+data <- preservation[[res]]
+names(data) <- c("ko", "wt") # Fix names. Because of names passed to netrep
+# permutation function, they are switched.
+
+wt <- data$wt
+ko <- data$ko
+nWT <- length(wt$nVarsPresent)
+nKO <- length(ko$nVarsPresent)
+
+d = comparisons[[90]]
+modules <- split(d$wtProts,d$wtPartition)
+
+changes = sapply(modules,unique)
+changes[changes=="divergent"]
+
+modules[["20"]]
+
+p <- wt$p.values
+q <- apply(p,2,function(x) p.adjust(x,"bonferroni"))
+rownames(q) <- names(modules)[-1]
+
+fwrite(q,"wtpvals.csv",row.names=TRUE)
+
+
+
 
 #------------------------------------------------------------------------------
 # Module sig prot enrichment.

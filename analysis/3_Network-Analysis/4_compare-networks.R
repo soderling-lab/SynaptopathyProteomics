@@ -11,12 +11,22 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1:7) # Which module statistics (7) to use for perm testing.
-strength <- "weak" # Preservation criterion: strong = all, weak = any sig stats.
-res <- c(89,90) # Resolutions to be analyzed.
+stats <- c(1,2,6,7) # Which module statistics (7) to use for perm testing.
+
+# Permutation Statistics"
+# 1. avg.weight
+# 2. coherence 
+# 3. cor.cor - Don't use!
+# 4. cor.degree - Don't use!
+# 5. cor.contrib - Don't use!
+# 6. avg.cor
+# 7. avg.contrib
+
+strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
+res <- c(90) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
 partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
-save_results = TRUE # Should permutation results be saved?
+save_results = FALSE # Should permutation results be saved?
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
