@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 
 # User params.
-save = FALSE # Save or Load 
+save = FALSE # Save or Load goSemSim graph.
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -65,6 +65,8 @@ colnames(goSim) <- protmap$ids[match(colnames(goSim),protmap$entrez)]
 #-------------------------------------------------------------------------------
 
 # 1. average edge weight of modules.
+# Best partition has modules with maximum average edge strenght. 
+# ~ Biological cohesiveness.
 
 # Function to calculate average edge weight of modules.
 getAvgWeight <- function(goSim,comparisons,myProts,myPartition){
@@ -109,7 +111,9 @@ best_r # KO #99
 #-------------------------------------------------------------------------------
 
 # 2. Modularity? -- will this be biased towards large modules?
-# Remove 0 index modules = not-clustered. 
+# Best partition maximizes modularity of GO sem sim graph.
+# ~ Biological cohesiveness.
+# Remove 0 index modules = nodes that are not-clustered. 
 
 # Function to calculate modularity. 
 # Moderately time consuming...
@@ -148,7 +152,7 @@ koQ <- getModularity(goSim,comparisons,"koProts","wtPartition")
 
 # Best partitions:
 r_best <- c(1:100)[wtQ==max(wtQ)]
-r_best # WT
+r_best # WT # 100
 
 r_best <- c(1:100)[koQ==max(koQ)]
-r_best # KO
+r_best # KO # 100
