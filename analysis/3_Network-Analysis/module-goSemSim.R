@@ -53,7 +53,7 @@ msGO <- godata("org.Mm.eg.db", ont = "MF")
 module_GOsemSim <- function(comparisons, myProts, myPartition) {
   # Empty list for output
   out <- list()
-  for (i in 1:1) {
+  for (i in 50:100) {
     message(paste("Working on resolution", i))
     # Get data for resolution i.
     resdat <- comparisons[[i]]
@@ -86,12 +86,12 @@ module_GOsemSim <- function(comparisons, myProts, myPartition) {
 
 # For every resolution in WT graph, get module go semantic similarity.
 #message("Working on WT partitions!")
-#wtModuleGOsim <- module_GOsemSim(comparisons, "wtProts", "wtPartition")
+#wtGOsim <- module_GOsemSim(comparisons, "wtProts", "wtPartition")
 
 # For every resolution in KO graph, get module go semantic similarity.
 message("Working on KO partitions!")
-koModuleGOsim <- module_GOsemSim(comparisons, "koProts", "koPartition")
+koGOsim <- module_GOsemSim(comparisons, "koProts", "koPartition")
 
 # Save data.
-#saveRDS(wtModuleGOsim, file.path(rdatdir, "3_WT_Module_GO_SemSim.RData"))
-saveRDS(koModuleGOsim, file.path(rdatdir, "3_KO_Module_GO_SemSim.RData"))
+#saveRDS(wtGOsim, file.path(rdatdir, "3_WT_Module_GO_SemSim.RData"))
+saveRDS(koGOsim, file.path(rdatdir, "3_KO_Module_GO_SemSim.RData"))
