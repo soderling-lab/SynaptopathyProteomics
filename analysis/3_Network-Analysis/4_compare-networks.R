@@ -10,10 +10,7 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# User parameters to change:
-stats <- c(1,2,6,7) # Which module statistics (7) to use for perm testing.
-
-# Permutation Statistics"
+## Permutation Statistics
 # 1. avg.weight
 # 2. coherence 
 # 3. cor.cor - Don't use!
@@ -22,6 +19,8 @@ stats <- c(1,2,6,7) # Which module statistics (7) to use for perm testing.
 # 6. avg.cor
 # 7. avg.contrib
 
+# User parameters to change:
+stats <- c(1,2,6,7) # Which permutation statistics to use for perm testing.
 strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
 res <- c(90) # Resolutions to be analyzed.
 cutoff <- 1 # Size cutoff to be a module.
