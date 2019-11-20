@@ -4,6 +4,9 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# User params.
+save <- FALSE # Save (TRUE) or load (FALSE) the module GO data?
+
 # Global options and imports.
 suppressPackageStartupMessages({
   library(data.table)
@@ -15,9 +18,6 @@ suppressPackageStartupMessages({
   library(utils)
   library(GOSemSim)
 })
-
-# User params.
-save <- FALSE # Save (TRUE) or load (FALSE) the module GO data?
 
 # Directories.
 here <- getwd()
@@ -161,11 +161,6 @@ best_res <- function(GO){
 	return(rbest)
 }
 
-x = wtGO[[1]]
-y = x[[1]]
-sum(-log(y$pValue)) # Sum of log10p-vals for first module
-# at resolution 1: sum all modules p-values 
-
 best_res(wtGO) # total go for all modules.
 
 best_res(koGO) # total go for all modules.
@@ -202,7 +197,7 @@ r1$r_best # WT
 r2 <- best_resD(koGO, comparisons, partition = "koPartition", prots = "koProts")
 r2$r_best # KO
 
-# Best resolution for divergent WT AND KO modules:
+# Best resolution for divergent WT AND KO modules combined:
 p <- r1$pValue + r2$pValue
 r_best <- c(1:100)[p == max(p)]
 r_best # Combined WT, KO divergent modules.
@@ -211,5 +206,3 @@ r_best # Combined WT, KO divergent modules.
 # knowledge about those genes/proteins. To maximize out ability to generate
 # biological inference we chose the resolution which maximized the go enrichment
 # of divergent modules.
-#print(r_best)
-
