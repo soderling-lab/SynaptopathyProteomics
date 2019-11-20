@@ -34,11 +34,18 @@ invisible(sapply(myfun, source))
 myfile <- list.files(rdatdir, "Map", full.names = TRUE)
 protmap <- readRDS(myfile)
 
-
 # Load GO results.
 myfiles <- list.files(rdatdir,pattern="Module_GO_Results",full.names=TRUE)
 koAllGO <- readRDS(myfiles[1])
 wtAllGO <- readRDS(myfiles[2])
+
+# Load statistical results.
+glmDat <- readRDS(file.path(rdatdir,"2_GLM_Results.RData"))
+rownames(glmDat) <- protmap$ids[match(glmDat$Uniprot,protmap$uniprot)]
+
+# Collect sig prots.
+sig <- apply(glmDat[,c(2:ncol(glmDat))],1,function(x) any(x<0.05))
+sigProts <- rownames(glmDat)[sig]
 
 # Load expression data.
 wtDat <- t(readRDS(list.files(rdatdir,
@@ -75,6 +82,35 @@ myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
 comparisons <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
+# Module sig prot enrichment.
+#------------------------------------------------------------------------------
+
+### SKIP ### 
+freq <- length(unique(sigProts))/dim(protmap)[1]
+
+ratio <- list()
+for (i in 1:length(comparisons)){
+data <- comparisons[[i]]
+modules <- split(data$wtProts,data$wtPartition)
+changes <- sapply(modules,unique)
+keep <- names(changes)[changes == "divergent"]
+if (length(keep)>0){
+modules <- modules[names(modules)[names(modules) %in% keep]]
+observed <- sapply(modules,function(x) sum(names(x) %in% sigProts))
+expected <- sapply(modules, length) * freq
+ratio[[i]] <- observed/expected
+} else {
+	ratio[[i]] <- 0
+}
+}
+
+c(1:100)[sapply(ratio,max)==max(sapply(ratio,max))]
+
+c(1:100)[sapply(ratio,median)==max(sapply(ratio,median))]
+# Resolution with best enrichment of sigprots in WT modules = 88
+# Resolution with best enrichment of sigprots in KO modules = 95
+
+#------------------------------------------------------------------------------
 # Prepare ppi graph.
 #------------------------------------------------------------------------------
 
@@ -85,11 +121,19 @@ data("musInteractome")
 idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
 ppis <- subset(musInteractome, idx)
 
+prots <- colnames(wtAdjm)
+entrez <- protmap$entrez[match(prots,protmap$ids)]
+
 # Build a graph with all proteins.
 graph <- buildNetwork(ppis, entrez, taxid = 10090)
 
 #------------------------------------------------------------------------------
+# Examine ~optimal resolution.
 #------------------------------------------------------------------------------
+
+# Best resolution based on average go sem sim of divergent modules (sum).
+# WT = 90
+# KO = 89
 
 # Best resolution based on number of divergent modules.
 # WT = 90
@@ -115,7 +159,7 @@ graph <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Look at "optimal" resolution.
 wtR <- 90
-koR <- 92
+koR <- 89
 
 # Examine WT.
 data <- comparisons[[wtR]]
@@ -135,29 +179,41 @@ lapply(wtGO[names(wtChanges[wtChanges=="divergent"])],function(x){
 })
 
 # Check correlation coefficients.
-wtSubAdjm <- sapply(wtDivergent,function(x){
-	       idx <- idy <- match(names(x),rownames(wtAdjm))
-	       wtSubAdjm <- wtAdjm[idx,idy]
-	       idx <- idy <- match(names(x),rownames(koAdjm))
-	       koSubAdjm <- koAdjm[idx,idy]
-	       return(mean(koSubAdjm)-mean(wtSubAdjm))
-})
+getAdjm <- function(module,adjm){
+	idx <- idy <- match(names(module),rownames(adjm))
+	       subAdjm <- adjm[idx,idy]
+	       return(subAdjm)
+}
+subWT <- lapply(wtDivergent,function(x) getAdjm(x,wtAdjm))
+subKO <- lapply(wtDivergent,function(x) getAdjm(x,koAdjm))
 
-x = wtSubAdjm[[1]]
-wt = x[[1]]
-ko = x[[2]]
-mean(wt)
-mean(ko)
+# Mean edge strength
+sapply(subKO,mean)
+sapply(subWT,mean)
 
-sum(abs(wtSubAdjm))
+# rewired proteins.
+n <- 1
+df <- melt(subKO[[n]]-subWT[[n]])
+df$abs <- abs(df$value)
+df$wt <- melt(subWT[[n]])$value
+df$ko <- melt(subKO[[n]])$value
+df <- df[order(df$abs,decreasing=TRUE),]
+head(df)
 
-sapply(wtSubAdjm,mean) # High average edge weight.
+# But are they connected?
+prots <- names(wtDivergent[[3]])
+entrez <- protmap$entrez[match(prots, protmap$ids)]
+subg <- induced_subgraph(graph,entrez)
+length(V(subg))
+length(E(subg))
+sum(prots %in% sigProts)
 
-# Write to file.
-write_excel(wtGO,"wtGO.xlsx")
+prots
 
 #------------------------------------------------------------------------------
 # Examine KO.
+#------------------------------------------------------------------------------
+
 data <- comparisons[[koR]]
 koModules <- split(data$koProts,data$koPartition)
 koChanges <- sapply(koModules,unique)
@@ -168,6 +224,23 @@ names(koDivergent)
 # Sizes of divergent modules.
 sapply(koDivergent,length)
 
+# Check correlation coefficients.
+subWT <- lapply(koDivergent,function(x) getAdjm(x,wtAdjm))
+subKO <- lapply(koDivergent,function(x) getAdjm(x,koAdjm))
+
+# Mean edge strengths.
+sapply(subWT,mean)
+sapply(subKO,mean)
+
+# rewired proteins.
+n <- 4
+df <- melt(subKO[[n]]-subWT[[n]])
+df$abs <- abs(df$value)
+df$wt <- melt(subWT[[n]])$value
+df$ko <- melt(subKO[[n]])$value
+df <- df[order(df$abs,decreasing=TRUE),]
+head(df)
+
 # Collect GO data.
 koGO <- koAllGO[[koR]]
 names(koGO) <- names(koModules) # for ease, fix names.
@@ -177,20 +250,14 @@ lapply(koGO[names(koChanges[koChanges=="divergent"])],function(x){
 	       cbind(x$shortDataSetName[c(1:5)],x$FDR[c(1:5)])
 })
 
-# Check correlation coefficients.
-koSubAdjm <- lapply(koDivergent,function(x){
-	       idx <- idy <- match(names(x),rownames(koAdjm))
-	       subAdjm <- koAdjm[idx,idy]
-})
-sapply(koSubAdjm,mean) # High average edge weight.
-
-# Write GO to file.
-write_excel(koGO,"koGO.xlsx")
-
 # But are they connected?
 # Not really...
-prots <- names(wtDivergent[[3]])
+prots <- names(koDivergent[[1]])
 entrez <- protmap$entrez[match(prots, protmap$ids)]
 subg <- induced_subgraph(graph,entrez)
 length(V(subg))
 length(E(subg))
+sum(prots %in% sigProts)
+prots
+
+

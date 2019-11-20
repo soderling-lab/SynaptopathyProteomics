@@ -127,7 +127,7 @@ avg_weight <- list()
   pb <- txtProgressBar(min = 0, max = length(comparisons), style = 3)
 for (i in 1:length(comparisons)){
     setTxtProgressBar(pb, i)
-	modules <- split(comparisons[[i]][[myProts]],comparisons[[i]][[myPartition]])
+modules <- split(comparisons[[i]][[myProts]],comparisons[[i]][[myPartition]])
 	avg_weight[[i]] <- sapply(modules,function(x) {
 		       v <- names(x)
 		       keep <- v %in% names(V(g))
@@ -145,7 +145,7 @@ wtWeight <- getAvgWeight(goSim,comparisons,"wtProts","wtPartition")
 
 koWeight <- getAvgWeight(goSim,comparisons,"koProts","koPartition")
 
-# which partition is best?
+# Which partition is best?
 # Calculate average edge weight of all modules, exlude module 0.
 wt <- sapply(wtWeight,function(x) mean(x[!names(x)==0]))
 ko <- sapply(koWeight,function(x) mean(x[!names(x)==0]))
@@ -155,6 +155,44 @@ best_r # WT #97
 
 best_r <- c(1:100)[ko==max(ko)]
 best_r # KO #99
+
+# which partition is best?
+# Calculate average edge weight of divergent modules!
+getChanges <- function(comparisons,myProts,myPartition){
+	changes <- lapply(comparisons,function(x) {
+				  sapply(split(x[[myProts]],x[[myPartition]]),unique)
+})
+	return(changes)
+}
+
+# Changes.
+wtChanges <- getChanges(comparisons,"wtProts","wtPartition")
+koChanges <- getChanges(comparisons,"koProts","koPartition")
+
+out <- list()
+for (i in 1:length(comparisons)){
+	idx = names(wtChanges[[i]])[wtChanges[[i]]=="divergent"]
+	if (length(idx)>0){
+		wt <- wtWeight[[i]][idx]
+	} else {
+		wt <- 0
+	}
+	idy = names(koChanges[[i]])[koChanges[[i]]=="divergent"]
+	if (length(idy)>0){
+		ko <- koWeight[[i]][idy]
+	} else {
+		ko <- 0
+	}
+	out[[i]] <- list("wt"=wt,"ko"=ko)
+}
+
+fx <- "sum"
+wt <- lapply(out,function(x) x$wt)
+wtAvg <- sapply(wt,eval(fx))
+c(1:100)[wtAvg==max(wtAvg)] # 90
+ko <- lapply(out,function(x) x$ko)
+koAvg <- sapply(ko,eval(fx))
+c(1:100)[koAvg==max(koAvg)] #89
 
 #-------------------------------------------------------------------------------
 # Which partition is best?
