@@ -25,6 +25,7 @@ root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
@@ -38,11 +39,6 @@ protmap <- readRDS(myfile)
 myfiles <- list.files(rdatdir,pattern="Module_GO_Results",full.names=TRUE)
 koAllGO <- readRDS(myfiles[1])
 wtAllGO <- readRDS(myfiles[2])
-
-# Load permutation test results.
-myfiles <- list.files(rdatdir,pattern="Preservation_Res*",full.names=TRUE)
-preservation <- lapply(as.list(myfiles),readRDS)
-names(preservation) <- c("R89","R90")
 
 # Load statistical results.
 glmDat <- readRDS(file.path(rdatdir,"2_GLM_Results.RData"))
@@ -86,62 +82,17 @@ names(sft) <- c("wt","ko")
 myfile <- list.files(rdatdir,pattern="6490667",full.names=TRUE)
 comparisons <- readRDS(myfile)
 
-#------------------------------------------------------------------------------
-# Examine permutation data.
-#------------------------------------------------------------------------------
+# Load module divergence df.
+moduleChanges <- fread(list.files(rdatdir,pattern="Divergence.csv",full.names=TRUE))
 
-res <- "R90"
-data <- preservation[[res]]
-names(data) <- c("ko", "wt") # Fix names. Because of names passed to netrep
-# permutation function, they are switched.
+# Fix column names.
+moduleChanges <- setNames(moduleChanges,gsub(" ","_",colnames(moduleChanges)))
 
-wt <- data$wt
-ko <- data$ko
-nWT <- length(wt$nVarsPresent)
-nKO <- length(ko$nVarsPresent)
-
-d = comparisons[[90]]
-modules <- split(d$wtProts,d$wtPartition)
-
-changes = sapply(modules,unique)
-changes[changes=="divergent"]
-
-modules[["20"]]
-
-p <- wt$p.values
-q <- apply(p,2,function(x) p.adjust(x,"bonferroni"))
-rownames(q) <- names(modules)[-1]
-
-fwrite(q,"wtpvals.csv",row.names=TRUE)
-
-#------------------------------------------------------------------------------
-# Module sig prot enrichment.
-#------------------------------------------------------------------------------
-
-### SKIP ### 
-freq <- length(unique(sigProts))/dim(protmap)[1]
-
-ratio <- list()
-for (i in 1:length(comparisons)){
-data <- comparisons[[i]]
-modules <- split(data$wtProts,data$wtPartition)
-changes <- sapply(modules,unique)
-keep <- names(changes)[changes == "divergent"]
-if (length(keep)>0){
-modules <- modules[names(modules)[names(modules) %in% keep]]
-observed <- sapply(modules,function(x) sum(names(x) %in% sigProts))
-expected <- sapply(modules, length) * freq
-ratio[[i]] <- observed/expected
-} else {
-	ratio[[i]] <- 0
-}
-}
-
-c(1:100)[sapply(ratio,max)==max(sapply(ratio,max))]
-
-c(1:100)[sapply(ratio,median)==max(sapply(ratio,median))]
-# Resolution with best enrichment of sigprots in WT modules = 88
-# Resolution with best enrichment of sigprots in KO modules = 95
+# Which resolutions have changes?
+x <- moduleChanges %>% filter(ko_nDivergent == 1) %>% 
+	dplyr::select(resolution)
+#dput(as.numeric(x$resolution))
+#c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
 
 #------------------------------------------------------------------------------
 # Prepare ppi graph.
@@ -164,52 +115,27 @@ graph <- buildNetwork(ppis, entrez, taxid = 10090)
 # Examine ~optimal resolution.
 #------------------------------------------------------------------------------
 
-# Best resolution based on average go sem sim of divergent modules (sum).
-# WT = 90
-# KO = 89
+res <- 66 # best GO = 29, biggest with with dysregulate module = 79
+GO <- koAllGO
 
-# Best resolution based on number of divergent modules.
-# WT = 90
-# KO = 92
-
-# Best resolution based on percent proteins assigned to divergent modules:
-# R = 47
-
-# Best resolution based on total number of divergent modules.
-# R = 92
-
-# Best resolution based on sum GO p for all modules.
-# WT = 52 # problem: no wt divergent.
-# KO = 50
-
-# Best resolution based on sum GO p for DIVERGENT modules.
-# WT = 42 - single divergent modules, top go = icpm for both wt and ko.
-# KO = 33 - module seems to be the SAME proteins...
-
-# Best resolution based on GO semantic similarity of modules.
-# WT = 97, 100 (modularity) - problem no sig KO GO!?
-# KO = 99, 100 (modularity)
-
-# Look at "optimal" resolution.
-wtR <- 90
-koR <- 89
-
-# Examine WT.
-data <- comparisons[[wtR]]
-wtModules <- split(data$wtProts,data$wtPartition)
-wtChanges <- sapply(wtModules,unique)
-wtDivergent <- wtModules[names(wtChanges[wtChanges=="divergent"])]
-message(paste("Number of WT divergent modules:",length(wtDivergent)))
-wtGO <- wtAllGO[[wtR]]
-names(wtGO) <- names(wtModules) # for ease, fix names.
-
+#examinePartition <- function(comparisons,res,geno,GO){
+allDat <- comparisons[[res]]
+namen <- names(data)[grep(geno,names(data))]
+data <- allDat[namen]
+modules <- split(data[[2]],data[[1]])
+nModules <- length(modules)
+changes <- sapply(modules,unique)
+divergent <- modules[names(changes[changes=="divergent"])]
+message(paste("Divergent module:",names(divergent)))
+message(paste("Number of divergent modules:",length(divergent)))
+goDat <- GO[[res]]
+myfile <- file.path(tabsdir,paste0("3_",toupper(geno),"_R",res,"_Module_GO_enrichment.xlsx"))
+write_excel(goDat,myfile)
+# for ease, fix names.
+names(goDat) <- names(modules) 
 # Sizes of divergent modules.
-sapply(wtDivergent,length)
-
-# Check top go.
-lapply(wtGO[names(wtChanges[wtChanges=="divergent"])],function(x){
-	       cbind(x$shortDataSetName[c(1:5)],x$FDR[c(1:5)])
-})
+nDivergent <- sapply(divergent,length) # Proteins.
+#}
 
 # Check correlation coefficients.
 getAdjm <- function(module,adjm){
@@ -217,80 +143,23 @@ getAdjm <- function(module,adjm){
 	       subAdjm <- adjm[idx,idy]
 	       return(subAdjm)
 }
-subWT <- lapply(wtDivergent,function(x) getAdjm(x,wtAdjm))
-subKO <- lapply(wtDivergent,function(x) getAdjm(x,koAdjm))
-
+subWT <- lapply(divergent,function(x) getAdjm(x,wtAdjm))
+subKO <- lapply(divergent,function(x) getAdjm(x,koAdjm))
 # Mean edge strength
 sapply(subKO,mean)
 sapply(subWT,mean)
 
-# rewired proteins.
-n <- 1
-df <- melt(subKO[[n]]-subWT[[n]])
-df$abs <- abs(df$value)
-df$wt <- melt(subWT[[n]])$value
-df$ko <- melt(subKO[[n]])$value
-df <- df[order(df$abs,decreasing=TRUE),]
-head(df)
 
 # But are they connected?
-prots <- names(wtDivergent[[3]])
+prots <- names(divergent[[1]])
 entrez <- protmap$entrez[match(prots, protmap$ids)]
 subg <- induced_subgraph(graph,entrez)
 length(V(subg))
 length(E(subg))
+
+# How many sig?
 sum(prots %in% sigProts)
 
-prots
-
-#------------------------------------------------------------------------------
-# Examine KO.
-#------------------------------------------------------------------------------
-
-data <- comparisons[[koR]]
-koModules <- split(data$koProts,data$koPartition)
-koChanges <- sapply(koModules,unique)
-koDivergent <- koModules[names(koChanges[koChanges=="divergent"])]
-message(paste("Number of KO divergent modules:",length(koDivergent)))
-names(koDivergent)
-
-# Sizes of divergent modules.
-sapply(koDivergent,length)
-
-# Check correlation coefficients.
-subWT <- lapply(koDivergent,function(x) getAdjm(x,wtAdjm))
-subKO <- lapply(koDivergent,function(x) getAdjm(x,koAdjm))
-
-# Mean edge strengths.
-sapply(subWT,mean)
-sapply(subKO,mean)
-
-# rewired proteins.
-n <- 4
-df <- melt(subKO[[n]]-subWT[[n]])
-df$abs <- abs(df$value)
-df$wt <- melt(subWT[[n]])$value
-df$ko <- melt(subKO[[n]])$value
-df <- df[order(df$abs,decreasing=TRUE),]
-head(df)
-
-# Collect GO data.
-koGO <- koAllGO[[koR]]
-names(koGO) <- names(koModules) # for ease, fix names.
-
-# Check top go.
-lapply(koGO[names(koChanges[koChanges=="divergent"])],function(x){
-	       cbind(x$shortDataSetName[c(1:5)],x$FDR[c(1:5)])
-})
-
-# But are they connected?
-# Not really...
-prots <- names(koDivergent[[1]])
-entrez <- protmap$entrez[match(prots, protmap$ids)]
-subg <- induced_subgraph(graph,entrez)
-length(V(subg))
-length(E(subg))
-sum(prots %in% sigProts)
-prots
-
-
+# From which genos?
+subdat <- melt(subset(glmDat,rownames(glmDat) %in% prots),id.vars="Uniprot")
+subdat %>% group_by(variable) %>% summarize(sum(value<0.05))

@@ -32,7 +32,6 @@ protmap <- readRDS(file.path(rdatdir, "2_Prot_Map.RData"))
 
 # Load network comparison results.
 myfile <- list.files(rdatdir, pattern = "6490667", full.names = TRUE)
-
 comparisons <- readRDS(myfile)
 
 # Load GO data.
