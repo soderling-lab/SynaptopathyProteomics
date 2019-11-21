@@ -17,6 +17,7 @@ suppressPackageStartupMessages({
   library(WGCNA)
   library(NetRep)
   library(getPPIs)
+  library(igraph)
 })
 
 # Directories.
@@ -94,6 +95,39 @@ x <- moduleChanges %>% filter(ko_nDivergent == 1) %>%
 #dput(as.numeric(x$resolution))
 #c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
 
+# What proteins are these?
+#getProts <- function(comparisons)
+subComp <- comparisons[c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)]
+namen <- rep(NA,length(subComp))
+
+# Collect proteins in divergent ko modules.
+modProts <- list()
+for (i in 1:length(subComp)){
+	prots = subComp[[i]]$koProts
+	parts = subComp[[i]]$koPartition
+	modules = split(prots,parts)
+	changes = sapply(modules,unique)
+	namen[i] <- names(changes)[changes=="divergent"]
+	modProts[[i]] <-names(modules[[namen[i]]])
+}
+names(modProts) <- namen
+
+# How do these groups of proteins relate to each other?
+# All possible combinations...
+x = expand.grid(1:14,1:14)
+dm <- matrix(ncol=14,nrow=14)
+for (i in 1:dim(x)[1]){
+	idx <- x[i,1]
+	idy <- x[i,2]
+	int_ <- sum(modProts[[idx]] %in% modProts[[idy]])
+	union_ <- length(unique(c(modProts[[idx]],modProts[[idy]])))
+	ji <- int_/union_
+	dm[idx,idy] <- ji
+}
+
+# Convert to distance matrix and then plot.
+
+
 #------------------------------------------------------------------------------
 # Prepare ppi graph.
 #------------------------------------------------------------------------------
@@ -116,19 +150,18 @@ graph <- buildNetwork(ppis, entrez, taxid = 10090)
 #------------------------------------------------------------------------------
 
 #c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
-res <- 35 # best GO = 29, biggest with with dysregulate module = 79
+res <- 58 # best GO = 29, biggest with with dysregulate module = 79
 GO <- koAllGO
-
+geno <- "ko"
+###
 #examinePartition <- function(comparisons,res,geno,GO){
 allDat <- comparisons[[res]]
-namen <- names(data)[grep(geno,names(data))]
+namen <- names(allDat)[grep(geno,names(allDat))]
 data <- allDat[namen]
 modules <- split(data[[2]],data[[1]])
 nModules <- length(modules)
 changes <- sapply(modules,unique)
 divergent <- modules[names(changes[changes=="divergent"])]
-message(paste("Divergent module name :",names(divergent)))
-message(paste("Number of divergent modules:",length(divergent)))
 goDat <- GO[[res]]
 myfile <- file.path(tabsdir,paste0("3_",toupper(geno),"_R",res,"_Module_GO_enrichment.xlsx"))
 write_excel(goDat,myfile)
@@ -136,6 +169,9 @@ write_excel(goDat,myfile)
 names(goDat) <- names(modules) 
 # Sizes of divergent modules.
 nDivergent <- sapply(divergent,length) # Proteins.
+message(paste("Divergent module name :",names(divergent)))
+message(paste("Number of divergent modules:",length(divergent)))
+message(paste("Number of proteins in divergent module:",length(unlist(divergent))))
 #}
 
 # Check correlation coefficients.
@@ -149,7 +185,6 @@ subKO <- lapply(divergent,function(x) getAdjm(x,koAdjm))
 # Mean edge strength
 sapply(subKO,mean)
 sapply(subWT,mean)
-
 
 # But are they connected?
 prots <- names(divergent[[1]])
