@@ -83,7 +83,7 @@ sft <- silently({
 names(sft) <- c("wt","ko")
 
 # Load network comparison results.
-myfile <- list.files(rdatdir,pattern="6171865",full.names=TRUE)
+myfile <- list.files(rdatdir,pattern="6490667",full.names=TRUE)
 comparisons <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
@@ -113,9 +113,6 @@ q <- apply(p,2,function(x) p.adjust(x,"bonferroni"))
 rownames(q) <- names(modules)[-1]
 
 fwrite(q,"wtpvals.csv",row.names=TRUE)
-
-
-
 
 #------------------------------------------------------------------------------
 # Module sig prot enrichment.

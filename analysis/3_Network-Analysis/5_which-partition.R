@@ -62,8 +62,45 @@ myfile <- list.files(rdatdir, pattern = "6142226", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 # Load network comparison results.
-myfile <- list.files(rdatdir, pattern = "6171865", full.names = TRUE)
-comparisons <- readRDS(myfile)
+myfile <- list.files(rdatdir, pattern = "6490667", full.names = TRUE)
+comparisons <- readRDS(myfile) 
+
+#-------------------------------------------------------------------------------
+# Unpack the comparison results.
+#-------------------------------------------------------------------------------
+
+getModuleChanges <- function(comparisons,geno){
+	namen <- names(comparisons)[grep(geno,names(comparisons))]
+	data <- comparisons[namen]
+	modules <- split(data[[2]],data[[1]])
+	changes <- sapply(modules,unique)
+	nModules <- sum(!names(changes)==0)
+	nPreserved <- sum(changes=="preserved")
+	nDivergent <- sum(changes=="divergent")
+	nNS <- sum(changes=="ns")
+	nNoCluster <- sum(changes=="not-clustered")
+	out <- c("nModules"=nModules,"nPreserved"=nPreserved,
+		 "nDivergent"=nDivergent,"nNoCluster"=nNoCluster,"nNS"=nNS)
+	return(out)
+}
+
+# Compute number of changes.
+wtChanges <- t(sapply(c(1:length(comparisons)), function(x) { 
+			      getModuleChanges(comparisons[[x]],"wt") 
+}))
+koChanges <- t(sapply(c(1:length(comparisons)), function(x) { 
+			      getModuleChanges(comparisons[[x]],"ko") 
+}))
+
+# Combine into df.
+moduleChanges <- as.data.frame(cbind(resolution = c(1:100),
+				     wtChanges,
+				     koChanges))
+colnames(moduleChanges)[c(2:ncol(moduleChanges))] <- paste(rep(c("wt","ko"),each=5),colnames(moduleChanges)[c(2:ncol(moduleChanges))])
+
+# Save as csv.
+myfile <- file.path(rdatdir,"3_Module_Divergence.csv")
+fwrite(moduleChanges,myfile)
 
 #-------------------------------------------------------------------------------
 # Define a function to do GO analysis of modules at a given resolution.
@@ -197,7 +234,7 @@ r1 <- best_resD(wtGO, comparisons, partition = "wtPartition", prots = "wtProts")
 r1$r_best # WT 42
 
 r2 <- best_resD(koGO, comparisons, partition = "koPartition", prots = "koProts")
-r2$r_best # KO 33
+r2$r_best # KO 33 # New = 29
 
 # Best resolution for divergent WT AND KO modules combined:
 p <- r1$pValue + r2$pValue
