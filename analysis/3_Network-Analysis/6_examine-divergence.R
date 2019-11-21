@@ -115,7 +115,8 @@ graph <- buildNetwork(ppis, entrez, taxid = 10090)
 # Examine ~optimal resolution.
 #------------------------------------------------------------------------------
 
-res <- 66 # best GO = 29, biggest with with dysregulate module = 79
+#c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
+res <- 35 # best GO = 29, biggest with with dysregulate module = 79
 GO <- koAllGO
 
 #examinePartition <- function(comparisons,res,geno,GO){
@@ -126,7 +127,7 @@ modules <- split(data[[2]],data[[1]])
 nModules <- length(modules)
 changes <- sapply(modules,unique)
 divergent <- modules[names(changes[changes=="divergent"])]
-message(paste("Divergent module:",names(divergent)))
+message(paste("Divergent module name :",names(divergent)))
 message(paste("Number of divergent modules:",length(divergent)))
 goDat <- GO[[res]]
 myfile <- file.path(tabsdir,paste0("3_",toupper(geno),"_R",res,"_Module_GO_enrichment.xlsx"))
