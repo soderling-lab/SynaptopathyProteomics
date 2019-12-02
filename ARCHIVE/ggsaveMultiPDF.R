@@ -18,7 +18,7 @@
 #'
 #' @examples
 #' ggsave_plots(plot_list, file_ext)
-ggsaveMultiPDF <- function(plot_list, savefigs_path, file_ext, verbose = TRUE) {
+ggsaveMultiPDF <- function(plot_list,verbose = TRUE) {
   # Saves plots in plot_list to file as given by savefigs_path.
   # Saves figures in format given by file_ext.
   # Will name plots as plot1, plot2, ect if not named in list.
