@@ -1,6 +1,6 @@
 #' ggsavePDF
 #'
-#' Function for saving ggplots to single pdf.
+#' Function for saving multiple ggplots to single pdf.
 #'
 #' @param
 #'

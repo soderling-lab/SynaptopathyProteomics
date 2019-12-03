@@ -570,7 +570,7 @@ df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 colnames(df)[c(2:ncol(df))] <- names(stats)
 
 # Save to Rdata.
-myfile <- file.path(outputtabs, "2_GLM_Results.RData")
+myfile <- file.path(Rdatadir, "2_GLM_Results.RData")
 saveRDS(df, myfile)
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
@@ -775,6 +775,10 @@ stats <- stats %>% purrr::reduce(left_join, by = "Uniprot")
 colnames(stats)[c(2:ncol(stats))] <- names(glm_results)
 rownames(stats) <- stats$Uniprot
 stats$Uniprot <- NULL
+
+# Save glm stats.
+myfile <- file.path(Rdatadir,"2_GLM_Stats.RData")
+saveRDS(stats,file=myfile)
 
 # Loop to add stars.
 plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))

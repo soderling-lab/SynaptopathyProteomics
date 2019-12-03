@@ -1,9 +1,10 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title:
-#' description: 
+#' title: 
+#' description: examine divergent modules
 #' authors: Tyler W Bradshaw
+#' output: html_notebook
 #' ---
 
 #-------------------------------------------------------------------------------
@@ -21,6 +22,9 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(ggdendro)
   library(RCy3)
+  library(anRichment)
+  library(fgsea)
+  
 })
 
 # Directories.
@@ -129,7 +133,7 @@ for (i in 1:length(subComp)){
 	namen[i] <- names(changes)[changes=="divergent"]
 	modProts[[i]] <-names(modules[[namen[i]]])
 }
-# Names: R(esolution)#-Mo(odule)#
+# Names: R(esolution)#-M(odule)#
 names(modProts) <- paste(paste0("R",resolutions),paste0("M",namen),sep="-")
 
 # How do these groups of proteins relate to each other?
@@ -180,12 +184,32 @@ entrez <- protmap$entrez[match(prots,protmap$ids)]
 g <- buildNetwork(ppis, entrez, taxid = 10090)
 
 #------------------------------------------------------------------------------
+# Protein boxplots to examine protein expression changes.
+#------------------------------------------------------------------------------
+
+# Load all protein boxplots.
+plots <- readRDS(file.path(rdatdir,"2_Combined_plots.RData"))[[11]]
+
+# Load stats.
+# FDR only...
+stats <- readRDS(file.path(rdatdir,"2_GLM_Stats.RData"))
+
+# Fix column names of stats for correct function of annotate_stars().
+namen <- sapply(strsplit(colnames(stats),"\ "),function(x) paste(rev(x),collapse=".KO."))
+namen[grepl("Syngap1",namen)] <- gsub("KO","HET",namen[grepl("Syngap1",namen)])
+colnames(stats) <- namen
+
+# lapply to add significance stars and red text to boxplots if significant.
+plots <- lapply(plots,function(x) annotate_stars(x,stats))
+
+#------------------------------------------------------------------------------
 # Examine ~optimal resolutions--Send to Cytoscape.
 #------------------------------------------------------------------------------
 
 send_to_cytoscape <- FALSE
 changes_df <- list()
 rewired <- list()
+sigPlots <- list()
 
 for (r in seq_along(resolutions)){
   # Collect data from resolution of interest.
@@ -229,7 +253,7 @@ subKO <- lapply(divergent,function(x) getAdjm(x,koAdjm))
 # Rewired proteins:
 df <- as.data.frame(cbind(melt(subWT[[1]]),ko=melt(subKO[[1]])$value))
 colnames(df)[3] <- "wt"
-df$delta <- df$ko-df$wt
+df$delta <- abs(df$ko-df$wt)
 df <- df[order(df$delta,decreasing=TRUE),]
 rewired[[r]] <- df
 # Mean edge strength
@@ -248,7 +272,8 @@ df <- melt(glmDat,id.vars="Uniprot")
 df <- df %>% group_by(variable) %>% summarize(nSig=sum(value<0.05))
 df$Freq <- df$nSig/dim(glmDat)[1]
 sigdf$expected <- length(prots) * df$Freq
-
+# Significant boxplots.
+sigPlots[[r]] <- plots[prots[prots %in% sigProts]] 
 # Hypergeometric p-value.
 sigdf$pval <- phyper(sigdf$value-1,            # sample success
        df$nSig,                                # pop_success
@@ -283,6 +308,7 @@ divergentModules <- c(1:length(resolutions))
 names(divergentModules) <- rownames(dm)
 names(changes_df) <- names(divergentModules)
 names(rewired) <- names(divergentModules)
+names(sigPlots) <- names(divergentModules)
 
 #------------------------------------------------------------------------------
 ## Are any of the divergent modules enriched for multiple genotypes?
@@ -298,14 +324,160 @@ idx <- match(names(most_sig),rownames(dm))
 mean(dm[idx,idx])
 
 #------------------------------------------------------------------------------
+## Pathway analysis of rewired proteins.
 #------------------------------------------------------------------------------
 
-# Rewired proteins.
-subdat <- rewired[names(most_sig)]
+# Build wt and ko co-expression graphs. 
+g <- lapply(list("wt" = wtAdjm,"ko" = koAdjm), function(x) 
+  graph_from_adjacency_matrix(x,mode="undirected",weighted=TRUE))
 
-head(subdat[[3]],10)
+# Load currated human reactome pathways.
+#myfile <- file.path(datadir,"c2.cp.reactome.v7.0.entrez.gmt")
+myfile <- file.path(datadir,"c2.cp.v7.0.entrez.gmt") # Combined pathways.
+pathways <- gmtPathways(myfile)
+length(pathways)                 # npaths
+length(unique(unlist(pathways))) # ngenes
+
+# Get mouse homologs of human genes in pathways list.
+library(getPPIs)
+hsEntrez <- unique(unlist(pathways))
+msEntrez <- getHomologs(hsEntrez,taxid="10090") # mouse taxid
+names(msEntrez) <- hsEntrez
+
+# Map to mouse, discard unmapped genes.
+library(purrr)
+msPathways <- lapply(pathways,function(x) discard(msEntrez[x],is.na))
+
+# Filter pathways, only keep genes identified in synaptic proteome.
+filter_pathways <- function(pathways,genes) {
+  require(purrr)
+  `%notin%` <- Negate(`%in%`)
+  pathways <- lapply(pathways, function(x) discard(x, x %notin% genes))
+  return(pathways)
+}
+msPathways <- filter_pathways(msPathways,protmap$entrez)
+
+# Check: What percentage of genes are in pathways list?
+sum(protmap$entrez %in% unlist(unique(msPathways)))/dim(protmap)[1]
+
+# Loop to perform GSEA for all divergent modules.
+out <- list()
+for (i in seq_along(resolutions)){
+  # For a given resolution, get nodes in divergent ko module.
+  res <- resolutions[i]
+  message(paste("Working on resolution:",res,"..."))
+  partition <- comparisons[[res]]$koPartition
+  namen <- unlist(strsplit(names(divergentModules)[i],"-"))[2]
+  modules <- split(partition,partition)
+  names(modules) <- paste0("M",names(modules))
+  nodes <- modules[[namen]]
+  # subset graphs.
+  #subg <- lapply(g,function(x) induced_subgraph(x,names(nodes)))
+  # Calculate rank based on change in eigencentrality b/w wt and ko graphs.
+  #ecent <- lapply(subg, function(x) 
+  #  eigen_centrality(x, weights=edge_attr(x,name="weight"),scale=TRUE)$vector)
+  #ranks <- abs(log2(ecent$wt+1) - log2(ecent$ko+1))
+  #names(ranks) <- protmap$entrez[match(names(ranks),protmap$ids)]
+  # Subset adjacency matrices.
+  subg <- lapply(list("wt" = wtAdjm, "ko" = koAdjm), function(x) 
+    x[colnames(x) %in% names(nodes),colnames(x) %in% names(nodes)])
+  # Calculate change in node degree centrality (sum of edges).
+  deg <- lapply(subg, colSums)
+  ranks <- abs(deg$ko-deg$wt)
+  ranks <- ranks[order(ranks,decreasing=TRUE)]
+  # Rename as entrez.
+  names(ranks) <- protmap$entrez[match(names(ranks),protmap$ids)]
+  # Use fgsea package to evaluate GO enrichment.
+  results <- fgsea(pathways=msPathways,
+                   stats=ranks,
+                   minSize=15,
+                   maxSize=500,
+                   nperm=100000)
+  # Sort by p-value.
+  results <- results[order(results$pval),]
+  out[[i]] <- results
+}
+
+sapply(out,function(x) sum(x$padj<0.1))
+
+out[[11]]$pathway[1]
 
 #------------------------------------------------------------------------------
+## GSEA using 
+#------------------------------------------------------------------------------
+# Build wt and ko co-expression graphs. 
+g <- lapply(list("wt" = wtAdjm,"ko" = koAdjm), function(x) 
+  graph_from_adjacency_matrix(x,mode="undirected",weighted=TRUE))
+
+# Rename nodes as entrez.
+rename_nodes <- function(graph,protmap) {
+  ids <- names(V(graph))
+  entrez <- protmap$entrez[match(ids,protmap$ids)]
+  graph <- set_vertex_attr(graph,"name",value = entrez)
+  return(graph)
+}
+#g <- lapply(g,function(x) rename_nodes(x,protmap))
+
+# build GO collection.
+if (!exists("msGO")) {
+  msGO <- buildGOcollection(organism="mouse")
+  pathways <- lapply(msGO$dataSets,function(x) x$data$Entrez)
+  names(pathways) <- names(msGO$dataSets)
+  # Filter pathways... remove genes not in synaptosome.
+  filtPath <- lapply(pathways, function(x) x[x %in% protmap$entrez])
+  filtPath <- filtPath[c(1:length(filtPath))[!sapply(filtPath,length)==0]]
+}
+
+# For a given resolution, get nodes in divergent ko module.
+for (i in seq_along(resolutions)){
+res <- resolutions[i]
+message(paste("Working on resolution:",res,"..."))
+partition <- comparisons[[res]]$koPartition
+namen <- unlist(strsplit(names(divergentModules)[i],"-"))[2]
+modules <- split(partition,partition)
+names(modules) <- paste0("M",names(modules))
+nodes <- modules[[namen]]
+# subset graphs.
+#subg <- lapply(g,function(x) induced_subgraph(x,names(nodes)))
+# Subset adjacency matrices.
+subg <- lapply(list("wt" = wtAdjm, "ko" = koAdjm), function(x) 
+  x[colnames(x) %in% names(nodes),colnames(x) %in% names(nodes)])
+
+# Calculate rank based on change in eigencentrality b/w wt and ko graphs.
+ecent <- lapply(subg, function(x) 
+  eigen_centrality(x, weights=edge_attr(x,name="weight"),scale=TRUE)$vector)
+ranks <- abs(log2(ecent$wt+1) - log2(ecent$ko+1))
+ranks <- x[order(x,decreasing=TRUE)]
+names(ranks) <- protmap$entrez[match(names(ranks),protmap$ids)]
+
+# # Calculate change in node degree centrality (sum of edges).
+# deg <- lapply(subg, colSums)
+# delta <- abs(deg$ko/deg$wt)
+# delta <- delta[order(delta,decreasing=TRUE)]
+# # Rename as entrez.
+# names(delta) <- protmap$entrez[match(names(delta),protmap$ids)]
+
+# Score based on fdr.
+# need to fix to use p-value.
+# ranks <- rowSums(-log10(stats))
+# names(ranks) <- protmap$entrez[match(names(ranks),protmap$uniprot)]
+# idx <- names(ranks) %in% protmap$entrez[match(names(nodes),protmap$ids)]
+# ranks <- ranks[idx]
+# ranks <- ranks[order(ranks,decreasing = TRUE)]
+# ranks <- ranks[isUnique(names(ranks))]
+
+# Use fgsea package to evaluate GO enrichment.
+results <- fgsea(pathways=filtPath,
+                 stats=ranks,
+                 minSize=15,
+                 maxSize=500,
+                 nperm=100000)
+# Write result to file. 
+fwrite(results,paste0("results",res,".csv"))
+}
+
+#------------------------------------------------------------------------------
+## Protein-Gene-Disease associations?
 #------------------------------------------------------------------------------
 # Proteins with disease association?
 Syngap1 <- readxl::read_excel(file.path(rdatdir,"Syngap1.xlsx"))
