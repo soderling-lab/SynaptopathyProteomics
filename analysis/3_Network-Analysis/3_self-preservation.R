@@ -10,9 +10,30 @@
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# NetRep input:
+# 1. Expression data.
+# 2. Correlation matrix.
+# 3. Interaction network - Edges must be positive!
+# 4. Network partition.
+
+## Permutation Statistics:
+# 1. avg.weight (average edge weight) - Calculated from network. Assumes edge 
+#    weights are positive.
+# 2. coherence - Calculated from the data. Quantifies the percent variance
+#    explained by modules summary vector.
+# 3. cor.cor (concordance of correlation structure) - Calculated from
+#    correlation matrix. Don't use!
+# 4. cor.degree (concordance of weighted degree) - Calculated from network. Assumes edge weights are
+#    positive. Don't use!
+# 5. cor.contrib (average node contribution) - Calculated from the data. Don't use!
+# 6. avg.cor (density of correlation structure) - Calculated from correlation
+#    matrix. 
+# 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
+#    to summary profile.
+
 # User parameters to change:
 stats <- c(1:7) # Module statistics to use for permutation testing.
-strength <- "strong" # Preservation criterion strong = all, or weak = any sig stats.
+strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))

@@ -206,7 +206,7 @@ plots <- lapply(plots,function(x) annotate_stars(x,stats))
 # Examine ~optimal resolutions--Send to Cytoscape.
 #------------------------------------------------------------------------------
 
-send_to_cytoscape <- FALSE
+send_to_cytoscape <- TRUE
 changes_df <- list()
 rewired <- list()
 sigPlots <- list()
@@ -250,7 +250,9 @@ getAdjm <- function(module,adjm){
 }
 subWT <- lapply(divergent,function(x) getAdjm(x,wtAdjm))
 subKO <- lapply(divergent,function(x) getAdjm(x,koAdjm))
-# Rewired proteins:
+subg <- graph_from_adjacency_matrix(subKO[[1]],mode="undirected",weighted=TRUE,diag=FALSE)
+
+# Rewired prots.
 df <- as.data.frame(cbind(melt(subWT[[1]]),ko=melt(subKO[[1]])$value))
 colnames(df)[3] <- "wt"
 df$delta <- abs(df$ko-df$wt)
@@ -286,7 +288,17 @@ changes_df[[r]] <- sigdf
 names(sigProts) <- protmap$entrez[match(sigProts,protmap$ids)]
 sig <- names(V(subg)) %in% names(sigProts)
 subg <- set_vertex_attr(subg, "sigProt",value = sig)
-# Switch node names.
+# Node Color based on change in degree centrality (rewiring):
+node_color <- colSums(subKO[[1]])/colSums(subWT[[1]])
+names(node_color) <- protmap$entrez[match(names(node_color),protmap$ids)]
+node_color <- node_color[match(names(V(subg)),names(node_color))]
+subg <- set_vertex_attr(subg,"color",value=node_color)
+# Hubs
+node_centrality <- colSums(subKO[[1]])
+names(node_centrality) <- protmap$entrez[match(names(node_centrality),protmap$ids)]
+node_centrality <- node_centrality[match(names(V(subg)),names(node_centrality))]
+subg <- set_vertex_attr(subg,"centrality",value=node_centrality)
+# Switch node names to gene symbols.
 subg <- set_vertex_attr(subg, "name", index = V(subg), vertex_attr(subg,"symbol"))
 namen <- paste0("R",res)
 # Send to cytoscape.
@@ -322,6 +334,74 @@ most_sig <- which_res[names(which_res)[sapply(which_res,length)>1]]
 # Average protein overlap amongst resoutions with multiple genotype enrichment:
 idx <- match(names(most_sig),rownames(dm))
 mean(dm[idx,idx])
+
+#------------------------------------------------------------------------------
+## GSE analysis using SynGO database.
+#------------------------------------------------------------------------------
+# Load SynGO.
+myfile <- file.path(datadir,"SynGO_Pathways.RData")
+synGO <- readRDS(myfile)
+pathways <- synGO$BP
+
+# Build wt and ko co-expression graphs. 
+g <- lapply(list("wt" = wtAdjm,"ko" = koAdjm), function(x) 
+  graph_from_adjacency_matrix(x,mode="undirected",weighted=TRUE))
+
+# Filter pathways, only keep genes identified in synaptic proteome.
+filter_pathways <- function(pathways,genes) {
+  require(purrr)
+  `%notin%` <- Negate(`%in%`)
+  pathways <- lapply(pathways, function(x) discard(x, x %notin% genes))
+  return(pathways)
+}
+#pathways <- filter_pathways(pathways,protmap$entrez)
+
+# Check: What percentage of genes are in pathways list?
+sum(protmap$entrez %in% unlist(unique(pathways)))/dim(protmap)[1]
+
+# Loop to perform GSEA for all divergent modules.
+out <- list()
+for (i in seq_along(resolutions)){
+  # For a given resolution, get nodes in divergent ko module.
+  res <- resolutions[i]
+  message(paste("Working on resolution:",res,"..."))
+  partition <- comparisons[[res]]$koPartition
+  namen <- unlist(strsplit(names(divergentModules)[i],"-"))[2]
+  modules <- split(partition,partition)
+  names(modules) <- paste0("M",names(modules))
+  nodes <- modules[[namen]]
+  # subset graphs.
+  #subg <- lapply(g,function(x) induced_subgraph(x,names(nodes)))
+  # Calculate rank based on change in eigencentrality b/w wt and ko graphs.
+  #ecent <- lapply(subg, function(x) 
+  #  eigen_centrality(x, weights=edge_attr(x,name="weight"),scale=TRUE)$vector)
+  #ranks <- abs(log2(ecent$wt+1) - log2(ecent$ko+1))
+  #names(ranks) <- protmap$entrez[match(names(ranks),protmap$ids)]
+  # Subset adjacency matrices.
+  subg <- lapply(list("wt" = wtAdjm, "ko" = koAdjm), function(x) 
+    x[colnames(x) %in% names(nodes),colnames(x) %in% names(nodes)])
+  # Calculate change in node degree centrality (sum of edges).
+  deg <- lapply(subg, colSums)
+  ranks <- abs(deg$ko-deg$wt)
+  ranks <- ranks[order(ranks,decreasing=TRUE)]
+  #ranks <- rep(1,length(ranks)) # un-weighted...
+  # Rename as entrez.
+  names(ranks) <- protmap$entrez[match(names(ranks),protmap$ids)]
+  # Use fgsea package to evaluate GO enrichment.
+  results <- fgsea(pathways=pathways,
+                   stats=ranks,
+                   minSize=5,
+                   maxSize=500,
+                   nperm=100000)
+  # Sort by p-value.
+  results <- results[order(results$pval),]
+  out[[i]] <- results
+}
+
+sapply(out,function(x) sum(x$padj<0.1))
+
+x = out[[7]]
+out[[7]]$pathway[1]
 
 #------------------------------------------------------------------------------
 ## Pathway analysis of rewired proteins.

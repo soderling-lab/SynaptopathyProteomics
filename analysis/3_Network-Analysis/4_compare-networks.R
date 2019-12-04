@@ -10,7 +10,7 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-## Permutation Statistics
+## Permutation Statistics:
 # 1. avg.weight
 # 2. coherence 
 # 3. cor.cor - Don't use!

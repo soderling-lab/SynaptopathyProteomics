@@ -12,10 +12,11 @@ from sys import stderr
 from pandas import read_csv
 
 # Which analysis are we doing?
-# WT or KO network (0,1)
-data_type = 1 
-geno = ['KO','WT'][data_type]
-print("Performing Leiden algorithm clustering of the " + geno + " protein co-expression network.", file = stderr)
+# Combined, KO, or WT network (0,1,2)
+data_type = 0 
+geno = ['Combined','KO','WT'][data_type]
+print("Performing Leiden algorithm clustering of the " + geno + 
+        " protein co-expression network.", file = stderr)
 
 # Read bicor adjacency matrix.
 here = os.getcwd()
@@ -31,7 +32,7 @@ adjm = adjm.set_index(keys=adjm.columns)
 ## Create an igraph object.
 #------------------------------------------------------------------------------
 # I tried a couple ways of creating an igraph object. Simplier approaches like
-# using the igraph.Weighted_Adjacency function didn't work. 
+# using the igraph.Weighted_Adjacency function didn't work for me...
 
 from igraph import Graph
 
@@ -50,7 +51,7 @@ el = list(zip([nodes.get(e[0]) for e in edge_list],
     [nodes.get(e[1]) for e in edge_list]))
 
 # Create empty graph.
-print("Generating igraph object:", file = stderr)
+print("Generating an igraph graph...", file = stderr)
 g = Graph()
 
 # Add vertices and their labels.
@@ -69,20 +70,32 @@ g = g.simplify(multiple = False, loops = True)
 ## Community detection with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
+import leidenalg as la
 from numpy import linspace
 from leidenalg import find_partition
 from leidenalg import CPMVertexPartition
+from leidenalg import Optimiser
 from progressbar import ProgressBar
+
+# Parameters for profile.
+rmin = 0
+step = 1
+rmax = 100
 
 # Loop to perform leidenalg community detection at 100 resolutions.
 print('''Generating partition profile for protein co-expression graph!
         This will take several hours!''', file = stderr)
 pbar = ProgressBar()
-resolution_range = linspace(0,1,100)
+resolution_range = linspace(rmin,step,rmax)
 profile = list()
 for res in pbar(resolution_range):
+    # Perfrom La clustering.
     partition = find_partition(g, CPMVertexPartition, 
             weights='weight', resolution_parameter=res)
+    # Partition optimization...
+    optimiser = la.Optimiser()
+    diff = optimiser.optimise_partition(partition,n_iterations=-1)
+    # Add optimized partition to profile list.
     profile.append(partition)
 
 #------------------------------------------------------------------------------
