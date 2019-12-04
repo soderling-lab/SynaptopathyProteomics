@@ -11,6 +11,17 @@ from os.path import dirname
 from sys import stderr
 from pandas import read_csv
 
+# Define a function to convert NoneType to blank string.
+def xstr(s):
+	if s is None:
+		return ''
+	return str(s)
+
+# Get system variables.
+vars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
+envars = {var:os.environ.get(var) for var in vars}
+jobID = xstr(envars['SLURM_JOBID'])
+
 # Which analysis are we doing?
 # Combined, KO, or WT network (0,1,2)
 data_type = 0 
@@ -113,10 +124,10 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save cluster membership.
-myfile = os.path.join(datadir, "3_" + geno + "_TEST_partitions.csv")
+myfile = os.path.join(datadir, jobID + "3_" + geno + "_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
 # Save partition profile.
 df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, "3_" + geno + "_TEST_profile.csv")
+myfile = os.path.join(datadir, jobID + "3_" + geno + "_profile.csv")
 df.to_csv(myfile)
