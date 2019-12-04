@@ -77,7 +77,7 @@ from leidenalg import CPMVertexPartition
 from leidenalg import Optimiser
 from progressbar import ProgressBar
 
-# Parameters for profile.
+# Parameters for resolution profile.
 rmin = 0
 step = 1
 rmax = 100

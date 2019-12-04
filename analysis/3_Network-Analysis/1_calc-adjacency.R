@@ -54,7 +54,7 @@ wtDat <- as.matrix(data %>% select(wt_samples))
 koDat <- as.matrix(data %>% select(ko_samples))
 rownames(wtDat) <- rownames(koDat) <- rownames(data)
 
-# Calculate power for approximate scale free fit.
+# Calculate power for approximate scale free fit of networks.
 silently({
 sft <- sapply(list(t(wtDat), t(koDat),t(data)), function(x) {
 		      pickSoftThreshold(x,
@@ -63,39 +63,36 @@ sft <- sapply(list(t(wtDat), t(koDat),t(data)), function(x) {
 				        RsquaredCut = 0.8
 					)$powerEstimate
   })
-names(sft) <- c("wt", "ko","combined")
 })
-
-# Weighted networks...
-# NetRep assumes networks are positive!
-abs(wtAdjm^sft["wt"])
+names(sft) <- c("wt", "ko","combined")
 
 # Save WT and KO data to file.
 saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.RData"))
 saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.RData"))
 
 # Create signed adjacency (correlation) matrices.
-wtAdjm <- silenty({WGCNA::bicor(t(wtDat))})
+wtAdjm <- silently({WGCNA::bicor(t(wtDat))})
 koAdjm <- silently({WGCNA::bicor(t(koDat))})
-adjm <- silently({WGCNA::bicor(t(data))})
+combAdjm <- silently({WGCNA::bicor(t(data))})
 
 # Fix names of combined adjm.
-rownames(adjm) <- colnames(adjm) <- rownames(data)
+rownames(combAdjm) <- colnames(combAdjm) <- rownames(data)
 
 # Write correlation matrices to .csv.
 fwrite(wtAdjm, file.path(rdatadir, "3_WT_Adjm.csv"), row.names = TRUE)
 fwrite(koAdjm, file.path(rdatadir, "3_KO_Adjm.csv"), row.names = TRUE)
-fwrite(adjm, file.path(rdatadir, "3_Combined_Adjm.csv"), row.names = TRUE)
+fwrite(combAdjm, file.path(rdatadir, "3_Combined_Adjm.csv"), row.names = TRUE)
 
 # Save WT and KO correlation matrices file.
 saveRDS(wtAdjm, file.path(rdatadir, "3_WT_Adjm.RData"))
 saveRDS(koAdjm, file.path(rdatadir, "3_KO_Adjm.RData"))
-saveRDS(adjm, file.path(rdatadir, "3_Combined_Adjm.RData"))
+saveRDS(combAdjm, file.path(rdatadir, "3_Combined_Adjm.RData"))
 
 # Create unsigned, weighted interaction networks.
+# NetRep assumes networks are positive!
 wtNet <- abs(wtAdjm^sft["wt"])
 koNet <- abs(koAdjm^sft["ko"])
-combNet <- abs(adjm^sft["combined"])
+combNet <- abs(combAdjm^sft["combined"])
 
 # Save data to file.
 saveRDS(wtNet, file.path(rdatadir, "3_WT_Network.RData"))
