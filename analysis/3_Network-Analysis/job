@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=SLURM
+#SBATCH --job-name=slurm
 #SBATCH -a 1       
 #SBATCH --ntasks=1 --nodes=1
 #SBATCH --mail-user=twesleyb10@gmail.com --mail-type=END  
