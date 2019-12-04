@@ -2,7 +2,7 @@
 
 #' ---
 #' title:
-#' description: Evaluate WT and KO module self-preservation with perm test.
+#' description: Evaluate Module self-preservation by permutation testing.
 #' authors: Tyler W Bradshaw
 #' ---
 
@@ -34,22 +34,23 @@
 # User parameters to change:
 stats = c(1:7)          # Module statistics to use for permutation testing.
 strength = "strong"     # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-selfPreservation = TRUE # Self-preservation or not?
 weighted = FALSE        # If TRUE, then correlation matrix will be raised to power.
+self = "combined"       # Which networks to test self preservation in? #self = c("wt","ko")     
+nres <- 100             # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
 if (slurm) {
   # SLURM job notes - sent to job_*.info
   nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK"))
-  job <- as.integer(Sys.getenv("SLURM_JOBID"))
+  jobID <- as.integer(Sys.getenv("SLURM_JOBID"))
   info <- as.matrix(Sys.getenv())
   idx <- grepl("SLURM", rownames(info))
-  myfile <- file.path("./out", paste0("job_", job, ".info"))
+  myfile <- file.path("./out", paste0("job_", jobID, ".info"))
   write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
 } else {
   nThreads <- 8
-  job <- ""
+  jobID <- ""
 }
 
 # Global options and imports.
@@ -100,9 +101,11 @@ if (weighted) {
 
 # Load Leidenalg graph partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
-koParts <- data.table::fread(myfiles[1], drop = 1, skip = 1)
-wtParts <- data.table::fread(myfiles[2], drop = 1, skip = 1)
+koParts <- data.table::fread(myfiles[grep("KO",myfiles)], drop = 1, skip = 1)
+wtParts <- data.table::fread(myfiles[grep("WT",myfiles)], drop = 1, skip = 1)
+#combParts <- data.table::fread(myfiles[grep("Combined",myfiles)], drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
+#colnames(combParts) <- colnames(combAdjm)
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -116,10 +119,9 @@ network_list <- list(wt = abs(wtAdjm^sft["wt"]),
 		     ko = abs(koAdjm^sft["ko"]),
 		     combined = abs(combAdjm^sft["combined"]))
 
-# Loop through partitions, evaluating self-preservation.
-nres <- dim(koParts)[1]
-results <- list()
 
+# Loop through partitions, evaluating self-preservation.
+results <- list()
 for (i in 1:nres) {
   # Status report.
   message(paste("working on partition", i, "..."))
@@ -129,10 +131,9 @@ for (i in 1:nres) {
   names(wtPartition) <- names(koPartition) <- colnames(wtAdjm)
   module_list <- list(wt = wtPartition, ko = koPartition)
   # Perform permutation test for module self-preservation.
-  # Use lapply to do for both wt and ko networks...
-  self <- as.list(c("wt", "ko"))
+  H0 <- as.list(self)
   suppressWarnings({
-    selfPreservation <- lapply(self, function(x) {
+    selfPreservation <- lapply(H0, function(x) {
       NetRep::modulePreservation(
         network = network_list,
         data = data_list,
@@ -189,5 +190,5 @@ for (i in 1:nres) {
 } # END LOOP.
 
 # Save to Rdata.
-output_name <- paste0(job, "_Module_Self_Preservation.RDS")
+output_name <- paste0(jobID, "_Module_Self_Preservation.RDS")
 saveRDS(results, file.path(datadir, output_name))
