@@ -6,10 +6,10 @@
 #------------------------------------------------------------------------------
 
 # User parameters to change: 
-data_type = 0 # Combined, KO, or WT network (0,1,2)
-rmin = 0      # Min resolution
-step = 1      # Step size
-rmax = 100    # Max resolution
+data_type = 0 # Combined, KO, or WT adjm (0,1,2).
+rmin = 0      # Min resolution.
+step = 1      # Step size.
+rmax = 100    # Max resolution.
 
 # Imports.
 import os
@@ -25,8 +25,8 @@ def xstr(s):
 	return str(s)
 
 # Get system variables.
-vars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
-envars = {var:os.environ.get(var) for var in vars}
+myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
+envars = {var:os.environ.get(var) for var in myvars}
 jobID = xstr(envars['SLURM_JOBID'])
 
 # Which analysis are we doing?
@@ -34,7 +34,7 @@ geno = ['Combined','KO','WT'][data_type]
 print("Performing Leiden algorithm clustering of the " + geno + 
         " protein co-expression network.", file = stderr)
 
-# Read bicor adjacency matrix.
+# Read bicor adjacency matrix as input.
 here = os.getcwd()
 root = dirname(dirname(here))
 datadir = os.path.join(root,"rdata")
