@@ -92,7 +92,7 @@ for res in pbar(resolution_range):
     # Perfrom La clustering.
     partition = find_partition(g, CPMVertexPartition, 
             weights='weight', resolution_parameter=res)
-    # Partition optimization...
+    # Partition optimization... this takes extra time.
     optimiser = la.Optimiser()
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
     # Add optimized partition to profile list.
