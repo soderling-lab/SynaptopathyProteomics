@@ -80,7 +80,7 @@ from progressbar import ProgressBar
 # Parameters for resolution profile.
 rmin = 0
 step = 1
-rmax = 100
+rmax = 1
 
 # Loop to perform leidenalg community detection at 100 resolutions.
 print('''Generating partition profile for protein co-expression graph!

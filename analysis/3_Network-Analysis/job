@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name="$1"
+#SBATCH --job-name=SLURM
 #SBATCH -a 1       
 #SBATCH --ntasks=1 --nodes=1
 #SBATCH --mail-user=twesleyb10@gmail.com --mail-type=END  
@@ -13,13 +13,13 @@
 filename=$1
 extension=${filename##*\.} 
 
-# Execute python or R script appropriately. 
+# Appropriately execute python or R script. 
 if [ $extension == "py" ]
-	module load Python/3.6.4
-	./$filename
+then
+	echo "$filename"
 elif [ $extension == "R" ]
-	module load R/3.6.0
-	Rscript ./$1 
+then
+	echo "$filename"
 else
 	echo "$extension files are not currently supported!"
 fi
