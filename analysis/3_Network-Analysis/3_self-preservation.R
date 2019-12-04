@@ -20,12 +20,12 @@
 # 1. avg.weight (average edge weight) - Calculated from network. Assumes edge 
 #    weights are positive.
 # 2. coherence - Calculated from the data. Quantifies the percent variance
-#    explained by modules summary vector.
+#    explained by a modules summary vector.
 # 3. cor.cor (concordance of correlation structure) - Calculated from
-#    correlation matrix. Don't use!
+#    correlation matrix.
 # 4. cor.degree (concordance of weighted degree) - Calculated from network. Assumes edge weights are
-#    positive. Don't use!
-# 5. cor.contrib (average node contribution) - Calculated from the data. Don't use!
+#    positive. 
+# 5. cor.contrib (average node contribution) - Calculated from the data.
 # 6. avg.cor (density of correlation structure) - Calculated from correlation
 #    matrix. 
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
@@ -34,7 +34,7 @@
 # User parameters to change:
 stats = c(1:7)          # Module statistics to use for permutation testing.
 strength = "strong"     # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-weighted = FALSE        # If TRUE, then correlation matrix will be raised to power.
+weighted = FALSE        # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
 self = "combined"       # Which networks to test self preservation in? #self = c("wt","ko")     
 nres <- 100             # Total number of resolutions to be anlyzed.
 
@@ -82,8 +82,8 @@ koAdjm <- silently(WGCNA::bicor(koDat))
 combAdjm <- silently(WGCNA::bicor(combDat))
 
 # Weighted or unweighted?
-# Calculate power for approximate scale free fit.
 if (weighted) {
+	# Calculate power for approximate scale free fit.
 	sft <- silently({
   sapply(list(wtDat, koDat,combDat), function(x) {
     pickSoftThreshold(x,
@@ -95,6 +95,7 @@ if (weighted) {
 })
 	names(sft) <- c("wt", "ko","combined")
 } else {
+	# Power = 1 == Unweighted
 	sft <- rep(1,3)
 	names(sft) <- c("wt", "ko","combined")
 }
@@ -112,7 +113,7 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
-# Networks should be transformed with power for scale free fit, and positive.
+# Networks (edges) should be positive -> AbsoluteValue()
 data_list <- list(wt = wtDat, ko = koDat, combined = combDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm, combined = combDat)
 network_list <- list(wt = abs(wtAdjm^sft["wt"]), 
@@ -128,8 +129,10 @@ for (i in 1:nres) {
   # Get partition--adding 1 so that all module assignments >0.
   wtPartition <- as.integer(wtParts[i, ]) + 1
   koPartition <- as.integer(koParts[i, ]) + 1
+  combPartition <- as.integer(combParts[i, ]) + 1
   names(wtPartition) <- names(koPartition) <- colnames(wtAdjm)
-  module_list <- list(wt = wtPartition, ko = koPartition)
+  names(combPartition) <- colnames(combAdjm)
+  module_list <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
   # Perform permutation test for module self-preservation.
   H0 <- as.list(self)
   suppressWarnings({
