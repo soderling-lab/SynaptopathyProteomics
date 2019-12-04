@@ -1,13 +1,25 @@
 #!/bin/bash
-#SBATCH --job-name="Compare networks"
+#SBATCH --job-name="Slurm job"
 #SBATCH -a 1       
 #SBATCH --ntasks=1 --nodes=1
 #SBATCH --mail-user=twesleyb10@gmail.com --mail-type=END  
 #SBATCH -e ./out/job_%j.err
 #SBATCH -o ./out/job_%j.out 
-#SBATCH -c 24 
+#SBATCH -c 16
 #SBATCH --mem=16G      
 #SBATCH -p scavenger
 
-module load R/3.6.0
-Rscript ./$1 && Rscript ./$2
+# Get filename and extension of input script.
+filename=$1
+extension=${filename##*\.} 
+
+# Execute python or R script appropriately. 
+if [ $extension == "py" ]
+	module load Python/3.6.4
+	./$filename
+elif [ $extension == "R" ]
+	module load R/3.6.0
+	Rscript ./$1 
+else
+	echo "$extension files are not currently supported!"
+fi
