@@ -13,8 +13,8 @@
 # NetRep input:
 # 1. Expression data.
 # 2. Correlation matrix.
-# 3. Interaction network - Edges must be positive!
-# 4. Network partition.
+# 3. Interaction network - Edges must be positive! Should network be weighted?
+# 4. Network partitions.
 
 ## Permutation Statistics:
 # 1. avg.weight (average edge weight) - Calculated from network. Assumes edge 
