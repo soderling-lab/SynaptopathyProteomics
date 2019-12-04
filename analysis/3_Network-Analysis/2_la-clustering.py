@@ -5,6 +5,13 @@
 ## Load the adjacency matrix.
 #------------------------------------------------------------------------------
 
+# User parameters to change: 
+data_type = 0 # Combined, KO, or WT network (0,1,2)
+rmin = 0      # Min resolution
+step = 1      # Step size
+rmax = 100    # Max resolution
+
+# Imports.
 import os
 import glob
 from os.path import dirname
@@ -23,8 +30,6 @@ envars = {var:os.environ.get(var) for var in vars}
 jobID = xstr(envars['SLURM_JOBID'])
 
 # Which analysis are we doing?
-# Combined, KO, or WT network (0,1,2)
-data_type = 0 
 geno = ['Combined','KO','WT'][data_type]
 print("Performing Leiden algorithm clustering of the " + geno + 
         " protein co-expression network.", file = stderr)
@@ -62,7 +67,6 @@ el = list(zip([nodes.get(e[0]) for e in edge_list],
     [nodes.get(e[1]) for e in edge_list]))
 
 # Create empty graph.
-print("Generating an igraph graph...", file = stderr)
 g = Graph()
 
 # Add vertices and their labels.
@@ -70,7 +74,6 @@ g.add_vertices(len(nodes))
 g.vs['label'] = nodes.keys()
 
 # Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
-print("Adding edges to graph, this will take several minutes...", file = stderr)
 g.add_edges(el)
 g.es['weight'] = edges['weight'] 
 
@@ -88,14 +91,7 @@ from leidenalg import CPMVertexPartition
 from leidenalg import Optimiser
 from progressbar import ProgressBar
 
-# Parameters for resolution profile.
-rmin = 0
-step = 1
-rmax = 1
-
-# Loop to perform leidenalg community detection at 100 resolutions.
-print('''Generating partition profile for protein co-expression graph!
-        This will take several hours!''', file = stderr)
+# Loop to perform leidenalg community detection at n resolutions.
 pbar = ProgressBar()
 resolution_range = linspace(rmin,step,rmax)
 profile = list()
@@ -116,7 +112,7 @@ for res in pbar(resolution_range):
 from pandas import DataFrame
 
 # Collect partition results. 
-print(f"Examined network at {len(profile)} resolutions!", file = stderr)
+print(f"Complete! Examined network at {len(profile)} resolutions!", file = stderr)
 results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
