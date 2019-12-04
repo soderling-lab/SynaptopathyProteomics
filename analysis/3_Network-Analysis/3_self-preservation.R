@@ -32,8 +32,10 @@
 #    to summary profile.
 
 # User parameters to change:
-stats <- c(1:7) # Module statistics to use for permutation testing.
-strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
+stats = c(1:7)          # Module statistics to use for permutation testing.
+strength = "strong"     # Criterion for preservation: strong = ALL, weak = ANY sig stats.
+selfPreservation = TRUE # Self-preservation or not?
+weighted = FALSE        # If TRUE, then correlation matrix will be raised to power.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -71,14 +73,18 @@ invisible(sapply(myfun, source))
 # Load expression data. Transpose -> rows = samples; columns = genes.
 wtDat <- t(readRDS(file.path(datadir, "3_WT_cleanDat.RData")))
 koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
+combDat <- t(readRDS(file.path(datadir, "3_Combined_cleanDat.RData")))
 
 # Compute adjmatrix:
 wtAdjm <- silently(WGCNA::bicor(wtDat))
 koAdjm <- silently(WGCNA::bicor(koDat))
+combAdjm <- silently(WGCNA::bicor(combDat))
 
+# Weighted or unweighted?
 # Calculate power for approximate scale free fit.
-sft <- silently({
-  sapply(list(wtDat, koDat), function(x) {
+if (weighted) {
+	sft <- silently({
+  sapply(list(wtDat, koDat,combDat), function(x) {
     pickSoftThreshold(x,
       corFnc = "bicor",
       networkType = "signed",
@@ -86,7 +92,11 @@ sft <- silently({
     )$powerEstimate
   })
 })
-names(sft) <- c("wt", "ko")
+	names(sft) <- c("wt", "ko","combined")
+} else {
+	sft <- rep(1,3)
+	names(sft) <- c("wt", "ko","combined")
+}
 
 # Load Leidenalg graph partitions.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
@@ -100,9 +110,11 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 
 # Input for NetRep:
 # Networks should be transformed with power for scale free fit, and positive.
-data_list <- list(wt = wtDat, ko = koDat)
-correlation_list <- list(wt = wtAdjm, ko = koAdjm)
-network_list <- list(wt = abs(wtAdjm^sft["wt"]), ko = abs(koAdjm^sft["ko"]))
+data_list <- list(wt = wtDat, ko = koDat, combined = combDat)
+correlation_list <- list(wt = wtAdjm, ko = koAdjm, combined = combDat)
+network_list <- list(wt = abs(wtAdjm^sft["wt"]), 
+		     ko = abs(koAdjm^sft["ko"]),
+		     combined = abs(combAdjm^sft["combined"]))
 
 # Loop through partitions, evaluating self-preservation.
 nres <- dim(koParts)[1]

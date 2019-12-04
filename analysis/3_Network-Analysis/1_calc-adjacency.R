@@ -42,6 +42,9 @@ out <- traits$SampleType[match(colnames(cleanDat), rownames(traits))] == "QC"
 data <- as.data.table(log2(cleanDat[, !out]))
 rownames(data) <- rownames(cleanDat)
 
+# Save.
+
+
 # Drop any trait rows that are not in data == remove outlier samples.
 traits <- as.data.table(traits) %>% filter(SampleID %in% colnames(data))
 
@@ -69,6 +72,7 @@ names(sft) <- c("wt", "ko","combined")
 # Save WT and KO data to file.
 saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.RData"))
 saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.RData"))
+saveRDS(data, file.path(rdatadir, "3_Combined_cleanDat.RData"))
 
 # Create signed adjacency (correlation) matrices.
 wtAdjm <- silently({WGCNA::bicor(t(wtDat))})
