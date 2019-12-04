@@ -113,10 +113,10 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save cluster membership.
-myfile = os.path.join(datadir, "3_" + geno + "_partitions.csv")
+myfile = os.path.join(datadir, "3_" + geno + "_TEST_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
 # Save partition profile.
 df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, "3_" + geno + "_profile.csv")
+myfile = os.path.join(datadir, "3_" + geno + "_TEST_profile.csv")
 df.to_csv(myfile)

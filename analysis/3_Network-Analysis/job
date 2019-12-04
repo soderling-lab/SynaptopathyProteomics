@@ -16,10 +16,12 @@ extension=${filename##*\.}
 # Appropriately execute python or R script. 
 if [ $extension == "py" ]
 then
-	echo "$filename"
+	module load Python/3.6.4 
+	./$filename
 elif [ $extension == "R" ]
 then
-	echo "$filename"
+	module load R/3.6.0
+	./$filename
 else
 	echo "$extension files are not currently supported!"
 fi
