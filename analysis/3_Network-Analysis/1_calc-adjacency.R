@@ -10,9 +10,11 @@
 ## Generate protein correlation matrix.
 #------------------------------------------------------------------------------
 
+# Imports.
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
+  library(WGCNA)
 })
 
 # Directories.
@@ -20,6 +22,11 @@ here <- getwd()
 root <- dirname(dirname(here))
 rdatadir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
+funcdir <- file.path(root, "R")
+
+# Functions.
+myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
+invisible(sapply(myfun, source))
 
 # Load the normalized expression data.
 # Combined and normalized data, sample level outliers removed.
@@ -48,39 +55,49 @@ koDat <- as.matrix(data %>% select(ko_samples))
 rownames(wtDat) <- rownames(koDat) <- rownames(data)
 
 # Calculate power for approximate scale free fit.
-sft <- silently({
-  sapply(list(wtDat, koDat), function(x) {
-    pickSoftThreshold(x,
-      corFnc = "bicor",
-      networkType = "signed",
-      RsquaredCut = 0.8
-    )$powerEstimate
+silently({
+sft <- sapply(list(t(wtDat), t(koDat),t(data)), function(x) {
+		      pickSoftThreshold(x,
+					corFnc = "bicor",
+				        networkType = "signed",
+				        RsquaredCut = 0.8
+					)$powerEstimate
   })
+names(sft) <- c("wt", "ko","combined")
 })
-names(sft) <- c("wt", "ko")
 
 # Weighted networks...
-# NetRep can only handle positive edge weights...
+# NetRep assumes networks are positive!
 abs(wtAdjm^sft["wt"])
 
 # Save WT and KO data to file.
 saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.RData"))
 saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.RData"))
 
-# Create signed adjacency matrices.
-wtAdjm <- WGCNA::bicor(t(wtDat))
-koAdjm <- WGCNA::bicor(t(koDat))
-adjm <- WGCNA::bicor(t(data))
+# Create signed adjacency (correlation) matrices.
+wtAdjm <- silenty({WGCNA::bicor(t(wtDat))})
+koAdjm <- silently({WGCNA::bicor(t(koDat))})
+adjm <- silently({WGCNA::bicor(t(data))})
 
 # Fix names of combined adjm.
 rownames(adjm) <- colnames(adjm) <- rownames(data)
 
-# Write adjm to .csv.
+# Write correlation matrices to .csv.
 fwrite(wtAdjm, file.path(rdatadir, "3_WT_Adjm.csv"), row.names = TRUE)
 fwrite(koAdjm, file.path(rdatadir, "3_KO_Adjm.csv"), row.names = TRUE)
 fwrite(adjm, file.path(rdatadir, "3_Combined_Adjm.csv"), row.names = TRUE)
 
-# Save WT and KO correlation matrixes file.
+# Save WT and KO correlation matrices file.
 saveRDS(wtAdjm, file.path(rdatadir, "3_WT_Adjm.RData"))
 saveRDS(koAdjm, file.path(rdatadir, "3_KO_Adjm.RData"))
 saveRDS(adjm, file.path(rdatadir, "3_Combined_Adjm.RData"))
+
+# Create unsigned, weighted interaction networks.
+wtNet <- abs(wtAdjm^sft["wt"])
+koNet <- abs(koAdjm^sft["ko"])
+combNet <- abs(adjm^sft["combined"])
+
+# Save data to file.
+saveRDS(wtNet, file.path(rdatadir, "3_WT_Network.RData"))
+saveRDS(koNet, file.path(rdatadir, "3_KO_Network.RData"))
+saveRDS(combNet, file.path(rdatadir, "3_Combined_Network.RData"))
