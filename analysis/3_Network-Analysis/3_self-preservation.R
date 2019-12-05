@@ -36,7 +36,6 @@ stats = c(1:7)          # Module statistics to use for permutation testing.
 strength = "strong"     # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted = FALSE        # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
 self = "combined"       # Which networks to test self preservation in? #self = c("wt","ko")     
-#self = c("wt","ko")    
 nres <- 100             # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
@@ -102,7 +101,7 @@ if (weighted) {
 	names(sft) <- c("wt", "ko","combined")
 }
 
-# Load Leidenalg graph partitions.
+# Load Leidenalg graph partitions from 2_la-clustering.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
 koParts <- data.table::fread(myfiles[grep("KO",myfiles)], drop = 1, skip = 1)
 wtParts <- data.table::fread(myfiles[grep("WT",myfiles)], drop = 1, skip = 1)
@@ -157,6 +156,7 @@ for (i in 1:nres) {
       )
     })
   }) # End lapply.
+
   # Declare  function to check module preservation/divergence.
   check_modules <- function(x) {
     # Collect observed values, nulls, and p.values -> p.adj.
@@ -184,15 +184,20 @@ for (i in 1:nres) {
     v[less & sig] <- "divergent"
     names(v) <- names(x$nVarsPresent)
     return(v)
-  }
+  } # Ends function.
+
   # Remove NS modules--set NS modules to 0.
   preservedPartitions <- lapply(selfPreservation, check_modules)
   out <- lapply(preservedPartitions, function(x) names(x)[x == "ns"])
-  wtPartition[wtPartition %in% out[[1]]] <- 0
-  koPartition[koPartition %in% out[[2]]] <- 0
+  if (self == "combined"){
+	  combPartition[combPartition %in% out[[1]]] <- 0
+  } else if (length(self) == 2){
+	  wtPartition[wtPartition %in% out[[1]]] <- 0
+	  koPartition[koPartition %in% out[[2]]] <- 0 
+  }
   # Return results.
-  results[[i]] <- list(wt = wtPartition, ko = koPartition)
-} # END LOOP.
+  results[[i]] <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
+} # Ends loop.
 
 # Save to Rdata.
 output_name <- paste0(jobID, "_Module_Self_Preservation.RDS")
