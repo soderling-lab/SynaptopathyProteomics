@@ -12,7 +12,7 @@
 
 ## Permutation Statistics:
 # 1. avg.weight
-# 2. coherence 
+# 2. coherence
 # 3. cor.cor - Don't use!
 # 4. cor.degree - Don't use!
 # 5. cor.contrib - Don't use!
@@ -20,13 +20,13 @@
 # 7. avg.contrib
 
 # User parameters to change:
-stats <- c(1,2,6,7) # Which permutation statistics to use for perm testing.
+stats <- c(1, 2, 6, 7) # Which permutation statistics to use for perm testing.
 strength <- "weak" # Preservation criterion: strong = all, weak = any sig stats.
-#res <- c(1:100) # Resolutions to be analyzed.
+# res <- c(1:100) # Resolutions to be analyzed.
 res <- c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
 cutoff <- 1 # Size cutoff to be a module 1 = single protein.
 partition <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
-save_results = TRUE  # Should permutation results be saved?
+save_results <- TRUE # Should permutation results be saved?
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -199,8 +199,8 @@ for (r in res) {
   })
   # Save preservation results.
   if (save_results) {
-	  myfile <- paste0("3_Module_Preservation_Res",r,".RData")
-	  saveRDS(preservation,file.path(rdatdir,myfile))
+    myfile <- paste0("3_Module_Preservation_Res", r, ".RData")
+    saveRDS(preservation, file.path(rdatdir, myfile))
   }
   # Identify preserved and divergent modules.
   check_modules <- function(x) {
@@ -215,8 +215,8 @@ for (r in res) {
       sig <- q < 0.05
       greater <- obs > nulls
       less <- obs < nulls
-      preserved <- apply(greater & sig,1,eval(fx))
-      divergent <- apply(less & sig,1,eval(fx))
+      preserved <- apply(greater & sig, 1, eval(fx))
+      divergent <- apply(less & sig, 1, eval(fx))
     } else {
       # If testing a single statistic.
       sig <- q < 0.05

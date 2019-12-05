@@ -17,26 +17,26 @@
 # 4. Network partitions.
 
 ## Permutation Statistics:
-# 1. avg.weight (average edge weight) - Calculated from network. Assumes edge 
+# 1. avg.weight (average edge weight) - Calculated from network. Assumes edge
 #    weights are positive.
 # 2. coherence - Calculated from the data. Quantifies the percent variance
 #    explained by a modules summary vector.
 # 3. cor.cor (concordance of correlation structure) - Calculated from
 #    correlation matrix.
 # 4. cor.degree (concordance of weighted degree) - Calculated from network. Assumes edge weights are
-#    positive. 
+#    positive.
 # 5. cor.contrib (average node contribution) - Calculated from the data.
 # 6. avg.cor (density of correlation structure) - Calculated from correlation
-#    matrix. 
+#    matrix.
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
 #    to summary profile.
 
 # User parameters to change:
-stats = c(1:7)          # Module statistics to use for permutation testing.
-strength = "strong"     # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-weighted = FALSE        # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self = "combined"       # Which networks to test self preservation in? #self = c("wt","ko")     
-nres <- 100             # Total number of resolutions to be anlyzed.
+stats <- c(1:7) # Module statistics to use for permutation testing.
+strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
+weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
+self <- "combined" # Which networks to test self preservation in? #self = c("wt","ko")
+nres <- 100 # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -74,7 +74,7 @@ invisible(sapply(myfun, source))
 # Load expression data. Transpose -> rows = samples; columns = genes.
 wtDat <- t(readRDS(file.path(datadir, "3_WT_cleanDat.RData")))
 koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
-combDat <-t(readRDS(file.path(datadir, "3_Combined_cleanDat.RData")))
+combDat <- t(readRDS(file.path(datadir, "3_Combined_cleanDat.RData")))
 
 # Compute adjmatrix:
 wtAdjm <- silently(WGCNA::bicor(wtDat))
@@ -83,29 +83,29 @@ combAdjm <- silently(WGCNA::bicor(combDat))
 
 # Weighted or unweighted?
 if (weighted) {
-	# Calculate power for approximate scale free fit.
-	message("Calculating soft-power for weighting co-expression graph!")
-	sft <- silently({
-  sapply(list(wtDat, koDat,combDat), function(x) {
-    pickSoftThreshold(x,
-      corFnc = "bicor",
-      networkType = "signed",
-      RsquaredCut = 0.8
-    )$powerEstimate
+  # Calculate power for approximate scale free fit.
+  message("Calculating soft-power for weighting co-expression graph!")
+  sft <- silently({
+    sapply(list(wtDat, koDat, combDat), function(x) {
+      pickSoftThreshold(x,
+        corFnc = "bicor",
+        networkType = "signed",
+        RsquaredCut = 0.8
+      )$powerEstimate
+    })
   })
-})
-	names(sft) <- c("wt", "ko","combined")
+  names(sft) <- c("wt", "ko", "combined")
 } else {
-	# Power = 1 == Unweighted
-	sft <- rep(1,3)
-	names(sft) <- c("wt", "ko","combined")
+  # Power = 1 == Unweighted
+  sft <- rep(1, 3)
+  names(sft) <- c("wt", "ko", "combined")
 }
 
 # Load Leidenalg graph partitions from 2_la-clustering.
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
-koParts <- data.table::fread(myfiles[grep("KO",myfiles)], drop = 1, skip = 1)
-wtParts <- data.table::fread(myfiles[grep("WT",myfiles)], drop = 1, skip = 1)
-combParts <- data.table::fread(myfiles[grep("Combined",myfiles)], drop = 1, skip = 1)
+koParts <- data.table::fread(myfiles[grep("KO", myfiles)], drop = 1, skip = 1)
+wtParts <- data.table::fread(myfiles[grep("WT", myfiles)], drop = 1, skip = 1)
+combParts <- data.table::fread(myfiles[grep("Combined", myfiles)], drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 colnames(combParts) <- colnames(combAdjm)
 
@@ -117,9 +117,11 @@ colnames(combParts) <- colnames(combAdjm)
 # Networks (edges) should be positive -> AbsoluteValue()
 data_list <- list(wt = wtDat, ko = koDat, combined = combDat)
 correlation_list <- list(wt = wtAdjm, ko = koAdjm, combined = combAdjm)
-network_list <- list(wt = abs(wtAdjm^sft["wt"]), 
-		     ko = abs(koAdjm^sft["ko"]),
-		     combined = abs(combAdjm^sft["combined"]))
+network_list <- list(
+  wt = abs(wtAdjm^sft["wt"]),
+  ko = abs(koAdjm^sft["ko"]),
+  combined = abs(combAdjm^sft["combined"])
+)
 
 # Loop through partitions, evaluating self-preservation.
 results <- list()
@@ -189,16 +191,16 @@ for (i in 1:nres) {
   # Remove NS modules--set NS modules to 0.
   preservedPartitions <- lapply(selfPreservation, check_modules)
   out <- lapply(preservedPartitions, function(x) names(x)[x == "ns"])
-  if (self == "combined"){
-	  combPartition[combPartition %in% out[[1]]] <- 0
-  } else if (length(self) == 2){
-	  wtPartition[wtPartition %in% out[[1]]] <- 0
-	  koPartition[koPartition %in% out[[2]]] <- 0 
+  if (self == "combined") {
+    combPartition[combPartition %in% out[[1]]] <- 0
+  } else if (length(self) == 2) {
+    wtPartition[wtPartition %in% out[[1]]] <- 0
+    koPartition[koPartition %in% out[[2]]] <- 0
   }
   # Return results.
   results[[i]] <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
   if (i == nres) {
-	  message("Done!")
+    message("Done!")
   }
 } # Ends loop.
 

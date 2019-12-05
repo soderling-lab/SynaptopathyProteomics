@@ -59,15 +59,15 @@ rownames(wtDat) <- rownames(koDat) <- rownames(data)
 
 # Calculate power for approximate scale free fit of networks.
 silently({
-sft <- sapply(list(t(wtDat), t(koDat),t(data)), function(x) {
-		      pickSoftThreshold(x,
-					corFnc = "bicor",
-				        networkType = "signed",
-				        RsquaredCut = 0.8
-					)$powerEstimate
+  sft <- sapply(list(t(wtDat), t(koDat), t(data)), function(x) {
+    pickSoftThreshold(x,
+      corFnc = "bicor",
+      networkType = "signed",
+      RsquaredCut = 0.8
+    )$powerEstimate
   })
 })
-names(sft) <- c("wt", "ko","combined")
+names(sft) <- c("wt", "ko", "combined")
 
 # Save WT and KO data to file.
 saveRDS(wtDat, file.path(rdatadir, "3_WT_cleanDat.RData"))
@@ -75,9 +75,15 @@ saveRDS(koDat, file.path(rdatadir, "3_KO_cleanDat.RData"))
 saveRDS(data, file.path(rdatadir, "3_Combined_cleanDat.RData"))
 
 # Create signed adjacency (correlation) matrices.
-wtAdjm <- silently({WGCNA::bicor(t(wtDat))})
-koAdjm <- silently({WGCNA::bicor(t(koDat))})
-combAdjm <- silently({WGCNA::bicor(t(data))})
+wtAdjm <- silently({
+  WGCNA::bicor(t(wtDat))
+})
+koAdjm <- silently({
+  WGCNA::bicor(t(koDat))
+})
+combAdjm <- silently({
+  WGCNA::bicor(t(data))
+})
 
 # Fix names of combined adjm.
 rownames(combAdjm) <- colnames(combAdjm) <- rownames(data)

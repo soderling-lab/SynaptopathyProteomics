@@ -777,8 +777,8 @@ rownames(stats) <- stats$Uniprot
 stats$Uniprot <- NULL
 
 # Save glm stats.
-myfile <- file.path(Rdatadir,"2_GLM_Stats.RData")
-saveRDS(stats,file=myfile)
+myfile <- file.path(Rdatadir, "2_GLM_Stats.RData")
+saveRDS(stats, file = myfile)
 
 # Loop to add stars.
 plot_list <- lapply(plot_list, function(x) annotate_stars(x, stats))

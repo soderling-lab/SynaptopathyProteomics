@@ -18,10 +18,9 @@
 #' @examples
 #' annotate_stars(plot, stats)
 annotate_stars <- function(plot, stats) {
-
-	suppressPackageStartupMessages({
-	require(dplyr)
-	})
+  suppressPackageStartupMessages({
+    require(dplyr)
+  })
   data <- plot$data
   df <- as.data.frame(data %>% group_by(Group) %>%
     dplyr::summarise(Intensity = mean(Intensity)))
@@ -39,7 +38,7 @@ annotate_stars <- function(plot, stats) {
   # Add ypos.
   df$ypos <- 1.01 * max(data$Intensity)
   # Text color.
-  df$color <- rep("black",nrow(df))
+  df$color <- rep("black", nrow(df))
   df$color[df$FDR < 0.05] <- "red"
   # Add asterisks indicating significance to plot.
   plot <- plot + annotate("text",
@@ -47,7 +46,7 @@ annotate_stars <- function(plot, stats) {
     label = df$symbol, size = 5
   )
   # Add red text if significant.
-  plot <- plot + 
-	  theme(axis.text.x = element_text(angle=45,hjust=1,colour=df$color))
+  plot <- plot +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = df$color))
   return(plot)
 }

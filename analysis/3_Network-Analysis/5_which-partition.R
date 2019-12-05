@@ -63,44 +63,48 @@ partitions <- readRDS(myfile)
 
 # Load network comparison results.
 myfile <- list.files(rdatdir, pattern = "6490667", full.names = TRUE)
-comparisons <- readRDS(myfile) 
+comparisons <- readRDS(myfile)
 
 #-------------------------------------------------------------------------------
 # Unpack the comparison results.
 #-------------------------------------------------------------------------------
 
-getModuleChanges <- function(comparisons,geno){
-	namen <- names(comparisons)[grep(geno,names(comparisons))]
-	data <- comparisons[namen]
-	modules <- split(data[[2]],data[[1]])
-	changes <- sapply(modules,unique)
-	nModules <- sum(!names(changes)==0)
-	nPreserved <- sum(changes=="preserved")
-	nDivergent <- sum(changes=="divergent")
-	nNS <- sum(changes=="ns")
-	nNoCluster <- sum(changes=="not-clustered")
-	out <- c("nModules"=nModules,"nPreserved"=nPreserved,
-		 "nDivergent"=nDivergent,"nNoCluster"=nNoCluster,"nNS"=nNS)
-	return(out)
+getModuleChanges <- function(comparisons, geno) {
+  namen <- names(comparisons)[grep(geno, names(comparisons))]
+  data <- comparisons[namen]
+  modules <- split(data[[2]], data[[1]])
+  changes <- sapply(modules, unique)
+  nModules <- sum(!names(changes) == 0)
+  nPreserved <- sum(changes == "preserved")
+  nDivergent <- sum(changes == "divergent")
+  nNS <- sum(changes == "ns")
+  nNoCluster <- sum(changes == "not-clustered")
+  out <- c(
+    "nModules" = nModules, "nPreserved" = nPreserved,
+    "nDivergent" = nDivergent, "nNoCluster" = nNoCluster, "nNS" = nNS
+  )
+  return(out)
 }
 
 # Compute number of changes.
-wtChanges <- t(sapply(c(1:length(comparisons)), function(x) { 
-			      getModuleChanges(comparisons[[x]],"wt") 
+wtChanges <- t(sapply(c(1:length(comparisons)), function(x) {
+  getModuleChanges(comparisons[[x]], "wt")
 }))
-koChanges <- t(sapply(c(1:length(comparisons)), function(x) { 
-			      getModuleChanges(comparisons[[x]],"ko") 
+koChanges <- t(sapply(c(1:length(comparisons)), function(x) {
+  getModuleChanges(comparisons[[x]], "ko")
 }))
 
 # Combine into df.
-moduleChanges <- as.data.frame(cbind(resolution = c(1:100),
-				     wtChanges,
-				     koChanges))
-colnames(moduleChanges)[c(2:ncol(moduleChanges))] <- paste(rep(c("wt","ko"),each=5),colnames(moduleChanges)[c(2:ncol(moduleChanges))])
+moduleChanges <- as.data.frame(cbind(
+  resolution = c(1:100),
+  wtChanges,
+  koChanges
+))
+colnames(moduleChanges)[c(2:ncol(moduleChanges))] <- paste(rep(c("wt", "ko"), each = 5), colnames(moduleChanges)[c(2:ncol(moduleChanges))])
 
 # Save as csv.
-myfile <- file.path(rdatdir,"3_Module_Divergence.csv")
-fwrite(moduleChanges,myfile)
+myfile <- file.path(rdatdir, "3_Module_Divergence.csv")
+fwrite(moduleChanges, myfile)
 
 #-------------------------------------------------------------------------------
 # Define a function to do GO analysis of modules at a given resolution.
@@ -149,7 +153,7 @@ getModuleGO <- function(partitions, geno, resolution, protmap, musGOcollection) 
 # Loop to perform WT GO enrichment.
 if (save) {
   message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
-	n <- 100 # n resolutions.
+  n <- 100 # n resolutions.
   wtGO <- list()
   pb <- txtProgressBar(min = 0, max = n, style = 3)
   for (i in 1:n) {
@@ -180,12 +184,14 @@ if (save) {
   }
 } else if (!save) {
   # Load data.
-  wtGO <- readRDS(list.files(rdatdir, 
-			     pattern = "WT_Module_GO_Results", 
-			     full.names = TRUE))
-  koGO <- readRDS(list.files(rdatdir, 
-			     pattern = "KO_Module_GO_Results", 
-			     full.names = TRUE))
+  wtGO <- readRDS(list.files(rdatdir,
+    pattern = "WT_Module_GO_Results",
+    full.names = TRUE
+  ))
+  koGO <- readRDS(list.files(rdatdir,
+    pattern = "KO_Module_GO_Results",
+    full.names = TRUE
+  ))
 }
 
 #-----------------------------------------------------------
@@ -193,25 +199,25 @@ if (save) {
 #-----------------------------------------------------------
 
 # Evaluate "best" resolution = partition with most GO enrichment.
-# Does not differ if using pvalue or FDR. 
-best_res <- function(GO){
-	p <- sapply(GO,function(x) sapply(x,function(y) sum(-log(y$pValue)))) # Need to double check this!
-	sump <- sapply(p, sum)
-	rbest <- c(1:100)[sump == max(sump)]
-	return(rbest)
+# Does not differ if using pvalue or FDR.
+best_res <- function(GO) {
+  p <- sapply(GO, function(x) sapply(x, function(y) sum(-log(y$pValue)))) # Need to double check this!
+  sump <- sapply(p, sum)
+  rbest <- c(1:100)[sump == max(sump)]
+  return(rbest)
 }
 
-# Best resolution based on total go for all modules. 
+# Best resolution based on total go for all modules.
 best_res(wtGO) # 52
 
 best_res(koGO) # 50
 
-# Evaluate "best" resolution as partition with most GO 
+# Evaluate "best" resolution as partition with most GO
 # enrichment for DIVERGENT modules!
 # Result does not differ for pvalue or FDR.
 best_resD <- function(GO, comparisons, partition, prots) {
   # Loop to calculate sum of p-values for divergent modules
-	# in all resolutions.
+  # in all resolutions.
   p <- rep(NA, 100)
   for (i in 1:length(GO)) {
     dat <- GO[[i]]
@@ -226,7 +232,7 @@ best_resD <- function(GO, comparisons, partition, prots) {
     }
   }
   r_best <- c(1:100)[p == max(p)]
-  return(list(r_best=r_best,pValue=p))
+  return(list(r_best = r_best, pValue = p))
 }
 
 ## Best resolution based on p for divergent modules.
