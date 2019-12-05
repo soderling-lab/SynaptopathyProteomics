@@ -156,6 +156,7 @@ for (i in 1:nres) {
       )
     })
   }) # End lapply.
+
   # Declare  function to check module preservation/divergence.
   check_modules <- function(x) {
     # Collect observed values, nulls, and p.values -> p.adj.
@@ -183,15 +184,20 @@ for (i in 1:nres) {
     v[less & sig] <- "divergent"
     names(v) <- names(x$nVarsPresent)
     return(v)
-  }
+  } # Ends function.
+
   # Remove NS modules--set NS modules to 0.
   preservedPartitions <- lapply(selfPreservation, check_modules)
   out <- lapply(preservedPartitions, function(x) names(x)[x == "ns"])
-  wtPartition[wtPartition %in% out[[1]]] <- 0
-  koPartition[koPartition %in% out[[2]]] <- 0
+  if (self == "combined"){
+	  combPartition[combPartition %in% out[[1]]] <- 0
+  } else if (length(self) == 2){
+	  wtPartition[wtPartition %in% out[[1]]] <- 0
+	  koPartition[koPartition %in% out[[2]]] <- 0 
+  }
   # Return results.
-  results[[i]] <- list(wt = wtPartition, ko = koPartition)
-} # END LOOP.
+  results[[i]] <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
+} # Ends loop.
 
 # Save to Rdata.
 output_name <- paste0(jobID, "_Module_Self_Preservation.RDS")
