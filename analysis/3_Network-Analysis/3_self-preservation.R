@@ -102,10 +102,11 @@ if (weighted) {
 }
 
 # Load Leidenalg graph partitions from 2_la-clustering.
+# FIXME: grep may match mulitiple names!
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
 koParts <- data.table::fread(myfiles[grep("KO", myfiles)], drop = 1, skip = 1)
 wtParts <- data.table::fread(myfiles[grep("WT", myfiles)], drop = 1, skip = 1)
-combParts <- data.table::fread(myfiles[grep("Combined", myfiles)], drop = 1, skip = 1)
+combParts <- data.table::fread(file.path(datadir,"3_Combined_partitions.csv"), drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 colnames(combParts) <- colnames(combAdjm)
 
