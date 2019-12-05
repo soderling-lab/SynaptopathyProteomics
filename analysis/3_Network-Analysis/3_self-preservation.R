@@ -197,6 +197,9 @@ for (i in 1:nres) {
   }
   # Return results.
   results[[i]] <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
+  if (i == nres) {
+	  message("Done!")
+  }
 } # Ends loop.
 
 # Save to Rdata.
