@@ -47,6 +47,67 @@ myfile <- list.files(rdatdir, pattern = "9109552", full.names = TRUE)
 partitions <- readRDS(myfile)
 
 #-------------------------------------------------------------------------------
+## Unpack the permutation results.
+#-------------------------------------------------------------------------------
+
+# Resolutions.
+resolutions <- c(1:length(partitions))
+
+# Collect combined partitions.
+partitions <- lapply(partitions,function(x) x$combined)
+
+# Number of modules. Subtract one for NS modules (not preserved).
+nModules <- sapply(partitions,function(x) length(unique(x)))-1
+
+# Collect modules from each partition.
+modules <- lapply(partitions,function(x) split(x,x))
+
+# Remove "0" modules.
+filtModules <- lapply(modules, function(x) x[-c(1:length(x))[names(x) == "0"]])
+
+# Percent NS.
+percentNS <- sapply(partitions,function(x) sum(x==0)/length(x))
+
+# Calculate module summary expression profiles (eigen vectors).
+# This may take several moments.
+MEs <- lapply(partitions,function(x) moduleEigengenes(data,x,impute=FALSE,
+						      excludeGrey=FALSE,
+						      softPower=1,
+					              verbose=0)[[1]])
+
+# Calculate module coherence.
+# This may take several moments.
+PVE <- sapply(resolutions,function(x) propVarExplained(data, 
+						       partitions[[x]], 
+						       MEs[[x]], 
+						       corFnc = "bicor"))
+
+# Fix names of MEs and PVE.
+newNames <- lapply(partitions,function(x) paste0("M",names(table(x))))
+
+# Function to rename PVE and ME lists.
+renameList <- function(myList,namesList) {
+	myList <- lapply(c(1:length(myList)), function(x) {
+				 names(myList[[x]]) <- namesList[[x]]
+				 return(myList[[x]])
+})
+	return(myList)
+} # Ends function.
+
+# Fix names.
+MEs <- renameList(MEs,newNames)
+PVE <- renameList(PVE,newNames)
+
+# Remove M0.
+MEs <- lapply(MEs,function(x) { x[,"M0"] <- NULL; return(x) })
+PVE <- lapply(PVE,function(x) x[-1])
+
+# Mean percent variance explained.
+meanPVE <- sapply(PVE,function(x) mean(x))
+medianPVE <- sapply(PVE,function(x) median(x))
+maxPVE <- sapply(PVE,function(x) max(x))
+
+#-------------------------------------------------------------------------------
 ## Collect GLM statistics in a list.
 #-------------------------------------------------------------------------------
 
@@ -77,63 +138,12 @@ glm_stats <- lapply(glm_stats,function(x) {
 			    return(x)}
 )
 
-#-------------------------------------------------------------------------------
-## Unpack the permutation results.
-#-------------------------------------------------------------------------------
+# Protein significance = sum of log2 p-values.
+protSig <- apply(glm_stats[["PValue"]],1,function(x) sum(-log(x)))
 
-# Resolutions.
-resolutions <- c(1:length(partitions))
+# Calculate module significance as sum of protein significance within a module.
+modSig <- lapply(modules,function(x) sapply(x,function(y) sum(protSig[y])))
 
-# Collect combined partitions.
-partitions <- lapply(partitions,function(x) x$combined)
-
-# Number of modules. Subtract one for NS modules (not preserved).
-nModules <- sapply(partitions,function(x) length(unique(x)))-1
-
-# Collect modules from each partition.
-modules <- lapply(partitions,function(x) split(x,x))
-
-# Remove "0" modules.
-filtModules <- lapply(modules, function(x) x[-c(1:length(x))[names(x) == "0"]])
-
-# Percent NS.
-percentNS <- sapply(partitions,function(x) sum(x==0)/length(x))
-
-# Module summary expression profiles (eigen vectors).
-MEs <- lapply(partitions,function(x) moduleEigengenes(data,x,impute=FALSE,
-						      excludeGrey=FALSE,
-						      softPower=1,
-					              verbose=0)[[1]])
-
-
-# Module coherence.
-PVE <- sapply(resolutions,function(x) propVarExplained(data, 
-						       partitions[[x]], 
-						       MEs[[x]], 
-						       corFnc = "bicor"))
-
-# Fix module names.
-newNames <- lapply(partitions,function(x) paste0("M",names(table(x))))
-# Function to rename PVE and ME lists.
-renameList <- function(myList,namesList) {
-	myList <- lapply(c(1:length(myList)), function(x) {
-				 names(myList[[x]]) <- namesList[[x]]
-				 return(myList[[x]])
-})
-	return(myList)
-} # Ends function.
-
-MEs <- renameList(MEs,newNames)
-PVE <- renameList(PVE,newNames)
-
-# Remove M0.
-MEs <- lapply(MEs,function(x) { x[,"M0"] <- NULL; return(x) })
-PVE <- lapply(PVE,function(x) x[-1])
-
-# Mean percent variance explained.
-meanPVE <- sapply(PVE,function(x) mean(x))
-medianPVE <- sapply(PVE,function(x) median(x))
-maxPVE <- sapply(PVE,function(x) max(x))
 
 #------------------------------------------------------------------------------
 ## Perform GO analysis of modules at every resolution.
@@ -202,5 +212,109 @@ for (i in seq_along(resolutions)) {
 } # Ends loop.
 
 # Examine results.
+moduleGO <- results
 
-# Need to pick a resolution.... analyze module coherence...
+# Remove M0 results.
+moduleGO <- lapply(moduleGO, function(x) x[-grep("M0",names(x))])
+
+# Examine biological enrichment. Sum of GO pvalues for all modules at a given
+# resolution.
+modSig <- lapply(moduleGO, function(x) sapply(x,function(y) sum(-log(y$pValue))))
+x=sapply(modSig,sum)
+best_res <- c(1:length(x))[x==max(x)]
+
+#------------------------------------------------------------------------------
+# Analyze modules for differental expression.
+#------------------------------------------------------------------------------
+
+# Load Sample info.
+traits <- readRDS(file.path(rdatdir,"2_Combined_traits.RData"))
+
+resolution <- best_res
+partition <- partitions[[resolution]]
+modules <- split(partition, partition)
+names(modules) <- paste0("M", names(modules))
+nModules <- length(modules) - 1
+
+# Calculate Module eigengenes.
+MEdat <- moduleEigengenes(data, colors = partition, impute = FALSE)
+MEs <- MEdat$eigengenes
+
+# Create list of MEs.
+ME_list <- split(as.matrix(MEs), rep(1:ncol(MEs), each = nrow(MEs)))
+names(ME_list) <- colnames <- colnames(MEs)
+
+# Module membership (kME).
+kmeData <- signedKME(data, MEs, corFnc = "bicor")
+
+# Calculate PVE. Exclude grey from median pve calculation.
+PVE <- as.numeric(MEdata$varExplained)
+names(PVE) <- names(modules)
+
+# Define vector of groups; 
+# group all WT samples from a tissue type together.
+traits$Sample.Model.Tissue <- paste(traits$Sample.Model,traits$Tissue,sep=".")
+g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
+g[grepl("WT.*.Striatum", g)] <- "WT.Striatum"
+g <- as.factor(g)
+
+# Generate contrasts.
+geno <- c("KO.Shank2", "KO.Shank3", "HET.Syngap1", "KO.Ube3a")
+tissue <- c("Cortex", "Striatum")
+g1 <- apply(expand.grid(geno, tissue), 1, paste, collapse = ".")
+g2 <- c("WT.Cortex", "WT.Striatum")
+contrasts <- apply(expand.grid(g1, g2), 1, paste, collapse = " - ")
+
+# Define the order of the bars in the verbose boxplot.
+order <- c(
+"WT.Cortex", "WT.Striatum",
+"KO.Shank2.Cortex", "KO.Shank2.Striatum", "KO.Shank3.Cortex", "KO.Shank3.Striatum",
+"HET.Syngap1.Cortex", "HET.Syngap1.Striatum", "KO.Ube3a.Cortex", "KO.Ube3a.Striatum"
+)
+
+# Use lapply to generate plots.
+plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, order))
+names(plots) <- names(modules)
+
+# Add PVE to plot titles.
+for (k in seq_along(plots)) {
+	p <- plots[[k]]
+	namen <- names(plots)[k]
+	txt <- paste("PVE:", round(PVE[namen], 3))
+	p$labels$title <- paste0(namen, " (", txt, "; ", p$labels$title, ")")
+	plots[[k]] <- p
+}
+
+# Add custom colors to plots.
+colors <- rep(c("gray", "yellow", "blue", "green", "purple"), each = 2)
+plots <- lapply(plots, function(x) x + scale_fill_manual(values = colors))
+
+# Perform KW tests.
+KWtest <- lapply(ME_list, function(x) kruskal.test(x ~ g))
+
+# Correct KWtest pvalues for nModule multiple comparisons.
+# M0 is excluded.
+KWpval <- unlist(sapply(KWtest, "[", 3))[-1]
+KWpadj <- p.adjust(KWpval, method = "BH")
+names(KWpadj) <- names(KWpval) <- names(modules)[-1]
+# KWsig?
+alpha <- 0.05
+KWsig <- names(KWpadj)[KWpadj < alpha]
+
+# Perform Dunn tests (post-hoc test for unequal sample sizes).
+Dtest <- lapply(ME_list, function(x) FSA::dunnTest(x ~ g, kw = FALSE, method = "none"))
+
+# Keep only contrasts of interest as defined above, and correct for n comparisons (8).
+f <- function(x, contrasts) {
+df <- x$res
+df <- df[df$Comparison %in% contrasts, ]
+df$P.adj <- p.adjust(df$P.unadj, method = "BH")
+return(df)
+}
+Dtest <- lapply(Dtest, function(x) f(x, contrasts))
+
+# DTsig?
+alpha <- 0.05
+sigDT <- unlist(lapply(Dtest, function(x) sum(x$P.adj < alpha)))
+

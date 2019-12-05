@@ -18,22 +18,18 @@
 #' @examples
 #' ggplotVerboseBoxplot(x, g, contrasts)
 ggplotVerboseBoxplot <- function(x, g, contrasts, order = NULL, ...) {
-
   # Imports
   require(FSA)
+  require(ggplot2)
   # Bind data together as a data.frame.
-
   df <- data.frame(x = as.numeric(x), g = as.factor(g))
-
   # Parse the df's levels.
   lvls <- if (!is.null(order)) {
     lvls <- order
   } else {
     lvls <- unique(df$g)
   }
-
   levels(df$g) <- lvls
-
   # Perform KW test.
   KWtest <- kruskal.test(df$x, df$g)
   # Title annotation.
@@ -83,6 +79,6 @@ ggplotVerboseBoxplot <- function(x, g, contrasts, order = NULL, ...) {
       axis.text.x = element_text(color = x_color, angle = 45, hjust = 1)
     )
   # Add statistical annotation.
-  plot <- plot + annotate("text", x = Dtest$xpos, y = Dtest$ypos, label = Dtest$symbol, size = 10)
+  plot <- plot + annotate("text", x = Dtest$xpos, y = Dtest$ypos, label = Dtest$symbol, size = 5)
   return(plot)
 }
