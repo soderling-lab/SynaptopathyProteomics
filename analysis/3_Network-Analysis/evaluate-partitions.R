@@ -16,6 +16,7 @@ suppressPackageStartupMessages({
   library(WGCNA)
   library(org.Mm.eg.db)
   library(anRichment)
+  library(getPPIs)
 })
 
 # Directories.
@@ -137,6 +138,13 @@ glm_stats <- lapply(glm_stats,function(x) {
 			    x$Uniprot <- NULL 
 			    return(x)}
 )
+
+# All sig prots.
+alpha = 0.05
+fdr <- glm_stats[["FDR"]]
+allProts <- rownames(fdr)
+idx <- apply(fdr,1,function(x) any(x < alpha))
+sigProts <- allProts[idx]
 
 # Protein significance = sum of log2 p-values.
 protSig <- apply(glm_stats[["PValue"]],1,function(x) sum(-log(x)))
@@ -318,3 +326,49 @@ Dtest <- lapply(Dtest, function(x) f(x, contrasts))
 alpha <- 0.05
 sigDT <- unlist(lapply(Dtest, function(x) sum(x$P.adj < alpha)))
 
+# Save plots as pdf.
+#ggsavePDF(plots,"temp.pdf")
+
+#------------------------------------------------------------------------------
+## Generate PPI graphs.
+#------------------------------------------------------------------------------
+
+send_to_cytoscape <- TRUE
+
+# Load mouse interactome.
+data("musInteractome")
+
+# Subset mouse interactome, keep data from mouse, human, and rat.
+idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
+ppis <- subset(musInteractome, idx)
+
+# Get entrez IDs for all proteins in data.
+prots <- colnames(data)
+entrez <- protmap$entrez[match(prots, protmap$ids)]
+
+# Build a graph with all proteins.
+g <- buildNetwork(ppis, entrez, taxid = 10090)
+
+# Loop through modules.
+i = 1
+for (i in 1:length(modules)){
+prots <- names(modules[[i]])
+entrez <- protmap$entrez[match(prots, protmap$ids)]
+subg <- induced_subgraph(g, entrez)
+# Add sigprot vertex attribute.
+sigEntrez <- protmap$entrez[match(sigProts, protmap$ids)]
+anySig <- names(V(subg)) %in% sigEntrez
+subg <- set_vertex_attr(subg, "sigProt", value = anySig)
+# Switch node names to gene symbols.
+subg <- set_vertex_attr(subg, "name", index = V(subg), vertex_attr(subg, "symbol"))
+# Send to cytoscape.
+if (send_to_cytoscape) {
+    cytoscapePing()
+    createNetworkFromIgraph(subg, namen)
+  }
+# How many ppis?
+message(paste("Number of PPIs among nodes:", length(E(subg))))
+# How many sig prots?
+message(paste("Number of sig proteins:", sum(prots %in% sigProts)))
+message("\n")
+} # Ends loop.
