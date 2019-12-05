@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title:
+#' title: Module Self-Preservation
 #' description: Evaluate Module self-preservation by permutation testing.
 #' authors: Tyler W Bradshaw
 #' ---
@@ -36,6 +36,7 @@ stats = c(1:7)          # Module statistics to use for permutation testing.
 strength = "strong"     # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted = FALSE        # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
 self = "combined"       # Which networks to test self preservation in? #self = c("wt","ko")     
+#self = c("wt","ko")    
 nres <- 100             # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
@@ -74,7 +75,7 @@ invisible(sapply(myfun, source))
 # Load expression data. Transpose -> rows = samples; columns = genes.
 wtDat <- t(readRDS(file.path(datadir, "3_WT_cleanDat.RData")))
 koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
-combDat <- t(readRDS(file.path(datadir, "3_Combined_cleanDat.RData")))
+combDat <-t(readRDS(file.path(datadir, "3_Combined_cleanDat.RData")))
 
 # Compute adjmatrix:
 wtAdjm <- silently(WGCNA::bicor(wtDat))
@@ -84,6 +85,7 @@ combAdjm <- silently(WGCNA::bicor(combDat))
 # Weighted or unweighted?
 if (weighted) {
 	# Calculate power for approximate scale free fit.
+	message("Calculating soft-power for weighting co-expression graph!")
 	sft <- silently({
   sapply(list(wtDat, koDat,combDat), function(x) {
     pickSoftThreshold(x,
@@ -104,9 +106,9 @@ if (weighted) {
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
 koParts <- data.table::fread(myfiles[grep("KO",myfiles)], drop = 1, skip = 1)
 wtParts <- data.table::fread(myfiles[grep("WT",myfiles)], drop = 1, skip = 1)
-#combParts <- data.table::fread(myfiles[grep("Combined",myfiles)], drop = 1, skip = 1)
+combParts <- data.table::fread(myfiles[grep("Combined",myfiles)], drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
-#colnames(combParts) <- colnames(combAdjm)
+colnames(combParts) <- colnames(combAdjm)
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -115,11 +117,10 @@ colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 # Input for NetRep:
 # Networks (edges) should be positive -> AbsoluteValue()
 data_list <- list(wt = wtDat, ko = koDat, combined = combDat)
-correlation_list <- list(wt = wtAdjm, ko = koAdjm, combined = combDat)
+correlation_list <- list(wt = wtAdjm, ko = koAdjm, combined = combAdjm)
 network_list <- list(wt = abs(wtAdjm^sft["wt"]), 
 		     ko = abs(koAdjm^sft["ko"]),
 		     combined = abs(combAdjm^sft["combined"]))
-
 
 # Loop through partitions, evaluating self-preservation.
 results <- list()
@@ -155,8 +156,8 @@ for (i in 1:nres) {
         verbose = FALSE
       )
     })
-  })
-  # Function to check module preservation/divergence.
+  }) # End lapply.
+  # Declare  function to check module preservation/divergence.
   check_modules <- function(x) {
     # Collect observed values, nulls, and p.values -> p.adj.
     obs <- x$observed[, stats]
@@ -164,14 +165,15 @@ for (i in 1:nres) {
     q <- apply(x$p.values, 2, function(x) p.adjust(x, "bonferroni"))[, stats]
     q[is.na(q)] <- 1
     # If testing more than one statistic, consider strong or weak preservation.
+    alpha <- 0.05
     fx <- c("strong" = "all", "weak" = "any")[strength]
     if (length(stats) > 1) {
-      sig <- apply(q < 0.05, 1, eval(fx))
+      sig <- apply(q < alpha, 1, eval(fx))
       greater <- apply(obs > nulls, 1, eval(fx))
       less <- apply(obs < nulls, 1, eval(fx))
     } else {
       # If testing a single statistic...
-      sig <- q < 0.05
+      sig <- q < alpha
       greater <- obs > nulls
       less <- obs < nulls
     }
