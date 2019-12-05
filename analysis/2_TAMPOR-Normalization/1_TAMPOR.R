@@ -50,11 +50,8 @@ outputfigs <- paste(rootdir, "figs", tissue, sep = "/")
 outputtabs <- paste(rootdir, "tables", sep = "/")
 
 # Load required custom functions.
-source_myfun <- function() {
-  myfun <- list.files(functiondir, pattern = ".R", full.names = TRUE)
-  invisible(sapply(myfun, source))
-}
-source_myfun()
+myfun <- list.files(functiondir, pattern = ".R", full.names = TRUE)
+invisible(sapply(myfun, source))
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("2_", tissue)
@@ -175,7 +172,7 @@ results <- TAMPOR(
 cleanDat <- results$cleanRelAbun
 
 #-------------------------------------------------------------------------------
-## Remove any sample outliers.
+## Identify and remove any sample outliers.
 #-------------------------------------------------------------------------------
 
 # Remove QC samples.
@@ -320,7 +317,7 @@ saveRDS(prot_map, myfile)
 out <- alltraits$SampleType[match(colnames(cleanDat), rownames(alltraits))] == "QC"
 data_in <- cleanDat[, !out]
 
-# Summarize proteins...
+# Number of proteins...
 nprots <- dim(data_in)[1]
 nsamples <- dim(data_in)[2]
 message(paste(nprots, "proteins identified in", nsamples, "samples."))
@@ -476,6 +473,10 @@ f <- function(x) {
   return(x)
 }
 glm_results <- lapply(glm_results, f)
+
+# Save complete results to file.
+myfile <- file.path(Rdatadir,paste0(outputMatName,"_All_GLM_Results.RData"))
+saveRDS(glm_results,myfile)
 
 # Save results to file.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_GLM_Results.xlsx"))
