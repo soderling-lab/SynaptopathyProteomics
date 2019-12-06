@@ -19,7 +19,11 @@ suppressPackageStartupMessages({
   library(getPPIs)
 })
 
+
 # Directories.
+if (rstudioapi::isAvailable()) {
+  setwd("D:/projects/SynaptopathyProteomics/analysis/3_Network-Analysis")
+}
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
@@ -28,6 +32,7 @@ rdatdir <- file.path(root, "rdata")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
+myfun <- myfun[-grep("TAMPOR",myfun)] # Something wrong with TAMPOR.R??
 invisible(sapply(myfun, source))
 
 # Load protein identifier map.
@@ -152,7 +157,6 @@ protSig <- apply(glm_stats[["PValue"]],1,function(x) sum(-log(x)))
 # Calculate module significance as sum of protein significance within a module.
 modSig <- lapply(modules,function(x) sapply(x,function(y) sum(protSig[y])))
 
-
 #------------------------------------------------------------------------------
 ## Perform GO analysis of modules at every resolution.
 #------------------------------------------------------------------------------
@@ -160,6 +164,8 @@ modSig <- lapply(modules,function(x) sapply(x,function(y) sum(protSig[y])))
 # Load mouse GO collection.
 myfile <- list.files(rdatdir, "musGO", full.names = TRUE)
 musGO <- readRDS(myfile)
+
+moduleGO <- readRDS(file.path(rdatdir, "3_Module_GO_Results.RData"))
 
 # Function to perform GO enrichment for all modules in a given partition.
 getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
@@ -235,9 +241,23 @@ best_res <- c(1:length(x))[x==max(x)]
 # Analyze modules for differental expression.
 #------------------------------------------------------------------------------
 
+# Collect GO results from ~best resolution.
+resGO <- moduleGO[[best_res]]
+
+# Save to file.
+myfile <- file.path(tabsdir,paste0("3_","R",best_res,"_GO_Results.xlsx"))
+write_excel(resGO,myfile)
+
+# Top GO from every module.
+
+topGO <- sapply(resGO,function(x) x$shortDataSetName[1])
+names(topGO) <- names(modules)
+sigGO <- sapply(resGO,function(x) x$FDR[1]<0.05)
+
 # Load Sample info.
 traits <- readRDS(file.path(rdatdir,"2_Combined_traits.RData"))
 
+best_res = 68
 resolution <- best_res
 partition <- partitions[[resolution]]
 modules <- split(partition, partition)
@@ -256,7 +276,7 @@ names(ME_list) <- colnames <- colnames(MEs)
 kmeData <- signedKME(data, MEs, corFnc = "bicor")
 
 # Calculate PVE. Exclude grey from median pve calculation.
-PVE <- as.numeric(MEdata$varExplained)
+PVE <- as.numeric(MEdat$varExplained)
 names(PVE) <- names(modules)
 
 # Define vector of groups; 
@@ -350,25 +370,34 @@ entrez <- protmap$entrez[match(prots, protmap$ids)]
 g <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Loop through modules.
-i = 1
-for (i in 1:length(modules)){
-prots <- names(modules[[i]])
-entrez <- protmap$entrez[match(prots, protmap$ids)]
-subg <- induced_subgraph(g, entrez)
-# Add sigprot vertex attribute.
-sigEntrez <- protmap$entrez[match(sigProts, protmap$ids)]
-anySig <- names(V(subg)) %in% sigEntrez
-subg <- set_vertex_attr(subg, "sigProt", value = anySig)
-# Switch node names to gene symbols.
-subg <- set_vertex_attr(subg, "name", index = V(subg), vertex_attr(subg, "symbol"))
-# Send to cytoscape.
-if (send_to_cytoscape) {
+# FIXME: How to handle modules with no PPIs?
+# FIXME: apply node color,size, other attributes..
+for (i in c(1:17,19:length(modules))){
+  message(paste("Working on module",names(modules)[i],"..."))
+  prots <- names(modules[[i]])
+  entrez <- protmap$entrez[match(prots, protmap$ids)]
+  subg <- induced_subgraph(g, entrez)
+  # Add sigprot vertex attribute.
+  sigEntrez <- protmap$entrez[match(sigProts, protmap$ids)]
+  anySig <- names(V(subg)) %in% sigEntrez
+  subg <- set_vertex_attr(subg, "sigProt", value = anySig)
+  # Switch node names to gene symbols.
+  subg <- set_vertex_attr(subg, "name", index = V(subg), vertex_attr(subg, "symbol"))
+  # Remove self-connections and redundant edges.
+  subg <- igraph::simplify(subg)
+  # Send to cytoscape.
+  namen <- names(modules)[i]
+  if (send_to_cytoscape) {
     cytoscapePing()
+    if (length(E(subg)) > 0) {
     createNetworkFromIgraph(subg, namen)
+    } else if (length(E(subg))==0) {
+      message(paste("Warning:", namen,"contains no ppis!"))
+    }
   }
-# How many ppis?
-message(paste("Number of PPIs among nodes:", length(E(subg))))
-# How many sig prots?
-message(paste("Number of sig proteins:", sum(prots %in% sigProts)))
-message("\n")
+  # How many ppis?
+  message(paste("Number of PPIs among nodes:", length(E(subg))))
+  # How many sig prots?
+  message(paste("Number of sig proteins:", sum(prots %in% sigProts)))
+  message("\n")
 } # Ends loop.
