@@ -151,6 +151,48 @@ myfile <- paste0(Rdatadir, "/", outputMatName, "_traits.RData")
 saveRDS(alltraits, file = myfile)
 
 #-------------------------------------------------------------------------------
+## Perform moderated empirical Bayes Regression.
+#-------------------------------------------------------------------------------
+
+# Prepare the expression data.
+# Data should be a matrix-- log2 transformed and QC samples removed;
+# Rows == Samples; Columns == Proteins
+out <- colnames(allDat) %in% rownames(traits)[traits$SampleType=="QC"]
+subDat <- t(log2(allDat[,!out]))
+subTraits <- subset(traits,!traits$SampleType=="QC")
+
+# Prepare the design df.
+sex <- as.factor(subTraits$Sex)
+age <- as.numeric(subTraits$Age)
+batch <- as.factor(subTraits$PrepDate)
+tissue <- as.factor(subTraits$Tissue)
+status <- subTraits$SampleType
+design <- as.data.frame(cbind(status, batch, tissue, sex, age))
+
+# Define covariates to be removed. Which model to choose?
+covariates <- cbind(design$tissue,design$sex) # Tissue + Sex
+
+# Correct for the batch effect using empiricalBayesLM.
+fit_eblm <- empiricalBayesLM(subDat,
+			     removedCovariates = covariates,
+			     fitToSamples = design$status == "WT"
+			     )
+
+# Extract adjusted data. Unlog and transpose.
+eblmDat <- as.data.frame(t(2^fit_eblm$adjustedData))
+#cleanDat <- eblmDat
+
+# Add QC samples back to data.
+qcDat <- allDat[,colnames(allDat) %in% rownames(traits)[traits$SampleType=="QC"]]
+cleanDat <- cbind(eblmDat,qcDat)
+
+# Reorder.
+idy <- match(colnames(allDat),colnames(cleanDat))
+cleanDat <- cleanDat[,idy]
+
+# How does this compare to TAMPOR?
+
+#-------------------------------------------------------------------------------
 ## Perform TAMPOR normalization.
 #-------------------------------------------------------------------------------
 
