@@ -605,6 +605,13 @@ all_plots[["Ube3a_VP"]] <- vp4
 ## GSE analaysis for each genotype.
 #-------------------------------------------------------------------------------
 
+# Load SynGO.
+myfile <- file.path(Rdatadir,"SynGO_Pathways.RData")
+synGO <- readRDS(myfile)
+
+# Combine CC and BP.
+msPathways <- do.call(c,synGO)
+
 # Load GO dataset from BROAD Instititute. We will map human genes to mouse.
 # From: http://software.broadinstitute.org/gsea/downloads.jsp
 datasets <- c(All_curated  = "c2.all.v7.0.entrez.gmt",     # 1
@@ -623,8 +630,9 @@ datasets <- c(All_curated  = "c2.all.v7.0.entrez.gmt",     # 1
 
 # Choose a dataset.
 pathway_file <- datasets[9]
-myfile <- file.path(datadir,pathway_file)
+myfile <- file.path(Rdatadir,pathway_file)
 pathways <- gmtPathways(myfile)
+
 # Get mouse homologs of human genes in pathways list.
 hsEntrez <- unique(unlist(pathways))
 msHomologs <- getHomologs(hsEntrez, taxid = "10090") # mouse taxid
@@ -665,6 +673,8 @@ for (i in 1:4) {
 	names(ranks) <- entrez
 	# Rank names (entrez ids) must be unique!
 	ranks <- ranks[isUnique(ranks)] # Akap2 and Palm2 map to same Entrez ID... 
+        # Keep significant genes.
+	ranks <- ranks[ranks > -log10(alpha)]
 	# Perform GSEA.
 	geDat <- fgsea(msPathways,ranks,minSize = 15,maxSize = 500,nperm = 1e+05)
 	# Sort by p-value.
@@ -677,6 +687,75 @@ for (i in 1:4) {
 # Save as excel.
 myfile <- file.path(outputtabs,"2_Combined_GSEA.xlsx")
 write_excel(result,myfile)
+
+#-------------------------------------------------------------------------------
+## GO Enrichment of DA proteins using anRichment package
+#-------------------------------------------------------------------------------
+
+# Build a df with the combined statistical results.
+df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
+colnames(df)[c(2:ncol(df))] <- names(stats)
+
+## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
+labels <- data.frame(
+  Shank2 = df$"Shank2 Cortex" < 0.05 | df$"Shank2 Striatum" < 0.05,
+  Shank3 = df$"Shank3 Cortex" < 0.05 | df$"Shank3 Striatum" < 0.05,
+  Syngap1 = df$"Syngap1 Cortex" < 0.05 | df$"Syngap1 Striatum" < 0.05,
+  Ube3a = df$"Ube3a Cortex" < 0.05 | df$"Ube3a Striatum" < 0.05
+)
+rownames(labels) <- df$Uniprot
+
+# Convert TRUE to column names.
+logic <- labels == TRUE # 1 will become TRUE, and 0 will become FALSE.
+# Loop through each column to replace 1 with column header (color).
+for (i in 1:ncol(logic)) {
+  col_header <- colnames(labels)[i]
+  labels[logic[, i], i] <- col_header
+}
+
+# Map Uniprot IDs to Entrez.
+entrez <- prot_map$entrez[match(rownames(labels), prot_map$uniprot)]
+
+# Insure that labels is a matrix.
+labels <- as.matrix(labels)
+
+# The labels matrix and vector of cooresponding entrez IDs
+# will be passed to enrichmentAnalysis().
+
+# Build a GO annotation collection:
+myfile <- file.path(Rdatadir, "musGOcollection.RData")
+if (file.exists(myfile)) {
+  musGOcollection <- readRDS(myfile)
+} else {
+  musGOcollection <- buildGOcollection(organism = "mouse")
+  saveRDS(musGOcollection, file.path(Rdatadir, "musGOcollection.RData"))
+}
+
+# Perform GO analysis for each module using hypergeometric (Fisher.test) test.
+# As implmented by the WGCNA function enrichmentAnalysis().
+# FDR is the BH adjusted p-value.
+# Insure that the correct background (used as reference for enrichment)
+# has been selected!
+# useBackgroud = "given" will use all given genes as reference background.
+
+GOenrichment <- enrichmentAnalysis(
+  classLabels = labels,
+  identifiers = entrez,
+  refCollection = musGOcollection,
+  useBackground = "given",
+  threshold = 0.05,
+  thresholdType = "Bonferroni",
+  getOverlapEntrez = TRUE,
+  getOverlapSymbols = TRUE,
+  ignoreLabels = "FALSE"
+)
+
+# Collect the results.
+results_GOenrichment <- list()
+for (i in 1:length(GOenrichment$setResults)) {
+  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
+}
+names(results_GOenrichment) <- colnames(labels)
 
 #-------------------------------------------------------------------------------
 ## Condition overlap plot.
