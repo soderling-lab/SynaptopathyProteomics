@@ -8,7 +8,6 @@
 
 # Other files to ignore.
 out/
-ARCHIVE/
 figures/
 presentations/
 code/4_WPCNA-Optimization/wtAdjm.csv
