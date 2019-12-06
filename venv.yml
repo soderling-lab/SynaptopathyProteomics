@@ -1,9 +1,9 @@
 name: SynaptopathyProteomics
 channels:
-  - bioconda
-  - conda-forge
   - r
+  - bioconda
   - anaconda
+  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main

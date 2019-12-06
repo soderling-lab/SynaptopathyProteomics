@@ -19,7 +19,6 @@ suppressPackageStartupMessages({
   library(getPPIs)
 })
 
-
 # Directories.
 if (rstudioapi::isAvailable()) {
   setwd("D:/projects/SynaptopathyProteomics/analysis/3_Network-Analysis")
@@ -40,6 +39,10 @@ protmap <- readRDS(file.path(rdatdir, "2_Prot_Map.RData"))
 
 # Load statistical results.
 glm_results <- readRDS(file.path(rdatdir,"2_Combined_All_GLM_Results.RData"))
+
+# Load GLM stats.
+myfile <- file.path(rdatdir,"2_GLM_Stats.RData")
+glm_stats <- readRDS(myfile)
 
 # Load expression data.
 data <- t(readRDS(file.path(rdatdir,"3_Combined_cleanDat.RData")))
@@ -113,40 +116,6 @@ meanPVE <- sapply(PVE,function(x) mean(x))
 medianPVE <- sapply(PVE,function(x) median(x))
 maxPVE <- sapply(PVE,function(x) max(x))
 
-#-------------------------------------------------------------------------------
-## Collect GLM statistics in a list.
-#-------------------------------------------------------------------------------
-
-# Names of relevant columns.
-colNames <- colnames(glm_results[[1]])[c(2,5:9)]
-stats <- colNames[c(2:length(colNames))]
-
-# Collect data.
-subDat <- lapply(glm_results,function(x) x[,colNames])
-
-# Combine into a single df.
-df <- subDat  %>% reduce(left_join, by="Uniprot")
-
-# Rename columns.
-newNames <- paste(rep(names(glm_results),each=length(colNames)-1),
-		  sapply(strsplit(colnames(df)[c(2:ncol(df))],"\\."),"[",1))
-colnames(df)[c(2:ncol(df))] <- newNames
-
-# Collect each statistic into a single df in a list.
-glm_stats <- sapply(stats,function(x) df[,c(1,grep(x,colnames(df)))])
-
-# Clean up data a little...
-glm_stats <- lapply(glm_stats,function(x) { 
-			    x <- x[order(x$Uniprot),]
-			    idx <- match(x$Uniprot,protmap$uniprot)
-			    rownames(x) <- protmap$ids[idx]
-			    x$Uniprot <- NULL 
-			    return(x)}
-)
-
-# Save GLM stats.
-myfile <- file.path(rdatdir,"3_GLM_Stats_list.RData")
-saveRDS(glm_stats)
 
 # All sig prots.
 alpha = 0.05
