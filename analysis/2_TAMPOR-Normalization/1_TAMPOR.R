@@ -33,6 +33,8 @@ suppressPackageStartupMessages({
   library(anRichment)
   library(openxlsx)
   library(org.Mm.eg.db)
+  library(fgsea)
+  library(getPPIs)
 })
 
 # Define tisue type:
@@ -280,7 +282,7 @@ suppressMessages({
 })
 is_missing <- is.na(entrez)
 
-# Map remainder by hand.
+# Map remainder of missing ids by hand.
 # ids[is_missing]
 entrez[is_missing] <- c(102631912, 14070, 18517)
 
@@ -303,16 +305,20 @@ if (sum(is.na(gene)) > 0) {
 }
 
 # Protein identifier map.
-prot_map <- data.frame(ids, uniprot, entrez, gene)
+protmap <- data.frame(ids, uniprot, entrez, gene)
 
 # Save to Rdata.
 myfile <- file.path(Rdatadir, "2_Prot_Map.RData")
-saveRDS(prot_map, myfile)
+saveRDS(protmap, myfile)
 
 #-------------------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
 #-------------------------------------------------------------------------------
 
+# Statistical comparisons are KO/HET versus all WT of a tissue type.
+
+# Prepare data for EdgeR. 
+# Data should NOT be log2 transformed.
 # Remove QC samples prior to passing data to EdgeR.
 out <- alltraits$SampleType[match(colnames(cleanDat), rownames(alltraits))] == "QC"
 data_in <- cleanDat[, !out]
@@ -421,14 +427,14 @@ glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$tab
 # Convert logCPM column to percent WT and annotate with candidate column.
 glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
 
-# Use prot_map to annotate glm_results with entrez Ids and gene symbols.
+# Use protmap to annotate glm_results with entrez Ids and gene symbols.
 for (i in 1:length(glm_results)) {
   x <- glm_results[[i]]
-  idx <- match(rownames(x), prot_map$ids)
-  x <- add_column(x, "Gene|Uniprot" = prot_map$ids[idx], .before = 1)
-  x <- add_column(x, "Uniprot" = prot_map$uniprot[idx], .after = 1)
-  x <- add_column(x, "Entrez" = prot_map$entrez[idx], .after = 2)
-  x <- add_column(x, "Symbol" = prot_map$gene[idx], .after = 3)
+  idx <- match(rownames(x), protmap$ids)
+  x <- add_column(x, "Gene|Uniprot" = protmap$ids[idx], .before = 1)
+  x <- add_column(x, "Uniprot" = protmap$uniprot[idx], .after = 1)
+  x <- add_column(x, "Entrez" = protmap$entrez[idx], .after = 2)
+  x <- add_column(x, "Symbol" = protmap$gene[idx], .after = 3)
   glm_results[[i]] <- x
 }
 
@@ -481,6 +487,41 @@ saveRDS(glm_results,myfile)
 # Save results to file.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
+
+#-------------------------------------------------------------------------------
+## Collect GLM statistics in a list.
+#-------------------------------------------------------------------------------
+
+# Names of relevant columns.
+colNames <- colnames(glm_results[[1]])[c(2,5:9)]
+stats <- colNames[c(2:length(colNames))]
+
+# Collect data.
+subGLM <- lapply(glm_results,function(x) x[,colNames])
+
+# Combine into a single df.
+df <- subGLM  %>% purrr::reduce(left_join, by="Uniprot")
+
+# Rename columns.
+newNames <- paste(rep(names(glm_results),each=length(colNames)-1),
+		  sapply(strsplit(colnames(df)[c(2:ncol(df))],"\\."),"[",1))
+colnames(df)[c(2:ncol(df))] <- newNames
+
+# Collect each statistic into a single df in a list.
+glm_stats <- sapply(stats,function(x) df[,c(1,grep(x,colnames(df)))])
+
+# Clean up data a little...
+glm_stats <- lapply(glm_stats,function(x) { 
+			    x <- x[order(x$Uniprot),]
+			    idx <- match(x$Uniprot,protmap$uniprot)
+			    rownames(x) <- protmap$ids[idx]
+			    x$Uniprot <- NULL 
+			    return(x)}
+)
+
+# Save GLM stats.
+myfile <- file.path(rdatdir,"2_GLM_Stats_List.RData")
+saveRDS(glm_stats,myfile)
 
 #-------------------------------------------------------------------------------
 ## Volcano plots for each genotype.
@@ -564,15 +605,78 @@ all_plots[["Ube3a_VP"]] <- vp4
 ## GSE analaysis for each genotype.
 #-------------------------------------------------------------------------------
 
-# Build a df with the combined statistical results.
-stats <- lapply(glm_results, function(x) data.frame(Uniprot = x$Uniprot, FDR = x$FDR))
-names(stats) <- names(glm_results)
-df <- stats %>% purrr::reduce(left_join, by = "Uniprot")
-colnames(df)[c(2:ncol(df))] <- names(stats)
+# Load GO dataset from BROAD Instititute. We will map human genes to mouse.
+# From: http://software.broadinstitute.org/gsea/downloads.jsp
+datasets <- c(All_curated  = "c2.all.v7.0.entrez.gmt",     # 1
+	      Hallmark = "h.all.v7.0.entrez.gmt",          # 2
+	      All_canonical = "c2.cp.v7.0.entrez.gmt",     # 2 
+	      ALL_GO = "c5.all.v7.0.entrez.gmt",           # 3
+	      GO_MF = "c5.mf.v7.0.entrez.gmt",             # 4
+	      GO_BP = "c5.bp.v7.0.entrez.gmt",             # 5
+	      GO_CC = "c5.cc.v7.0.entrez.gmt",             # 6
+	      MSigDB = "msigdb.v7.0.entrez.gmt",           # 7. This is all lists!
+	      Reactome = "c2.cp.reactome.v7.0.entrez.gmt", # 8
+	      TF_motif = "c3.tft.v7.0.entrez.gmt",         # 9
+	      microRNA_motif = "c3.mir.v7.0.entrez.gmt",   # 10
+	      All_motif = "c3.all.v7.0.entrez.gmt")        # 11
 
-# Save as excel workbook.
-#myfile <- file.path(outputtabs, paste0(outputMatName, "_GO_Analysis.xlsx"))
-#write_excel(results_GOenrichment, myfile)
+
+# Choose a dataset.
+pathway_file <- datasets[9]
+myfile <- file.path(datadir,pathway_file)
+pathways <- gmtPathways(myfile)
+# Get mouse homologs of human genes in pathways list.
+hsEntrez <- unique(unlist(pathways))
+msHomologs <- getHomologs(hsEntrez, taxid = "10090") # mouse taxid
+names(msHomologs) <- hsEntrez
+# Map to mouse, discard unmapped (NA) genes.
+msPathways <- lapply(pathways, function(x) purrr::discard(msHomologs[x], is.na))
+# Filter pathways; keep genes in data; remove empty pathways; 
+# remove duplicate genes from pathways.
+genes <- protmap$entrez[match(rownames(allDat),protmap$ids)]
+filter_pathways <- function(pathways, genes) {
+  pathways <- lapply(pathways, function(x) purrr::discard(x, x %notin% genes))
+  keep <- names(pathways)[!sapply(pathways,function(x) length(x)==0)]
+  pathways <- pathways[keep]
+  #pathways <- lapply(pathways,function(x) x[isUnique(x)])
+  return(pathways)
+}
+msPathways <- filter_pathways(msPathways, genes)
+# Check: What percentage of genes are in pathways list?
+percentMapped <- sum(genes %in% unique(unlist(msPathways))) / length(genes)
+message(paste("Percent genes in pathways:",round(100*percentMapped,2)))
+
+# Parameters for loop.
+alpha <- 0.05
+stat <- "PValue"
+result <- list()
+# Loop to perform GSEA.
+for (i in 1:4) {
+	# Which Geno.Tissue...
+	geno <- c("Shank2","Shank3","Syngap1","Ube3a")[i]
+	message(paste("Performing GSE for:",geno,"..."))
+	idy <- grep(geno,colnames(glm_stats[[stat]]))
+	ranks <- apply(-log10(glm_stats$PValue[,idy]),1,sum)
+	# Ranks based on GLM stats = PVALUE.
+	# Ranks must be sorted in decreasing order.
+	ranks <- ranks[order(ranks,decreasing=TRUE)]
+	# Map proteins to entrez.
+	entrez <- protmap$entrez[match(rownames(glm_stats$PValue),protmap$ids)]
+	names(ranks) <- entrez
+	# Rank names (entrez ids) must be unique!
+	ranks <- ranks[isUnique(ranks)] # Akap2 and Palm2 map to same Entrez ID... 
+	# Perform GSEA.
+	geDat <- fgsea(msPathways,ranks,minSize = 15,maxSize = 500,nperm = 1e+05)
+	# Sort by p-value.
+	geDat <- geDat[order(geDat$pval), ]
+	# Status.
+	message(paste("Number of significant pathways:",sum(geDat$padj<alpha)))
+	result[[geno]] <- geDat
+}
+
+# Save as excel.
+myfile <- file.path(outputtabs,"2_Combined_GSEA.xlsx")
+write_excel(result,myfile)
 
 #-------------------------------------------------------------------------------
 ## Condition overlap plot.

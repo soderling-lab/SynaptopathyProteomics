@@ -144,6 +144,10 @@ glm_stats <- lapply(glm_stats,function(x) {
 			    return(x)}
 )
 
+# Save GLM stats.
+myfile <- file.path(rdatdir,"3_GLM_Stats_list.RData")
+saveRDS(glm_stats)
+
 # All sig prots.
 alpha = 0.05
 fdr <- glm_stats[["FDR"]]
