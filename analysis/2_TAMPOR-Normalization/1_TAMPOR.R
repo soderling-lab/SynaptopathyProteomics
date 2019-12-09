@@ -606,11 +606,14 @@ all_plots[["Ube3a_VP"]] <- vp4
 ## GSE analaysis for each genotype.
 #-------------------------------------------------------------------------------
 
+gse = FALSE
+
+if (gse) {
 # Load SynGO.
-#myfile <- file.path(Rdatadir,"SynGO_Pathways.RData")
-#synGO <- readRDS(myfile)
+myfile <- file.path(Rdatadir,"SynGO_Pathways.RData")
+synGO <- readRDS(myfile)
 # Combine CC and BP.
-#msPathways <- do.call(c,synGO)
+msPathways <- do.call(c,synGO)
 
 # Other pathways.
 #data(examplePathways)
@@ -619,6 +622,7 @@ all_plots[["Ube3a_VP"]] <- vp4
 # Load GO dataset from BROAD Instititute. We will map human genes to mouse.
 # From: http://software.broadinstitute.org/gsea/downloads.jsp
 # Ge lab data from: http://ge-lab.org/#/data
+# Baderlab data: http://download.baderlab.org/EM_Genesets/current_release/
 datasets <- c(All_curated  = "c2.all.v7.0.entrez.gmt",     # 1
 	      Hallmark = "h.all.v7.0.entrez.gmt",          # 2
 	      All_canonical = "c2.cp.v7.0.entrez.gmt",     # 3 
@@ -632,14 +636,16 @@ datasets <- c(All_curated  = "c2.all.v7.0.entrez.gmt",     # 1
 	      microRNA_motif = "c3.mir.v7.0.entrez.gmt",   # 11
 	      All_motif = "c3.all.v7.0.entrez.gmt",        # 12
 	      Ge_mus_curated = "mGSKB_Entrez.gmt",         # 13
-	      Ge_mus_compiled = "Ge_Mus_GO_KEGG.gmt")      # 14. Compiled GO/KEGG
+	      Ge_mus_compiled = "Ge_Mus_GO_KEGG.gmt",      # 14. Compiled GO/KEGG
+	      Bader = "Mouse_AllPathways_December_01_2019_entrezgene.gmt")
+
 
 # Choose a dataset.
-paths <- datasets[10]
+paths <- datasets[15]
 myfile <- file.path(Rdatadir,paths)
 pathways <- gmtPathways(myfile)
-filter <- TRUE # Should genes that are not in synaptic proteome be removed?
-map2mouse <- TRUE # Map human genes to mouse?
+filter <- FALSE # Should genes that are not in synaptic proteome be removed?
+map2mouse <- FALSE # Map human genes to mouse?
 
 # Clean up pathways...
 keep <- c(1:length(pathways))[!is.na(names(pathways))]
@@ -722,6 +728,7 @@ for (i in 1:8) {
 # Note: padj method is BH.
 myfile <- file.path(outputtabs,"2_Combined_GSEA.xlsx")
 write_excel(result,myfile)
+}
 
 #-------------------------------------------------------------------------------
 ## GO Enrichment of DA proteins using anRichment package
@@ -899,32 +906,30 @@ traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
 traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
 # Levels for boxplots (order of the boxes):
-lvls <- c(
-  "Cortex.WT", "Striatum.WT",
-  "Cortex.KO.Shank2", "Striatum.KO.Shank2",
-  "Cortex.KO.Shank3", "Striatum.KO.Shank3",
-  "Cortex.HET.Syngap1", "Striatum.HET.Syngap1",
-  "Cortex.KO.Ube3a", "Striatum.KO.Ube3a"
-)
+box_order <- c("Cortex.WT",
+	       "Cortex.KO.Shank2", 
+	       "Cortex.KO.Shank3", 
+	       "Cortex.HET.Syngap1", 
+	       "Cortex.KO.Ube3a",
+	       "Striatum.WT",
+	       "Striatum.KO.Shank2", 
+	       "Striatum.KO.Shank3", 
+	       "Striatum.HET.Syngap1", 
+	       "Striatum.KO.Ube3a")
 
 # Generate plots.
-plot_list <- ggplotProteinBoxPlot(
-  data_in = log2(cleanDat),
-  interesting.proteins = rownames(cleanDat),
-  traits = traits,
-  order = lvls,
-  scatter = TRUE
-)
+plot_list <- ggplotProteinBoxPlot(data_in = log2(cleanDat),
+				  interesting.proteins = rownames(cleanDat),
+				  traits = traits,
+				  box_order,
+				  scatter = TRUE)
 
 # Add custom colors.
-colors <- c(
-  "gray", "gray",
-  "#FFF200", "#FFF200",
-  "#00A2E8", "#00A2E8",
-  "#22B14C", "#22B14C",
-  "#A349A4", "#A349A4"
-)
+colors <- rep(c("gray","#FFF200","#00A2E8","#22B14C","#A349A4"),2)
 plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
+
+# Facet plots, add significance stars, and reformat x.axis labels.
+plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats))
 
 # Store boxplots.
 all_plots[["all_box_plots"]] <- plot_list

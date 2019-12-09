@@ -2,6 +2,8 @@
 
 # Analyze combined network partitions. Which resolution to pick???
 
+# FIXME: need to split verbose boxplots into cortex and striatum.
+
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
