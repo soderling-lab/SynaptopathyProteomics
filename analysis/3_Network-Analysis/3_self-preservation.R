@@ -68,7 +68,7 @@ datadir <- file.path(root, "rdata")
 funcdir <- file.path(root, "R")
 
 # Functions.
-myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
+myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
@@ -118,12 +118,10 @@ results <- list()
 for (i in 1:nres) {
   # Status report.
   message(paste("working on partition", i, "..."))
-
   # Get partition--adding 1 so that all module assignments >0.
   partition <- as.integer(partitions[i, ]) + 1
   names(partition) <- colnames(adjm)
   module_list <- list(self = partition)
-
   # Perform permutation test for module self-preservation.
   suppressWarnings({
     selfPreservation <- NetRep::modulePreservation(
@@ -144,12 +142,10 @@ for (i in 1:nres) {
 		verbose = FALSE
 		)
     })
-
   # Remove NS modules--set NS modules to 0.
-  preservedParts <- check_modules(selfPreservation,)
+  preservedParts <- check_modules(selfPreservation,strength,stats)
   out <- names(preservedParts)[preservedParts == "ns"]
-  partition[partition %in% out <- 0
-
+  partition[partition %in% out] <- 0
   # Return results.
   results[[i]] <- partition
   # Save to Rdata.

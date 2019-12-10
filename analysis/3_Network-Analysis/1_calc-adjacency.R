@@ -64,15 +64,6 @@ subDat <- lapply(subDat, function(x) {
 # Add combined data.
 subDat[["Combined"]] <- data
 
-# Calculate power for approximate scale free fit of networks.
-sft <- sapply(subDat,function(x) { silently({
-	       pickSoftThreshold(t(x),
-				 corFnc = "bicor",
-				 networkType = "signed",
-				 RsquaredCut = 0.8
-				 )$powerEstimate })
-})
-
 # Save expression data to file.
 myfiles <- file.path(rdatadir,paste0("3_",names(subDat),"_cleanDat.RData"))
 invisible(mapply(function(x,y) saveRDS(x,y), subDat, myfiles))
