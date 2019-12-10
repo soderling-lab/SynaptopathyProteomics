@@ -81,9 +81,11 @@ names(adjm) <- c(net1,net2)
 # Create unsigned networks for NetRep.
 networks <- lapply(adjm,abs)
 
-# partitions: 10342568 = Striatum - self-preservation enforced.
+# partitions files: 
+# 10342568 = Striatum - self-preservation enforced.
 
 # Load network partitions.
+# If working with csv files:
 mypartitions <- paste0(c(net1,net2),"_partitions.csv")
 myfiles <- sapply(mypartitions,function(x) list.files(rdatdir,x,full.names=TRUE))
 all_partitions <- lapply(myfiles,function(x) fread(x,drop=1,skip=1))
@@ -125,19 +127,13 @@ for (r in res) {
   partitions <- lapply(all_partitions, function(x) as.integer(x[r, ] + 1))
   prots <- colnames(all_partitions[[1]])
   partitions <- lapply(partitions,function(x) { names(x) <- prots; return(x) })
-
   # Remove small modules.
   partitions <- lapply(partitions,filter_modules)
   # Total number of modules; ignore 0.
   nModules <- sapply(partitions,function(x) sum(names(table(x)) != 0))
   # Split partitions into modules.
   modules <- lapply(partitions,function(x) split(x,x))
-
   # Input for NetRep:
-  # Note the networks are what are used to calc the avg edge weight statistic.
-  # Note that NetRep assumes all edges are positive in calculating
-  # avg.edge.weight and cor.degree.
-  # Transform adjm with soft power and take absolute value.
   data_list <- data
   correlation_list <- adjm
   network_list <- networks 
@@ -149,6 +145,7 @@ for (r in res) {
   H0 <- list(c(discovery = net1, test = net2),
 	     c(discovery = net2, test = net1))
   names(H0) <- c(net1,net2) # Test cox in str and str in cox...
+  suppressWarnings({
   preservation <- sapply(H0,function(x) {
 					 NetRep::modulePreservation(
 		                         network = network_list,
@@ -167,6 +164,7 @@ for (r in res) {
 					 simplify = TRUE,
 					 verbose = TRUE)
 })
+  }) # Ends sapply.
 
   names(preservation)
   class(preservation)
