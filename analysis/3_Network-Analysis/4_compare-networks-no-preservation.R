@@ -213,7 +213,7 @@ for (r in res) {
     "modules are preserved in the", net1, "network."
   ))
   # Return output
-  output[[i]] <- module_changes
+  output[[r]] <- module_changes
 } # ENDS LOOP.
 
 # Save output to file.

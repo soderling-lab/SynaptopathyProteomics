@@ -89,7 +89,6 @@ names(adjm) <- c(net1, net2)
 networks <- lapply(adjm, abs)
 
 # Load network partitions.
-# If working with csv files:
 mypartitions <- c(partition1,partition2)
 myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
 all_partitions <- lapply(myfiles, readRDS)
@@ -123,18 +122,11 @@ for (r in res) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
-  partitions <- lapply(all_partitions, function(x) as.integer(x[r, ] + 1))
-  prots <- colnames(all_partitions[[1]])
-  partitions <- lapply(partitions, function(x) {
-    names(x) <- prots
-    return(x)
-  })
-  # Remove small modules.
-  #partitions <- lapply(partitions, filter_modules)
+  partitions <- list(all_partitions[[net1]][[r]],
+		     all_partitions[[net2]][[r]])
+  names(partitions) <- c(net1,net2)
   # Total number of modules; ignore 0.
   nModules <- sapply(partitions, function(x) sum(names(table(x)) != 0))
-  # Split partitions into modules.
-  modules <- lapply(partitions, function(x) split(x, x))
   # Input for NetRep:
   data_list <- data
   correlation_list <- adjm
@@ -204,7 +196,7 @@ for (r in res) {
     "modules are preserved in the", net1, "network."
   ))
   # Return output
-  output[[i]] <- module_changes
+  output[[r]] <- module_changes
 } # ENDS LOOP.
 
 # Save output to file.
