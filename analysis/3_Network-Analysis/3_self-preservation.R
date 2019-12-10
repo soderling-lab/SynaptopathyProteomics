@@ -35,7 +35,7 @@
 stats <- c(1:7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
+self <- "Striatum" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
 nres <- 100 # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
@@ -69,7 +69,10 @@ funcdir <- file.path(root, "R")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
-invisible(sapply(myfun, source))
+#invisible(sapply(myfun, source))
+sapply(myfun,function(x) source(x,encoding = "UTF-8"))
+
+quit()
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
 myfile <- file.path(datadir, paste0("3_", self, "_cleanDat.RData"))
