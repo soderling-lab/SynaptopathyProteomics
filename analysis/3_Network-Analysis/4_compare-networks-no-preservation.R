@@ -179,32 +179,35 @@ for (r in res) {
   nPres <- sapply(module_changes, function(x) sum(x == "preserved"))
   nNS <- sapply(module_changes, function(x) sum(x == "ns"))
   nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
-  # N Preserved.
+  # N Preserved Net1.
   message(paste(
     "...", nPres[net1], "of", nModules[net1], net1,
-    "modules are preserved in the", net2, "network."
+    "modules are significantly preserved in the", net2, "network."
   ))
-  message(paste(
-    "...", nPres[net2], "of", nModules[net2], net2,
-    "modules are preserved in the", net1, "network."
-  ))
-  # N NS
+  # N NS Net1.
   message(paste(
     "...", nNS[net1], "of", nModules[net1], net1,
-    "modules are preserved in the", net2, "network."
+    "modules are NS (not significantly preserved or divergent) in the", net2, "network."
   ))
-  message(paste(
-    "...", nNS[net2], "of", nModules[net2], net2,
-    "modules are preserved in the", net1, "network."
-  ))
-  # N Divergent
+  # N Divergent Net1.
   message(paste(
     "...", nDiv[net1], "of", nModules[net1], net1,
-    "modules are preserved in the", net2, "network."
+    "modules are significantly divergent in the", net2, "network."
   ))
+  # N Preserved Net2.
+  message(paste(
+    "...", nPres[net2], "of", nModules[net2], net2,
+    "modules are significantly preserved in the", net1, "network."
+  ))
+  # N NS Net2.
+  message(paste(
+    "...", nNS[net2], "of", nModules[net2], net2,
+    "modules are NS (not significantly preserved or divergent) in the", net1, "network."
+  ))
+  # N Divergent Net2.
   message(paste(
     "...", nDiv[net2], "of", nModules[net2], net2,
-    "modules are preserved in the", net1, "network."
+    "modules are signficantly divergent in the", net1, "network."
   ))
   # Return output
   output[[r]] <- module_changes
