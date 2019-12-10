@@ -69,10 +69,7 @@ funcdir <- file.path(root, "R")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
-#invisible(sapply(myfun, source))
-sapply(myfun,function(x) source(x,encoding = "UTF-8"))
-
-quit()
+invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
 myfile <- file.path(datadir, paste0("3_", self, "_cleanDat.RData"))
