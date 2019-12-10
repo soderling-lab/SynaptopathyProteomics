@@ -117,6 +117,7 @@ network_list <- list(self = abs(adjm^sft[self]))
 results <- list()
 for (i in 1:nres) {
   # Status report.
+  message(paste("Evaluating self-preservation of modules identified in the",self,"network."))
   message(paste("Working on partition", i, "of", nres, "..."))
   # Get partition--adding 1 so that all module assignments >0.
   partition <- as.integer(partitions[i, ]) + 1
