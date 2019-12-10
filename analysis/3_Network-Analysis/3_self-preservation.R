@@ -113,12 +113,27 @@ data_list <- list(self = data)
 correlation_list <- list(self = adjm)
 network_list <- list(self = abs(adjm^sft[self]))
 
+# Module preservation stats.
+module_stats <- paste(c(
+  "avg.weight", "coherence", "cor.cor", "cor.degree",
+  "cor.contrib", "avg.cor", "avg.contrib"
+)[stats], collapse = ", ")
+
+# Status report:
+message(paste("Evaluating self-preservation of",
+		self, "modules."))
+message(paste0(
+  "Module statistic(s) used to evaluate module preservation: ",
+  module_stats), ".")
+message(paste0(
+  "Criterion for module preservation/divergence: ",
+  strength, ".", "\n"
+))
+
 # Loop through partitions, evaluating self-preservation.
 results <- list()
 for (i in 1:nres) {
-  # Status report.
-  message(paste("Evaluating self-preservation of modules identified in the",self,"network."))
-  message(paste("Working on partition", i, "of", nres, "..."))
+  message(paste("... Working on partition", i, "of", nres, "..."))
   # Get partition--adding 1 so that all module assignments >0.
   partition <- as.integer(partitions[i, ]) + 1
   names(partition) <- colnames(adjm)
@@ -149,7 +164,7 @@ for (i in 1:nres) {
   out <- names(preservedParts)[preservedParts == "ns"]
   partition[partition %in% out] <- 0
   nPreserved <- nModules - length(out)
-  message(paste("...", nPreserved, "modules of", nModules, "modules are preserved."))
+  message(paste("... ...", nPreserved, "modules of", nModules, "modules are preserved."))
   # Return results.
   results[[i]] <- partition
   # Save to Rdata.
