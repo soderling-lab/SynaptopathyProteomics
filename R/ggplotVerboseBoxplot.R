@@ -17,68 +17,39 @@
 #'
 #' @examples
 #' ggplotVerboseBoxplot(x, g, contrasts)
-ggplotVerboseBoxplot <- function(x, g, contrasts, order = NULL, ...) {
+ggplotVerboseBoxplot <- function(x, g, contrasts, box_order = NULL, ...) {
   # Imports
-  require(FSA)
-  require(ggplot2)
+  suppressPackageStartupMessages({
+    require(FSA)
+    require(ggplot2)
+  })
   # Bind data together as a data.frame.
   df <- data.frame(x = as.numeric(x), g = as.factor(g))
   # Parse the df's levels.
-  lvls <- if (!is.null(order)) {
-    lvls <- order
+  lvls <- if (!is.null(box_order)) {
+    lvls <- box_order
   } else {
     lvls <- unique(df$g)
   }
   levels(df$g) <- lvls
-  # Perform KW test.
-  KWtest <- kruskal.test(df$x, df$g)
-  # Title annotation.
-  txt <- paste("p =", round(KWtest$p.value, 3))
-  if (KWtest$p.value < 0.05) {
-    title_color <- "red"
-  } else {
-    title_color <- "black"
-  }
-  # Post-hoc Dunn or Dunnetts test.
-  Dtest <- FSA::dunnTest(df$x, df$g, kw = FALSE, ...)$res
-  # Keep contrasts of interest.
-  Dtest <- Dtest[Dtest$Comparison %in% contrasts, ]
-  # Statistical annotation.
-  Dtest$symbol <- ""
-  Dtest$symbol[Dtest$P.unadj < 0.1] <- ""
-  Dtest$symbol[Dtest$P.unadj < 0.05] <- "*"
-  Dtest$symbol[Dtest$P.unadj < 0.01] <- "**"
-  Dtest$symbol[Dtest$P.unadj < 0.001] <- "***"
-  Dtest$xpos <- sapply(strsplit(as.character(Dtest$Comparison), " - "), "[", 1)
-  Dtest$ypos <- 1.05 * max(df$x)
-  # If KW is NS then overwrite statistical annotations.
-  if (KWtest$p.value > 0.05) {
-    Dtest$symbol <- ""
-  }
-  # Xaxis color red if post-hoc test is significant.
-  if (KWtest$p.value < 0.05) {
-    Dtest$x_color <- "black"
-    Dtest$x_color[Dtest$P.unadj < 0.05] <- "red"
-    xlabels <- levels(df$g)
-    x_color <- Dtest$x_color[match(xlabels, Dtest$xpos)]
-    x_color[is.na(x_color)] <- "black"
-    # If KW is NS, then all black.
-  } else {
-    x_color <- rep("black", length(levels(df$g)))
-  }
+  # Tissue type.
+  df$tissue <- ""
+  df$tissue[grep("Cortex",df$g)] <-"Cortex"
+  df$tissue[grep("Striatum", df$g)] <-"Striatum"
   # Generate boxplot.
   plot <- ggplot(df, aes(x = g, y = x, fill = g)) + geom_boxplot() +
     geom_point(color = "white", size = 1, pch = 21, fill = "black") +
-    ggtitle(txt) +
     ylab("Summary Expression") + xlab(NULL) +
     theme(
       legend.position = "none",
-      plot.title = element_text(hjust = 0.5, color = title_color, size = 14, face = "bold"),
+      plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
       axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-      axis.text.x = element_text(color = x_color, angle = 45, hjust = 1)
-    )
-  # Add statistical annotation.
-  plot <- plot + annotate("text", x = Dtest$xpos, y = Dtest$ypos, label = Dtest$symbol, size = 5)
+      axis.text.x = element_text(color = "black", angle = 45, hjust = 1)
+    ) + facet_grid(. ~ tissue, scales="free",space ="free") + 
+    theme(strip.text.x = element_text(size=11, color="black",face="bold"))
+  # Customize colors
+  colors <- rep(c("gray","#FFF200","#00A2E8","#22B14C","#A349A4"),2)
+  plot <- plot + scale_fill_manual(values = colors)
   return(plot)
 }

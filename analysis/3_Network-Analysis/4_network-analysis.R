@@ -30,6 +30,7 @@ root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
@@ -118,7 +119,6 @@ meanPVE <- sapply(PVE,function(x) mean(x))
 medianPVE <- sapply(PVE,function(x) median(x))
 maxPVE <- sapply(PVE,function(x) max(x))
 
-
 # All sig prots.
 alpha = 0.05
 fdr <- glm_stats[["FDR"]]
@@ -138,8 +138,9 @@ modSig <- lapply(modules,function(x) sapply(x,function(y) sum(protSig[y])))
 
 # Load mouse GO collection.
 myfile <- list.files(rdatdir, "musGO", full.names = TRUE)
-musGO <- readRDS(myfile)
+musGO <- readRDS(myfile) # Not working?
 
+# Load GO results.
 moduleGO <- readRDS(file.path(rdatdir, "3_Module_GO_Results.RData"))
 
 # Function to perform GO enrichment for all modules in a given partition.
@@ -209,12 +210,16 @@ moduleGO <- lapply(moduleGO, function(x) x[-grep("M0",names(x))])
 # Examine biological enrichment. Sum of GO pvalues for all modules at a given
 # resolution.
 modSig <- lapply(moduleGO, function(x) sapply(x,function(y) sum(-log(y$pValue))))
-x=sapply(modSig,sum)
+x <- sapply(modSig,sum)
 best_res <- c(1:length(x))[x==max(x)]
+print(best_res)
 
 #------------------------------------------------------------------------------
 # Analyze modules for differental expression.
 #------------------------------------------------------------------------------
+
+# Does it make sense to combine data from cortex and striatum when building a
+# nework... Should we do two sided test... divergent and preserved...
 
 # Collect GO results from ~best resolution.
 resGO <- moduleGO[[best_res]]
@@ -224,20 +229,24 @@ myfile <- file.path(tabsdir,paste0("3_","R",best_res,"_GO_Results.xlsx"))
 write_excel(resGO,myfile)
 
 # Top GO from every module.
-
 topGO <- sapply(resGO,function(x) x$shortDataSetName[1])
 names(topGO) <- names(modules)
 sigGO <- sapply(resGO,function(x) x$FDR[1]<0.05)
 
+# Percent modules with significant go enrichment.
+message(paste("Percent modules with significant GO terms:", 
+	      round(100*sum(sigGO)/length(sigGO),2),"(%)"))
+
 # Load Sample info.
 traits <- readRDS(file.path(rdatdir,"2_Combined_traits.RData"))
 
-best_res = 68
+# Examine best resolution.
 resolution <- best_res
 partition <- partitions[[resolution]]
 modules <- split(partition, partition)
 names(modules) <- paste0("M", names(modules))
 nModules <- length(modules) - 1
+nModules
 
 # Calculate Module eigengenes.
 MEdat <- moduleEigengenes(data, colors = partition, impute = FALSE)
@@ -253,6 +262,8 @@ kmeData <- signedKME(data, MEs, corFnc = "bicor")
 # Calculate PVE. Exclude grey from median pve calculation.
 PVE <- as.numeric(MEdat$varExplained)
 names(PVE) <- names(modules)
+PVE <- PVE[-1]
+median(PVE)
 
 # Define vector of groups; 
 # group all WT samples from a tissue type together.
@@ -270,59 +281,71 @@ g2 <- c("WT.Cortex", "WT.Striatum")
 contrasts <- apply(expand.grid(g1, g2), 1, paste, collapse = " - ")
 
 # Define the order of the bars in the verbose boxplot.
-order <- c(
-"WT.Cortex", "WT.Striatum",
-"KO.Shank2.Cortex", "KO.Shank2.Striatum", "KO.Shank3.Cortex", "KO.Shank3.Striatum",
-"HET.Syngap1.Cortex", "HET.Syngap1.Striatum", "KO.Ube3a.Cortex", "KO.Ube3a.Striatum"
-)
+box_order <- c("WT.Cortex","KO.Shank2.Cortex", "KO.Shank3.Cortex", 
+               "HET.Syngap1.Cortex", "KO.Ube3a.Cortex",
+               "WT.Striatum","KO.Shank2.Striatum", "KO.Shank3.Striatum",
+               "HET.Syngap1.Striatum", "KO.Ube3a.Striatum")
 
 # Use lapply to generate plots.
-plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, order))
+plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, box_order))
 names(plots) <- names(modules)
 
-# Add PVE to plot titles.
+# Add Module name and PVE to plot titles. Simplify x-axis labels.
 for (k in seq_along(plots)) {
-	p <- plots[[k]]
+	plot <- plots[[k]]
 	namen <- names(plots)[k]
 	txt <- paste("PVE:", round(PVE[namen], 3))
-	p$labels$title <- paste0(namen, " (", txt, "; ", p$labels$title, ")")
-	plots[[k]] <- p
+	plot$labels$title <- paste0(namen, " (", txt, plot$labels$title, ")")
+	plot <- plot + scale_x_discrete(labels=rep(c("WT","Shank2","Shank3","Syngap1","Ube3a"),2))
+	plots[[k]] <- plot
 }
 
-# Add custom colors to plots.
-colors <- rep(c("gray", "yellow", "blue", "green", "purple"), each = 2)
-plots <- lapply(plots, function(x) x + scale_fill_manual(values = colors))
-
 # Perform KW tests.
-KWtest <- lapply(ME_list, function(x) kruskal.test(x ~ g))
+KWtest <- lapply(ME_list, function(x) { 
+  idx <- grepl("Cortex",g)
+  kw <- c("Cortex" = kruskal.test(x[idx] ~ g[idx])[["p.value"]],
+          "Striatum" = kruskal.test(x[!idx] ~ g[!idx])[["p.value"]])
+  return(kw)
+})
 
 # Correct KWtest pvalues for nModule multiple comparisons.
 # M0 is excluded.
-KWpval <- unlist(sapply(KWtest, "[", 3))[-1]
-KWpadj <- p.adjust(KWpval, method = "BH")
-names(KWpadj) <- names(KWpval) <- names(modules)[-1]
+a <- p.adjust(sapply(KWtest,"[",1),method="BH")
+b <- p.adjust(sapply(KWtest,"[",2),method="BH")
+KWpval <- lapply(c(1:length(cox)),function(x) c(a[x],b[x]))
+names(KWpval) <- names(modules)
+
 # KWsig?
-alpha <- 0.05
-KWsig <- names(KWpadj)[KWpadj < alpha]
+alpha = 0.05
+KWsig <- sapply(KWpval,function(x) any(x<alpha))
+sigModules <- names(KWsig)[KWsig]
 
 # Perform Dunn tests (post-hoc test for unequal sample sizes).
-Dtest <- lapply(ME_list, function(x) FSA::dunnTest(x ~ g, kw = FALSE, method = "none"))
+Dtest <- lapply(ME_list, function(x) {
+  idx <- grepl("Cortex",g)
+  dt <- list("Cortex" = FSA::dunnTest(x[idx] ~ g[idx], kw = FALSE, method = "none"),
+             "Striatum" = FSA::dunnTest(x[!idx] ~ g[!idx], kw = FALSE, method = "none"))
+  return(dt)
+})
+names(Dtest) <- names(modules)
 
-# Keep only contrasts of interest as defined above, and correct for n comparisons (8).
-f <- function(x, contrasts) {
-df <- x$res
-df <- df[df$Comparison %in% contrasts, ]
-df$P.adj <- p.adjust(df$P.unadj, method = "BH")
-return(df)
+# Keep only contrasts of interest as defined above.
+cleanDT <- function(x,contrasts) {
+  # Cortex.
+  df1 <- x$Cortex$res
+  df1 <- subset(df1,df1$Comparison %in% contrasts)
+  df1$P.adj <- p.adjust(df1$P.unadj,method="bonferroni")
+  # Striatum
+  df2 <- x$Striatum$res
+  df2 <- subset(df2,df2$Comparison %in% contrasts)
+  df2$P.adj <- p.adjust(df2$P.unadj,method="bonferroni")
+  return(rbind(df1,df2))
 }
-Dtest <- lapply(Dtest, function(x) f(x, contrasts))
+Dtest <- lapply(Dtest,function(x) cleanDT(x,contrasts))
 
-# DTsig?
-alpha <- 0.05
-sigDT <- unlist(lapply(Dtest, function(x) sum(x$P.adj < alpha)))
+nDTsig <- sapply(Dtest,function(x) sum(x$P.adj<0.05))
 
-# Save plots as pdf.
-#ggsavePDF(plots,"temp.pdf")
+nDTsig[sigModules]
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.

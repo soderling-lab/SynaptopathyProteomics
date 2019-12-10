@@ -6,7 +6,7 @@
 #------------------------------------------------------------------------------
 
 # User parameters to change: 
-data_type = 0 # Combined, KO, or WT adjm (0,1,2).
+data_type = 3 # Combined, Cortex, KO, Striatum, or WT (0,1,2,3,4).
 rmin = 0      # Min resolution.
 step = 1      # Step size.
 rmax = 100    # Max resolution.
@@ -30,7 +30,7 @@ envars = {var:os.environ.get(var) for var in myvars}
 jobID = xstr(envars['SLURM_JOBID'])
 
 # Which analysis are we doing?
-geno = ['Combined','KO','WT'][data_type]
+geno = ['Combined','Cortex','KO','Striatum','WT'][data_type]
 print("Performing Leiden algorithm clustering of the " + geno + 
         " protein co-expression network.", file = stderr)
 
