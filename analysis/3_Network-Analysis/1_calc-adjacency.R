@@ -25,7 +25,7 @@ tabsdir <- file.path(root, "tables")
 funcdir <- file.path(root, "R")
 
 # Functions.
-myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
+myfun <- list.files(funcdir,full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load the normalized expression data.
