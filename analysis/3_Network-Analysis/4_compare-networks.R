@@ -10,6 +10,16 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
+# User parameters to change:
+stats <- c(1:7)          # Which permutation statistics to use for perm testing.
+strength <- "strong"     # Preservation criterion: strong = all, weak = any sig stats.
+res <- c(1:100)          # Which resolutions to analyze?
+net1 <- "Cortex"         # Network 1.
+net2 <- "Striatum"       # Network 2.
+partition1 <- "10360847" # Partition file for first network. 
+partition2 <- "10342568" # Partition file for second network.
+#save_results <- FALSE    # Should permutation results be saved?
+
 ## Permutation Statistics:
 # 1. avg.weight
 # 2. coherence
@@ -19,16 +29,10 @@
 # 6. avg.cor
 # 7. avg.contrib
 
-# User parameters to change:
-stats <- c(1:7) # Which permutation statistics to use for perm testing.
-strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
-res <- c(1:100) # c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
-cutoff <- 1 # Size cutoff for a module 1 = single protein.
-net1 <- "Cortex"
-net2 <- "Striatum"
-partition1 <- "6142226" # Combined, self-preservation enforced.
-partition2 <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
-save_results <- FALSE # Should permutation results be saved?
+## Partitions files:
+# 10342568 = Striatum - self-preservation enforced.
+# 10360847 = Cortex - self-preservation enforced.
+# 6142226  = Combined - self-preservation enforced.
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -83,9 +87,6 @@ names(adjm) <- c(net1, net2)
 
 # Create unsigned networks for NetRep.
 networks <- lapply(adjm, abs)
-
-# partitions files:
-# 10342568 = Striatum - self-preservation enforced.
 
 # Load network partitions.
 # If working with csv files:
