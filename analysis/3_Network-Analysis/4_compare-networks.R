@@ -2,7 +2,7 @@
 
 #' ---
 #' title:
-#' description: Compare modules in WT and KO networks with permutation test.
+#' description: Compare modules in networks with permutation test.
 #' authors: Tyler W Bradshaw
 #' ---
 
@@ -110,7 +110,7 @@ module_stats <- paste(c(
 
 # Status report:
 nres <- length(res)
-message(paste("Comparing WT and KO graphs at", nres, "resolution(s)."))
+message(paste("Comparing", net1, "and", net2, "networks at", nres, "resolution(s)."))
 message(paste0(
   "Module statistic(s) used to evaluate module preservation: ",
   module_stats
@@ -181,29 +181,29 @@ for (r in res) {
   nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
   # N Preserved.
   message(paste(
-    nPres[net1], "of", nModules[net1], net1,
+    "...", nPres[net1], "of", nModules[net1], net1,
     "modules are preserved in the", net2, "network."
   ))
   message(paste(
-    nPres[net2], "of", nModules[net2], net2,
+    "...", nPres[net2], "of", nModules[net2], net2,
     "modules are preserved in the", net1, "network."
   ))
   # N NS
   message(paste(
-    nNS[net1], "of", nModules[net1], net1,
+    "...", nNS[net1], "of", nModules[net1], net1,
     "modules are preserved in the", net2, "network."
   ))
   message(paste(
-    nNS[net2], "of", nModules[net2], net2,
+    "...", nNS[net2], "of", nModules[net2], net2,
     "modules are preserved in the", net1, "network."
   ))
   # N Divergent
   message(paste(
-    nDiv[net1], "of", nModules[net1], net1,
+    "...", nDiv[net1], "of", nModules[net1], net1,
     "modules are preserved in the", net2, "network."
   ))
   message(paste(
-    nDiv[net2], "of", nModules[net2], net2,
+    "...", nDiv[net2], "of", nModules[net2], net2,
     "modules are preserved in the", net1, "network."
   ))
   # Return output
