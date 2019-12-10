@@ -181,15 +181,17 @@ for (r in res) {
   nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
   ## Status messages:
   # Net 1 in Net 2.
-  message(paste0("...", "Summary of ", net1, " module preservation in ",net2,":"))
-  message(paste("... ...", "N modules significantly preserved:", nPres[net1]))
-  message(paste("... ...", "N modules significantly divergent:", nDiv[net1]))
-  message(paste("... ...", "N modules NS (no sig. changes)   :", nNS[net1]))
+  message(paste("...", "Summary of ", net1, "module preservation in",net2,"network:"))
+  message(paste("... ...", "Number of significantly preserved modules:", nPres[net1]))
+  message(paste("... ...", "Number of significantly divergent modules:", nDiv[net1]))
+  message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net1]))
+  message(paste("... ...", "... ... ... ... . Total number of modules:", nModules[net1]))
   # Net 2 in Net 1.
-  message(paste0("...", "Summary of ", net2, " module preservation in ",net1,":"))
-  message(paste("... ...", "N modules significantly preserved:", nPres[net2]))
-  message(paste("... ...", "N modules significantly divergent:", nDiv[net2]))
-  message(paste("... ...", "N modules NS (no sig. changes)   :", nNS[net2]))
+  message(paste("...", "Summary of ", net2, "module preservation in",net1,"network:"))
+  message(paste("... ...", "Number of significantly preserved modules:", nPres[net2]))
+  message(paste("... ...", "Number of significantly divergent modules:", nDiv[net2]))
+  message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net2]))
+  message(paste("... ...", "... ... ... ... . Total number of modules:", nModules[net2]))
   # Return output
   output[[r]] <- module_changes
 } # ENDS LOOP.
