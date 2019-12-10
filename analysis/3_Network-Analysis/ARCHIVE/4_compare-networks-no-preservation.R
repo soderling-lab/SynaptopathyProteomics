@@ -90,13 +90,9 @@ networks <- lapply(adjm, abs)
 
 # Load network partitions.
 # If working with csv files:
+# FIXME: script fails because multiple matching files!
 mypartitions <- paste0(c(net1, net2), "_partitions.csv")
 myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
-
-print(myfiles)
-quit()
-
-
 all_partitions <- lapply(myfiles, function(x) fread(x, drop = 1, skip = 1))
 all_partitions <- lapply(c(1, 2), function(x) {
   colnames(all_partitions[[x]]) <- colnames(adjm[[x]])
