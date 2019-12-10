@@ -11,14 +11,14 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1:7)          # Which permutation statistics to use for perm testing.
-strength <- "strong"     # Preservation criterion: strong = all, weak = any sig stats.
-res <- c(1:100)          # Which resolutions to analyze?
-net1 <- "Cortex"         # Network 1.
-net2 <- "Striatum"       # Network 2.
-partition1 <- "10360847" # Partition file for first network. 
+stats <- c(1:7) # Which permutation statistics to use for perm testing.
+strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
+res <- c(1:100) # Which resolutions to analyze?
+net1 <- "Cortex" # Network 1.
+net2 <- "Striatum" # Network 2.
+partition1 <- "10360847" # Partition file for first network.
 partition2 <- "10342568" # Partition file for second network.
-#save_results <- FALSE    # Should permutation results be saved?
+# save_results <- FALSE    # Should permutation results be saved?
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -89,7 +89,7 @@ names(adjm) <- c(net1, net2)
 networks <- lapply(adjm, abs)
 
 # Load network partitions.
-mypartitions <- c(partition1,partition2)
+mypartitions <- c(partition1, partition2)
 myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
 all_partitions <- lapply(myfiles, readRDS)
 names(all_partitions) <- c(net1, net2)
@@ -122,9 +122,11 @@ for (r in res) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
-  partitions <- list(all_partitions[[net1]][[r]],
-		     all_partitions[[net2]][[r]])
-  names(partitions) <- c(net1,net2)
+  partitions <- list(
+    all_partitions[[net1]][[r]],
+    all_partitions[[net2]][[r]]
+  )
+  names(partitions) <- c(net1, net2)
   # Total number of modules; ignore 0.
   nModules <- sapply(partitions, function(x) sum(names(table(x)) != 0))
   # Input for NetRep:
@@ -170,17 +172,17 @@ for (r in res) {
   nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
   ## Status messages:
   # Preservation of Network 1 in Network 2.
-  message(paste("...", "Summary of", net1, "module preservation in",net2,"network:"))
+  message(paste("...", "Summary of", net1, "module preservation in", net2, "network:"))
   message(paste("... ...", "Number of significantly preserved modules:", nPres[net1]))
   message(paste("... ...", "Number of significantly divergent modules:", nDiv[net1]))
   message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net1]))
   message(paste("... ...", "... ... . Total number of", net1, "modules:", nModules[net1]))
   # Preservation of Network 2 in Network 1.
-  message(paste("...", "Summary of", net2, "module preservation in",net1,"network:"))
+  message(paste("...", "Summary of", net2, "module preservation in", net1, "network:"))
   message(paste("... ...", "Number of significantly preserved modules:", nPres[net2]))
   message(paste("... ...", "Number of significantly divergent modules:", nDiv[net2]))
   message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net2]))
-  message(paste("... ...", "... ... . Total number of", net2, "modules:", nModules[net2],"\n"))
+  message(paste("... ...", "... ... . Total number of", net2, "modules:", nModules[net2], "\n"))
   # Return output
   output[[r]] <- module_changes
 } # ENDS LOOP.

@@ -11,11 +11,11 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1:7)          # Which permutation statistics to use for perm testing.
-strength <- "strong"     # Preservation criterion: strong = all, weak = any sig stats.
-res <- c(1:100)          # Which resolutions to analyze?
-net1 <- "Cortex"         # Network 1.
-net2 <- "Striatum"       # Network 2.
+stats <- c(1:7) # Which permutation statistics to use for perm testing.
+strength <- "strong" # Preservation criterion: strong = all, weak = any sig stats.
+res <- c(1:100) # Which resolutions to analyze?
+net1 <- "Cortex" # Network 1.
+net2 <- "Striatum" # Network 2.
 partition1 <- "3_Cortex_partitions.csv"
 partition2 <- "3_Striatum_partitions.csv"
 
@@ -90,7 +90,7 @@ networks <- lapply(adjm, abs)
 
 # Load network partitions.
 # If working with csv files:
-myfiles <- file.path(rdatdir,c(partition1, partition2))
+myfiles <- file.path(rdatdir, c(partition1, partition2))
 all_partitions <- lapply(myfiles, function(x) fread(x, drop = 1, skip = 1))
 all_partitions <- lapply(c(1, 2), function(x) {
   colnames(all_partitions[[x]]) <- colnames(adjm[[x]])
@@ -133,7 +133,7 @@ for (r in res) {
     return(x)
   })
   # Remove small modules.
-  #partitions <- lapply(partitions, filter_modules)
+  # partitions <- lapply(partitions, filter_modules)
   # Total number of modules; ignore 0.
   nModules <- sapply(partitions, function(x) sum(names(table(x)) != 0))
   # Split partitions into modules.
@@ -181,22 +181,22 @@ for (r in res) {
   nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
   ## Status messages:
   # Preservation of Network 1 in Network 2.
-  message(paste("...", "Summary of", net1, "module preservation in",net2,"network:"))
+  message(paste("...", "Summary of", net1, "module preservation in", net2, "network:"))
   message(paste("... ...", "Number of significantly preserved modules:", nPres[net1]))
   message(paste("... ...", "Number of significantly divergent modules:", nDiv[net1]))
   message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net1]))
   message(paste("... ...", "... ... . Total number of", net1, "modules:", nModules[net1]))
   # Preservation of Network 2 in Network 1.
-  message(paste("...", "Summary of", net2, "module preservation in",net1,"network:"))
+  message(paste("...", "Summary of", net2, "module preservation in", net1, "network:"))
   message(paste("... ...", "Number of significantly preserved modules:", nPres[net2]))
   message(paste("... ...", "Number of significantly divergent modules:", nDiv[net2]))
   message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net2]))
-  message(paste("... ...", "... ... . Total number of", net2, "modules:", nModules[net2],"\n"))
+  message(paste("... ...", "... ... . Total number of", net2, "modules:", nModules[net2], "\n"))
   # Return output
   output[[r]] <- module_changes
 } # ENDS LOOP.
 
 # Save output to file.
-output_name <- paste0(job,"_Network_Comparisons.RData")
+output_name <- paste0(job, "_Network_Comparisons.RData")
 myfile <- file.path(rdatdir, output_name)
 saveRDS(output, myfile)
