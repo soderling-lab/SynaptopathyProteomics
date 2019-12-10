@@ -133,7 +133,7 @@ message(paste0(
 # Loop through partitions, evaluating self-preservation.
 results <- list()
 for (i in 1:nres) {
-  message(paste("... Working on partition", i, "of", nres, "..."))
+  message(paste("Working on partition", i, "of", nres, "..."))
   # Get partition--adding 1 so that all module assignments >0.
   partition <- as.integer(partitions[i, ]) + 1
   names(partition) <- colnames(adjm)
@@ -164,7 +164,7 @@ for (i in 1:nres) {
   out <- names(preservedParts)[preservedParts == "ns"]
   partition[partition %in% out] <- 0
   nPreserved <- nModules - length(out)
-  message(paste("... ...", nPreserved, "modules of", nModules, "modules are preserved."))
+  message(paste("...", nPreserved, "modules of", nModules, "modules are preserved."))
   # Return results.
   results[[i]] <- partition
   # Save to Rdata.
