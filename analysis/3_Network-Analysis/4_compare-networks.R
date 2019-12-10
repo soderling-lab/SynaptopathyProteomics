@@ -146,7 +146,7 @@ for (r in res) {
 	     c(discovery = net2, test = net1))
   names(H0) <- c(net1,net2) # Test cox in str and str in cox...
   suppressWarnings({
-  preservation <- sapply(H0,function(x) {
+  preservation <- lapply(H0,function(x) {
 					 NetRep::modulePreservation(
 		                         network = network_list,
 		                         data = data_list,
@@ -162,7 +162,8 @@ for (r in res) {
 					 null = "overlap",
 					 alternative = "two.sided", # c(greater,less,two.sided)
 					 simplify = TRUE,
-					 verbose = TRUE)
+					 verbose = FALSE)
+					 return(preservation)
 })
   }) # Ends sapply.
 
@@ -190,6 +191,7 @@ for (r in res) {
   pdKO <- sum(koProts == "divergent") / length(koProts)
   ppKO <- sum(koProts == "preserved") / length(koProts)
   total_divergent <- (sum(wtProts == "divergent") + sum(koProts == "divergent")) / (2 * length(wtProts))
+
   # WT status report.
   message(paste("... Total number of WT modules:", nModules["wt"]))
   message(paste0(
