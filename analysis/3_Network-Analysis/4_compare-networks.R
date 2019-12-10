@@ -120,7 +120,6 @@ message(paste0(
 # LOOP TO ANALYZE ALL RESOLUTIONS:
 output <- list()
 for (r in res) {
-
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
@@ -147,7 +146,7 @@ for (r in res) {
   names(H0) <- c(net1,net2) # Test cox in str and str in cox...
   suppressWarnings({
   preservation <- lapply(H0,function(x) {
-					 NetRep::modulePreservation(
+					 preservation <- NetRep::modulePreservation(
 		                         network = network_list,
 		                         data = data_list,
 		                         correlation = correlation_list,
@@ -162,7 +161,7 @@ for (r in res) {
 					 null = "overlap",
 					 alternative = "two.sided", # c(greater,less,two.sided)
 					 simplify = TRUE,
-					 verbose = FALSE)
+					 verbose = TRUE)
 					 return(preservation)
 })
   }) # Ends sapply.
