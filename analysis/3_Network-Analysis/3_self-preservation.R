@@ -35,7 +35,7 @@
 stats <- c(1:7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self <- "combined" # Which networks to test self preservation in? #self = c("wt","ko")
+self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
 nres <- 100 # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
@@ -72,43 +72,36 @@ myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
-wtDat <- t(readRDS(file.path(datadir, "3_WT_cleanDat.RData")))
-koDat <- t(readRDS(file.path(datadir, "3_KO_cleanDat.RData")))
-combDat <- t(readRDS(file.path(datadir, "3_Combined_cleanDat.RData")))
+myfile <- file.path(datadir,paste0("3_",self,"_cleanDat.RData"))
+data <- t(readRDS(myfile))
 
-# Compute adjmatrix:
-wtAdjm <- silently(WGCNA::bicor(wtDat))
-koAdjm <- silently(WGCNA::bicor(koDat))
-combAdjm <- silently(WGCNA::bicor(combDat))
+# Load adjmatrix.
+myfile <- file.path(datadir,paste0("3_",self,"_Adjm.RData"))
+adjm <- as.matrix(readRDS(myfile))
+rownames(adjm) <- colnames(adjm)
+
+# Load Leidenalg graph partitions from 2_la-clustering.
+myfile <- file.path(datadir,paste0("3_",self,"_partitions.csv"))
+partitions <- data.table::fread(myfile, drop = 1, skip = 1)
+colnames(partitions) <- colnames(adjm)
 
 # Weighted or unweighted?
+# If weighted, then calculate power for approximate scale free fit.
 if (weighted) {
-  # Calculate power for approximate scale free fit.
   message("Calculating soft-power for weighting co-expression graph!")
   sft <- silently({
-    sapply(list(wtDat, koDat, combDat), function(x) {
-      pickSoftThreshold(x,
+      pickSoftThreshold(data,
         corFnc = "bicor",
         networkType = "signed",
         RsquaredCut = 0.8
       )$powerEstimate
     })
-  })
-  names(sft) <- c("wt", "ko", "combined")
+  names(sft) <- self
 } else {
   # Power = 1 == Unweighted
-  sft <- rep(1, 3)
-  names(sft) <- c("wt", "ko", "combined")
+  sft <- 1
+  names(sft) <- self
 }
-
-# Load Leidenalg graph partitions from 2_la-clustering.
-# FIXME: grep may match mulitiple names!
-myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
-koParts <- data.table::fread(myfiles[grep("KO", myfiles)], drop = 1, skip = 1)
-wtParts <- data.table::fread(myfiles[grep("WT", myfiles)], drop = 1, skip = 1)
-combParts <- data.table::fread(file.path(datadir,"3_Combined_partitions.csv"), drop = 1, skip = 1)
-colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
-colnames(combParts) <- colnames(combAdjm)
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -116,49 +109,41 @@ colnames(combParts) <- colnames(combAdjm)
 
 # Input for NetRep:
 # Networks (edges) should be positive -> AbsoluteValue()
-data_list <- list(wt = wtDat, ko = koDat, combined = combDat)
-correlation_list <- list(wt = wtAdjm, ko = koAdjm, combined = combAdjm)
-network_list <- list(
-  wt = abs(wtAdjm^sft["wt"]),
-  ko = abs(koAdjm^sft["ko"]),
-  combined = abs(combAdjm^sft["combined"])
-)
+data_list <- list(self = data) 
+correlation_list <- list(self = adjm)
+network_list <- list(self = abs(adjm^sft[self]))
 
 # Loop through partitions, evaluating self-preservation.
 results <- list()
 for (i in 1:nres) {
   # Status report.
   message(paste("working on partition", i, "..."))
+
   # Get partition--adding 1 so that all module assignments >0.
-  wtPartition <- as.integer(wtParts[i, ]) + 1
-  koPartition <- as.integer(koParts[i, ]) + 1
-  combPartition <- as.integer(combParts[i, ]) + 1
-  names(wtPartition) <- names(koPartition) <- colnames(wtAdjm)
-  names(combPartition) <- colnames(combAdjm)
-  module_list <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
+  partition <- as.integer(partitions[i, ]) + 1
+  names(partition) <- colnames(adjm)
+  module_list <- list(self = partition)
+
   # Perform permutation test for module self-preservation.
-  H0 <- as.list(self)
   suppressWarnings({
-    selfPreservation <- lapply(H0, function(x) {
-      NetRep::modulePreservation(
-        network = network_list,
-        data = data_list,
-        correlation = correlation_list,
-        moduleAssignments = module_list,
-        modules = NULL,
-        backgroundLabel = 0,
-        discovery = x,
-        test = x,
-        selfPreservation = TRUE,
-        nThreads = nThreads,
-        # nPerm = 100000, # Determined automatically by the function.
-        null = "overlap",
-        alternative = "greater", # Greater for self-preservation.
-        simplify = TRUE,
-        verbose = FALSE
-      )
+    selfPreservation <- NetRep::modulePreservation(
+	        network = network_list,
+		data = data_list,
+		correlation = correlation_list,
+		moduleAssignments = module_list,
+		modules = NULL,
+		backgroundLabel = 0,
+		discovery = "self",
+		test = "self",
+		selfPreservation = TRUE,
+		nThreads = nThreads,
+		# nPerm = 100000, # Determined automatically by the function.
+		null = "overlap",
+		alternative = "greater", # Greater for self-preservation.
+		simplify = TRUE,
+		verbose = FALSE
+		)
     })
-  }) # End lapply.
 
   # Declare  function to check module preservation/divergence.
   check_modules <- function(x) {
@@ -190,21 +175,16 @@ for (i in 1:nres) {
   } # Ends function.
 
   # Remove NS modules--set NS modules to 0.
-  preservedPartitions <- lapply(selfPreservation, check_modules)
-  out <- lapply(preservedPartitions, function(x) names(x)[x == "ns"])
-  if (self == "combined") {
-    combPartition[combPartition %in% out[[1]]] <- 0
-  } else if (length(self) == 2) {
-    wtPartition[wtPartition %in% out[[1]]] <- 0
-    koPartition[koPartition %in% out[[2]]] <- 0
-  }
+  preservedParts <- check_modules(selfPreservation)
+  out <- names(preservedParts)[preservedParts == "ns"]
+  partition[partition %in% out <- 0
+
   # Return results.
-  results[[i]] <- list(wt = wtPartition, ko = koPartition, combined = combPartition)
+  results[[i]] <- partition
+  # Save to Rdata.
   if (i == nres) {
-    message("Done!")
+	  output_name <- paste0(jobID,"_",self,"_Module_Self_Preservation.RDS")
+	  saveRDS(results, file.path(datadir, output_name))
+	  message("Done!")
   }
 } # Ends loop.
-
-# Save to Rdata.
-output_name <- paste0(jobID, "_Module_Self_Preservation.RDS")
-saveRDS(results, file.path(datadir, output_name))
