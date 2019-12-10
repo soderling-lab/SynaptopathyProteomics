@@ -16,9 +16,8 @@ strength <- "strong"     # Preservation criterion: strong = all, weak = any sig 
 res <- c(1:100)          # Which resolutions to analyze?
 net1 <- "Cortex"         # Network 1.
 net2 <- "Striatum"       # Network 2.
-#partition1 <- "10360847" # Partition file for first network. 
-#partition2 <- "10342568" # Partition file for second network.
-#save_results <- FALSE    # Should permutation results be saved?
+partition1 <- "3_Cortex_partitions.csv"
+partition2 <- "3_Striatum_partitions.csv"
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -91,12 +90,7 @@ networks <- lapply(adjm, abs)
 
 # Load network partitions.
 # If working with csv files:
-mypartitions <- paste0(c(net1, net2), "_partitions.csv")
-myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
-# Check for multiple matching files which cause errors.
-if (!all(sapply(myfiles,length)==1)){
-	stop("Multiple matching partition files!")
-}
+myfiles <- file.path(rdatdir,c(partition1, partition2))
 all_partitions <- lapply(myfiles, function(x) fread(x, drop = 1, skip = 1))
 all_partitions <- lapply(c(1, 2), function(x) {
   colnames(all_partitions[[x]]) <- colnames(adjm[[x]])
