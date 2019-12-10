@@ -65,35 +65,38 @@ myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data.
-mydata <- paste0("3_",c(net1,net2),"_cleanDat.RData")
-myfiles <- sapply(mydata,function(x) list.files(rdatdir,x,full.names=TRUE))
-data <- lapply(myfiles,readRDS)
-data <- lapply(data,t)
-names(data) <- c(net1,net2)
+mydata <- paste0("3_", c(net1, net2), "_cleanDat.RData")
+myfiles <- sapply(mydata, function(x) list.files(rdatdir, x, full.names = TRUE))
+data <- lapply(myfiles, readRDS)
+data <- lapply(data, t)
+names(data) <- c(net1, net2)
 
 # Load adjmatrices.
-mynetworks <- paste0("3_",c(net1,net2),"_Adjm.RData")
-myfiles <- sapply(mynetworks,function(x) list.files(rdatdir,x,full.names=TRUE))
-adjm <- lapply(myfiles,function(x) as.matrix(readRDS(x)))
-adjm <- lapply(adjm,function(x) { rownames(x) <- colnames(x); return(x) })
-names(adjm) <- c(net1,net2)
+mynetworks <- paste0("3_", c(net1, net2), "_Adjm.RData")
+myfiles <- sapply(mynetworks, function(x) list.files(rdatdir, x, full.names = TRUE))
+adjm <- lapply(myfiles, function(x) as.matrix(readRDS(x)))
+adjm <- lapply(adjm, function(x) {
+  rownames(x) <- colnames(x)
+  return(x)
+})
+names(adjm) <- c(net1, net2)
 
 # Create unsigned networks for NetRep.
-networks <- lapply(adjm,abs)
+networks <- lapply(adjm, abs)
 
-# partitions files: 
+# partitions files:
 # 10342568 = Striatum - self-preservation enforced.
 
 # Load network partitions.
 # If working with csv files:
-mypartitions <- paste0(c(net1,net2),"_partitions.csv")
-myfiles <- sapply(mypartitions,function(x) list.files(rdatdir,x,full.names=TRUE))
-all_partitions <- lapply(myfiles,function(x) fread(x,drop=1,skip=1))
-all_partitions <- lapply(c(1,2),function(x) { 
-			     colnames(all_partitions[[x]]) <- colnames(adjm[[x]])
-			     return(all_partitions[[x]])
-		      })
-names(all_partitions) <- c(net1,net2)
+mypartitions <- paste0(c(net1, net2), "_partitions.csv")
+myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
+all_partitions <- lapply(myfiles, function(x) fread(x, drop = 1, skip = 1))
+all_partitions <- lapply(c(1, 2), function(x) {
+  colnames(all_partitions[[x]]) <- colnames(adjm[[x]])
+  return(all_partitions[[x]])
+})
+names(all_partitions) <- c(net1, net2)
 
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test.
@@ -125,102 +128,86 @@ for (r in res) {
   # Extract from list.
   partitions <- lapply(all_partitions, function(x) as.integer(x[r, ] + 1))
   prots <- colnames(all_partitions[[1]])
-  partitions <- lapply(partitions,function(x) { names(x) <- prots; return(x) })
+  partitions <- lapply(partitions, function(x) {
+    names(x) <- prots
+    return(x)
+  })
   # Remove small modules.
-  partitions <- lapply(partitions,filter_modules)
+  partitions <- lapply(partitions, filter_modules)
   # Total number of modules; ignore 0.
-  nModules <- sapply(partitions,function(x) sum(names(table(x)) != 0))
+  nModules <- sapply(partitions, function(x) sum(names(table(x)) != 0))
   # Split partitions into modules.
-  modules <- lapply(partitions,function(x) split(x,x))
+  modules <- lapply(partitions, function(x) split(x, x))
   # Input for NetRep:
   data_list <- data
   correlation_list <- adjm
-  network_list <- networks 
+  network_list <- networks
   module_list <- partitions # Zero index modules will be ignored.
-
   # Perform permutation testing.
   # Suppress warnings which arise from small modules;
   # NA p.vals are replaced with 1.
-  H0 <- list(c(discovery = net1, test = net2),
-	     c(discovery = net2, test = net1))
-  names(H0) <- c(net1,net2) # Test cox in str and str in cox...
+  H0 <- list(
+    c(discovery = net1, test = net2),
+    c(discovery = net2, test = net1)
+  )
+  names(H0) <- c(net1, net2) # Test cox in str and str in cox...
   suppressWarnings({
-  preservation <- lapply(H0,function(x) {
-					 preservation <- NetRep::modulePreservation(
-		                         network = network_list,
-		                         data = data_list,
-		                         correlation = correlation_list,
-					 moduleAssignments = module_list,
-					 modules = NULL,
-				 	 backgroundLabel = "0",
-					 discovery = x["discovery"],
-					 test = x["test"],
-					 selfPreservation = FALSE,
-					 nThreads = nThreads,
-					 # nPerm = 100000,  # determined by the function.
-					 null = "overlap",
-					 alternative = "two.sided", # c(greater,less,two.sided)
-					 simplify = TRUE,
-					 verbose = TRUE)
-					 return(preservation)
-})
-  }) # Ends sapply.
-
-  names(preservation)
-  class(preservation)
-  length(preservation)
-
+    preservation <- lapply(H0, function(x) {
+      result <- NetRep::modulePreservation(
+        network = network_list,
+        data = data_list,
+        correlation = correlation_list,
+        moduleAssignments = module_list,
+        modules = NULL,
+        backgroundLabel = "0",
+        discovery = x["discovery"],
+        test = x["test"],
+        selfPreservation = FALSE,
+        nThreads = nThreads,
+        # nPerm = 100000,  # determined by the function.
+        null = "overlap",
+        alternative = "two.sided", # c(greater,less,two.sided)
+        simplify = TRUE,
+        verbose = FALSE
+      )
+      return(result)
+    })
+  }) # Ends lapply.
   # Identify preserved and divergent modules.
   module_changes <- lapply(preservation, check_modules)
-
-  names(module_changes) <- c("ko", "wt") # fix names bc they were confusing.
-  # Calculate percent NS, divergent, preserved.
-  wtProts <- wtPartition
-  wtProts[wtProts == "0"] <- "not-clustered"
-  wtProts[wtProts %in% names(wtModules)[module_changes$wt == "preserved"]] <- "preserved"
-  wtProts[wtProts %in% names(wtModules)[module_changes$wt == "divergent"]] <- "divergent"
-  wtProts[wtProts %in% names(wtModules)[module_changes$wt == "ns"]] <- "ns"
-  koProts <- koPartition
-  koProts[koProts == "0"] <- "not-clustered"
-  koProts[koProts %in% names(koModules)[module_changes$ko == "preserved"]] <- "preserved"
-  koProts[koProts %in% names(koModules)[module_changes$ko == "divergent"]] <- "divergent"
-  koProts[koProts %in% names(koModules)[module_changes$ko == "ns"]] <- "ns"
-  pdWT <- sum(wtProts == "divergent") / length(wtProts)
-  ppWT <- sum(wtProts == "preserved") / length(wtProts)
-  pdKO <- sum(koProts == "divergent") / length(koProts)
-  ppKO <- sum(koProts == "preserved") / length(koProts)
-  total_divergent <- (sum(wtProts == "divergent") + sum(koProts == "divergent")) / (2 * length(wtProts))
-
-  # WT status report.
-  message(paste("... Total number of WT modules:", nModules["wt"]))
-  message(paste0(
-    "... ... Number of WT modules preserved in KO graph: ",
-    sum(module_changes$wt == "preserved"), " (", round(100 * ppWT, 3), "% proteins)."
+  # Summarize number of preserved, divergent, ns modules.
+  nPres <- sapply(module_changes, function(x) sum(x == "preserved"))
+  nNS <- sapply(module_changes, function(x) sum(x == "ns"))
+  nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
+  # N Preserved.
+  message(paste(
+    nPres[net1], "of", nModules[net1], net1,
+    "modules are preserved in the", net2, "network."
   ))
-  message(paste0(
-    "... ... Number of WT modules divergent in KO graph: ",
-    sum(module_changes$wt == "divergent"), " (", round(100 * pdWT, 3), "% proteins)."
+  message(paste(
+    nPres[net2], "of", nModules[net2], net2,
+    "modules are preserved in the", net1, "network."
   ))
-  # KO status report.
-  message(paste("... Total number of KO modules:", nModules["ko"]))
-  message(paste0(
-    "... ... Number of KO modules preserved in WT graph: ",
-    sum(module_changes$ko == "preserved"), " (", round(100 * ppKO, 3), "% proteins)."
+  # N NS
+  message(paste(
+    nNS[net1], "of", nModules[net1], net1,
+    "modules are preserved in the", net2, "network."
   ))
-  message(paste0(
-    "... ... Number of KO modules divergent in WT graph: ",
-    sum(module_changes$ko == "divergent"), " (", round(100 * pdKO), "% proteins)."
+  message(paste(
+    nNS[net2], "of", nModules[net2], net2,
+    "modules are preserved in the", net1, "network."
   ))
-  # Total divergent.
-  message(paste0(
-    "... Total percentage of proteins assigned to divergent modules: ",
-    round(100 * total_divergent), " (%).", "\n"
+  # N Divergent
+  message(paste(
+    nDiv[net1], "of", nModules[net1], net1,
+    "modules are preserved in the", net2, "network."
   ))
-  # Return.
-  output[[r]] <- list(
-    "wtPartition" = wtPartition, "wtProts" = wtProts,
-    "koPartition" = koPartition, "koProts" = koProts
-  )
+  message(paste(
+    nDiv[net2], "of", nModules[net2], net2,
+    "modules are preserved in the", net1, "network."
+  ))
+  # Return output
+  output[[i]] <- module_changes
 } # ENDS LOOP.
 
 # Save output to file.
