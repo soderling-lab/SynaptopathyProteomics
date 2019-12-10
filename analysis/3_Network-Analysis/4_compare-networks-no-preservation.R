@@ -179,6 +179,7 @@ for (r in res) {
   nPres <- sapply(module_changes, function(x) sum(x == "preserved"))
   nNS <- sapply(module_changes, function(x) sum(x == "ns"))
   nDiv <- sapply(module_changes, function(x) sum(x == "divergent"))
+  ## Status messages:
   # N Preserved Net1.
   message(paste(
     "...", nPres[net1], "of", nModules[net1], net1,
