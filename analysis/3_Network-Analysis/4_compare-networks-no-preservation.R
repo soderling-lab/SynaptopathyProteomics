@@ -185,13 +185,13 @@ for (r in res) {
   message(paste("... ...", "Number of significantly preserved modules:", nPres[net1]))
   message(paste("... ...", "Number of significantly divergent modules:", nDiv[net1]))
   message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net1]))
-  message(paste("... ...", "... ... ... ... . Total number of modules:", nModules[net1]))
+  message(paste("... ...", "... ... . Total number of", net1, "modules:", nModules[net1]))
   # Preservation of Network 2 in Network 1.
   message(paste("...", "Summary of", net2, "module preservation in",net1,"network:"))
   message(paste("... ...", "Number of significantly preserved modules:", nPres[net2]))
   message(paste("... ...", "Number of significantly divergent modules:", nDiv[net2]))
   message(paste("... ...", ".. Number of NS modules (no sig. changes):", nNS[net2]))
-  message(paste("... ...", "... ... ... ... . Total number of modules:", nModules[net2],"\n"))
+  message(paste("... ...", "... ... . Total number of", net2, "modules:", nModules[net2],"\n"))
   # Return output
   output[[r]] <- module_changes
 } # ENDS LOOP.
