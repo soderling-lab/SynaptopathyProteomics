@@ -34,8 +34,8 @@ ggplotVerboseBoxplot <- function(x, g, contrasts, box_order = NULL, ...) {
   levels(df$g) <- lvls
   # Tissue type.
   df$tissue <- ""
-  df$tissue[grep("Cortex",df$g)] <-"Cortex"
-  df$tissue[grep("Striatum", df$g)] <-"Striatum"
+  df$tissue[grep("Cortex", df$g)] <- "Cortex"
+  df$tissue[grep("Striatum", df$g)] <- "Striatum"
   # Generate boxplot.
   plot <- ggplot(df, aes(x = g, y = x, fill = g)) + geom_boxplot() +
     geom_point(color = "white", size = 1, pch = 21, fill = "black") +
@@ -46,10 +46,10 @@ ggplotVerboseBoxplot <- function(x, g, contrasts, box_order = NULL, ...) {
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
       axis.title.y = element_text(color = "black", size = 11, face = "bold"),
       axis.text.x = element_text(color = "black", angle = 45, hjust = 1)
-    ) + facet_grid(. ~ tissue, scales="free",space ="free") + 
-    theme(strip.text.x = element_text(size=11, color="black",face="bold"))
+    ) + facet_grid(. ~ tissue, scales = "free", space = "free") +
+    theme(strip.text.x = element_text(size = 11, color = "black", face = "bold"))
   # Customize colors
-  colors <- rep(c("gray","#FFF200","#00A2E8","#22B14C","#A349A4"),2)
+  colors <- rep(c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4"), 2)
   plot <- plot + scale_fill_manual(values = colors)
   return(plot)
 }

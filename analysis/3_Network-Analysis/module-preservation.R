@@ -35,7 +35,9 @@
 stats <- c(1:7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self <- "combined" # Which networks to test self preservation in? #self = c("wt","ko")
+self <- "combined" # Which networks to test self preservation in?
+net1 <- "Cortex"
+net2 <- "Striatum"
 nres <- 100 # Total number of resolutions to be anlyzed.
 
 # Is this a slurm job?
@@ -68,7 +70,7 @@ datadir <- file.path(root, "rdata")
 funcdir <- file.path(root, "R")
 
 # Functions.
-myfun <- list.files(funcdir, pattern = "silently.R", full.names = TRUE)
+myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
@@ -106,7 +108,7 @@ if (weighted) {
 myfiles <- list.files(datadir, pattern = "*partitions.csv", full.names = TRUE)
 koParts <- data.table::fread(myfiles[grep("KO", myfiles)], drop = 1, skip = 1)
 wtParts <- data.table::fread(myfiles[grep("WT", myfiles)], drop = 1, skip = 1)
-combParts <- data.table::fread(file.path(datadir,"3_Combined_partitions.csv"), drop = 1, skip = 1)
+combParts <- data.table::fread(file.path(datadir, "3_Combined_partitions.csv"), drop = 1, skip = 1)
 colnames(koParts) <- colnames(wtParts) <- colnames(wtAdjm)
 colnames(combParts) <- colnames(combAdjm)
 

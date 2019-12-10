@@ -318,7 +318,7 @@ saveRDS(protmap, myfile)
 
 # Statistical comparisons are KO/HET versus all WT of a tissue type.
 
-# Prepare data for EdgeR. 
+# Prepare data for EdgeR.
 # Data should NOT be log2 transformed.
 # Remove QC samples prior to passing data to EdgeR.
 out <- alltraits$SampleType[match(colnames(cleanDat), rownames(alltraits))] == "QC"
@@ -482,8 +482,8 @@ f <- function(x) {
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
-myfile <- file.path(Rdatadir,paste0(outputMatName,"_All_GLM_Results.RData"))
-saveRDS(glm_results,myfile)
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_All_GLM_Results.RData"))
+saveRDS(glm_results, myfile)
 
 # Save results to file.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_GLM_Results.xlsx"))
@@ -494,35 +494,37 @@ write_excel(glm_results, myfile)
 #-------------------------------------------------------------------------------
 
 # Names of relevant columns.
-colNames <- colnames(glm_results[[1]])[c(2,5:9)]
+colNames <- colnames(glm_results[[1]])[c(2, 5:9)]
 stats <- colNames[c(2:length(colNames))]
 
 # Collect data.
-subGLM <- lapply(glm_results,function(x) x[,colNames])
+subGLM <- lapply(glm_results, function(x) x[, colNames])
 
 # Combine into a single df.
-df <- subGLM  %>% purrr::reduce(left_join, by="Uniprot")
+df <- subGLM %>% purrr::reduce(left_join, by = "Uniprot")
 
 # Rename columns.
-newNames <- paste(rep(names(glm_results),each=length(colNames)-1),
-		  sapply(strsplit(colnames(df)[c(2:ncol(df))],"\\."),"[",1))
+newNames <- paste(
+  rep(names(glm_results), each = length(colNames) - 1),
+  sapply(strsplit(colnames(df)[c(2:ncol(df))], "\\."), "[", 1)
+)
 colnames(df)[c(2:ncol(df))] <- newNames
 
 # Collect each statistic into a single df in a list.
-glm_stats <- sapply(stats,function(x) df[,c(1,grep(x,colnames(df)))])
+glm_stats <- sapply(stats, function(x) df[, c(1, grep(x, colnames(df)))])
 
 # Clean up data a little...
-glm_stats <- lapply(glm_stats,function(x) { 
-			    x <- x[order(x$Uniprot),]
-			    idx <- match(x$Uniprot,protmap$uniprot)
-			    rownames(x) <- protmap$ids[idx]
-			    x$Uniprot <- NULL 
-			    return(x)}
-)
+glm_stats <- lapply(glm_stats, function(x) {
+  x <- x[order(x$Uniprot), ]
+  idx <- match(x$Uniprot, protmap$uniprot)
+  rownames(x) <- protmap$ids[idx]
+  x$Uniprot <- NULL
+  return(x)
+})
 
 # Save GLM stats.
-myfile <- file.path(Rdatadir,"2_GLM_Stats.RData")
-saveRDS(glm_stats,myfile)
+myfile <- file.path(Rdatadir, "2_GLM_Stats.RData")
+saveRDS(glm_stats, myfile)
 
 #-------------------------------------------------------------------------------
 ## Volcano plots for each genotype.
@@ -563,7 +565,7 @@ ggplotVolcanoPlot <- function(df) {
     geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
     # geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) +
     xlab(expression(bold(Log[2](Fold ~ Change)))) +
-    ylab(expression(bold(-Log[10](P-value)))) +
+    ylab(expression(bold(-Log[10](P - value)))) +
     theme(
       plot.title = element_text(hjust = 0.5, color = "black", size = 12, face = "bold"),
       axis.title.y = element_text(color = "black", face = "bold", size = 11, angle = 90, vjust = 0.5),
@@ -606,128 +608,134 @@ all_plots[["Ube3a_VP"]] <- vp4
 ## GSE analaysis for each genotype.
 #-------------------------------------------------------------------------------
 
-gse = FALSE
+gse <- FALSE
 
 if (gse) {
-# Load SynGO.
-myfile <- file.path(Rdatadir,"SynGO_Pathways.RData")
-synGO <- readRDS(myfile)
-# Combine CC and BP.
-msPathways <- do.call(c,synGO)
+  # Load SynGO.
+  myfile <- file.path(Rdatadir, "SynGO_Pathways.RData")
+  synGO <- readRDS(myfile)
+  # Combine CC and BP.
+  msPathways <- do.call(c, synGO)
 
-# Other pathways.
-#data(examplePathways)
-#pathways <- examplePathways
+  # Other pathways.
+  # data(examplePathways)
+  # pathways <- examplePathways
 
-# Load GO dataset from BROAD Instititute. We will map human genes to mouse.
-# From: http://software.broadinstitute.org/gsea/downloads.jsp
-# Ge lab data from: http://ge-lab.org/#/data
-# Baderlab data: http://download.baderlab.org/EM_Genesets/current_release/
-datasets <- c(All_curated  = "c2.all.v7.0.entrez.gmt",     # 1
-	      Hallmark = "h.all.v7.0.entrez.gmt",          # 2
-	      All_canonical = "c2.cp.v7.0.entrez.gmt",     # 3 
-	      ALL_GO = "c5.all.v7.0.entrez.gmt",           # 4
-	      GO_MF = "c5.mf.v7.0.entrez.gmt",             # 5
-	      GO_BP = "c5.bp.v7.0.entrez.gmt",             # 6
-	      GO_CC = "c5.cc.v7.0.entrez.gmt",             # 7
-	      MSigDB = "msigdb.v7.0.entrez.gmt",           # 8. This is all lists!
-	      Reactome = "c2.cp.reactome.v7.0.entrez.gmt", # 9
-	      TF_motif = "c3.tft.v7.0.entrez.gmt",         # 10
-	      microRNA_motif = "c3.mir.v7.0.entrez.gmt",   # 11
-	      All_motif = "c3.all.v7.0.entrez.gmt",        # 12
-	      Ge_mus_curated = "mGSKB_Entrez.gmt",         # 13
-	      Ge_mus_compiled = "Ge_Mus_GO_KEGG.gmt",      # 14. Compiled GO/KEGG
-	      Bader = "Mouse_AllPathways_December_01_2019_entrezgene.gmt")
+  # Load GO dataset from BROAD Instititute. We will map human genes to mouse.
+  # From: http://software.broadinstitute.org/gsea/downloads.jsp
+  # Ge lab data from: http://ge-lab.org/#/data
+  # Baderlab data: http://download.baderlab.org/EM_Genesets/current_release/
+  datasets <- c(
+    All_curated = "c2.all.v7.0.entrez.gmt", # 1
+    Hallmark = "h.all.v7.0.entrez.gmt", # 2
+    All_canonical = "c2.cp.v7.0.entrez.gmt", # 3
+    ALL_GO = "c5.all.v7.0.entrez.gmt", # 4
+    GO_MF = "c5.mf.v7.0.entrez.gmt", # 5
+    GO_BP = "c5.bp.v7.0.entrez.gmt", # 6
+    GO_CC = "c5.cc.v7.0.entrez.gmt", # 7
+    MSigDB = "msigdb.v7.0.entrez.gmt", # 8. This is all lists!
+    Reactome = "c2.cp.reactome.v7.0.entrez.gmt", # 9
+    TF_motif = "c3.tft.v7.0.entrez.gmt", # 10
+    microRNA_motif = "c3.mir.v7.0.entrez.gmt", # 11
+    All_motif = "c3.all.v7.0.entrez.gmt", # 12
+    Ge_mus_curated = "mGSKB_Entrez.gmt", # 13
+    Ge_mus_compiled = "Ge_Mus_GO_KEGG.gmt", # 14. Compiled GO/KEGG
+    Bader = "Mouse_AllPathways_December_01_2019_entrezgene.gmt"
+  )
 
 
-# Choose a dataset.
-paths <- datasets[15]
-myfile <- file.path(Rdatadir,paths)
-pathways <- gmtPathways(myfile)
-filter <- FALSE # Should genes that are not in synaptic proteome be removed?
-map2mouse <- FALSE # Map human genes to mouse?
+  # Choose a dataset.
+  paths <- datasets[15]
+  myfile <- file.path(Rdatadir, paths)
+  pathways <- gmtPathways(myfile)
+  filter <- FALSE # Should genes that are not in synaptic proteome be removed?
+  map2mouse <- FALSE # Map human genes to mouse?
 
-# Clean up pathways...
-keep <- c(1:length(pathways))[!is.na(names(pathways))]
-pathways <- pathways[keep]
-
-# Get mouse homologs of human genes in pathways list.
-if (map2mouse) {
-	hsEntrez <- unique(unlist(pathways))
-	msHomologs <- getHomologs(hsEntrez, taxid = "10090") # mouse taxid
-	names(msHomologs) <- hsEntrez
-	# Map to mouse, discard unmapped (NA) genes.
-	msPathways <- lapply(pathways, function(x) purrr::discard(msHomologs[x], is.na))
-} else {
-	msPathways <- pathways
-}
-
-# Filter pathways; keep genes in data; remove empty pathways; 
-# remove duplicate genes from pathways.
-genes <- protmap$entrez[match(rownames(allDat),protmap$ids)]
-filter_pathways <- function(pathways, genes) {
-  pathways <- lapply(pathways, function(x) purrr::discard(x, x %notin% genes))
-  keep <- names(pathways)[!sapply(pathways,function(x) length(x)==0)]
+  # Clean up pathways...
+  keep <- c(1:length(pathways))[!is.na(names(pathways))]
   pathways <- pathways[keep]
-  return(pathways)
-}
-if (filter) { msPathways <- filter_pathways(msPathways, genes) }
-# Check: What percentage of genes are in pathways list?
-percentMapped <- sum(genes %in% unique(unlist(msPathways))) / length(genes)
-message(paste("Percent genes in pathways:",round(100*percentMapped,2)))
-# Total number of pathways.
-message(paste("Number of pathways:",length(msPathways)))
 
-# Parameters for loop.
-# Stats: c("logFC","%WT","F","PValue","FDR")
-alpha <- 0.05    # P-value cut-off for GS enrichment.
-stat <- "logFC" # Which statistic to use for ranks in GSEA.
-minSize <- 5     # Minimum pathway size.
-maxSize <- 500   # Maximum pathway size.
-sigOnly <- TRUE  # Analyze all genes or just significantly DA?
+  # Get mouse homologs of human genes in pathways list.
+  if (map2mouse) {
+    hsEntrez <- unique(unlist(pathways))
+    msHomologs <- getHomologs(hsEntrez, taxid = "10090") # mouse taxid
+    names(msHomologs) <- hsEntrez
+    # Map to mouse, discard unmapped (NA) genes.
+    msPathways <- lapply(pathways, function(x) purrr::discard(msHomologs[x], is.na))
+  } else {
+    msPathways <- pathways
+  }
 
-# Loop to perform GSEA.
-result <- list()
-for (i in 1:8) {
-	# Which Geno.Tissue...
-	df <- glm_stats[[stat]]
-	geno <- paste(strsplit(colnames(df)[i],"\\ ")[[1]][-3],collapse=" ")
-	message(paste("Performing GSEA for:", geno,"..."))
-	idy <- grep(geno,colnames(df))
-	# Ranks based on GLM stats.
-	#ranks <- -log10(df[,idy]) # For pvalue ranks.
-	ranks <- df[,idy]
-	names(ranks) <- rownames(df)
-	# Map proteins to entrez.
-	entrez <- protmap$entrez[match(names(ranks),protmap$ids)]
-	names(ranks) <- entrez
-        # Analyze just significant genes?
-	idy <- grep(geno,colnames(glm_stats$FDR))
-	sig <- glm_stats$FDR[,idy] < alpha
-	names(sig) <- rownames(glm_stats$FDR)
-	names(sig) <- protmap$entrez[match(names(sig),protmap$ids)]
-	sig <- names(sig[sig])
-	if (sigOnly) { ranks <- ranks[names(ranks) %in% sig] }
-	# Ranks must be sorted in increasing order.
-	ranks <- ranks[order(ranks)]
-	# Perform GSEA.
-	gseDat <- fgsea(msPathways,ranks,minSize,maxSize,nperm = 1e+05)
-	# Sort by p-value.
-	gseDat <- gseDat[order(gseDat$pval), ]
-	# Add column for gene symbols to results.
-	genes <- lapply(gseDat$leadingEdge,function(x) {
-				protmap$gene[match(x,protmap$entrez)]
-	      })
-	gseDat$GeneSymbols <- genes
-	# Status.
-	message(paste("Number of significant pathways:",sum(gseDat$padj<alpha)))
-	result[[geno]] <- gseDat
-} # Ends loop.
+  # Filter pathways; keep genes in data; remove empty pathways;
+  # remove duplicate genes from pathways.
+  genes <- protmap$entrez[match(rownames(allDat), protmap$ids)]
+  filter_pathways <- function(pathways, genes) {
+    pathways <- lapply(pathways, function(x) purrr::discard(x, x %notin% genes))
+    keep <- names(pathways)[!sapply(pathways, function(x) length(x) == 0)]
+    pathways <- pathways[keep]
+    return(pathways)
+  }
+  if (filter) {
+    msPathways <- filter_pathways(msPathways, genes)
+  }
+  # Check: What percentage of genes are in pathways list?
+  percentMapped <- sum(genes %in% unique(unlist(msPathways))) / length(genes)
+  message(paste("Percent genes in pathways:", round(100 * percentMapped, 2)))
+  # Total number of pathways.
+  message(paste("Number of pathways:", length(msPathways)))
 
-# Save as excel.
-# Note: padj method is BH.
-myfile <- file.path(outputtabs,"2_Combined_GSEA.xlsx")
-write_excel(result,myfile)
+  # Parameters for loop.
+  # Stats: c("logFC","%WT","F","PValue","FDR")
+  alpha <- 0.05 # P-value cut-off for GS enrichment.
+  stat <- "logFC" # Which statistic to use for ranks in GSEA.
+  minSize <- 5 # Minimum pathway size.
+  maxSize <- 500 # Maximum pathway size.
+  sigOnly <- TRUE # Analyze all genes or just significantly DA?
+
+  # Loop to perform GSEA.
+  result <- list()
+  for (i in 1:8) {
+    # Which Geno.Tissue...
+    df <- glm_stats[[stat]]
+    geno <- paste(strsplit(colnames(df)[i], "\\ ")[[1]][-3], collapse = " ")
+    message(paste("Performing GSEA for:", geno, "..."))
+    idy <- grep(geno, colnames(df))
+    # Ranks based on GLM stats.
+    # ranks <- -log10(df[,idy]) # For pvalue ranks.
+    ranks <- df[, idy]
+    names(ranks) <- rownames(df)
+    # Map proteins to entrez.
+    entrez <- protmap$entrez[match(names(ranks), protmap$ids)]
+    names(ranks) <- entrez
+    # Analyze just significant genes?
+    idy <- grep(geno, colnames(glm_stats$FDR))
+    sig <- glm_stats$FDR[, idy] < alpha
+    names(sig) <- rownames(glm_stats$FDR)
+    names(sig) <- protmap$entrez[match(names(sig), protmap$ids)]
+    sig <- names(sig[sig])
+    if (sigOnly) {
+      ranks <- ranks[names(ranks) %in% sig]
+    }
+    # Ranks must be sorted in increasing order.
+    ranks <- ranks[order(ranks)]
+    # Perform GSEA.
+    gseDat <- fgsea(msPathways, ranks, minSize, maxSize, nperm = 1e+05)
+    # Sort by p-value.
+    gseDat <- gseDat[order(gseDat$pval), ]
+    # Add column for gene symbols to results.
+    genes <- lapply(gseDat$leadingEdge, function(x) {
+      protmap$gene[match(x, protmap$entrez)]
+    })
+    gseDat$GeneSymbols <- genes
+    # Status.
+    message(paste("Number of significant pathways:", sum(gseDat$padj < alpha)))
+    result[[geno]] <- gseDat
+  } # Ends loop.
+
+  # Save as excel.
+  # Note: padj method is BH.
+  myfile <- file.path(outputtabs, "2_Combined_GSEA.xlsx")
+  write_excel(result, myfile)
 }
 
 #-------------------------------------------------------------------------------
@@ -736,7 +744,7 @@ write_excel(result,myfile)
 
 # Build a df with the combined statistical results.
 df <- glm_stats$PValue
-colnames(df) <- gsub(" PValue","",colnames(df))
+colnames(df) <- gsub(" PValue", "", colnames(df))
 
 ## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
 labels <- data.frame(
@@ -800,8 +808,8 @@ for (i in 1:length(GOenrichment$setResults)) {
 names(results_GOenrichment) <- colnames(labels)
 
 # Save.
-myfile <- file.path(outputtabs,"2_Combined_GO_Analysis.xlsx")
-write_excel(results_GOenrichment,myfile)
+myfile <- file.path(outputtabs, "2_Combined_GO_Analysis.xlsx")
+write_excel(results_GOenrichment, myfile)
 
 #-------------------------------------------------------------------------------
 ## Condition overlap plot.
@@ -906,26 +914,30 @@ traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
 traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
 
 # Levels for boxplots (order of the boxes):
-box_order <- c("Cortex.WT",
-	       "Cortex.KO.Shank2", 
-	       "Cortex.KO.Shank3", 
-	       "Cortex.HET.Syngap1", 
-	       "Cortex.KO.Ube3a",
-	       "Striatum.WT",
-	       "Striatum.KO.Shank2", 
-	       "Striatum.KO.Shank3", 
-	       "Striatum.HET.Syngap1", 
-	       "Striatum.KO.Ube3a")
+box_order <- c(
+  "Cortex.WT",
+  "Cortex.KO.Shank2",
+  "Cortex.KO.Shank3",
+  "Cortex.HET.Syngap1",
+  "Cortex.KO.Ube3a",
+  "Striatum.WT",
+  "Striatum.KO.Shank2",
+  "Striatum.KO.Shank3",
+  "Striatum.HET.Syngap1",
+  "Striatum.KO.Ube3a"
+)
 
 # Generate plots.
-plot_list <- ggplotProteinBoxPlot(data_in = log2(cleanDat),
-				  interesting.proteins = rownames(cleanDat),
-				  traits = traits,
-				  box_order,
-				  scatter = TRUE)
+plot_list <- ggplotProteinBoxPlot(
+  data_in = log2(cleanDat),
+  interesting.proteins = rownames(cleanDat),
+  traits = traits,
+  box_order,
+  scatter = TRUE
+)
 
 # Add custom colors.
-colors <- rep(c("gray","#FFF200","#00A2E8","#22B14C","#A349A4"),2)
+colors <- rep(c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4"), 2)
 plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
 
 # Facet plots, add significance stars, and reformat x.axis labels.

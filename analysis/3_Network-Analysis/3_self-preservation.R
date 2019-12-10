@@ -72,16 +72,16 @@ myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(datadir,paste0("3_",self,"_cleanDat.RData"))
+myfile <- file.path(datadir, paste0("3_", self, "_cleanDat.RData"))
 data <- t(readRDS(myfile))
 
 # Load adjmatrix.
-myfile <- file.path(datadir,paste0("3_",self,"_Adjm.RData"))
+myfile <- file.path(datadir, paste0("3_", self, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfile <- file.path(datadir,paste0("3_",self,"_partitions.csv"))
+myfile <- file.path(datadir, paste0("3_", self, "_partitions.csv"))
 partitions <- data.table::fread(myfile, drop = 1, skip = 1)
 colnames(partitions) <- colnames(adjm)
 
@@ -90,12 +90,12 @@ colnames(partitions) <- colnames(adjm)
 if (weighted) {
   message("Calculating soft-power for weighting co-expression graph!")
   sft <- silently({
-      pickSoftThreshold(data,
-        corFnc = "bicor",
-        networkType = "signed",
-        RsquaredCut = 0.8
-      )$powerEstimate
-    })
+    pickSoftThreshold(data,
+      corFnc = "bicor",
+      networkType = "signed",
+      RsquaredCut = 0.8
+    )$powerEstimate
+  })
   names(sft) <- self
 } else {
   # Power = 1 == Unweighted
@@ -109,7 +109,7 @@ if (weighted) {
 
 # Input for NetRep:
 # Networks (edges) should be positive -> AbsoluteValue()
-data_list <- list(self = data) 
+data_list <- list(self = data)
 correlation_list <- list(self = adjm)
 network_list <- list(self = abs(adjm^sft[self]))
 
@@ -117,7 +117,7 @@ network_list <- list(self = abs(adjm^sft[self]))
 results <- list()
 for (i in 1:nres) {
   # Status report.
-  message(paste("working on partition", i, "..."))
+  message(paste("Working on partition", i, "of", nres, "..."))
   # Get partition--adding 1 so that all module assignments >0.
   partition <- as.integer(partitions[i, ]) + 1
   names(partition) <- colnames(adjm)
@@ -125,33 +125,36 @@ for (i in 1:nres) {
   # Perform permutation test for module self-preservation.
   suppressWarnings({
     selfPreservation <- NetRep::modulePreservation(
-	        network = network_list,
-		data = data_list,
-		correlation = correlation_list,
-		moduleAssignments = module_list,
-		modules = NULL,
-		backgroundLabel = 0,
-		discovery = "self",
-		test = "self",
-		selfPreservation = TRUE,
-		nThreads = nThreads,
-		# nPerm = 100000, # Determined automatically by the function.
-		null = "overlap",
-		alternative = "greater", # Greater for self-preservation.
-		simplify = TRUE,
-		verbose = FALSE
-		)
-    })
+      network = network_list,
+      data = data_list,
+      correlation = correlation_list,
+      moduleAssignments = module_list,
+      modules = NULL,
+      backgroundLabel = 0,
+      discovery = "self",
+      test = "self",
+      selfPreservation = TRUE,
+      nThreads = nThreads,
+      # nPerm = 100000, # Determined automatically by the function.
+      null = "overlap",
+      alternative = "greater", # Greater for self-preservation.
+      simplify = TRUE,
+      verbose = FALSE
+    )
+  })
   # Remove NS modules--set NS modules to 0.
-  preservedParts <- check_modules(selfPreservation,strength,stats)
+  preservedParts <- check_modules(selfPreservation, strength, stats)
+  nModules <- length(unique(partition))
   out <- names(preservedParts)[preservedParts == "ns"]
   partition[partition %in% out] <- 0
+  nPreserved <- nModules - length(out)
+  message(paste("...", nPreserved, "modules of", nModules, "modules are preserved."))
   # Return results.
   results[[i]] <- partition
   # Save to Rdata.
   if (i == nres) {
-	  output_name <- paste0(jobID,"_",self,"_Module_Self_Preservation.RDS")
-	  saveRDS(results, file.path(datadir, output_name))
-	  message("Done!")
+    output_name <- paste0(jobID, "_", self, "_Module_Self_Preservation.RDS")
+    saveRDS(results, file.path(datadir, output_name))
+    message("Done!")
   }
 } # Ends loop.

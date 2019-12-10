@@ -34,27 +34,27 @@ tabsdir <- file.path(root, "tables")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
-myfun <- myfun[-grep("TAMPOR",myfun)] # Something wrong with TAMPOR.R??
+myfun <- myfun[-grep("TAMPOR", myfun)] # Something wrong with TAMPOR.R??
 invisible(sapply(myfun, source))
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Prot_Map.RData"))
 
 # Load statistical results.
-glm_results <- readRDS(file.path(rdatdir,"2_Combined_All_GLM_Results.RData"))
+glm_results <- readRDS(file.path(rdatdir, "2_Combined_All_GLM_Results.RData"))
 
 # Load GLM stats.
-myfile <- file.path(rdatdir,"2_GLM_Stats.RData")
+myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
 # Load expression data.
-data <- t(readRDS(file.path(rdatdir,"3_Combined_cleanDat.RData")))
+data <- t(readRDS(file.path(rdatdir, "3_Combined_cleanDat.RData")))
 
 # Load correlation matrix.
-combAdjm <- t(readRDS(file.path(rdatdir,"3_Combined_Adjm.RData")))
+combAdjm <- t(readRDS(file.path(rdatdir, "3_Combined_Adjm.RData")))
 
 # Load network partitions.
-#myfile <- list.files(rdatdir, pattern = "6142226", full.names = TRUE)
+# myfile <- list.files(rdatdir, pattern = "6142226", full.names = TRUE)
 myfile <- list.files(rdatdir, pattern = "9109552", full.names = TRUE)
 partitions <- readRDS(myfile)
 
@@ -66,71 +66,81 @@ partitions <- readRDS(myfile)
 resolutions <- c(1:length(partitions))
 
 # Collect combined partitions.
-partitions <- lapply(partitions,function(x) x$combined)
+partitions <- lapply(partitions, function(x) x$combined)
 
 # Number of modules. Subtract one for NS modules (not preserved).
-nModules <- sapply(partitions,function(x) length(unique(x)))-1
+nModules <- sapply(partitions, function(x) length(unique(x))) - 1
 
 # Collect modules from each partition.
-modules <- lapply(partitions,function(x) split(x,x))
+modules <- lapply(partitions, function(x) split(x, x))
 
 # Remove "0" modules.
 filtModules <- lapply(modules, function(x) x[-c(1:length(x))[names(x) == "0"]])
 
 # Percent NS.
-percentNS <- sapply(partitions,function(x) sum(x==0)/length(x))
+percentNS <- sapply(partitions, function(x) sum(x == 0) / length(x))
 
 # Calculate module summary expression profiles (eigen vectors).
 # This may take several moments.
-MEs <- lapply(partitions,function(x) moduleEigengenes(data,x,impute=FALSE,
-						      excludeGrey=FALSE,
-						      softPower=1,
-					              verbose=0)[[1]])
+MEs <- lapply(partitions, function(x) {
+  moduleEigengenes(data, x,
+    impute = FALSE,
+    excludeGrey = FALSE,
+    softPower = 1,
+    verbose = 0
+  )[[1]]
+})
 
 # Calculate module coherence.
 # This may take several moments.
-PVE <- sapply(resolutions,function(x) propVarExplained(data, 
-						       partitions[[x]], 
-						       MEs[[x]], 
-						       corFnc = "bicor"))
+PVE <- sapply(resolutions, function(x) {
+  propVarExplained(data,
+    partitions[[x]],
+    MEs[[x]],
+    corFnc = "bicor"
+  )
+})
 
 # Fix names of MEs and PVE.
-newNames <- lapply(partitions,function(x) paste0("M",names(table(x))))
+newNames <- lapply(partitions, function(x) paste0("M", names(table(x))))
 
 # Function to rename PVE and ME lists.
-renameList <- function(myList,namesList) {
-	myList <- lapply(c(1:length(myList)), function(x) {
-				 names(myList[[x]]) <- namesList[[x]]
-				 return(myList[[x]])
-})
-	return(myList)
+renameList <- function(myList, namesList) {
+  myList <- lapply(c(1:length(myList)), function(x) {
+    names(myList[[x]]) <- namesList[[x]]
+    return(myList[[x]])
+  })
+  return(myList)
 } # Ends function.
 
 # Fix names.
-MEs <- renameList(MEs,newNames)
-PVE <- renameList(PVE,newNames)
+MEs <- renameList(MEs, newNames)
+PVE <- renameList(PVE, newNames)
 
 # Remove M0.
-MEs <- lapply(MEs,function(x) { x[,"M0"] <- NULL; return(x) })
-PVE <- lapply(PVE,function(x) x[-1])
+MEs <- lapply(MEs, function(x) {
+  x[, "M0"] <- NULL
+  return(x)
+})
+PVE <- lapply(PVE, function(x) x[-1])
 
 # Mean percent variance explained.
-meanPVE <- sapply(PVE,function(x) mean(x))
-medianPVE <- sapply(PVE,function(x) median(x))
-maxPVE <- sapply(PVE,function(x) max(x))
+meanPVE <- sapply(PVE, function(x) mean(x))
+medianPVE <- sapply(PVE, function(x) median(x))
+maxPVE <- sapply(PVE, function(x) max(x))
 
 # All sig prots.
-alpha = 0.05
+alpha <- 0.05
 fdr <- glm_stats[["FDR"]]
 allProts <- rownames(fdr)
-idx <- apply(fdr,1,function(x) any(x < alpha))
+idx <- apply(fdr, 1, function(x) any(x < alpha))
 sigProts <- allProts[idx]
 
 # Protein significance = sum of log2 p-values.
-protSig <- apply(glm_stats[["PValue"]],1,function(x) sum(-log(x)))
+protSig <- apply(glm_stats[["PValue"]], 1, function(x) sum(-log(x)))
 
 # Calculate module significance as sum of protein significance within a module.
-modSig <- lapply(modules,function(x) sapply(x,function(y) sum(protSig[y])))
+modSig <- lapply(modules, function(x) sapply(x, function(y) sum(protSig[y])))
 
 #------------------------------------------------------------------------------
 ## Perform GO analysis of modules at every resolution.
@@ -146,7 +156,7 @@ moduleGO <- readRDS(file.path(rdatdir, "3_Module_GO_Results.RData"))
 # Function to perform GO enrichment for all modules in a given partition.
 getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
   part <- partitions[[resolution]]
-  modules <- split(part,part)
+  modules <- split(part, part)
   dm <- sapply(names(modules), function(x) part == x)
   colnames(dm) <- paste0("R", resolution, "-M", names(modules))
   logic <- dm == TRUE
@@ -179,39 +189,39 @@ getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
   return(GO_results)
 } # Ends function.
 
-# Loop to perform GO enrichment for modules at every resolution. 
+# Loop to perform GO enrichment for modules at every resolution.
 message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
 n <- length(partitions) # n resolutions.
 results <- list()
 for (i in seq_along(resolutions)) {
-	# Initialize progress bar.
-	if (i == 1) { 
-		pb <- txtProgressBar(min = 0, max = n, style = 3)
-	}
-	# Perform GO analysis.
-	results[[i]] <- getModuleGO(partitions,resolution=i,protmap,musGO)
-	# Update progress bar.
-	setTxtProgressBar(pb, i)
-	if (i == n) {
-		# Close pb, save.
-		close(pb)
-	        myfile <- file.path(rdatdir, "3_Module_GO_Results.RData")
-	        saveRDS(results, myfile)
-	        message("Done!")
-	}
+  # Initialize progress bar.
+  if (i == 1) {
+    pb <- txtProgressBar(min = 0, max = n, style = 3)
+  }
+  # Perform GO analysis.
+  results[[i]] <- getModuleGO(partitions, resolution = i, protmap, musGO)
+  # Update progress bar.
+  setTxtProgressBar(pb, i)
+  if (i == n) {
+    # Close pb, save.
+    close(pb)
+    myfile <- file.path(rdatdir, "3_Module_GO_Results.RData")
+    saveRDS(results, myfile)
+    message("Done!")
+  }
 } # Ends loop.
 
 # Examine results.
 moduleGO <- results
 
 # Remove M0 results.
-moduleGO <- lapply(moduleGO, function(x) x[-grep("M0",names(x))])
+moduleGO <- lapply(moduleGO, function(x) x[-grep("M0", names(x))])
 
 # Examine biological enrichment. Sum of GO pvalues for all modules at a given
 # resolution.
-modSig <- lapply(moduleGO, function(x) sapply(x,function(y) sum(-log(y$pValue))))
-x <- sapply(modSig,sum)
-best_res <- c(1:length(x))[x==max(x)]
+modSig <- lapply(moduleGO, function(x) sapply(x, function(y) sum(-log(y$pValue))))
+x <- sapply(modSig, sum)
+best_res <- c(1:length(x))[x == max(x)]
 print(best_res)
 
 #------------------------------------------------------------------------------
@@ -225,20 +235,22 @@ print(best_res)
 resGO <- moduleGO[[best_res]]
 
 # Save to file.
-myfile <- file.path(tabsdir,paste0("3_","R",best_res,"_GO_Results.xlsx"))
-write_excel(resGO,myfile)
+myfile <- file.path(tabsdir, paste0("3_", "R", best_res, "_GO_Results.xlsx"))
+write_excel(resGO, myfile)
 
 # Top GO from every module.
-topGO <- sapply(resGO,function(x) x$shortDataSetName[1])
+topGO <- sapply(resGO, function(x) x$shortDataSetName[1])
 names(topGO) <- names(modules)
-sigGO <- sapply(resGO,function(x) x$FDR[1]<0.05)
+sigGO <- sapply(resGO, function(x) x$FDR[1] < 0.05)
 
 # Percent modules with significant go enrichment.
-message(paste("Percent modules with significant GO terms:", 
-	      round(100*sum(sigGO)/length(sigGO),2),"(%)"))
+message(paste(
+  "Percent modules with significant GO terms:",
+  round(100 * sum(sigGO) / length(sigGO), 2), "(%)"
+))
 
 # Load Sample info.
-traits <- readRDS(file.path(rdatdir,"2_Combined_traits.RData"))
+traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Examine best resolution.
 resolution <- best_res
@@ -265,9 +277,9 @@ names(PVE) <- names(modules)
 PVE <- PVE[-1]
 median(PVE)
 
-# Define vector of groups; 
+# Define vector of groups;
 # group all WT samples from a tissue type together.
-traits$Sample.Model.Tissue <- paste(traits$Sample.Model,traits$Tissue,sep=".")
+traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
 g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
 g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
 g[grepl("WT.*.Striatum", g)] <- "WT.Striatum"
@@ -281,10 +293,12 @@ g2 <- c("WT.Cortex", "WT.Striatum")
 contrasts <- apply(expand.grid(g1, g2), 1, paste, collapse = " - ")
 
 # Define the order of the bars in the verbose boxplot.
-box_order <- c("WT.Cortex","KO.Shank2.Cortex", "KO.Shank3.Cortex", 
-               "HET.Syngap1.Cortex", "KO.Ube3a.Cortex",
-               "WT.Striatum","KO.Shank2.Striatum", "KO.Shank3.Striatum",
-               "HET.Syngap1.Striatum", "KO.Ube3a.Striatum")
+box_order <- c(
+  "WT.Cortex", "KO.Shank2.Cortex", "KO.Shank3.Cortex",
+  "HET.Syngap1.Cortex", "KO.Ube3a.Cortex",
+  "WT.Striatum", "KO.Shank2.Striatum", "KO.Shank3.Striatum",
+  "HET.Syngap1.Striatum", "KO.Ube3a.Striatum"
+)
 
 # Use lapply to generate plots.
 plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, box_order))
@@ -292,58 +306,62 @@ names(plots) <- names(modules)
 
 # Add Module name and PVE to plot titles. Simplify x-axis labels.
 for (k in seq_along(plots)) {
-	plot <- plots[[k]]
-	namen <- names(plots)[k]
-	txt <- paste("PVE:", round(PVE[namen], 3))
-	plot$labels$title <- paste0(namen, " (", txt, plot$labels$title, ")")
-	plot <- plot + scale_x_discrete(labels=rep(c("WT","Shank2","Shank3","Syngap1","Ube3a"),2))
-	plots[[k]] <- plot
+  plot <- plots[[k]]
+  namen <- names(plots)[k]
+  txt <- paste("PVE:", round(PVE[namen], 3))
+  plot$labels$title <- paste0(namen, " (", txt, plot$labels$title, ")")
+  plot <- plot + scale_x_discrete(labels = rep(c("WT", "Shank2", "Shank3", "Syngap1", "Ube3a"), 2))
+  plots[[k]] <- plot
 }
 
 # Perform KW tests.
-KWtest <- lapply(ME_list, function(x) { 
-  idx <- grepl("Cortex",g)
-  kw <- c("Cortex" = kruskal.test(x[idx] ~ g[idx])[["p.value"]],
-          "Striatum" = kruskal.test(x[!idx] ~ g[!idx])[["p.value"]])
+KWtest <- lapply(ME_list, function(x) {
+  idx <- grepl("Cortex", g)
+  kw <- c(
+    "Cortex" = kruskal.test(x[idx] ~ g[idx])[["p.value"]],
+    "Striatum" = kruskal.test(x[!idx] ~ g[!idx])[["p.value"]]
+  )
   return(kw)
 })
 
 # Correct KWtest pvalues for nModule multiple comparisons.
 # M0 is excluded.
-a <- p.adjust(sapply(KWtest,"[",1),method="BH")
-b <- p.adjust(sapply(KWtest,"[",2),method="BH")
-KWpval <- lapply(c(1:length(cox)),function(x) c(a[x],b[x]))
+a <- p.adjust(sapply(KWtest, "[", 1), method = "BH")
+b <- p.adjust(sapply(KWtest, "[", 2), method = "BH")
+KWpval <- lapply(c(1:length(cox)), function(x) c(a[x], b[x]))
 names(KWpval) <- names(modules)
 
 # KWsig?
-alpha = 0.05
-KWsig <- sapply(KWpval,function(x) any(x<alpha))
+alpha <- 0.05
+KWsig <- sapply(KWpval, function(x) any(x < alpha))
 sigModules <- names(KWsig)[KWsig]
 
 # Perform Dunn tests (post-hoc test for unequal sample sizes).
 Dtest <- lapply(ME_list, function(x) {
-  idx <- grepl("Cortex",g)
-  dt <- list("Cortex" = FSA::dunnTest(x[idx] ~ g[idx], kw = FALSE, method = "none"),
-             "Striatum" = FSA::dunnTest(x[!idx] ~ g[!idx], kw = FALSE, method = "none"))
+  idx <- grepl("Cortex", g)
+  dt <- list(
+    "Cortex" = FSA::dunnTest(x[idx] ~ g[idx], kw = FALSE, method = "none"),
+    "Striatum" = FSA::dunnTest(x[!idx] ~ g[!idx], kw = FALSE, method = "none")
+  )
   return(dt)
 })
 names(Dtest) <- names(modules)
 
 # Keep only contrasts of interest as defined above.
-cleanDT <- function(x,contrasts) {
+cleanDT <- function(x, contrasts) {
   # Cortex.
   df1 <- x$Cortex$res
-  df1 <- subset(df1,df1$Comparison %in% contrasts)
-  df1$P.adj <- p.adjust(df1$P.unadj,method="bonferroni")
+  df1 <- subset(df1, df1$Comparison %in% contrasts)
+  df1$P.adj <- p.adjust(df1$P.unadj, method = "bonferroni")
   # Striatum
   df2 <- x$Striatum$res
-  df2 <- subset(df2,df2$Comparison %in% contrasts)
-  df2$P.adj <- p.adjust(df2$P.unadj,method="bonferroni")
-  return(rbind(df1,df2))
+  df2 <- subset(df2, df2$Comparison %in% contrasts)
+  df2$P.adj <- p.adjust(df2$P.unadj, method = "bonferroni")
+  return(rbind(df1, df2))
 }
-Dtest <- lapply(Dtest,function(x) cleanDT(x,contrasts))
+Dtest <- lapply(Dtest, function(x) cleanDT(x, contrasts))
 
-nDTsig <- sapply(Dtest,function(x) sum(x$P.adj<0.05))
+nDTsig <- sapply(Dtest, function(x) sum(x$P.adj < 0.05))
 
 nDTsig[sigModules]
 
@@ -370,8 +388,8 @@ g <- buildNetwork(ppis, entrez, taxid = 10090)
 # Loop through modules.
 # FIXME: How to handle modules with no PPIs?
 # FIXME: apply node color,size, other attributes..
-for (i in c(1:17,19:length(modules))){
-  message(paste("Working on module",names(modules)[i],"..."))
+for (i in c(1:17, 19:length(modules))) {
+  message(paste("Working on module", names(modules)[i], "..."))
   prots <- names(modules[[i]])
   entrez <- protmap$entrez[match(prots, protmap$ids)]
   subg <- induced_subgraph(g, entrez)
@@ -388,9 +406,9 @@ for (i in c(1:17,19:length(modules))){
   if (send_to_cytoscape) {
     cytoscapePing()
     if (length(E(subg)) > 0) {
-    createNetworkFromIgraph(subg, namen)
-    } else if (length(E(subg))==0) {
-      message(paste("Warning:", namen,"contains no ppis!"))
+      createNetworkFromIgraph(subg, namen)
+    } else if (length(E(subg)) == 0) {
+      message(paste("Warning:", namen, "contains no ppis!"))
     }
   }
   # How many ppis?

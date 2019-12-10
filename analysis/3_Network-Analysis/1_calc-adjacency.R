@@ -46,44 +46,49 @@ rownames(data) <- rownames(cleanDat)
 traits <- as.data.table(traits) %>% filter(SampleID %in% colnames(data))
 
 # WT and KO samples.
-samples <- list("WT" = traits$SampleID[traits$SampleType == "WT"],
-		"KO" = traits$SampleID[traits$SampleType == "KO" | traits$SampleType == "HET"],
-		"Cortex" = traits$SampleID[traits$Tissue == "Cortex"],
-		"Striatum" = traits$SampleID[traits$Tissue == "Striatum"]
-		)
+samples <- list(
+  "WT" = traits$SampleID[traits$SampleType == "WT"],
+  "KO" = traits$SampleID[traits$SampleType == "KO" | traits$SampleType == "HET"],
+  "Cortex" = traits$SampleID[traits$Tissue == "Cortex"],
+  "Striatum" = traits$SampleID[traits$Tissue == "Striatum"]
+)
 
 # Subset WT and KO data.
-subDat <- lapply(samples,function(x) as.matrix(data %>% select(x)))
+subDat <- lapply(samples, function(x) as.matrix(data %>% select(x)))
 
 # Fix rownames.
-subDat <- lapply(subDat, function(x) { 
-			 rownames(x) <- rownames(data)
-			 return(x)
-		})
+subDat <- lapply(subDat, function(x) {
+  rownames(x) <- rownames(data)
+  return(x)
+})
 
 # Add combined data.
 subDat[["Combined"]] <- data
 
 # Save expression data to file.
-myfiles <- file.path(rdatadir,paste0("3_",names(subDat),"_cleanDat.RData"))
-invisible(mapply(function(x,y) saveRDS(x,y), subDat, myfiles))
+myfiles <- file.path(rdatadir, paste0("3_", names(subDat), "_cleanDat.RData"))
+invisible(mapply(function(x, y) saveRDS(x, y), subDat, myfiles))
 
 # Create signed adjacency (correlation) matrices.
-adjm <- lapply(subDat,function(x) silently({ WGCNA::bicor(t(x)) }))
+adjm <- lapply(subDat, function(x) {
+  silently({
+    WGCNA::bicor(t(x))
+  })
+})
 
 # Coerce adjm to data.tables.
 adjm <- lapply(adjm, as.data.table)
 
 # Fix names of adjmatrices.
 adjm <- lapply(adjm, function(x) {
-		       rownames(x) <- colnames(x) <- rownames(data)
-		       return(x)
+  rownames(x) <- colnames(x) <- rownames(data)
+  return(x)
 })
 
 # Write correlation matrices to .csv.
-myfiles <- file.path(rdatadir,paste0("3_",names(adjm),"_Adjm.csv"))
-invisible(mapply(function(x,y) fwrite(x,y,row.names=TRUE), adjm, myfiles))
+myfiles <- file.path(rdatadir, paste0("3_", names(adjm), "_Adjm.csv"))
+invisible(mapply(function(x, y) fwrite(x, y, row.names = TRUE), adjm, myfiles))
 
 # Save correlation matrices RData.
-myfiles <- file.path(rdatadir,paste0("3_",names(adjm),"_Adjm.RData"))
-invisible(mapply(function(x,y) saveRDS(x,y),adjm,myfiles))
+myfiles <- file.path(rdatadir, paste0("3_", names(adjm), "_Adjm.RData"))
+invisible(mapply(function(x, y) saveRDS(x, y), adjm, myfiles))
