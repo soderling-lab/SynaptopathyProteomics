@@ -53,7 +53,6 @@ if (slurm) {
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
-  library(WGCNA)
   library(NetRep)
 })
 
@@ -86,6 +85,7 @@ adjm <- lapply(adjm, function(x) {
 names(adjm) <- c(net1, net2)
 
 # Create unsigned networks for NetRep.
+# Not weighted.
 networks <- lapply(adjm, abs)
 
 # Load network partitions.
@@ -121,7 +121,7 @@ message(paste0(
   strength, ".", "\n"
 ))
 
-# LOOP TO ANALYZE ALL RESOLUTIONS:
+# Loop to analyze all resolutions:
 output <- list()
 for (r in res) {
   # Status report.
