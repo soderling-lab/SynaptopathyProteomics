@@ -26,7 +26,7 @@ res <- c(1:100) # c(29, 35, 36, 40, 41, 42, 44, 45, 48, 49, 55, 58, 66, 79)
 cutoff <- 1 # Size cutoff for a module 1 = single protein.
 net1 <- "Cortex"
 net2 <- "Striatum"
-partition1 <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
+partition1 <- "6142226" # Combined, self-preservation enforced.
 partition2 <- "6142226" # Which partition file to use as input? Used self-pres enforced partition.
 save_results <- FALSE # Should permutation results be saved?
 
@@ -133,7 +133,7 @@ for (r in res) {
     return(x)
   })
   # Remove small modules.
-  partitions <- lapply(partitions, filter_modules)
+  #partitions <- lapply(partitions, filter_modules)
   # Total number of modules; ignore 0.
   nModules <- sapply(partitions, function(x) sum(names(table(x)) != 0))
   # Split partitions into modules.
