@@ -5,8 +5,8 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change.
-net <- "Cortex" 
-mypart <- c(Cortex = "10360847") # c(Striatum = "10342568")
+net <- "Striatum" 
+mypart <- c(Cortex = "10360847",Striatum = "10342568")[net]
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -42,12 +42,12 @@ partitions <- readRDS(myfile)
 #------------------------------------------------------------------------------
 
 # Build mouse go collection:
+message(paste("Preparing to analyze modules identified in the",
+	       net,"network for GO enrichment..."))
 musGOcollection <- buildGOcollection(organism="mouse")
 
 # Loop to perform GO enrichment for modules at every resolution.
-message((paste("Analyzing GO enrichment of modules identified in",
-	       net,"network..."))
-
+message("Performing GO enrichment analysis...")
 results <- list()
 for (i in seq_along(partitions)) {
   # Initialize progress bar.
@@ -66,7 +66,7 @@ for (i in seq_along(partitions)) {
 } # Ends loop.
 
 # Save results.
-myfile <- file.path(rdatdir,paste0("3_",net,"Module_GO_Results.RData")
+myfile <- file.path(rdatdir,paste0("3_",net,"Module_GO_Results.RData"))
 saveRDS(results, myfile)
 
 #------------------------------------------------------------------------------
