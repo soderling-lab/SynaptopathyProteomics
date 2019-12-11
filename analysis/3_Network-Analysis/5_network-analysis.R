@@ -46,8 +46,8 @@ glm_stats <- readRDS(myfile)
 
 # Load expression data.
 #data <- readRDS(file.path(rdatdir, "3_Combined_cleanDat.RData"))
-data <- readRDS(file.path(rdatdir, "3_Cortex_cleanDat.RData"))
 #data <- readRDS(file.path(rdatdir, "3_Striatum_cleanDat.RData"))
+data <- readRDS(file.path(rdatdir, "3_Cortex_cleanDat.RData"))
 exprDat <- t(data)
 colnames(exprDat) <- rownames(data)
 
@@ -64,6 +64,10 @@ myfile <- list.files(rdatdir,pattern="10360847",full.names=TRUE) # Cortex
 #myfile <- list.files(rdatdir, pattern="10342568",full.names=TRUE) # Striatum
 #myfile <- list.files(rdatdir, pattern= "Combined_Module",full.names=TRUE) # Combined network only
 partitions <- readRDS(myfile)
+
+#-------------------------------------------------------------------------------
+## Unpack the permutation results.
+#-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 ## Unpack the permutation results.
@@ -86,12 +90,11 @@ percentNC <- sapply(partitions, function(x) sum(x == 0) / length(x))
 #------------------------------------------------------------------------------
 
 perform_GO_enrichment = TRUE
-
 if (perform_GO_enrichment){
-
 # Build mouse GO collection.
+	if (!exists("musGOcollection")){
 musGOcollection <- buildGOcollection(organism="mouse")
-
+	}
 # Function to perform GO enrichment for all modules in a given partition.
 getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
   part <- partitions[[resolution]]
@@ -131,7 +134,7 @@ getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
 message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
 n <- length(partitions) # n resolutions.
 results <- list()
-for (i in seq_along(resolutions)) {
+for (i in seq_along(partitions)) {
   # Initialize progress bar.
   if (i == 1) {
     pb <- txtProgressBar(min = 0, max = n, style = 3)
@@ -148,11 +151,10 @@ for (i in seq_along(resolutions)) {
     message("Done!")
   }
 } # Ends loop.
-
 moduleGO <- results
 } else {
 # Load GO results.
-moduleGO <- readRDS(file.path(rdatdir, "3_Module_GO_Results.RData"))
+moduleGO <- readRDS(file.path(rdatdir, "3_Cortex_Module_GO_Results.RData"))
 }
 
 # Remove M0 results.
@@ -174,6 +176,7 @@ message(paste("Best resolution based on module GO enrichment:",best_res))
 # nework... Should we do two sided test... divergent and preserved...
 
 # Get partition of ~best resolution.
+best_res = 68
 resolution <- best_res
 partition <- partitions[[resolution]]
 
@@ -208,9 +211,11 @@ sft <- pickSoftThreshold(exprDat,
 			 corFnc="bicor",
 			 networkType = "signed", 
 			 RsquaredCut = 0.8)$powerEstimate
+message(paste("Soft-power for ~scale-free fit:",sft))
 
 # Calculate Module eigengenes.
-MEdat <- moduleEigengenes(exprDat, colors = partition, softPower = 9, impute = FALSE)
+# Power does not influence MEs.
+MEdat <- moduleEigengenes(exprDat, colors = partition, softPower = 1, impute = FALSE)
 MEs <- as.matrix(MEdat$eigengenes)
 
 # Get Percent Variance explained (PVE)
@@ -241,6 +246,8 @@ contrasts <- apply(expand.grid(geno, tissue), 1, paste, collapse = ".")
 idx <- grepl("Cortex",contrasts)
 contrasts[idx] <- paste(contrasts[idx],"- WT.Cortex")
 contrasts[!idx] <- paste(contrasts[!idx],"- WT.Striatum")
+out <- grepl("Striatum",contrasts)
+contrasts <- contrasts[!out]
 
 # Define the order of the bars in the verbose boxplot.
 box_order <- c(
@@ -249,6 +256,8 @@ box_order <- c(
   "WT.Striatum", "KO.Shank2.Striatum", "KO.Shank3.Striatum",
   "HET.Syngap1.Striatum", "KO.Ube3a.Striatum"
 )
+out <- grepl("Striatum",box_order)
+box_order <- box_order[!out]
 
 # Use lapply to generate plots.
 plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, box_order))
@@ -274,27 +283,33 @@ KWdata$p.adj <- p.adjust(KWdata$p.value,method = "bonferroni")
 # Significant modules.
 sigModules <- rownames(KWdata)[KWdata$p.adj < 0.05]
 
-# Perform Dunn tests (post-hoc test for unequal sample sizes).
-DT_list <- lapply(ME_list, function(x) {
-			 FSA::dunnTest(x ~ g, kw = FALSE, method = "none")$res
+# Try Dunnetts test.
+library(DescTools)
+DT_list <- lapply(ME_list,function(x) {
+			  as.data.frame(DunnettTest(x, g, control = "WT.Cortex")[["WT.Cortex"]]) # Dunnetts test may make more sense!
 })
 
+
+# Perform Dunn tests (post-hoc test for unequal sample sizes).
+#DT_list <- lapply(ME_list, function(x) {
+#			 FSA::dunnTest(x ~ g, kw = FALSE, method = "none")$res
+#})
+
 # Keep only contrasts of interest as defined above.
-method = "bonferroni" # Method for p-value correction.
-cleanDT <- function(x, contrasts) {
-	df <- subset(x, x$Comparison %in% contrasts)
-	df$P.adj <- p.adjust(df$P.unadj,method)
-	return(df)
-}
+#method = "bonferroni" # Method for p-value correction.
+#cleanDT <- function(x, contrasts) {
+#	df <- subset(x, x$Comparison %in% contrasts)
+#	df$P.adj <- p.adjust(df$P.unadj,method)
+#	return(df)
+#}
 
 # Clean up Dunn test results.
-DTdata <- lapply(DT_list, function(x) cleanDT(x, contrasts))
+#DTdata <- lapply(DT_list, function(x) cleanDT(x, contrasts))
 
-sigDT <- DTdata[sigModules]
-sapply(sigDT,function(x) sum(x$P.adj<0.05))
+# Number of significant changes.
+nSigDT <- sapply(DT_list,function(x) sum(x$pval<0.05))
 
-DTdata$M13
-
+nSigDT[sigModules]
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.
@@ -348,3 +363,116 @@ for (i in c(1:17, 19:length(modules))) {
   message(paste("Number of sig proteins:", sum(prots %in% sigProts)))
   message("\n")
 } # Ends loop.
+
+
+#-------------
+# Get partition of ~best resolution.
+
+# Loop to examine KW and DT for all modules at every resolution.
+results <- list()
+for (i in 1:100){
+	message(paste("Working on resolution:",i))
+partition <- partitions[[i]]
+modules <- split(partition, partition)
+names(modules) <- paste0("M", names(modules))
+# Number of modules.
+nModules <- sum(names(modules) != "M0")
+message(paste("Number of modules:",nModules))
+# Calculate Module eigengenes.
+MEdat <- moduleEigengenes(exprDat, colors = partition, softPower = 1, impute = FALSE)
+MEs <- as.matrix(MEdat$eigengenes)
+# Get Percent Variance explained (PVE)
+PVE <- MEdat$varExplained
+names(PVE) <- names(modules)
+meanPVE <- mean(as.numeric(PVE[names(PVE)!="M0"]))
+message(paste("Mean module coherence (PVE):",round(meanPVE,5)))
+# Create list of MEs.
+ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
+names(ME_list) <- names(modules)
+# Define groups for verbose box plot.
+# Group all WT samples from a tissue type together.
+traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
+g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
+g[grepl("WT.*.Striatum", g)] <- "WT.Striatum"
+g <- as.factor(g)
+# Generate contrasts for KW test.
+geno <- c("KO.Shank2", "KO.Shank3", "HET.Syngap1", "KO.Ube3a")
+tissue <- c("Cortex", "Striatum")
+contrasts <- apply(expand.grid(geno, tissue), 1, paste, collapse = ".")
+idx <- grepl("Cortex",contrasts)
+contrasts[idx] <- paste(contrasts[idx],"- WT.Cortex")
+contrasts[!idx] <- paste(contrasts[!idx],"- WT.Striatum")
+out <- grepl("Striatum",contrasts)
+contrasts <- contrasts[!out]
+# Define the order of the bars in the verbose boxplot.
+box_order <- c(
+  "WT.Cortex", "KO.Shank2.Cortex", "KO.Shank3.Cortex",
+  "HET.Syngap1.Cortex", "KO.Ube3a.Cortex",
+  "WT.Striatum", "KO.Shank2.Striatum", "KO.Shank3.Striatum",
+  "HET.Syngap1.Striatum", "KO.Ube3a.Striatum"
+)
+out <- grepl("Striatum",box_order)
+box_order <- box_order[!out]
+# Use lapply to generate plots.
+plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, box_order))
+names(plots) <- names(modules)
+# Add Module name and PVE to plot titles. Simplify x-axis labels.
+for (k in seq_along(plots)) {
+  plot <- plots[[k]]
+  namen <- names(plots)[k]
+  txt <- paste("PVE:", round(PVE[namen], 3))
+  plot$labels$title <- paste0(namen, " (", txt, plot$labels$title, ")")
+  plot <- plot + scale_x_discrete(labels = rep(c("WT", "Shank2", "Shank3", "Syngap1", "Ube3a"), 2))
+  plots[[k]] <- plot
+}
+# Perform KW tests.
+KWdata <- as.data.frame(t(sapply(ME_list, function(x) kruskal.test(x ~ g))))
+KWdata <- KWdata[,c(1,2,3)]
+# Correct p-values for n comparisons.
+KWdata$p.adj <- p.adjust(KWdata$p.value,method = "bonferroni")
+# Significant modules.
+sigModules <- rownames(KWdata)[KWdata$p.adj < 0.05]
+sigModules <- sigModules[!grepl("M0",sigModules)]
+nSigModules <- length(sigModules)
+message(paste("Number of KW sig. modules:",nSigModules))
+# Try Dunnetts test.
+DT_list <- lapply(ME_list,function(x) {
+			  as.data.frame(DescTools::DunnettTest(x, g, control = "WT.Cortex")[["WT.Cortex"]]) # Dunnetts test may make more sense!
+})
+message(paste("Number of Dunnett's test significant changes:"))
+nDTSig <- sapply(DT_list,function(x) sum(x$pval<0.05))[sigModules]
+print(nDTSig)
+message("\n")
+# Results.
+results[[i]] <- list("plots"=plots,"DT_list"=DT_list,"nSigModules"=nSigModules,"nDTSig"=nDTSig)
+}
+
+r = 74
+dat = results[[r]]
+dt = dat[[2]]
+p = dat[[1]]
+n = dat[[4]]
+parts = partitions[[r]]
+m = split(parts,parts)
+names(m) <- paste0("M",names(m))
+n
+
+
+p$M11
+p$M17
+
+dt$M17
+
+m$M17
+
+
+
+p[[names(n)[n==4]]]
+dt[[names(n)[n==4]]]
+m[[names(n)[n==4]]]
+
+x = sapply(results,function(x) sum(x[[4]]==4))
+names(x) <- c(1:100)
+subset(x,x>0)
+
