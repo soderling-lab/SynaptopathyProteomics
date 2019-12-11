@@ -164,6 +164,9 @@ moduleGO <- lapply(moduleGO, function(x) x[-grep("M0", names(x))])
 # Summarize the biological significance of a resolution as the sum of 
 # -log(GO pvalues) for all modules.
 modSig <- lapply(moduleGO, function(x) sapply(x, function(y) sum(-log(y$pValue))))
+out <- c(1:length(modSig))[sapply(modSig,function(x) length(x)==0)]
+modSig <- modSig[-out]
+
 x <- sapply(modSig, sum)
 best_res <- c(1:length(x))[x == max(x)]
 message(paste("Best resolution based on module GO enrichment:",best_res))
