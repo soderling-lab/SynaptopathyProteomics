@@ -18,6 +18,8 @@ net1 <- "Cortex" # Network 1.
 net2 <- "Striatum" # Network 2.
 partition1 <- "3_Cortex_partitions.csv"
 partition2 <- "3_Striatum_partitions.csv"
+selfPreservation <- FALSE
+alternative <- "two.sided"
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -162,11 +164,11 @@ for (r in res) {
         backgroundLabel = "0",
         discovery = x["discovery"],
         test = x["test"],
-        selfPreservation = FALSE,
+        selfPreservation,
         nThreads = nThreads,
         # nPerm = 100000,  # determined by the function.
         null = "overlap",
-        alternative = "two.sided", # c(greater,less,two.sided)
+        alternative, # c(greater,less,two.sided)
         simplify = TRUE,
         verbose = FALSE
       )

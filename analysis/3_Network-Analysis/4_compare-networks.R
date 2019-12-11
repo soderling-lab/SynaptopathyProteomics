@@ -18,6 +18,8 @@ net1 <- "Cortex" # Network 1.
 net2 <- "Striatum" # Network 2.
 partition1 <- "10360847" # Partition file for first network.
 partition2 <- "10342568" # Partition file for second network.
+selfPreservation = TRUE
+alternative = "two.sided"
 # save_results <- FALSE    # Should permutation results be saved?
 
 ## Permutation Statistics:
@@ -92,7 +94,8 @@ networks <- lapply(adjm, abs)
 mypartitions <- c(partition1, partition2)
 myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
 all_partitions <- lapply(myfiles, readRDS)
-names(all_partitions) <- c(net1, net2)
+#names(all_partitions) <- c(net1, net2)
+names(all_partitions) <- rev(c(net1, net2))
 
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test.
@@ -153,11 +156,11 @@ for (r in res) {
         backgroundLabel = "0",
         discovery = x["discovery"],
         test = x["test"],
-        selfPreservation = FALSE,
+        selfPreservation,
         nThreads = nThreads,
-        # nPerm = 100000,  # determined by the function.
+        nPerm = NULL,  # determined by the function.
         null = "overlap",
-        alternative = "two.sided", # c(greater,less,two.sided)
+        alternative,  # c(greater,less,two.sided)
         simplify = TRUE,
         verbose = FALSE
       )
