@@ -35,7 +35,7 @@ myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load protein identifier map.
-protmap <- readRDS(file.path(rdatdir, "2_Prot_Map.RData"))
+protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
 
 # Load statistical results.
 glm_results <- readRDS(file.path(rdatdir, "2_Combined_All_GLM_Results.RData"))
@@ -50,10 +50,81 @@ data <- t(readRDS(file.path(rdatdir, "3_Combined_cleanDat.RData")))
 # Load correlation matrix.
 combAdjm <- t(readRDS(file.path(rdatdir, "3_Combined_Adjm.RData")))
 
-# Load network partitions.
-# myfile <- list.files(rdatdir, pattern = "6142226", full.names = TRUE)
-myfile <- list.files(rdatdir, pattern = "9109552", full.names = TRUE)
+# Load network comparision results.
+# Cortex versus striatum comparisons, self-preservation enforced:
+#myfile <- list.files(rdatdir,pattern="10403846", full.names=TRUE)
+#comparisons <- readRDS(myfile)
+
+# Load network partitions-- self-preservation enforced.
+myfile <- list.files(rdatdir, pattern = "1023746", full.names = TRUE) # WT and KO
+#myfile <- list.files(rdatdir,pattern="10360847",full.names=TRUE) # Cortex
+#myfile <- list.files(rdatdir, pattern="10342568",full.names=TRUE) # Striatum
 partitions <- readRDS(myfile)
+
+#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+# Examine number of preserved modules.
+nPres <- list("Cortex" = sapply(comparisons,function(x) sum(x[["Cortex"]]=="preserved")),
+	      "Striatum" = sapply(comparisons,function(x) sum(x[["Striatum"]]=="preserved")))
+maxPres <- sapply(nPres,max) # Maximum number of preserved modules.
+maxPresRes <- sapply(nPres,function(x) c(1:length(x))[x == max(x)]) # Resolution with maximum preservation.
+
+# Examine number of NS modules.
+nNS <- list("Cortex" = sapply(comparisons,function(x) sum(x[["Cortex"]]=="ns")),
+	      "Striatum" = sapply(comparisons,function(x) sum(x[["Striatum"]]=="ns")))
+maxNS <- sapply(nNS,max) # Maximum number of preserved modules.
+maxNSres <- sapply(nNS,function(x) c(1:length(x))[x == max(x)]) # Resolution with maximum preservation.
+
+# Examine number of divergent modules.
+nDiv <- list("Cortex" = sapply(comparisons,function(x) sum(x[["Cortex"]]=="divergent")),
+	      "Striatum" = sapply(comparisons,function(x) sum(x[["Striatum"]]=="divergent")))
+maxDiv <- sapply(nDiv,max) # Maximum number of preserved modules.
+maxDivRes <- sapply(nDiv,function(x) c(1:length(x))[x == max(x)]) # Resolution with maximum preservation.
+
+# There are no divergent modules.
+# The maximum number of preserved modules is 8.
+# The resolution at which cortex is maximally preserved in striatum and vice
+# versa is different.
+
+# What are these modules??
+maxPresRes
+
+comparisons[[80]][["Cortex"]]
+
+p1 <- partitions[[80]][["Cortex"]]
+m1 <- split(p,p)
+
+m1[["28"]]
+
+comparisons[[72]][["Striatum"]]
+p2 <- partitions[[72]][["Striatum"]]
+m2 <- split(p,p)
+
+# Classify partitions as perserved, ns, or divergent.
+presModules <- list()
+for (i in 1:length(comparisons)) {
+
+# Cortex
+compx <- comparisons[[i]][["Cortex"]]
+partx <- partitions[[i]][["Cortex"]]
+
+x = split(partx,partx)
+namen <- compx[names(x)]
+namen[is.na(namen)] <- "Not-Clusterd"
+
+
+# Striatum
+compy <- comparisons[[i]][["Striatum"]]
+party <- partitions[[i]][["Striatum"]]
+str_part <- compy[party]
+names(str_part) <- names(party)
+presModules[[i]] <- list("Cortex" = split(cox_part,partx),
+			   "Striatum" = split(str_part,party))
+}
+
+x = presModules[[1]]
+
 
 #-------------------------------------------------------------------------------
 ## Unpack the permutation results.

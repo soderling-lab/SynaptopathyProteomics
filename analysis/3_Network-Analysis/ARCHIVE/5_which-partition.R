@@ -57,11 +57,11 @@ koAdjm <- t(readRDS(list.files(rdatdir,
   full.names = TRUE
 )))
 
-# Load network partitions.
+# Load network partitions. WT and KO self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = "6142226", full.names = TRUE)
 partitions <- readRDS(myfile)
 
-# Load network comparison results.
+# Load network comparison results. Comparison of WT and KO networks.
 myfile <- list.files(rdatdir, pattern = "6490667", full.names = TRUE)
 comparisons <- readRDS(myfile)
 

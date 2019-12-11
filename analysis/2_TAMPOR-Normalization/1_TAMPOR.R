@@ -309,7 +309,7 @@ if (sum(is.na(gene)) > 0) {
 protmap <- data.frame(ids, uniprot, entrez, gene)
 
 # Save to Rdata.
-myfile <- file.path(Rdatadir, "2_Prot_Map.RData")
+myfile <- file.path(Rdatadir, "2_Protein_ID_Map.RData")
 saveRDS(protmap, myfile)
 
 #-------------------------------------------------------------------------------
