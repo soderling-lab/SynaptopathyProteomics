@@ -32,7 +32,7 @@ ggplotVerboseBoxplot <- function(x, g, contrasts, box_order = NULL, ...) {
     lvls <- unique(df$g)
   }
   levels(df$g) <- lvls
-  # Tissue type.
+  # Define tissue type grouping for faceted plot.
   df$tissue <- ""
   df$tissue[grep("Cortex", df$g)] <- "Cortex"
   df$tissue[grep("Striatum", df$g)] <- "Striatum"

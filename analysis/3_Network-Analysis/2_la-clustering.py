@@ -6,10 +6,11 @@
 #------------------------------------------------------------------------------
 
 # User parameters to change: 
-data_type = 3 # Combined, Cortex, KO, Striatum, or WT (0,1,2,3,4).
-rmin = 0      # Min resolution.
-step = 1      # Step size.
-rmax = 100    # Max resolution.
+data_type = 0 # Combined, Cortex, KO, Striatum, or WT (0,1,2,3,4).
+rmin = 0 # Min resolution.
+step = 1 # Step size.
+rmax = 100 # Max resolution.
+sft = 9 # Power for weighting the network. If even should enforce sign.
 
 # Imports.
 import os
@@ -75,7 +76,7 @@ g.vs['label'] = nodes.keys()
 
 # Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
 g.add_edges(el)
-g.es['weight'] = edges['weight'] 
+g.es['weight'] = edges['weight']**sft
 
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
