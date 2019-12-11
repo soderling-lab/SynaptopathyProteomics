@@ -35,9 +35,9 @@
 stats <- c(1:7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
+self <- "Combined" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
 nres <- 100 # Total number of resolutions to be anlyzed.
-verbose <- TRUE
+verbose <- FALSE
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -165,12 +165,12 @@ for (i in 1:nres) {
   out <- names(preservedParts)[preservedParts == "ns"]
   partition[partition %in% out] <- 0
   nPreserved <- nModules - length(out)
-  message(paste("...", nPreserved, "modules of", nModules, "modules are preserved."))
+  message(paste("...", nPreserved, "of", nModules, "modules are preserved."))
   # Return results.
   results[[i]] <- partition
   # Save to Rdata.
   if (i == nres) {
-    output_name <- paste0(jobID, "_", self, "_Module_Self_Preservation.RDS")
+    output_name <- paste0(jobID, "_", self, "_Module_Self_Preservation.RData")
     saveRDS(results, file.path(datadir, output_name))
     message("Done!")
   }
