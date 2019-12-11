@@ -37,6 +37,7 @@ strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig 
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
 self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
 nres <- 100 # Total number of resolutions to be anlyzed.
+verbose <- TRUE
 
 # Is this a slurm job?
 slurm <- any(grepl("SLURM", names(Sys.getenv())))
@@ -151,11 +152,11 @@ for (i in 1:nres) {
       test = "self",
       selfPreservation = TRUE,
       nThreads = nThreads,
-      # nPerm = 100000, # Determined automatically by the function.
+      nPerm = NULL, # Determined automatically by the function.
       null = "overlap",
       alternative = "greater", # Greater for self-preservation.
       simplify = TRUE,
-      verbose = FALSE
+      verbose
     )
   })
   # Remove NS modules--set NS modules to 0.

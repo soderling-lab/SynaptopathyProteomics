@@ -16,11 +16,8 @@ strength <- "strong" # Preservation criterion: strong = all, weak = any sig stat
 res <- c(1:100) # Which resolutions to analyze?
 net1 <- "Cortex" # Network 1.
 net2 <- "Striatum" # Network 2.
-partition1 <- "10360847" # Partition file for first network.
-partition2 <- "10342568" # Partition file for second network.
-alternative <- "two.sided" # Alternative H0 for permutation test.
-verbose <- TRUE # Suppress output from modulePreservation?
-# save_results <- FALSE    # Should permutation results be saved?
+partition1 <- "3_Cortex_partitions.csv"
+partition2 <- "3_Striatum_partitions.csv"
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -80,6 +77,7 @@ names(data) <- c(net1, net2)
 mynetworks <- paste0("3_", c(net1, net2), "_Adjm.RData")
 myfiles <- sapply(mynetworks, function(x) list.files(rdatdir, x, full.names = TRUE))
 adjm <- lapply(myfiles, function(x) as.matrix(readRDS(x)))
+# Fix rownames.
 adjm <- lapply(adjm, function(x) {
   rownames(x) <- colnames(x)
   return(x)
@@ -87,15 +85,18 @@ adjm <- lapply(adjm, function(x) {
 names(adjm) <- c(net1, net2)
 
 # Create unsigned networks for NetRep.
-# Not weighted.
+# Networks are not weighted.
 networks <- lapply(adjm, abs)
 
 # Load network partitions.
-mypartitions <- c(partition1, partition2)
-myfiles <- sapply(mypartitions, function(x) list.files(rdatdir, x, full.names = TRUE))
-all_partitions <- lapply(myfiles, readRDS)
-#names(all_partitions) <- c(net1, net2)
-names(all_partitions) <- rev(c(net1, net2))
+# If working with csv files:
+myfiles <- file.path(rdatdir, c(partition1, partition2))
+all_partitions <- lapply(myfiles, function(x) fread(x, drop = 1, skip = 1))
+all_partitions <- lapply(c(1, 2), function(x) {
+  colnames(all_partitions[[x]]) <- colnames(adjm[[x]])
+  return(all_partitions[[x]])
+})
+names(all_partitions) <- c(net1, net2)
 
 #------------------------------------------------------------------------------
 # Loop through all resolutions and perform permutation test.
@@ -125,13 +126,18 @@ for (r in res) {
   # Status report.
   message(paste("Working on resolution:", r, "..."))
   # Extract from list.
-  partitions <- list(
-    all_partitions[[net1]][[r]],
-    all_partitions[[net2]][[r]]
-  )
-  names(partitions) <- c(net1, net2)
+  partitions <- lapply(all_partitions, function(x) as.integer(x[r, ] + 1))
+  prots <- colnames(all_partitions[[1]])
+  partitions <- lapply(partitions, function(x) {
+    names(x) <- prots
+    return(x)
+  })
+  # Remove small modules.
+  # partitions <- lapply(partitions, filter_modules)
   # Total number of modules; ignore 0.
   nModules <- sapply(partitions, function(x) sum(names(table(x)) != 0))
+  # Split partitions into modules.
+  modules <- lapply(partitions, function(x) split(x, x))
   # Input for NetRep:
   data_list <- data
   correlation_list <- adjm
@@ -158,11 +164,11 @@ for (r in res) {
         test = x["test"],
         selfPreservation = FALSE,
         nThreads = nThreads,
-        nPerm = NULL,  # determined by the function.
+        # nPerm = 100000,  # determined by the function.
         null = "overlap",
-        alternative,  # c(greater,less,two.sided)
+        alternative = "two.sided", # c(greater,less,two.sided)
         simplify = TRUE,
-        verbose
+        verbose = FALSE
       )
       return(result)
     })

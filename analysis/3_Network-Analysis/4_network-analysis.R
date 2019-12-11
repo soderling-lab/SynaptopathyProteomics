@@ -34,7 +34,6 @@ tabsdir <- file.path(root, "tables")
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
-myfun <- myfun[-grep("TAMPOR", myfun)] # Something wrong with TAMPOR.R??
 invisible(sapply(myfun, source))
 
 # Load protein identifier map.
@@ -91,7 +90,7 @@ MEs <- lapply(partitions, function(x) {
   )[[1]]
 })
 
-# Calculate module coherence.
+# Calculate module coherence, aka percent variance explained (PVE).
 # This may take several moments.
 PVE <- sapply(resolutions, function(x) {
   propVarExplained(data,
@@ -126,8 +125,6 @@ PVE <- lapply(PVE, function(x) x[-1])
 
 # Mean percent variance explained.
 meanPVE <- sapply(PVE, function(x) mean(x))
-medianPVE <- sapply(PVE, function(x) median(x))
-maxPVE <- sapply(PVE, function(x) max(x))
 
 # All sig prots.
 alpha <- 0.05
@@ -146,13 +143,12 @@ modSig <- lapply(modules, function(x) sapply(x, function(y) sum(protSig[y])))
 ## Perform GO analysis of modules at every resolution.
 #------------------------------------------------------------------------------
 
+perform_GO_enrichment = FALSE
+
+if (perform_GO_enrichment){
 # Load mouse GO collection.
 myfile <- list.files(rdatdir, "musGO", full.names = TRUE)
 musGO <- readRDS(myfile) # Not working?
-
-# Load GO results.
-moduleGO <- readRDS(file.path(rdatdir, "3_Module_GO_Results.RData"))
-
 # Function to perform GO enrichment for all modules in a given partition.
 getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
   part <- partitions[[resolution]]
@@ -188,7 +184,6 @@ getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
   names(GO_results) <- colnames(dm)
   return(GO_results)
 } # Ends function.
-
 # Loop to perform GO enrichment for modules at every resolution.
 message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
 n <- length(partitions) # n resolutions.
@@ -210,15 +205,17 @@ for (i in seq_along(resolutions)) {
     message("Done!")
   }
 } # Ends loop.
-
-# Examine results.
 moduleGO <- results
+} else {
+# Load GO results.
+moduleGO <- readRDS(file.path(rdatdir, "3_Module_GO_Results.RData"))
+}
 
 # Remove M0 results.
 moduleGO <- lapply(moduleGO, function(x) x[-grep("M0", names(x))])
 
-# Examine biological enrichment. Sum of GO pvalues for all modules at a given
-# resolution.
+# Examine biological enrichment. Sum of -log(GO pvalues) for all modules at a 
+# given resolution.
 modSig <- lapply(moduleGO, function(x) sapply(x, function(y) sum(-log(y$pValue))))
 x <- sapply(modSig, sum)
 best_res <- c(1:length(x))[x == max(x)]
@@ -231,6 +228,17 @@ print(best_res)
 # Does it make sense to combine data from cortex and striatum when building a
 # nework... Should we do two sided test... divergent and preserved...
 
+# Examine best resolution.
+resolution <- best_res
+partition <- partitions[[resolution]]
+modules <- split(partition, partition)
+names(modules) <- paste0("M", names(modules))
+nModules <- length(modules) - 1
+nModules
+
+# Load Sample info.
+traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
+
 # Collect GO results from ~best resolution.
 resGO <- moduleGO[[best_res]]
 
@@ -240,7 +248,7 @@ write_excel(resGO, myfile)
 
 # Top GO from every module.
 topGO <- sapply(resGO, function(x) x$shortDataSetName[1])
-names(topGO) <- names(modules)
+names(topGO) <- names(modules)[-1]
 sigGO <- sapply(resGO, function(x) x$FDR[1] < 0.05)
 
 # Percent modules with significant go enrichment.
@@ -248,17 +256,6 @@ message(paste(
   "Percent modules with significant GO terms:",
   round(100 * sum(sigGO) / length(sigGO), 2), "(%)"
 ))
-
-# Load Sample info.
-traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
-
-# Examine best resolution.
-resolution <- best_res
-partition <- partitions[[resolution]]
-modules <- split(partition, partition)
-names(modules) <- paste0("M", names(modules))
-nModules <- length(modules) - 1
-nModules
 
 # Calculate Module eigengenes.
 MEdat <- moduleEigengenes(data, colors = partition, impute = FALSE)
@@ -275,7 +272,6 @@ kmeData <- signedKME(data, MEs, corFnc = "bicor")
 PVE <- as.numeric(MEdat$varExplained)
 names(PVE) <- names(modules)
 PVE <- PVE[-1]
-median(PVE)
 
 # Define vector of groups;
 # group all WT samples from a tissue type together.
@@ -326,15 +322,18 @@ KWtest <- lapply(ME_list, function(x) {
 
 # Correct KWtest pvalues for nModule multiple comparisons.
 # M0 is excluded.
-a <- p.adjust(sapply(KWtest, "[", 1), method = "BH")
-b <- p.adjust(sapply(KWtest, "[", 2), method = "BH")
-KWpval <- lapply(c(1:length(cox)), function(x) c(a[x], b[x]))
-names(KWpval) <- names(modules)
+method = "bonferroni"
+a <- p.adjust(sapply(KWtest, "[", 1), method)
+b <- p.adjust(sapply(KWtest, "[", 2), method)
+KWpval <- lapply(c(1:length(a)), function(x) c(a[x], b[x]))
+names(KWpval) <- sapply(strsplit(names(a),"\\."),"[",1)
 
 # KWsig?
 alpha <- 0.05
 KWsig <- sapply(KWpval, function(x) any(x < alpha))
+names(KWsig) <- gsub("ME","M",names(KWsig))
 sigModules <- names(KWsig)[KWsig]
+message(paste("Number of significant modules:",length(sigModules)))
 
 # Perform Dunn tests (post-hoc test for unequal sample sizes).
 Dtest <- lapply(ME_list, function(x) {
@@ -348,22 +347,27 @@ Dtest <- lapply(ME_list, function(x) {
 names(Dtest) <- names(modules)
 
 # Keep only contrasts of interest as defined above.
+method = "bonferroni" # Method for p-value correction.
 cleanDT <- function(x, contrasts) {
   # Cortex.
   df1 <- x$Cortex$res
   df1 <- subset(df1, df1$Comparison %in% contrasts)
-  df1$P.adj <- p.adjust(df1$P.unadj, method = "bonferroni")
+  df1$P.adj <- p.adjust(df1$P.unadj, method)
   # Striatum
   df2 <- x$Striatum$res
   df2 <- subset(df2, df2$Comparison %in% contrasts)
-  df2$P.adj <- p.adjust(df2$P.unadj, method = "bonferroni")
+  df2$P.adj <- p.adjust(df2$P.unadj, method)
   return(rbind(df1, df2))
 }
-Dtest <- lapply(Dtest, function(x) cleanDT(x, contrasts))
 
-nDTsig <- sapply(Dtest, function(x) sum(x$P.adj < 0.05))
+# Clean up Dunn test results.
+DunnTests <- lapply(Dtest, function(x) cleanDT(x, contrasts))
+nDTsig <- sapply(DunnTests, function(x) sum(x$P.adj < 0.05))
+nDTsig[!KWsig] <- 0
 
-nDTsig[sigModules]
+nDTsig[sigModules] # Why some with no sig post-hoc change?
+# Need to double check that stats are done correctly. DunnTest results don't
+# look convincing...
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.

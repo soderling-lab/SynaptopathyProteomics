@@ -59,14 +59,8 @@ sig <- apply(glmDat[, c(2:ncol(glmDat))], 1, function(x) any(x < 0.05))
 sigProts <- rownames(glmDat)[sig]
 
 # Load expression data.
-wtDat <- t(readRDS(list.files(rdatdir,
-  pattern = "WT_cleanDat",
-  full.names = TRUE
-)))
-koDat <- t(readRDS(list.files(rdatdir,
-  pattern = "KO_cleanDat",
-  full.names = TRUE
-)))
+wtDat <- t(readRDS(list.files(rdatdir,pattern = "WT_cleanDat",full.names=TRUE)))
+koDat <- t(readRDS(list.files(rdatdir,pattern = "KO_cleanDat",full.names = TRUE)))
 
 # Load adjmatrices.
 wtAdjm <- t(readRDS(list.files(rdatdir,
@@ -81,7 +75,7 @@ koAdjm <- t(readRDS(list.files(rdatdir,
 # Calculate power for approximate scale free fit.
 sft <- silently({
   sapply(list(wtDat, koDat), function(x) {
-    pickSoftThreshold(x,
+      pickSoftThreshold(x,
       corFnc = "bicor",
       networkType = "signed",
       RsquaredCut = 0.8
