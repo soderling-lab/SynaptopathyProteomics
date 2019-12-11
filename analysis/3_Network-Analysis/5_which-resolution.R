@@ -10,6 +10,8 @@ mypart <- c(Cortex = "10360847") # c(Striatum = "10342568")
 
 # Global options and imports.
 suppressPackageStartupMessages({
+	library(org.Mm.eg.db)
+	library(anRichment)
 })
 
 # Directories.
@@ -43,6 +45,9 @@ partitions <- readRDS(myfile)
 musGOcollection <- buildGOcollection(organism="mouse")
 
 # Loop to perform GO enrichment for modules at every resolution.
+message((paste("Analyzing GO enrichment of modules identified in",
+	       net,"network..."))
+
 results <- list()
 for (i in seq_along(partitions)) {
   # Initialize progress bar.
@@ -56,7 +61,7 @@ for (i in seq_along(partitions)) {
   if (i == length(partitions)) {
     # Close pb.
     close(pb)
-    message("Done!")
+    message("GO enrichment analysis complete!")
   }
 } # Ends loop.
 
@@ -84,6 +89,11 @@ modSig <- modSig[-out]
 # Summarize every resolution.
 resSum <- sapply(modSig, sum)
 best_res <- c(1:length(resSum))[resSum == max(resSum)]
+names(best_res) <- net
 
 # Status report. 
 message(paste("Best resolution based on GO enrichment:",best_res))
+
+# Save results.
+myfile <- file.path(rdatdir,paste0("3_",net,"best_resolution.RData")
+saveRDS(best_res, myfile)
