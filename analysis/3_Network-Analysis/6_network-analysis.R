@@ -286,9 +286,9 @@ for (i in c(1:17, 19:length(modules))) {
 #-------------------------------------------------------------------------------
 
 # Parameters for loop:
-results <- list()
+results <- list() # empty list for output of loop.
 method <- "bonferroni" # method for KW p.adjust.
-alpha <- 0.05 # Significance level for KW and Dunnett tests.
+alpha <- 0.05 # significance level for KW and Dunnett tests.
 
 for (i in 1:100) {
   message(paste("Working on resolution:", i, "..."))
@@ -299,7 +299,8 @@ for (i in 1:100) {
   nModules <- sum(names(modules) != "M0")
   message(paste("... Number of modules:", nModules))
   # Calculate Module eigengenes.
-  MEdat <- moduleEigengenes(data, colors = partition, softPower = 1, impute = FALSE)
+  MEdat <- moduleEigengenes(data, colors = partition, 
+			    softPower = 1, impute = FALSE)
   MEs <- as.matrix(MEdat$eigengenes)
   # Get Percent Variance explained (PVE)
   PVE <- MEdat$varExplained
@@ -310,9 +311,10 @@ for (i in 1:100) {
   ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
   names(ME_list) <- names(modules)
   # Define groups for verbose box plot.
-  # Group all WT samples from a tissue type together.
-  traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
+  traits$Sample.Model.Tissue <- paste(traits$Sample.Model, 
+				      traits$Tissue, sep = ".")
   g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+  # Group all WT samples from a tissue type together.
   g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
   g[grepl("WT.*.Striatum", g)] <- "WT.Striatum"
   g <- as.factor(g)
@@ -323,11 +325,12 @@ for (i in 1:100) {
   contrasts <- paste(groups, paste0("- ", "WT.", net))
   # Define the order of the bars in the verbose boxplot.
   box_order <- paste(c("WT", "KO.Shank2", "KO.Shank3", "HET.Syngap1", "KO.Ube3a"),
-    net,
-    sep = "."
+    net, sep = "."
   )
   # Use lapply to generate plots.
-  plots <- lapply(ME_list, function(x) ggplotVerboseBoxplot(x, g, contrasts, box_order))
+  plots <- lapply(ME_list, function(x) {
+			  ggplotVerboseBoxplot(x, g, contrasts, box_order)
+  })
   names(plots) <- names(modules)
   # Add Module name and PVE to plot titles. Simplify x-axis labels.
   for (k in seq_along(plots)) {
@@ -335,7 +338,8 @@ for (i in 1:100) {
     namen <- names(plots)[k]
     txt <- paste("PVE:", round(PVE[namen], 3))
     plot$labels$title <- paste0(namen, " (", txt, plot$labels$title, ")")
-    plot <- plot + scale_x_discrete(labels = rep(c("WT", "Shank2", "Shank3", "Syngap1", "Ube3a"), 2))
+    plot <- plot + 
+	    scale_x_discrete(labels = rep(c("WT", "Shank2", "Shank3", "Syngap1", "Ube3a"), 2))
     plots[[k]] <- plot
   }
   # Perform KW tests.
@@ -357,5 +361,7 @@ for (i in 1:100) {
     as.data.frame(DunnettTest(x, g, control = con)[[con]])
   })
   # Save results in list.
-  results[[i]] <- list("plots" = plots, "DT_list" = DT_list, "nSigModules" = nSigModules, "nDTSig" = nDTSig)
-}
+  results[[i]] <- list("plots" = plots, "DT_list" = DT_list, 
+		       "nSigModules" = nSigModules, "nDTSig" = nDTSig)
+} # Ends loop.
+

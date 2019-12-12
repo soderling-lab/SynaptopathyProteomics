@@ -41,12 +41,18 @@ partitions <- readRDS(myfile)
 ## Which resolution? Perform GO analysis of modules at every resolution.
 #------------------------------------------------------------------------------
 
+# Should we refine GO reference collection?
+
 # Build mouse go collection:
 message(paste("Preparing to analyze modules identified in the",
 	       net,"network for GO enrichment..."))
 if (!exists("musGOcollection")) {
 	musGOcollection <- buildGOcollection(organism="mouse")
 }
+
+
+
+
 
 # Loop to perform GO enrichment for modules at every resolution.
 message("Performing GO enrichment analysis...")

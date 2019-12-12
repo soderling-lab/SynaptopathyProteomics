@@ -22,20 +22,31 @@
 # 2. coherence - Calculated from the data. Quantifies the percent variance
 #    explained by a modules summary vector.
 # 3. cor.cor (concordance of correlation structure) - Calculated from
-#    correlation matrix.
-# 4. cor.degree (concordance of weighted degree) - Calculated from network. Assumes edge weights are
-#    positive.
-# 5. cor.contrib (average node contribution) - Calculated from the data.
+#    correlation matrix. Sensitive to small changes in correlation coefficients.
+# 4. cor.degree (concordance of weighted degree) - Calculated from network. 
+#    Assumes edge weights are positive. Sensitive to small changes in 
+#    weighted degree.
+# 5. cor.contrib (concordance of node contribution) - Calculated from the data.
+#    Sensitve to small changes in node contribution. 
 # 6. avg.cor (density of correlation structure) - Calculated from correlation
 #    matrix.
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
 #    to summary profile.
 
+## Permutation Statistics:
+# 1. avg.weight
+# 2. coherence
+# 3. cor.cor - Don't use! Sensitive to small changes.
+# 4. cor.degree - Don't use! Sensitive to small changes.
+# 5. cor.contrib - Don't use! Sensitive to small changes.
+# 6. avg.cor
+# 7. avg.contrib
+
 # User parameters to change:
-stats <- c(1:7) # Module statistics to use for permutation testing.
+stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self <- "Combined" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
+self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
 nres <- 100 # Total number of resolutions to be anlyzed.
 verbose <- FALSE
 
