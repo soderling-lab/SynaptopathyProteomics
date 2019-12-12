@@ -110,5 +110,5 @@ names(best_res) <- net
 message(paste("Best resolution based on GO enrichment:",best_res))
 
 # Save results.
-myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
+myfile <- file.path(rdatdir,paste0("3_",net,"_GO_Best_Resolution.RData"))
 saveRDS(best_res, myfile)
