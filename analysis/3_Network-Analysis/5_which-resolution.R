@@ -44,56 +44,66 @@ partitions <- readRDS(myfile)
 # Build mouse go collection:
 message(paste("Preparing to analyze modules identified in the",
 	       net,"network for GO enrichment..."))
-musGOcollection <- buildGOcollection(organism="mouse")
+if (!exists("musGOcollection")) {
+	musGOcollection <- buildGOcollection(organism="mouse")
+}
 
 # Loop to perform GO enrichment for modules at every resolution.
 message("Performing GO enrichment analysis...")
-results <- list()
+GOresults <- list()
 for (i in seq_along(partitions)) {
   # Initialize progress bar.
   if (i == 1) {
     pb <- txtProgressBar(min = 0, max = length(partitions), style = 3)
   }
   # Perform GO analysis.
-  results[[i]] <- moduleGOenrichment(partitions,i, protmap,musGOcollection)
+  GOresults[[i]] <- moduleGOenrichment(partitions,i, protmap,musGOcollection)
   # Update progress bar.
   setTxtProgressBar(pb, i)
   if (i == length(partitions)) {
     # Close pb.
-    close(pb)
-    message("GO enrichment analysis complete!")
+	  close(pb)
+	  message("\n")
   }
 } # Ends loop.
 
 # Save results.
-myfile <- file.path(rdatdir,paste0("3_",net,"Module_GO_Results.RData"))
-saveRDS(results, myfile)
+myfile <- file.path(rdatdir,paste0("3_",net,"_Module_GO_Results.RData")) 
+saveRDS(GOresults, myfile)
+
+# Load results.
+GOresults <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
 ## Examine GO results in order to define ~best resolution.
 #------------------------------------------------------------------------------
 
-# Remove M0 results.
-moduleGO <- lapply(moduleGO, function(x) x[-grep("M0", names(x))])
-
 # Examine biological enrichment of modules at every resolution.
 # Summarize the biological significance of a resolution as the sum of 
 # -log(GO pvalues) for all modules.
-modSig <- lapply(moduleGO, function(x) 
+modSig <- lapply(GOresults, function(x) 
 		 sapply(x, function(y) sum(-log(y$pValue))))
 
-# Remove resolutions that have no sig GO terms.
-out <- c(1:length(modSig))[sapply(modSig,function(x) length(x)==0)]
-modSig <- modSig[-out]
+modSig <- lapply(GOresults, function(x) 
+		 sapply(x, function(y) mean(-log(y$pValue))))
+
+# The code above is confusing, this is what it does:
+#x = results[[1]] # list of go enrichment for all modules at res 1.
+#y = x[[1]] # go enrichment df of module 1.
+#y$pValue
+#-log(y$pValue)
+#sum(-log(y$pValue))
+#sapply(x,function(y) sum(-log(y$pValue)))
+#lapply(results, function(x) sapply(x,function(y) sum(-log(y$pValue))))
+#out = lapply(results, function(x) sapply(x,function(y) sum(-log(y$pValue))))
 
 # Summarize every resolution.
 resSum <- sapply(modSig, sum)
 best_res <- c(1:length(resSum))[resSum == max(resSum)]
 names(best_res) <- net
-
 # Status report. 
 message(paste("Best resolution based on GO enrichment:",best_res))
 
 # Save results.
-myfile <- file.path(rdatdir,paste0("3_",net,"best_resolution.RData")
+myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
 saveRDS(best_res, myfile)

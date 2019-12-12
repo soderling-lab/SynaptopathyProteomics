@@ -20,9 +20,6 @@ suppressPackageStartupMessages({
 })
 
 # Directories.
-if (rstudioapi::isAvailable()) {
-  setwd("D:/projects/SynaptopathyProteomics/analysis/3_Network-Analysis")
-}
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
@@ -65,9 +62,9 @@ myfile <- list.files(rdatdir,pattern="10360847",full.names=TRUE) # Cortex
 #myfile <- list.files(rdatdir, pattern= "Combined_Module",full.names=TRUE) # Combined network only
 partitions <- readRDS(myfile)
 
-#-------------------------------------------------------------------------------
-## Unpack the permutation results.
-#-------------------------------------------------------------------------------
+# Load best resolutions.
+myfiles <- list.files(rdatdir,"Best_Resolution",full.names=TRUE)
+best_res <- readRDS(myfiles)
 
 #-------------------------------------------------------------------------------
 ## Unpack the permutation results.
