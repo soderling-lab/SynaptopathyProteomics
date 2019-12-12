@@ -26,6 +26,9 @@ suppressPackageStartupMessages({
 })
 
 # Directories.
+if (rstudioapi::isAvailable()) {
+	setwd("D:/projects/SynaptopathyProteomics/analysis/3_Network-Analysis")
+}
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
@@ -100,6 +103,7 @@ net_comparisons <- readRDS(myfile)
 
 # Get partition of ~best resolution.
 r <- best_res
+r < 99
 partition <- partitions[[r]]
 
 # Get Modules.
@@ -159,14 +163,15 @@ ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
 names(ME_list) <- names(modules)
 
 # Calculate module membership (kME).
-kmeDat <- signedKME(data, MEs, corFnc = "bicor")
+kmeData <- signedKME(data, MEs, corFnc = "bicor")
 
 # Define groups for verbose box plot.
-# Group all WT samples from a tissue type together.
 traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
 g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+# Group all WT samples from a tissue type together.
 g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
 g[grepl("WT.*.Striatum", g)] <- "WT.Striatum"
+# Coerce to factor.
 g <- as.factor(g)
 
 # Generate contrasts for KW test.
@@ -204,11 +209,11 @@ head(KWdata)
 KWdata <- KWdata[!rownames(KWdata) == "M0", ]
 
 # Correct p-values for n comparisons.
-method <- "BH"
+method <- "bonferroni"
 KWdata$p.adj <- p.adjust(KWdata$p.value, method)
 
 # Significant modules.
-alpha <- 0.1
+alpha <- 0.05
 sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
 nSigModules <- length(sigModules)
 message(paste0(
@@ -289,6 +294,7 @@ for (i in c(1:17, 19:length(modules))) {
 results <- list() # empty list for output of loop.
 method <- "bonferroni" # method for KW p.adjust.
 alpha <- 0.05 # significance level for KW tests.
+net <- "Striatum"
 
 for (i in 1:100) {
   message(paste("Working on resolution:", i, "..."))
@@ -361,7 +367,17 @@ for (i in 1:100) {
     as.data.frame(DunnettTest(x, g, control = con)[[con]])
   })
   # Save results in list.
-  results[[i]] <- list("plots" = plots, "DT_list" = DT_list, 
+  results[[i]] <- list("plots" = plots, "KWdata" = KWdata, "DT_list" = DT_list,
 		       "nSigModules" = nSigModules, "nDTSig" = nDTSig)
 } # Ends loop.
 
+# Most sig modules?
+#sapply(results,function(x) x$nSigModules)
+
+kw = results[[99]]$KWdata
+p <- results[[99]]$plots
+part <- partitions[[99]]
+m <- split(part,part)
+names(m) <- paste0("M",names(m))
+#go$M35
+#p$M35
