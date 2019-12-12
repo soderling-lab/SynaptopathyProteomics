@@ -18,13 +18,8 @@ mypart <- c(Cortex = "10773682",Striatum = "10781799")[net] # relaxed criterion
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
-  library(getPPIs)
-  library(purrr)
   library(WGCNA)
-  library(org.Mm.eg.db)
-  library(anRichment)
-  library(getPPIs)
-  library(DescTools)
+  library(fgsea)
   library(reactome.db)
 })
 
@@ -76,13 +71,17 @@ myfiles <- list(
 partitions <- lapply(myfiles, readRDS)[[net]]
 
 #------------------------------------------------------------------------------
-##
+## Perform GSE analysis.
 #------------------------------------------------------------------------------
 
 # Compile pathways from reactome.db.
+message("Compiling mouse pathways from the Reactome database.")
+suppressMessages({
 pathways <- reactomePathways(protmap$entrez)
+})
 
 # Loop to perform GSE analysis.
+message(paste("Analyzing",net,"modules for gene set enrichment.","\n"))
 GSEresults <- list()
 for (i in seq_along(partitions)){
 # Get partition.
@@ -93,7 +92,6 @@ modules <- split(partition, partition)
 names(modules) <- paste0("M", names(modules))
 # Number of modules.
 nModules <- sum(names(modules) != "M0")
-message(paste0("... Number of modules: ", nModules))
 # Power does not influence MEs.
 MEdata <- moduleEigengenes(data,
   colors = partition,
@@ -132,14 +130,17 @@ for (m in seq_along(modules)){
   } # Ends inner loop.
   # Status.
   nSig <- sum(sapply(moduleGSE,function(x) any(x$padj<0.05)))
-  message(paste("... Number of modules with any significant enrichment:",nSig))
+  message(paste("... Modules with any significant GSE:",nSig,
+		"of",nModules,"(",round(100*nSig/nModules,2),"%)","\n"))
 # Return GSE results for 
 GSEresults[[i]] <- moduleGSE
 }
 
 # Save results.
-myfile <- file.path(rdatdir,paste0("3_",net,"_Module_GO_Results.RData")) 
-saveRDS(GOresults, myfile)
+myfile <- file.path(rdatdir,paste0("3_",net,"_Module_GSE_Results.RData")) 
+saveRDS(GSEresults, myfile)
+
+quit()
 
 #------------------------------------------------------------------------------
 ## Examine GO results in order to define ~best resolution.
