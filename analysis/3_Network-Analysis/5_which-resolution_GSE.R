@@ -11,6 +11,8 @@
 
 # User parameters to change:
 net <- "Cortex" # Which network are we analyzing?
+#mypart <- c(Cortex = "10360847",Striatum = "10342568")[net]
+mypart <- c(Cortex = "10773682",Striatum = "10781799")[net] # relaxed criterion
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -23,6 +25,7 @@ suppressPackageStartupMessages({
   library(anRichment)
   library(getPPIs)
   library(DescTools)
+  library(reactome.db)
 })
 
 # Directories.
@@ -42,10 +45,6 @@ invisible(sapply(myfun, source))
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
-
-# Load GLM stats.
-myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
-glm_stats <- readRDS(myfile)
 
 # Load expression data.
 myfiles <- list(
@@ -80,8 +79,12 @@ partitions <- lapply(myfiles, readRDS)[[net]]
 ##
 #------------------------------------------------------------------------------
 
-i <- 1
+# Compile pathways from reactome.db.
+pathways <- reactomePathways(protmap$entrez)
 
+# Loop to perform GSE analysis.
+GSEresults <- list()
+for (i in seq_along(partitions)){
 # Get partition.
 partition <- partitions[[i]]
 message(paste("Working on resolution:", i,"..."))
@@ -91,38 +94,19 @@ names(modules) <- paste0("M", names(modules))
 # Number of modules.
 nModules <- sum(names(modules) != "M0")
 message(paste0("... Number of modules: ", nModules))
-# Percent not clustered.
-percentNC <- sum(partition == 0) / length(partition)
-message(paste("... Percent of proteins not clustered:", round(100 * percentNC, 2), "(%)"))
-# Calculate Module eigengenes.
 # Power does not influence MEs.
 MEdata <- moduleEigengenes(data,
   colors = partition,
   softPower = 1, impute = FALSE
 )
 MEs <- as.matrix(MEdata$eigengenes)
-# Get Percent Variance explained (PVE)
-PVE <- MEdata$varExplained
-names(PVE) <- names(modules)
-meanPVE <- mean(as.numeric(PVE[names(PVE) != "M0"]))
-message(paste("... Mean module coherence (PVE):", round(100 * meanPVE, 2), "(%)"))
-# Create list of MEs.
-ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
-names(ME_list) <- names(modules)
 # Calculate module membership (kME).
 KMEdata <- signedKME(data, MEs, corFnc = "bicor")
-
-library(fgsea)
-data(examplePathways)
-
-m = 1
-
 # Loop through modules, perform GSEA.
-moduleGO <- list()
-
+moduleGSE <- list()
 for (m in seq_along(modules)){
-
   # Calculate ranks as KME.
+  # Another metric for ranks by be signed Fold change * -log10pvalue.
   prots <- names(modules[[m]])
   subKME <- subset(KMEdata,rownames(KMEdata) %in% prots)
   colnames(subKME) <- names(modules)
@@ -133,33 +117,60 @@ for (m in seq_along(modules)){
   names(ranks) <- entrez
   # Ranks must be sorted in increasing order.
   ranks <- ranks[order(ranks)]
-  # Another metric for ranks by be signed Fold change * -log10pvalue.
-
-  library(reactome.db)
-
-  my_pathways <- reactomePathways(names(exampleRanks))
-
   # Perform GSEA.
   suppressWarnings({
-  GSEdata <- fgsea(examplePathways, ranks, minSize=5, maxSize=15, nperm = 1e+05)
+  GSEdata <- fgsea(pathways, ranks, minSize=5, maxSize=500, nperm = 1e+05)
   })
-
   # Sort by p-value.
   GSEdata <- GSEdata[order(GSEdata$pval), ]
-
-
-# plot the most significantly enriched pathway
-  library(ggplot2)
-  plotEnrichment(examplePathways[[head(GSEdata[order(pval), ], 1)$pathway]],
-		                exampleRanks) + labs(title=head(GSEdata[order(pval), ], 1)$pathway)
-
-  topPathwaysUp <- GSEdata[ES > 0][head(order(pval), n=10), pathway]
-  topPathwaysDown <- GSEdata[ES < 0][head(order(pval), n=10), pathway]
-
   # Add column for gene symbols to results.
   genes <- lapply(GSEdata$leadingEdge, function(x) {
 			  protmap$gene[match(x, protmap$entrez)]
 			  })
   GSEdata$Symbols <- genes
-  moduleGO[[m]] <- GSEdata
+  moduleGSE[[m]] <- GSEdata
   } # Ends inner loop.
+  # Status.
+  nSig <- sum(sapply(moduleGSE,function(x) any(x$padj<0.05)))
+  message(paste("... Number of modules with any significant enrichment:",nSig))
+# Return GSE results for 
+GSEresults[[i]] <- moduleGSE
+}
+
+# Save results.
+myfile <- file.path(rdatdir,paste0("3_",net,"_Module_GO_Results.RData")) 
+saveRDS(GOresults, myfile)
+
+#------------------------------------------------------------------------------
+## Examine GO results in order to define ~best resolution.
+#------------------------------------------------------------------------------
+
+# Examine biological enrichment of modules at every resolution.
+# Summarize the biological significance of a resolution as the sum of 
+# -log(GO pvalues) for all modules.
+modSig <- lapply(GOresults, function(x) 
+		 sapply(x, function(y) sum(-log(y$pValue))))
+
+modSig <- lapply(GOresults, function(x) 
+		 sapply(x, function(y) mean(-log(y$pValue))))
+
+# The code above is confusing, this is what it does:
+#x = results[[1]] # list of go enrichment for all modules at res 1.
+#y = x[[1]] # go enrichment df of module 1.
+#y$pValue
+#-log(y$pValue)
+#sum(-log(y$pValue))
+#sapply(x,function(y) sum(-log(y$pValue)))
+#lapply(results, function(x) sapply(x,function(y) sum(-log(y$pValue))))
+#out = lapply(results, function(x) sapply(x,function(y) sum(-log(y$pValue))))
+
+# Summarize every resolution.
+resSum <- sapply(modSig, sum)
+best_res <- c(1:length(resSum))[resSum == max(resSum)]
+names(best_res) <- net
+# Status report. 
+message(paste("Best resolution based on GO enrichment:",best_res))
+
+# Save results.
+myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
+saveRDS(best_res, myfile)

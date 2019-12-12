@@ -6,7 +6,8 @@
 
 # User parameters to change.
 net <- "Cortex" 
-mypart <- c(Cortex = "10360847",Striatum = "10342568")[net]
+#mypart <- c(Cortex = "10360847",Striatum = "10342568")[net]
+mypart <- c(Cortex = "10773682",Striatum = "10781799")[net] # relaxed criterion
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -49,7 +50,7 @@ if (!exists("musGOcollection")) {
 }
 
 # Which GO groups would you like to use in your analysis?
-keep <- "GO.MF" # c("GO","GO.BP","GO.MF","GO.CC")
+keep <- c("GO","GO.BP","GO.MF","GO.CC")
 filtGOcollection <- subsetCollection(musGOcollection, tags = keep)
 
 # Loop to perform GO enrichment for modules at every resolution.

@@ -83,6 +83,7 @@ partitions <- readRDS(myfile)
   # Choose a dataset.
   dataset <- datasets[13]
   pathways <- gmtPathways(file.path(rdatdir, dataset))
+
   filter <- TRUE # Should genes that are not in synaptic proteome be removed?
   map2mouse <- FALSE # Map human genes to mouse?
 
