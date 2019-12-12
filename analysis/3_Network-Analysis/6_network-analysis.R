@@ -288,7 +288,7 @@ for (i in c(1:17, 19:length(modules))) {
 # Parameters for loop:
 results <- list() # empty list for output of loop.
 method <- "bonferroni" # method for KW p.adjust.
-alpha <- 0.05 # significance level for KW and Dunnett tests.
+alpha <- 0.05 # significance level for KW tests.
 
 for (i in 1:100) {
   message(paste("Working on resolution:", i, "..."))
@@ -344,7 +344,7 @@ for (i in 1:100) {
   }
   # Perform KW tests.
   KWdata <- as.data.frame(t(sapply(ME_list, function(x) kruskal.test(x ~ g))))
-  KWdata <- KWdata[, c(1, 2, 3)]
+  KWdata <- KWdata[, c(1, 2, 3)] # Remove un-needed columns.
   # Remove M0.
   KWdata <- KWdata[!rownames(KWdata) == "M0", ]
   # Correct p-values for n comparisons.
