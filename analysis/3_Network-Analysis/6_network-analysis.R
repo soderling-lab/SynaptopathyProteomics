@@ -1,7 +1,5 @@
 #!/usr/bin/env Rscript
 
-# Analyze combined network partitions. Which resolution to pick???
-
 #-------------------------------------------------------------------------------
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
@@ -41,132 +39,37 @@ glm_results <- readRDS(file.path(rdatdir, "2_Combined_All_GLM_Results.RData"))
 myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
+# Load module GO enrichment analysis results.
+myfiles <- list(Cortex = file.path(rdatdir,"3_Striatum_Module_GO_Results.RData"),
+	       Striatum = file.path(rdatdir,"3_Striatum_Module_GO_Results.RData"))
+GOresults <- lapply(myfiles,readRDS)
+
 # Load expression data.
-#data <- readRDS(file.path(rdatdir, "3_Combined_cleanDat.RData"))
-#data <- readRDS(file.path(rdatdir, "3_Striatum_cleanDat.RData"))
-data <- readRDS(file.path(rdatdir, "3_Cortex_cleanDat.RData"))
-exprDat <- t(data)
-colnames(exprDat) <- rownames(data)
+myfiles <- list(Cortex = file.path(rdatdir,"3_Cortex_cleanDat.RData"),
+		Striatum = file.path(rdatdir,"3_Striatum_cleanDat.RData"))
+data <- lapply(myfiles,readRDS)
+
+# Data should be transposed: rows, proteins.
+data <- lapply(data,t)
 
 # Load Sample info.
 traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
-# Load correlation matrix.
-#adjm <- t(readRDS(file.path(rdatdir, "3_Combined_Adjm.RData")))
-adjm <- t(readRDS(file.path(rdatdir, "3_Cortex_Adjm.RData")))
+# Load correlation (adjacency) matrices.
+myfiles <- list(Cortex = file.path(rdatdir,"3_Cortex_Adjm.RData"),
+		Striatum = file.path(rdatdir,"3_Striatum_Adjm.RData"))
+adjm <- lapply(myfiles,readRDS)
 
 # Load network partitions-- self-preservation enforced.
 #myfile <- list.files(rdatdir, pattern = "1023746", full.names = TRUE) # WT and KO
-myfile <- list.files(rdatdir,pattern="10360847",full.names=TRUE) # Cortex
-#myfile <- list.files(rdatdir, pattern="10342568",full.names=TRUE) # Striatum
 #myfile <- list.files(rdatdir, pattern= "Combined_Module",full.names=TRUE) # Combined network only
-partitions <- readRDS(myfile)
+myfiles <- list(Cortex = list.files(rdatdir,pattern="10360847",full.names=TRUE),
+		Striatum = list.files(rdatdir, pattern="10342568",full.names=TRUE))
+partitions <- lapply(myfiles,readRDS)
 
 # Load best resolutions.
 myfiles <- list.files(rdatdir,"Best_Resolution",full.names=TRUE)
-best_res <- readRDS(myfiles)
-
-#-------------------------------------------------------------------------------
-## Unpack the permutation results.
-#-------------------------------------------------------------------------------
-
-# Resolutions.
-resolutions <- c(1:length(partitions))
-
-# Collect modules from each partition.
-modules <- lapply(partitions, function(x) split(x, x))
-
-# Number of modules. Ignore NS modules (not preserved).
-nModules <- sapply(modules, function(x) sum(names(x) != "0"))
-
-# Percent not-clustered.
-percentNC <- sapply(partitions, function(x) sum(x == 0) / length(x))
-
-#------------------------------------------------------------------------------
-## Which resolution? Perform GO analysis of modules at every resolution.
-#------------------------------------------------------------------------------
-
-perform_GO_enrichment = TRUE
-if (perform_GO_enrichment){
-# Build mouse GO collection.
-	if (!exists("musGOcollection")){
-musGOcollection <- buildGOcollection(organism="mouse")
-	}
-# Function to perform GO enrichment for all modules in a given partition.
-getModuleGO <- function(partitions, resolution, protmap, musGOcollection) {
-  part <- partitions[[resolution]]
-  modules <- split(part, part)
-  dm <- sapply(names(modules), function(x) part == x)
-  colnames(dm) <- paste0("R", resolution, "-M", names(modules))
-  logic <- dm == TRUE
-  for (i in 1:ncol(dm)) {
-    col_header <- colnames(dm)[i]
-    dm[logic[, i], i] <- col_header
-    dm[!logic[, i], i] <- "FALSE"
-  }
-  # Prots mapped to entrez.
-  entrez <- protmap$entrez[match(rownames(dm), protmap$ids)]
-  # Perform GO enrichment.
-  GOenrichment <- enrichmentAnalysis(
-    classLabels = dm,
-    identifiers = entrez,
-    refCollection = musGOcollection,
-    useBackground = "given",
-    threshold = 0.05,
-    thresholdType = "Bonferroni",
-    getOverlapEntrez = TRUE,
-    getOverlapSymbols = TRUE,
-    ignoreLabels = "FALSE",
-    verbose = 0
-  )
-  # Collect the results.
-  GO_results <- list()
-  for (r in 1:length(GOenrichment$setResults)) {
-    GO_results[[r]] <- GOenrichment$setResults[[r]]$enrichmentTable
-  }
-  names(GO_results) <- colnames(dm)
-  return(GO_results)
-} # Ends function.
-# Loop to perform GO enrichment for modules at every resolution.
-message(paste("Evaluating GO enrichment of WT modules at every resolution!", "\n"))
-n <- length(partitions) # n resolutions.
-results <- list()
-for (i in seq_along(partitions)) {
-  # Initialize progress bar.
-  if (i == 1) {
-    pb <- txtProgressBar(min = 0, max = n, style = 3)
-  }
-  # Perform GO analysis.
-  results[[i]] <- getModuleGO(partitions, resolution = i, protmap, musGOcollection)
-  # Update progress bar.
-  setTxtProgressBar(pb, i)
-  if (i == n) {
-    # Close pb, save.
-    close(pb)
-    myfile <- file.path(rdatdir, "3_Module_GO_Results.RData")
-    saveRDS(results, myfile)
-    message("Done!")
-  }
-} # Ends loop.
-moduleGO <- results
-} else {
-# Load GO results.
-moduleGO <- readRDS(file.path(rdatdir, "3_Cortex_Module_GO_Results.RData"))
-}
-
-# Remove M0 results.
-moduleGO <- lapply(moduleGO, function(x) x[-grep("M0", names(x))])
-
-# Examine biological enrichment of modules at every resolution.
-# Summarize the biological significance of a resolution as the sum of 
-# -log(GO pvalues) for all modules.
-modSig <- lapply(moduleGO, function(x) sapply(x, function(y) sum(-log(y$pValue))))
-out <- c(1:length(modSig))[sapply(modSig,function(x) length(x)==0)]
-modSig <- modSig[-out]
-
-x <- sapply(modSig, sum)
-best_res <- c(1:length(x))[x == max(x)]
-message(paste("Best resolution based on module GO enrichment:",best_res))
+best_res <- sapply(readRDS(myfiles),c)
 
 #------------------------------------------------------------------------------
 # Examine ~best resolution.
@@ -176,9 +79,8 @@ message(paste("Best resolution based on module GO enrichment:",best_res))
 # nework... Should we do two sided test... divergent and preserved...
 
 # Get partition of ~best resolution.
-best_res = 68
-resolution <- best_res
-partition <- partitions[[resolution]]
+resolution <- best_res[["Striatum"]]
+partition <- partitions[["Striatum"]][[resolution]]
 
 # Get Modules.
 modules <- split(partition, partition)
@@ -186,32 +88,31 @@ names(modules) <- paste0("M", names(modules))
 
 # Number of modules.
 nModules <- sum(names(modules) != "M0")
-message(paste("Number of modules at ~best resolution:",nModules))
+message(paste0("Number of modules at ~best resolution: ",nModules,"."))
+
+# Percent not clustered.
+percentNC <- sum(partition==0)/length(partition)
+message(paste("Percent of proteins not clustered:",round(100*percentNC,2),"(%)."))
 
 # Collect GO results from ~best resolution.
-resGO <- moduleGO[[best_res]]
-
-# Save to file.
-myfile <- file.path(tabsdir, paste0("3_", "R", best_res, "_GO_Results.xlsx"))
-write_excel(resGO, myfile)
+moduleGO <- GOresults[["Striatum"]][[best_res]]
 
 # Top GO from every module.
-topGO <- sapply(resGO, function(x) x$shortDataSetName[1])
-names(topGO) <- names(modules)[-1]
-sigGO <- sapply(resGO, function(x) x$FDR[1] < 0.05)
+alpha = 0.05
+topGO <- data.frame(Name = sapply(moduleGO, function(x) 
+				     x$shortDataSetName[x$rank==1]))
+topGO$pval <- sapply(moduleGO, function(x) x$pValue[x$rank==1])
+topGO$Bonferroni <- sapply(moduleGO, function(x) x$Bonferroni[x$rank==1])
+topGO$FDR <- sapply(moduleGO, function(x) x$FDR[x$rank==1])
+topGO$FoldEnrichment <- sapply(moduleGO, function(x) x$enrichmentRatio[x$rank==1])
+topGO$nProts <- sapply(moduleGO, function(x) x$nCommonGenes[x$rank==1])
+topGO$isSig <- sapply(moduleGO, function(x) x$Bonferroni[x$rank==1]<alpha)
+#topGO$Proteins <- sapply(moduleGO, function(x) x$overlapGenes[x$rank==1])
 
-# Percent modules with significant go enrichment.
-message(paste(
-  "Percent modules with significant GO terms:",
-  round(100 * sum(sigGO) / length(sigGO), 2), "(%)"
-))
-
-# Calculate soft power.
-sft <- pickSoftThreshold(exprDat,
-			 corFnc="bicor",
-			 networkType = "signed", 
-			 RsquaredCut = 0.8)$powerEstimate
-message(paste("Soft-power for ~scale-free fit:",sft))
+# Percent modules with any significant GO enrichment (Bonferroni p-value).
+percentSigGO <- sum(topGO$isSig)/nModules
+message(paste("Percent modules with any significant GO terms:",
+	      round(100*percentSigGO,2), "(%)"))
 
 # Calculate Module eigengenes.
 # Power does not influence MEs.

@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change.
-net <- "Striatum" 
+net <- "Cortex" 
 mypart <- c(Cortex = "10360847",Striatum = "10342568")[net]
 
 # Global options and imports.
