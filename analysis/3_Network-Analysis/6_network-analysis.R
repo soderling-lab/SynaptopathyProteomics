@@ -10,7 +10,7 @@
 # then there are some sig modules...
 
 # User parameters to change:
-net <- "Striatum" # Which network are we analyzing?
+net <- "Cortex" # Which network are we analyzing?
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -88,6 +88,7 @@ myfiles <- list(
   list.files(rdatdir, "Striatum_Best", full.names = TRUE)
 )
 best_res <- sapply(myfiles, readRDS)[net]
+message(paste("Best resolution of",net,"network:",best_res))
 
 # Load network comparison results.
 # Comparison of Cortex and Striatum networks.
@@ -103,7 +104,6 @@ net_comparisons <- readRDS(myfile)
 
 # Get partition of ~best resolution.
 r <- best_res
-r < 99
 partition <- partitions[[r]]
 
 # Get Modules.
@@ -112,14 +112,14 @@ names(modules) <- paste0("M", names(modules))
 
 # Number of modules.
 nModules <- sum(names(modules) != "M0")
-message(paste0("Number of modules at ~best resolution: ", nModules, "."))
+message(paste0("Number of modules at ~best resolution: ", nModules))
 
 # Module size statistics.
 print(summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)])
 
 # Percent not clustered.
 percentNC <- sum(partition == 0) / length(partition)
-message(paste("Percent of proteins not clustered:", round(100 * percentNC, 2), "(%)."))
+message(paste("Percent of proteins not clustered:", round(100 * percentNC, 2), "(%)"))
 
 # Collect GO results from ~best resolution.
 moduleGO <- GOresults[[r]]
@@ -135,6 +135,8 @@ topGO$FDR <- sapply(moduleGO, function(x) x$FDR[x$rank == 1])
 topGO$FoldEnrichment <- sapply(moduleGO, function(x) x$enrichmentRatio[x$rank == 1])
 topGO$nProts <- sapply(moduleGO, function(x) x$nCommonGenes[x$rank == 1])
 topGO$isSig <- sapply(moduleGO, function(x) x$Bonferroni[x$rank == 1] < alpha)
+# Simplify row names.
+rownames(topGO) <- sapply(strsplit(rownames(topGO),"-"),"[",2)
 # topGO$Proteins <- sapply(moduleGO, function(x) x$overlapGenes[x$rank==1])
 
 # Percent modules with any significant GO enrichment (Bonferroni p-value).
@@ -163,7 +165,7 @@ ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
 names(ME_list) <- names(modules)
 
 # Calculate module membership (kME).
-kmeData <- signedKME(data, MEs, corFnc = "bicor")
+KMEdata <- signedKME(data, MEs, corFnc = "bicor")
 
 # Define groups for verbose box plot.
 traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
@@ -205,7 +207,7 @@ KWdata <- as.data.frame(t(sapply(ME_list, function(x) kruskal.test(x ~ g))))
 KWdata <- KWdata[, c(1, 2, 3)] # Remove unnecessary columns.
 head(KWdata)
 
-# Remove M0.
+# Remove M0. Do this before p.adjustment.
 KWdata <- KWdata[!rownames(KWdata) == "M0", ]
 
 # Correct p-values for n comparisons.
@@ -222,7 +224,8 @@ message(paste0(
 ))
 
 # Dunnetts test for post-hoc comparisons.
-con <- paste("WT", net, sep = ".")
+# Dunnetts test takes a few seconds...
+con <- paste("WT", net, sep = ".") # Control group.
 DT_list <- lapply(ME_list, function(x) {
   as.data.frame(DunnettTest(x, g, control = con)[[con]])
 })
@@ -231,6 +234,9 @@ DT_list <- lapply(ME_list, function(x) {
 alpha <- 0.05
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
 nSigDT[sigModules]
+
+# Check sig modules for top GO term.
+#subset(topGO,rownames(topGO) %in% sigModules)
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.
@@ -362,7 +368,7 @@ for (i in 1:100) {
   message(paste("... Number of KW sig. modules:", nSigModules))
   message("\n")
   # Dunnetts test for post-hoc comparisons.
-  con <- paste("WT", net, sep = ".")
+  con <- paste("WT", net, sep = ".") # Control group.
   DT_list <- lapply(ME_list, function(x) {
     as.data.frame(DunnettTest(x, g, control = con)[[con]])
   })
