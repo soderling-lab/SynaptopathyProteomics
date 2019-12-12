@@ -51,7 +51,7 @@ data <- lapply(data, t)[[net]]
 traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Load correlation (adjacency) matrices.
-myfile <- file.path(rdatdir,paste0("3_",net,"_Adjm.RData"))
+myfile <- file.path(rdatdir, paste0("3_", net, "_Adjm.RData"))
 adjm <- readRDS(myfile)
 
 # Load network partitions-- self-preservation enforced.
@@ -93,6 +93,7 @@ for (i in seq_along(partitions)) {
   moduleGSE <- list()
   modSig <- list()
   modSig2 <- list()
+  modSig3 <- list()
   for (m in seq_along(modules)) {
     # Calculate ranks as KME.
     # Another metric for ranks by be signed Fold change * -log10pvalue.
@@ -113,15 +114,18 @@ for (i in seq_along(partitions)) {
     # Sort by p-value.
     GSEdata <- GSEdata[order(GSEdata$pval), ]
     modSig[[m]] <- sum(-log(GSEdata$pval)) # Sum of -log(pvals) for the module.
-    modSig2[[m]] <- sum(-log(GSEdata$pval)*GSEdata$ES) # Sum of the product...
+    modSig2[[m]] <- sum(-log(GSEdata$pval) * GSEdata$ES) # Sum of the product...
+    modSig3[[m]] <- sum(-log(GSEdata$pval) * GSEdata$NES) # Normalized enrichment score...
     moduleGSE[[m]] <- GSEdata # GSE table for the module.
   } # Ends inner loop.
   # Fix names. Sum module significance for the resolution.
   names(moduleGSE) <- names(modules)
   names(modSig) <- names(modules)
   names(modSig2) <- names(modules)
+  names(modSig3) <- names(modules)
   resSig <- log2(sum(unlist(modSig)))
   resSig2 <- sum(unlist(modSig2))
+  resSig3 <- sum(unlist(modSig3))
   # Status.
   nSig <- sum(sapply(moduleGSE, function(x) any(x$padj < 0.05)))
   message(paste0(
@@ -129,7 +133,8 @@ for (i in seq_along(partitions)) {
     " of ", nModules, " (", round(100 * (nSig / nModules), 2), "%)"
   ))
   message(paste("... Resolution GSE significance score:", round(resSig, 4)))
-  message(paste("... .. Alternative significance score:", round(resSig2, 4), "\n"))
+  message(paste("... Alternative significance score #1:", round(resSig2, 4)))
+  message(paste("... Alternative significance score #2:", round(resSig3, 4), "\n"))
   # Return GSE results for
   GSEresults[[i]] <- moduleGSE
 }
@@ -148,10 +153,10 @@ saveRDS(GSEresults, myfile)
 modSig <- lapply(GSEresults, function(x) {
   sapply(x, function(y) sum(-log(y$pval)))
 })
-names(modSig) <- paste0("R",seq_along(partitions))
+names(modSig) <- paste0("R", seq_along(partitions))
 
 # Insure that any list elements with length 0 are removed.
-keep <- seq_along(modSig)[sapply(modSig,function(x) length(x)!=0)]
+keep <- seq_along(modSig)[sapply(modSig, function(x) length(x) != 0)]
 modSig <- modSig[keep]
 
 ## The code above is confusing, this is what it does step-by-step:
