@@ -6,8 +6,8 @@
 
 # User parameters to change:
 net <- "Cortex" # Which network are we analyzing?
-# mypart <- c(Cortex = "10360848",Striatum = "10342568")[net] # all 7 stats.
-mypart <- c(Cortex = "10773682", Striatum = "10781799")[net] # relaxed criterion
+# mypart <- c(Cortex = "10360848",Striatum = "10342568")[net] # Preservation enforced using all 7 stats.
+mypart <- c(Cortex = "10773682", Striatum = "10781799")[net] # Relaxed criterion.
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -43,13 +43,6 @@ protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
 myfile <- file.path(rdatdir, paste0("3_", net, "_cleanDat.RData"))
 data <- t(readRDS(myfile))
 
-# Load Sample info.
-traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
-
-# Load correlation (adjacency) matrices.
-myfile <- file.path(rdatdir, paste0("3_", net, "_Adjm.RData"))
-adjm <- readRDS(myfile)
-
 # Load network partitions-- self-preservation enforced.
 myfile <- list.files(rdatdir, pattern = mypart, full.names = TRUE)
 partitions <- readRDS(myfile)
@@ -58,16 +51,13 @@ partitions <- readRDS(myfile)
 ## Build gene set for GSEA.
 #------------------------------------------------------------------------------
 
-# Load GO dataset from BROAD Instititute. These lists are human entrez ids.
+# Load GSE datasets from BROAD Instititute. These lists are human entrez ids.
 # We will map human genes to mouse using the getHomologs() function from
-# GetPPIs.
+# GetPPIs library.
 
+## Load Broad Institute gene lists:
 # Broad datasets are from: http://software.broadinstitute.org/gsea/downloads.jsp
-# Ge lab datasets are from: http://ge-lab.org/#/data
-# Bader lab datasets are from: http://download.baderlab.org/EM_Genesets/current_release/
-
-###################
-## BROAD DATA:
+message(paste("Preparing to analyze", net, "modules for gene set enrichment..."))
 datasets <- c(
   All_curated = "c2.all.v7.0.entrez.gmt", # 1
   Hallmark = "h.all.v7.0.entrez.gmt", # 2
@@ -80,10 +70,12 @@ datasets <- c(
   Reactome = "c2.cp.reactome.v7.0.entrez.gmt", # 9 Human Reactome.
   TF_motif = "c3.tft.v7.0.entrez.gmt", # 10
   microRNA_motif = "c3.mir.v7.0.entrez.gmt", # 11
-  All_motif = "c3.all.v7.0.entrez.gmt", # 12
+  All_motif = "c3.all.v7.0.entrez.gmt" # 12
 )
 
-# Choose a dataset.
+# Choose a Broad dataset.
+message(paste("... Mapping curated human pathways from the Broad",
+	     "Institute to mouse."))
 dataset <- datasets[1]
 pathways <- gmtPathways(file.path(rdatdir, dataset))
 # Remove paths with missing (NA) names.
@@ -97,44 +89,47 @@ names(msHomologs) <- hsEntrez
 # Map to mouse, discard unmapped (NA) genes.
 msCanonical <- lapply(pathways, function(x) purrr::discard(msHomologs[x], is.na))
 
-###################
-## SynGO DATA:
-
-# Load SynGO pathways.
+## Load SynGO data:
+message(paste("... Compiling mouse SynGO pathways."))
 myfile <- file.path(rdatdir, "SynGO_Pathways.RData")
 msSyngo <- do.call(c, readRDS(myfile)) # Combine BP and CC.
 
-###################
-# Compile pathways from reactome.db.
-message(paste("Preparing to analyze", net, "modules for gene set enrichment..."))
-message(paste("... Compiling mouse pathways from the Reactome database.", "\n"))
+# Compile mouse pathways from reactome.db.
+message(paste("... Compiling mouse Reactome pathways.", "\n"))
 suppressMessages({
   msReactome <- reactomePathways(protmap$entrez)
 })
 
-###################
-# Combine SynGO and Reactome pathways.
-msPathways <- c(msCanonical,msSyngo, msReactome)
+## Combine SynGO and Reactome pathways.
+msPathways <- c(msCanonical, msSyngo, msReactome)
 
 # Check: What percentage of genes are in pathways list?
 genes <- protmap$entrez
 percentMapped <- sum(genes %in% unique(unlist(msPathways))) / length(genes)
-message(paste("Percent genes in compiled pathways:", round(100 * percentMapped, 2)))
+message(paste("... Percent genes in compiled pathways:", round(100 * percentMapped, 2)))
 
 # Total number of pathways.
-message(paste("Number of pathways:", length(msPathways)))
+message(paste("... Total number of pathways:", length(msPathways)))
 
 #------------------------------------------------------------------------------
 ## Perform GSE analysis.
 #------------------------------------------------------------------------------
 
+## Outstanding questions?
 # Which pathways to use?
-#msPathways <- c(msCanonical,reactome,syngo)
+# Should ns Proteins be removed?
+# Should GSE be performed on module genes or all genes?
+# Should GSE of proteins outside module be penalized?
+# Analysis is slow... how to speed up?
+subset_KME <- TRUE
+
+# Problem with iteration 86...
+#Working on resolution: 86 ...                                                                                                                                              Error in FUN(X[[i]], ...) :                                                                                                                                                  GSEA statistic is not defined when all genes are selected
 
 # Loop to perform GSE analysis for all modules at every resolution...
 GSEresults <- list()
-#for (i in seq_along(partitions)) {
-for (i in seq(1,100,by=20)) {
+ for (i in seq_along(partitions)) {
+#for (i in seq(1, 100, by = 20)) {
   # Get partition.
   partition <- partitions[[i]]
   message(paste("Working on resolution:", i, "..."))
@@ -142,9 +137,11 @@ for (i in seq(1,100,by=20)) {
   modules <- split(partition, partition)
   names(modules) <- paste0("M", names(modules))
   # Remove M0.
+  nsProts <- modules[["M0"]]
   modules <- modules[names(modules) != "M0"]
   # Number of modules.
   nModules <- length(names(modules))
+  #message(paste("... Number of modules:", nModules))
   # Calculate module eigengenes (MEs).
   MEdata <- moduleEigengenes(data,
     colors = partition,
@@ -155,6 +152,8 @@ for (i in seq(1,100,by=20)) {
   # Calculate module membership (kME).
   KMEdata <- signedKME(data, MEs, corFnc = "bicor", outputColumnName = "")
   colnames(KMEdata) <- names(modules)
+  # Remove proteins assigned to "M0"
+  # KMEdata <- subset(KMEdata,rownames(KMEdata) %notin% nsProts)
   # Clean-up kME table: Add protein id, entrez id, and module assignment cols.
   KMEdata <- add_column(KMEdata, Protein = rownames(KMEdata), .before = 1)
   Entrez <- protmap$entrez[match(rownames(KMEdata), protmap$ids)]
@@ -165,9 +164,17 @@ for (i in seq(1,100,by=20)) {
   modSignificance <- list()
   # Loop through modules, perform GSEA.
   for (m in seq_along(modules)) {
+    if (subset_KME) {
+      # Subset KME.
+      modProts <- names(modules[[m]])
+      subKME <- subset(KMEdata, rownames(KMEdata) %in% modProts)
+      # Use all of KME data.
+    } else {
+      subKME <- KMEdata
+    }
     # Calculate ranks as KME.
-    prots <- rownames(KMEdata)
-    ranks <- KMEdata[, names(modules)[m]]
+    prots <- rownames(subKME)
+    ranks <- subKME[, names(modules)[m]]
     names(ranks) <- prots
     # Map proteins to entrez.
     entrez <- protmap$entrez[match(names(ranks), protmap$ids)]
@@ -176,8 +183,10 @@ for (i in seq(1,100,by=20)) {
     ranks <- ranks[order(ranks)]
     # Perform GSEA.
     suppressWarnings({
-      GSEdata <- fgsea(msPathways, ranks, minSize = 5, 
-		       maxSize = 500, nperm = 1e+05)
+      GSEdata <- fgsea(msPathways, ranks,
+        minSize = 5,
+        maxSize = 500, nperm = 1e+05
+      )
     })
     # Calculate module significance score as:
     # -log(Pval) * NES | NES = normalized enrichment score
@@ -186,28 +195,37 @@ for (i in seq(1,100,by=20)) {
   } # Ends inner loop.
   # Fix names. Sum module significance for the resolution.
   names(moduleGSE) <- names(modules)
-  sigScore <- sum(unlist(modSignificance))
+  sigScore <- log2(sum(unlist(modSignificance)))
   # Status.
-  message(paste("... Resolution GSE significance score:", round(sigScore, 4)))
+  message(paste("... Resolution GSE significance score:", round(sigScore, 4),"\n"))
   # Return GSE results for
-  GSEresults[[i]] <- list("moduleGSE" = moduleGSE,
-			  "KMEdata" = KMEdata, 
-			  "Score" = sigScore)
-	  # Save results.
+  GSEresults[[i]] <- list(
+    "moduleGSE" = moduleGSE,
+    "KMEdata" = KMEdata,
+    "Score" = sigScore
+  )
+  # Save results.
   if (i == 100) {
-	  myfile <- file.path(rdatdir, paste0("3_", net, "_Module_GSE_Results.RData"))
-	  saveRDS(GSEresults, myfile)
+    myfile <- file.path(rdatdir, paste0("3_", net, "_Module_GSE_Results.RData"))
+    saveRDS(GSEresults, myfile)
   }
 }
 
 # Does the result make sense?
-m = split(partitions[[1]],partitions[[1]])
-prots = names(m[[1]])
-gseDat <- moduleGSE[[1]]
+r <- 41
+m <- 1
+mods <- split(partitions[[r]], partitions[[r]])
+prots <- names(mods[[m]])
+
+gseDat <- GSEresults[[r]][["moduleGSE"]][[m]]
 subdat <- subset(gseDat, gseDat$ES > 0 & gseDat$padj < 0.05)
 subdat <- subdat[order(subdat$pval, decreasing = TRUE), ]
+
 moduleGenes <- protmap$entrez[match(prots, protmap$ids)]
-subdat$PercentInModule <- sapply(subdat$leadingEdge,function(x) sum(x %in% moduleGenes)/length(x))
+
+subdat$PercentInModule <- sapply(subdat$leadingEdge, function(x) {
+  sum(x %in% moduleGenes) / length(x)
+})
 
 
 #------------------------------------------------------------------------------
