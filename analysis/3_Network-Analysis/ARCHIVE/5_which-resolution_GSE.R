@@ -51,6 +51,9 @@ partitions <- readRDS(myfile)
 ## Build gene set for GSEA.
 #------------------------------------------------------------------------------
 
+# Build GSE gene list by combining BROAD currated lists (1), SynGO (2), and 
+# the mouse reactome (3).
+
 # Load GSE datasets from BROAD Instititute. These lists are human entrez ids.
 # We will map human genes to mouse homologs using the getHomologs() function 
 # from my GetPPIs library.
@@ -102,6 +105,7 @@ suppressMessages({
 
 # Combine SynGO and Reactome pathways.
 msPathways <- c(msCanonical, msSyngo, msReactome)
+#msPathways <- c(msSyngo, msReactome)
 
 # Check: What percentage of genes are in pathways list?
 genes <- protmap$entrez
@@ -109,24 +113,35 @@ percentMapped <- sum(genes %in% unique(unlist(msPathways))) / length(genes)
 message(paste("... Percent genes in compiled pathways:", round(100 * percentMapped, 2)))
 
 # Total number of pathways.
-message(paste("... Total number of pathways:", length(msPathways)))
+nPaths <- length(msPathways)
+message(paste("... Total number of pathways:", nPaths))
+
+# Number of permutations for nominal pval...
+alpha <- 0.05/nPaths
+nperm <- NetRep::requiredPerms(alpha, alternative = "greater")
 
 #------------------------------------------------------------------------------
 ## Perform GSE analysis.
 #------------------------------------------------------------------------------
 
 ## Outstanding questions?
-# Which pathways to use? --> Synprot cononical pathways and msReactome.
+# Which pathways to use? --> Synprot + cononical pathways + msReactome.
 # Should NS Proteins be removed? --> Don't calculate GSE for M0.
 # Should GSE be performed on module genes or all genes? --> All genes.
 # Should GSE of proteins outside module be penalized? --> Use KME to rank genes.
 
+# Sometimes proteins KME is high, but it is not assigned to that module... 
+# enrichment of biological processes may therefore be driving by proteins not
+# assigned to a given module!!!
 # Loop to perform GSE analysis for all modules at every resolution...
+
+# Negative GSE score indicates that genes that are negatively coorelated with a
+# module exhibit enrichment for a given process.
+
 GSEresults <- list()
 subsetProts <- FALSE
 message("Perfomring GSE analysis for all modules at every resolution...")
-for (i in c(1,20,40,60,80,100)) {
-#for (i in seq_along(partitions)) {
+for (i in seq_along(partitions)) {
   # Get partition.
   partition <- partitions[[i]]
   message(paste("Working on resolution:", i, "..."))
@@ -136,7 +151,7 @@ for (i in c(1,20,40,60,80,100)) {
   modules <- modules[names(modules)[!names(modules) == "M0"]]
   # Number of modules.
   nModules <- length(modules)
-  message(paste("... Number of modules:",nModules))
+  message(paste("... Total number of modules:",nModules))
   # Calculate module eigengenes (MEs).
   MEdata <- moduleEigengenes(data,
     colors = partition,
@@ -174,7 +189,7 @@ for (i in c(1,20,40,60,80,100)) {
     suppressWarnings({
       GSEdata <- fgsea(msPathways, ranks,
         minSize = 5,
-        maxSize = 500, nperm = 1e+05
+        maxSize = 500, nperm
       )
     })
     # Calculate module significance score as:
@@ -184,15 +199,32 @@ for (i in c(1,20,40,60,80,100)) {
   } # Ends loop.
   # Fix names. Sum module significance for the resolution.
   names(moduleGSE) <- names(modules)
-  # Number of modules with significant enrichment.
+  # Get top scoring GSE catagory.
+  topGSE <- sapply(moduleGSE,function(x) {
+			   topGSE <- x[order(-log(x$pval) * x$NES,decreasing=TRUE),]$pathway[1]
+			   return(topGSE)
+    }
+  )
+  names(topGSE) <- names(modules)
+  # Number of modules with significant enrichment (NES > 0).
   nSigMods <- sum(sapply(moduleGSE,function(x) any(x$padj<0.05 & x$NES>0)))
   message(paste("... Number of modules with any significant enrichment:",nSigMods))
   # Summarize resolution as the log2 of sum module significance scores.
   sigScore <- log2(sum(unlist(modSignificance)))
-  message(paste("... Summary GSE significance score:", round(sigScore, 4),"\n"))
+  message(paste("... Resolution summary GSE score:", round(sigScore, 4)))
+  # Mean module significance score.
+  muScore <- mean(unlist(modSignificance))
+  message(paste("... Average module GSE score:", round(muScore, 4)))
+  # Best module significance score.
+  maxScore <- max(unlist(modSignificance))
+  message(paste("... Best module GSE score:", round(maxScore, 4)))
+  # Worst module significance score.
+  minScore <- min(unlist(modSignificance))
+  message(paste("... Worst module GSE score:", round(minScore, 4)))
   # Return GSE results for
   GSEresults[[i]] <- list(
     "moduleGSE" = moduleGSE,
+    "topGSE" = topGSE,
     "KMEdata" = KMEdata,
     "Score" = sigScore
   )
@@ -203,12 +235,20 @@ for (i in c(1,20,40,60,80,100)) {
   }
 }
 
-# Sometimes proteins KME is high, but it is not assigned to that module... 
-# how to handle this senario... 
-output = GSEresults
-x = output[[60]]
-write_excel(x$moduleGSE,"temp.xlsx")
-fwrite(x$KMEdata,"kme.csv")
+idx <- seq_along(GSEresults)[!sapply(GSEresults,is.null)]
+GSEresults <- GSEresults[idx]
+
+s <- list()
+for (i in 1:length(GSEresults)){
+	subdat <- GSEresults[[i]]
+	s[[i]] <- sapply(subdat$moduleGSE, function(x) sum(-log(x$pval) * x$NES))
+}
+
+sapply(s,mean)
+sapply(s,length)
+
+
+
 
 #------------------------------------------------------------------------------
 ## Examine GSE results in order to define ~best resolution.
