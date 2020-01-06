@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 
-# Compare Co-expression networks to GO functional similarity network.
+# Compare Co-expression networks to GO functional similarity network in order
+# to find most similar partition--we will focus on this ~best partition.
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
@@ -49,7 +50,11 @@ myfile <- file.path(rdatdir,"3_GO_partitions.csv")
 GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(GOparts) <- colnames(GOadjm)
 
-# Remove duplicated Entrez id!
+#-------------------------------------------------------------------------------
+## Compare partitions.
+#-------------------------------------------------------------------------------
+
+# Remove duplicated Entrez id from GO adjm!
 out <- duplicated(colnames(GOadjm))
 GOadjm <- GOadjm[!out,!out]
 out <- duplicated(colnames(GOparts))
@@ -90,7 +95,16 @@ for (i in 1:100) {
 s <- part_similarity
 s[is.na(s)] <- 0
 best_part <- c(1:100)[s==max(s)]
-print(best_part)
+message(paste("Best resolution:",best_part))
+
+p = partitions[[best_part]]
+table(p)
+nModules <- length(table(p))-1
+
+
+#-------------------------------------------------------------------------------
+## Is there a relationship between co-expresion and functional similarity?
+#-------------------------------------------------------------------------------
 
 # Enforce consistent dimensions/order of GO and co-expr adjm.
 ids <- unlist(entrez_map[colnames(GOadjm)])
@@ -125,3 +139,29 @@ df3 <- df1[!out,]
 rho <- cor(df3$Bicor,df3$GOSemSim,method="spearman")
 # Overall correalation is extremely modest....
 
+#---------------------------------------------------------------------
+## Generate PPI graph.
+#---------------------------------------------------------------------
+
+library(getPPIs)
+
+# Load mouse interactome.
+data("musInteractome")
+
+# Subset mouse interactome, keep data from mouse, human, and rat.
+idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
+ppis <- subset(musInteractome, idx)
+
+# Get entrez IDs for all proteins in co-expression network.
+prots <- colnames(adjm)
+entrez <- prot_map$entrez[match(prots, prot_map$ids)]
+
+# Build a ppi graph.
+g <- buildNetwork(ppis, entrez, taxid = 10090)
+
+# Get ppi adjacency matrix.
+PPIadjm <- as.matrix(as_adjacency_matrix(g))
+
+# Write to file.
+myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
+data.table::fwrite(PPIadjm,myfile,row.names=TRUE)
