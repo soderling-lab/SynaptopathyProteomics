@@ -6,11 +6,13 @@
 #------------------------------------------------------------------------------
 
 # User parameters to change: 
-data_type = 0 # Combined, Cortex, KO, Striatum, or WT (0,1,2,3,4).
-rmin = 0 # Min resolution.
+input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
+output_name = "GO_4"
+rmin = 75 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.
-sft = 9 # Power for weighting the network. If even should enforce sign.
+sft = 1 # Power (soft-threshold) for weighting the network. Note, If even then 
+# network will become unsigned. 
 
 # Imports.
 import os
@@ -31,19 +33,18 @@ envars = {var:os.environ.get(var) for var in myvars}
 jobID = xstr(envars['SLURM_JOBID'])
 
 # Which analysis are we doing?
-geno = ['Combined','Cortex','KO','Striatum','WT'][data_type]
-print("Performing Leiden algorithm clustering of the " + geno + 
+print("Performing Leiden algorithm clustering of the" 
         " protein co-expression network.", file = stderr)
 
 # Read bicor adjacency matrix as input.
 here = os.getcwd()
 root = dirname(dirname(here))
 datadir = os.path.join(root,"rdata")
-myfiles = glob.glob(os.path.join(datadir,"*Adjm.csv"))
-adjm = read_csv(myfiles[data_type], header = 0, index_col = 0)
+myfile = os.path.join(datadir,input_adjm)
+adjm = read_csv(myfile, header = 0, index_col = 0)
 
 # Add rownames.
-adjm = adjm.set_index(keys=adjm.columns)
+#adjm = adjm.set_index(keys=adjm.columns)
 
 #------------------------------------------------------------------------------
 ## Create an igraph object.
@@ -121,10 +122,10 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save cluster membership.
-myfile = os.path.join(datadir, jobID + "3_" + geno + "_partitions.csv")
+myfile = os.path.join(datadir, jobID + "3_" + output_name + "_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
 # Save partition profile.
 df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, jobID + "3_" + geno + "_profile.csv")
+myfile = os.path.join(datadir, jobID + "3_" + output_name + "_profile.csv")
 df.to_csv(myfile)
