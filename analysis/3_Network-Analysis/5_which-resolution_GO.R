@@ -200,3 +200,44 @@ message(paste("Best resolution based on GO enrichment:",best_res))
 # Save results.
 myfile <- file.path(rdatdir,paste0("3_",net,"_GO_Best_Resolution.RData"))
 saveRDS(best_res, myfile)
+
+#------------------------------------------------------------------------------
+# Define a function to compare partitions.
+
+p1 = partitions[[90]]
+p2 = partitions[[100]]
+#module_assignment_similarity(p1,p2) # 
+
+module_assignment_similarity <- function(p1,p2,ignore=0){
+
+	# Check, partitions should have the same names!
+	if (!identical(names(p1),names(p2))){
+		stop()
+	}
+	# Set modules to be ignored to NA.
+	p1[p1 == ignore] <- NA
+	p2[p2 == ignore] <- NA
+	# Create module assignment df.
+	df <- data.table::CJ("ProtA"=names(p1),"ProtB"=names(p1), unique = TRUE)
+	df <- df[!df$ProtA==df$ProtB,] # Remove self-interactions.
+	df$ProtA.P1.Module <- p1[df$ProtA]
+	df$ProtB.P1.Module <- p1[df$ProtB]
+	df$ProtA.P2.Module <- p2[df$ProtA]
+	df$ProtB.P2.Module <- p2[df$ProtB]
+	# Check if ProtA and ProtB are in same modules in each partition (Pmk).
+	df$Pmk1 <- p1[df$ProtA] ==  p1[df$ProtB]
+	df$Pmk2 <- p2[df$ProtA] ==  p2[df$ProtB]
+	# How to handle NA?
+	df$Pmk1[is.na(df$Pmk1)] <- FALSE # 
+	df$Pmk2[is.na(df$Pmk2)] <- FALSE
+	# Calculate similarity statistic.
+	# Euclidean inner (dot) product/Euclidean norm.
+
+	dp <- pracma::dot(as.numeric(df$Pmk1),as.numeric(df$Pmk2))
+	en/
+		sqrt(sum(df$Pmk1^2)) * sqrt(sum(df$Pmk2^2))
+
+
+	d <- dist(rbind(df$Pmk1,df$Pmk2))
+	return(d)
+}

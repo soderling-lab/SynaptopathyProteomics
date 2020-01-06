@@ -1,47 +1,62 @@
 #!/usr/bin/env Rscript
 
+# User parameters.
+calc_GO_Sem_Sim = FALSE
+
 # Imports.
-library(GOSemSim)
+suppressPackageStartupMessages({
+	library(GOSemSim) # Other packages for GOSemSim:
+	library(org.Mm.eg.db)
+	library(AnnotationDbi)
+	library(stats4) 
+	library(BiocGenerics) 
+	library(parallel)
+})
 
 # Directories.
-here = getwd()
-root = dirname(dirname(here))
-rdatdir = file.path(root,"rdata")
-funcdir = file.path(root,"R")
+here <- getwd()
+root <- dirname(dirname(here))
+rdatdir <- file.path(root,"rdata")
+funcdir <- file.path(root,"R")
 
 # Functions.
 myfun <- list.files(funcdir,full.names=TRUE)
 invisible(sapply(myfun,source))
 
 # Load Cortex partitions.
-myfile = list.files(rdatdir,patter="10773682",full.names=TRUE)
-cox_parts = readRDS(myfile)
+myfile <- list.files(rdatdir,patter="10773682",full.names=TRUE)
+cox_parts <- readRDS(myfile)
 
 # Load protein identifier map.
-myfile = file.path(rdatdir,"2_Protein_ID_Map.RData")
-prot_map = readRDS(myfile)
+myfile <- file.path(rdatdir,"2_Protein_ID_Map.RData")
+prot_map <- readRDS(myfile)
 
 # Get Entrez IDs.
 entrez <- prot_map$entrez[match(names(cox_parts[[1]]),prot_map$ids)]
 
-# Build list of GO ontologies.
-msGO <- lapply(c("BP","CC","MF"), function(x) {
-		       godata('org.Mm.eg.db', ont=x)
-})
-names(msGO) <- c("BP","CC","MF")
-
 # Calculate semantic similarity between all pairwise comparisons of genes.
-gosemsim <- lapply(msGO,function(x) { 
-	       mgeneSim(genes=entrez, semData=x, measure="Wang",verbose=TRUE)
-})
-
-# Save to file.
-myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_Adjms.RData")
-saveRDS(gosemsim,myfile)
-
-# Load.
-myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_Adjms.RData")
-gosemsim <- readRDS(myfile)
+if (calc_GO_Sem_Sim) {
+	message(paste("Calculating GO semantic similarity, 
+		      this will take several hoursle."))
+	# Build list of GO ontologies.
+	msGO <- lapply(c("BP","CC","MF"), function(x) {
+			       godata('org.Mm.eg.db', ont=x) })
+	names(msGO) <- c("BP","CC","MF")
+	# Calculate GOSemSim for all ontologies.
+	gosemsim <- lapply(msGO,function(x) { 
+				   mgeneSim(genes=entrez, 
+					    semData=x, 
+					    measure="Wang", # Graph-based
+					    verbose=TRUE) })
+	# Save to file.
+	myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_Adjms.RData")
+	saveRDS(gosemsim,myfile)
+} else {
+	# Load from file.
+	message("Loading GO semantic similarity data from file!")
+	myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_Adjms.RData")
+	gosemsim <- readRDS(myfile)
+}
 
 # Create an empty adjm. We need to insure that GO semantic similarity matrices
 # and the protein co-expression matrix are the same dimensions.
@@ -72,56 +87,68 @@ names(output) <- names(gosemsim)
 # Combined BP + MF + CC results by calculating RMS.
 # This is fast, but any missing value (NA) will cause combined, RMS 
 # value to be NA.
-x1 = output[[1]]
-x2 = output[[2]]
-x3 = output[[3]]
-rms = sqrt((x1^2 + x2^2 + x3^2)/3) 
+x1 <- output[[1]]
+x2 <- output[[2]]
+x3 <- output[[3]]
+rms <- sqrt((x1^2 + x2^2 + x3^2)/3) 
+n_missing <- sum(is.na(rms))
+#message(paste("Percent missing:",round(100*(n_missing/length(rms)),2)))
+# Approx. 25% missing values!
 
 # Lets try another way...
 # Melt and merge data into single df.
 # Use cbind, because its fast.
-x = lapply(output,reshape2::melt) 
-y = do.call(cbind,x)
-y = y[,-c(grep("Var*",colnames(y))[-c(1,2)])]
-colnames(y) <- c("EntrezA","EntrezB","BP.GOsim","CC.GOsim","BP.GOsim")
-y <- tibble::add_column(y,Index=c(1:nrow(y)),.after=2)
+melted_gosemsim <- lapply(output,reshape2::melt) 
+gosemsim_df <- do.call(cbind,melted_gosemsim)
+gosemsim_df <- gosemsim_df[,-c(grep("Var*",colnames(gosemsim_df))[-c(1,2)])]
+colnames(gosemsim_df) <- c("EntrezA","EntrezB","BP.GOsim","CC.GOsim","MF.GOsim")
+gosemsim_df <- tibble::add_column(gosemsim_df,
+				  Index=c(1:nrow(gosemsim_df)),.after=2)
 
 # Loop with progress bar to calculate RMS.
 # Ignore NA. Slow bc the data is huge!
 # Could use apply, but pbar is helpful.
-pbar <- txtProgressBar(min=1,max=nrow(y),style=3)
-rms <- vector(mode="numeric",length=nrow(y))
-for (i in 1:nrow(y)){
+message(paste("Calculating combined GO semantic similarity score..."))
+pbar <- txtProgressBar(min=1,max=nrow(gosemsim_df),style=3)
+rms <- vector(mode="numeric",length=nrow(gosemsim_df))
+for (i in 1:nrow(gosemsim_df)){
 	setTxtProgressBar(pbar,i)
-	rms[i] <- sqrt(mean(as.numeric(y[i,c(4:6)])^2,na.rm=TRUE))
-	if (i==nrow(y)) { close(pbar); message("\n") }
+	rms[i] <- sqrt(mean(as.numeric(gosemsim_df[i,c(4:6)])^2,na.rm=TRUE))
+	if (i==nrow(gosemsim_df)) { close(pbar); message("\n") }
 }
 
-# Cast into dm. Should be in correct order as we are just casting the previously
+# Replace 0 with NA.
+rms[rms == 0] <- NA
+
+# Are there missing values?
+n_missing <- sum(is.na(rms))
+message(paste("Percent missing:",round(100*(n_missing/length(rms)),2)))
+# Better, but missing values cause error with LA clustering...
+
+# Replace missing values with 0.
+#rms[is.na(rms)] <- 0 # Didn't work.
+
+# Cast into dm. 
+# Should be in correct order as we are just casting the previously
 # melted matrix.
-y$rms <- rms
+gosemsim_df$GOsim.RMS <- rms
 rms_adjm <- matrix(rms,nrow=nrow(adjm),ncol=ncol(adjm))
 colnames(rms_adjm) <- rownames(rms_adjm) <- colnames(adjm)
 
-y1 = y[order(y$rms,decreasing=TRUE),]
-y1 = subset(y1,y1$rms != 1)
+# Remove rows with all missing values.
+out <- apply(rms_adjm,1,function(x) all(is.na(x)))
+n_out <- sum(out)
+rms_adjm <- rms_adjm[!out,!out]
 
-y1$ProteinA <- prot_map$id[match(y1$EntrezA,prot_map$entrez)]
-y1$ProteinB <- prot_map$id[match(y1$EntrezB,prot_map$entrez)]
-data.table::fwrite(y1,"Sorted_GO_SemSim_RMS.csv")
+# Check the data.
+# Sorted, remove self-interactions == 1.
+y <- gosemsim_df[order(gosemsim_df$rms,decreasing=TRUE),]
+y <- subset(y,y$rms != 1)
+y$ProteinA <- prot_map$id[match(y$EntrezA,prot_map$entrez)]
+y$ProteinB <- prot_map$id[match(y$EntrezB,prot_map$entrez)]
+# Save.
+#data.table::fwrite(y,"Sorted_GO_SemSim_RMS.csv")
 
-# Loop with parallel execution.
-# Is this faster? Does this work?
-run = FALSE
-if (run) {
-library(foreach)
-library(doMC)
-registerDoMC(6)
-rms <- foreach(i=1:nrow(y)) %dopar% {
-	sqrt(mean(as.numeric(y[i,c(4:6)])^2,na.rm=TRUE))
-}
-}
-
-# Write to file for clusting!
+# Write to file for LA clusting!
 myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
-data.table::fwrite(rms_adjm,myfile)
+data.table::fwrite(rms_adjm,myfile,row.names=TRUE)

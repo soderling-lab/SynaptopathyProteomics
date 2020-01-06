@@ -7,8 +7,8 @@
 
 # User parameters to change: 
 input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
-output_name = "GO_4"
-rmin = 75 # Min resolution.
+output_name = "GO"
+rmin = 0 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.
 sft = 1 # Power (soft-threshold) for weighting the network. Note, If even then 
@@ -32,10 +32,6 @@ myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
 envars = {var:os.environ.get(var) for var in myvars}
 jobID = xstr(envars['SLURM_JOBID'])
 
-# Which analysis are we doing?
-print("Performing Leiden algorithm clustering of the" 
-        " protein co-expression network.", file = stderr)
-
 # Read bicor adjacency matrix as input.
 here = os.getcwd()
 root = dirname(dirname(here))
@@ -44,7 +40,7 @@ myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
 
 # Add rownames.
-#adjm = adjm.set_index(keys=adjm.columns)
+adjm = adjm.set_index(keys=adjm.columns)
 
 #------------------------------------------------------------------------------
 ## Create an igraph object.
@@ -76,6 +72,7 @@ g.add_vertices(len(nodes))
 g.vs['label'] = nodes.keys()
 
 # Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
+# This will take several minutes.
 g.add_edges(el)
 g.es['weight'] = edges['weight']**sft
 
@@ -94,6 +91,8 @@ from leidenalg import Optimiser
 from progressbar import ProgressBar
 
 # Loop to perform leidenalg community detection at n resolutions.
+print("Performing Leiden algorithm clustering of the" 
+        " protein co-expression network.\n", file = stderr)
 pbar = ProgressBar()
 resolution_range = linspace(rmin,step,rmax)
 profile = list()
