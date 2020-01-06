@@ -6,8 +6,9 @@
 #------------------------------------------------------------------------------
 
 # User parameters to change: 
-input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
-output_name = "GO"
+#input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
+input_adjm = "3_PPI_Adjm.csv"
+output_name = "PPI"
 rmin = 0 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.
@@ -26,6 +27,7 @@ def xstr(s):
 	if s is None:
 		return ''
 	return str(s)
+# Ends function.
 
 # Get system variables.
 myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
@@ -95,6 +97,7 @@ print("Performing Leiden algorithm clustering of the"
         " protein co-expression network.\n", file = stderr)
 pbar = ProgressBar()
 resolution_range = linspace(rmin,step,rmax)
+resolution_range = linspace(0,1,1) #linspace(rmin,step,rmax)
 profile = list()
 for res in pbar(resolution_range):
     # Perfrom La clustering.
