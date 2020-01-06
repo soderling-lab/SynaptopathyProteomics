@@ -20,7 +20,7 @@
 #' 
 #' @examples
 #' module_assigment_similarity(p1,p2)
-module_assignment_similarity <- function(p1,p2){
+module_assignment_similarity <- function(p1,p2,ignore = 0) {
 	# Calculate similarity of two network partitions.
 	# From Choobdar et al., 2019; see refs.
 	# p1 and p2 are named vectors describing the partitioning of two
@@ -29,16 +29,20 @@ module_assignment_similarity <- function(p1,p2){
 	if (!all(names(p1) %in% names(p2))){
 		stop("Partition vectors should contain identical names.")
 	}
+	# Set modules to ignore to NA.
+	p1[p1==ignore] <- NA
+	p2[p2==ignore] <- NA
 	# Create module assignment df.
 	df <- data.table::CJ("ProtA"=names(p1),"ProtB"=names(p1), unique = TRUE)
 	df <- df[!df$ProtA==df$ProtB,] # Remove self-interactions.
 	# Check if ProtA and ProtB are in same modules in each partition (Pmk).
 	Pmk1 <- as.numeric(p1[df$ProtA] ==  p1[df$ProtB])
 	Pmk2 <- as.numeric(p2[df$ProtA] ==  p2[df$ProtB])
+	out <- is.na(Pmk1) | is.na(Pmk2)
 	# Calculate similarity statistic as:
 	# Euclidean inner (dot) product/Product of Euclidean norms.
-	dp <- pracma::dot(Pmk1,Pmk2)
-	enorm <- sqrt(sum(Pmk1^2)) * sqrt(sum(Pmk2^2))
+	dp <- pracma::dot(Pmk1[!out],Pmk2[!out])
+	enorm <- sqrt(sum(Pmk1^2,na.rm=TRUE)) * sqrt(sum(Pmk2^2,na.rm=TRUE))
 	partition_similarity  <- dp/enorm
 	return(partition_similarity)
 }

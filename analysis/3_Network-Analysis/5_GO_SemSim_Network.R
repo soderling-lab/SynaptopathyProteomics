@@ -117,9 +117,6 @@ for (i in 1:nrow(gosemsim_df)){
 	if (i==nrow(gosemsim_df)) { close(pbar); message("\n") }
 }
 
-# Replace 0 with NA.
-rms[rms == 0] <- NA
-
 # Are there missing values?
 n_missing <- sum(is.na(rms))
 message(paste("Percent missing:",round(100*(n_missing/length(rms)),2)))
@@ -135,19 +132,34 @@ gosemsim_df$GOsim.RMS <- rms
 rms_adjm <- matrix(rms,nrow=nrow(adjm),ncol=ncol(adjm))
 colnames(rms_adjm) <- rownames(rms_adjm) <- colnames(adjm)
 
-# Remove rows with all missing values.
-out <- apply(rms_adjm,1,function(x) all(is.na(x)))
-n_out <- sum(out)
-rms_adjm <- rms_adjm[!out,!out]
+# Replace missing values with row minimum.
+foo = apply(rms_adjm,1,function(x) min(x,na.rm=TRUE))
 
-# Check the data.
+x = apply(rms_adjm,1,function(x) sum(is.na(x)))
+
+
 # Sorted, remove self-interactions == 1.
+gosemsim_df$rms
 y <- gosemsim_df[order(gosemsim_df$rms,decreasing=TRUE),]
+
 y <- subset(y,y$rms != 1)
 y$ProteinA <- prot_map$id[match(y$EntrezA,prot_map$entrez)]
 y$ProteinB <- prot_map$id[match(y$EntrezB,prot_map$entrez)]
+
 # Save.
 #data.table::fwrite(y,"Sorted_GO_SemSim_RMS.csv")
+
+# Loop with parallel execution.
+# Is this faster? Does this work?
+run = FALSE
+if (run) {
+	library(foreach)
+	library(doMC)
+	registerDoMC(6)
+	rms <- foreach(i=1:nrow(y)) %dopar% {
+		sqrt(mean(as.numeric(y[i,c(4:6)])^2,na.rm=TRUE))
+	}
+}
 
 # Write to file for LA clusting!
 myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
