@@ -4,11 +4,6 @@
 # Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# Best resolution may be resolution 100, but at this resolution there are no
-# significant Striatum modules (KW p.adj[bonferroni] <0.05).
-# Relaxing threshold for significance by using method = "BH" and alpha = 0.1,
-# then there are some sig modules...
-
 # User parameters to change:
 net <- "Cortex" # Which network are we analyzing?
 
@@ -47,47 +42,47 @@ protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
 myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
+# Proteins with any sig change.
+sigProts <- apply(glm_stats$FDR,1,function(x) any(x<0.05))
+sigProts <- names(sigProts)[sigProts]
+
 # Load module GO enrichment analysis results.
-myfiles <- list(
+myfiles <- c(
   Cortex = file.path(rdatdir, "3_Cortex_Module_GO_Results.RData"),
   Striatum = file.path(rdatdir, "3_Striatum_Module_GO_Results.RData")
 )
-GOresults <- lapply(myfiles, readRDS)[[net]]
+GOresults <- readRDS(myfiles[net])
 
 # Load expression data.
-myfiles <- list(
+myfiles <- c(
   Cortex = file.path(rdatdir, "3_Cortex_cleanDat.RData"),
   Striatum = file.path(rdatdir, "3_Striatum_cleanDat.RData")
 )
-data <- lapply(myfiles, readRDS)
-# Data should be transposed: rows, proteins.
-data <- lapply(data, t)[[net]]
+data <- t(readRDS(myfiles[net])) # Data should be transposed: rows, proteins.
 
 # Load Sample info.
 traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Load correlation (adjacency) matrices.
-myfiles <- list(
+myfiles <- c(
   Cortex = file.path(rdatdir, "3_Cortex_Adjm.RData"),
   Striatum = file.path(rdatdir, "3_Striatum_Adjm.RData")
 )
-adjm <- lapply(myfiles, readRDS)[[net]]
+adjm <- readRDS(myfiles[net])
 
 # Load network partitions-- self-preservation enforced.
-# myfile <- list.files(rdatdir, pattern = "1023746", full.names = TRUE) # WT and KO
-# myfile <- list.files(rdatdir, pattern= "Combined_Module",full.names=TRUE) # Combined network only
-myfiles <- list(
+myfiles <- c(
   Cortex = list.files(rdatdir, pattern = "10360847", full.names = TRUE),
   Striatum = list.files(rdatdir, pattern = "10342568", full.names = TRUE)
 )
-partitions <- lapply(myfiles, readRDS)[[net]]
+partitions <- readRDS(myfiles[net]) 
 
-# Load best resolutions.
-myfiles <- list(
-  list.files(rdatdir, "Cortex_Best", full.names = TRUE),
-  list.files(rdatdir, "Striatum_Best", full.names = TRUE)
+# Load best resolution.
+myfiles <- c(
+  Cortex = list.files(rdatdir, "Cortex_Best", full.names = TRUE),
+  Striatum = list.files(rdatdir, "Striatum_Best", full.names = TRUE)
 )
-best_res <- sapply(myfiles, readRDS)[net]
+best_res <-readRDS(myfiles[net])
 message(paste("Best resolution of",net,"network:",best_res))
 
 # Load network comparison results.
@@ -99,12 +94,8 @@ net_comparisons <- readRDS(myfile)
 # Examine ~best resolution.
 #------------------------------------------------------------------------------
 
-# Does it make sense to combine data from cortex and striatum when building a
-# nework... Should we do two sided test... divergent and preserved...
-
 # Get partition of ~best resolution.
-r <- best_res
-partition <- partitions[[r]]
+partition <- partitions[[best_res]]
 
 # Get Modules.
 modules <- split(partition, partition)
@@ -115,14 +106,20 @@ nModules <- sum(names(modules) != "M0")
 message(paste0("Number of modules at ~best resolution: ", nModules))
 
 # Module size statistics.
-print(summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)])
+mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
+message(paste("Minumum module size:",mod_stats["Min."]))
+message(paste("Mean module size:",mod_stats["Mean"]))
+message(paste("Maximum module size:",mod_stats["Max."]))
 
 # Percent not clustered.
 percentNC <- sum(partition == 0) / length(partition)
-message(paste("Percent of proteins not clustered:", round(100 * percentNC, 2), "(%)"))
+message(paste("Percent of proteins not clustered:", 
+	      round(100 * percentNC, 2), "(%)"))
 
 # Collect GO results from ~best resolution.
-moduleGO <- GOresults[[r]]
+moduleGO <- GOresults[[best_res]]
+# Fix names...
+names(moduleGO) <- sapply(strsplit(names(moduleGO),"-"),"[",2)
 
 # Top GO from every module.
 alpha <- 0.05
@@ -140,14 +137,10 @@ rownames(topGO) <- sapply(strsplit(rownames(topGO),"-"),"[",2)
 # topGO$Proteins <- sapply(moduleGO, function(x) x$overlapGenes[x$rank==1])
 
 # Percent modules with any significant GO enrichment (Bonferroni p-value).
-percentSigGO <- sum(topGO$isSig) / nModules
-message(paste(
-  "Percent modules with any significant GO terms:",
-  round(100 * percentSigGO, 2), "(%)"
-))
-
-# Calculate Module eigengenes.
-# Power does not influence MEs.
+nSigGO <- sum(topGO$isSig)
+percentSigGO <- nSigGO / nModules
+message(paste(# Calculate Module eigengenes.
+# Note: Soft power does not influence MEs.
 MEdata <- moduleEigengenes(data,
   colors = partition,
   softPower = 1, impute = FALSE
@@ -158,7 +151,8 @@ MEs <- as.matrix(MEdata$eigengenes)
 PVE <- MEdata$varExplained
 names(PVE) <- names(modules)
 meanPVE <- mean(as.numeric(PVE[names(PVE) != "M0"]))
-message(paste("Mean module coherence (PVE):", round(100 * meanPVE, 2), "(%)."))
+message(paste("Mean module coherence (PVE):", 
+	      round(100 * meanPVE, 2), "(%)."))
 
 # Create list of MEs.
 ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
@@ -168,7 +162,8 @@ names(ME_list) <- names(modules)
 KMEdata <- signedKME(data, MEs, corFnc = "bicor")
 
 # Define groups for verbose box plot.
-traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
+traits$Sample.Model.Tissue <- paste(traits$Sample.Model, 
+				    traits$Tissue, sep = ".")
 g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
 # Group all WT samples from a tissue type together.
 g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
@@ -205,7 +200,6 @@ for (k in seq_along(plots)) {
 # Perform KW tests.
 KWdata <- as.data.frame(t(sapply(ME_list, function(x) kruskal.test(x ~ g))))
 KWdata <- KWdata[, c(1, 2, 3)] # Remove unnecessary columns.
-head(KWdata)
 
 # Remove M0. Do this before p.adjustment.
 KWdata <- KWdata[!rownames(KWdata) == "M0", ]
@@ -219,8 +213,8 @@ alpha <- 0.05
 sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
 nSigModules <- length(sigModules)
 message(paste0(
-  "Number of KW significant (p.adj<", alpha, ")",
-  " modules: ", nSigModules
+  "Number of modules with significant (p.adj < ", alpha, ")",
+  " Kruskal-Wallis test: ", nSigModules,"."
 ))
 
 # Dunnetts test for post-hoc comparisons.
@@ -233,10 +227,18 @@ DT_list <- lapply(ME_list, function(x) {
 # Number of significant changes.
 alpha <- 0.05
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
-nSigDT[sigModules]
+#nSigDT[sigModules]
 
-# Check sig modules for top GO term.
-#subset(topGO,rownames(topGO) %in% sigModules)
+# Examine a module.
+i = 7
+namen <- sigModules[i]
+plots[[namen]]
+prots <- names(modules[[namen]])
+message(paste("TopGO term:",as.character(topGO[sigModules,]$Name[i])),
+	" p.adj = ", topGO[namen,]$Bonferroni,".")
+nsigProts <- sum(prots %in% sigProts)
+pSig <- round(nsigProts/length(prots),3)
+pSig
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.

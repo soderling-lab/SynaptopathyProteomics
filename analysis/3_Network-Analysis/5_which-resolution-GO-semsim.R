@@ -105,15 +105,15 @@ best_part <- c(1:100)[s==max(s)]
 message(paste("Best resolution:",best_part))
 
 # Examine ~best partitions.
-p1 = partitions[[best_part]]
-p2 = GOpartitions[[best_part]]
-table(p1)
-table(p2)
+p1 <- partitions[[best_part]]
+p2 <- GOpartitions[[best_part]]
+#table(p1)
+#table(p2)
 nMod1 <- length(table(p1))
 nMod2 <- length(table(p2))
 
 # Save best resolution.
-myfile <- file.path(rdatdir,paste0("3_",net,"_GO_Best_Resolution.RData"))
+myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
 saveRDS(best_part,myfile)
 
 #--------------------------------------------------------------------
