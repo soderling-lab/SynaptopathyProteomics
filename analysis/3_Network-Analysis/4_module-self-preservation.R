@@ -47,7 +47,7 @@ stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
 exprDat <- "Combined"
-network <- "PPI" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined", "PPI", "GO")
+self <- network <- "PPI" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined", "PPI", "GO")
 nres <- 100 # Total number of resolutions to be anlyzed.
 verbose <- FALSE
 
@@ -86,7 +86,10 @@ invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
 myfile <- file.path(datadir, paste0("3_", exprDat, "_cleanDat.RData"))
-data <- t(readRDS(myfile))
+data <- readRDS(myfile)
+colNames <- rownames(data)
+data <- t(data)
+colnames(data) <- colNames
 
 # Load adjmatrix or interaction network.
 myfile <- file.path(datadir, paste0("3_", network, "_Adjm.RData"))
@@ -164,7 +167,7 @@ results <- list()
 for (i in 1:nres) {
   message(paste("Working on partition", i, "of", nres, "..."))
   # Get partition--adding 1 so that all module assignments >0.
-  partition <- as.integer(partitions[i, ]) + 1
+  partition <- as.integer(partitions[i, ]) + 2
   names(partition) <- colnames(adjm)
   module_list <- list(self = partition)
   # Perform permutation test for module self-preservation.
