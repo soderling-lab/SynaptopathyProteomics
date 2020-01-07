@@ -12,7 +12,7 @@
 
 # NetRep input:
 # 1. Expression data.
-# 2. Correlation matrix.
+# 2. Correlation matrix or interaction network (GO or PPI).
 # 3. Interaction network - Edges must be positive! Should network be weighted?
 # 4. Network partitions.
 
@@ -46,7 +46,8 @@
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-self <- "Striatum" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined")
+exprDat <- "Cortex"
+network <- "PPI" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined", "PPI", "GO")
 nres <- 100 # Total number of resolutions to be anlyzed.
 verbose <- FALSE
 
@@ -84,18 +85,34 @@ myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(datadir, paste0("3_", self, "_cleanDat.RData"))
+myfile <- file.path(datadir, paste0("3_", exprDat, "_cleanDat.RData"))
 data <- t(readRDS(myfile))
 
-# Load adjmatrix.
-myfile <- file.path(datadir, paste0("3_", self, "_Adjm.RData"))
+# Load adjmatrix or interaction network.
+myfile <- file.path(datadir, paste0("3_", network, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfile <- file.path(datadir, paste0("3_", self, "_partitions.csv"))
+myfile <- list.files(datadir, pattern=paste0("3_", self, "_partitions.csv"),
+		     full.name=TRUE)
 partitions <- data.table::fread(myfile, drop = 1, skip = 1)
 colnames(partitions) <- colnames(adjm)
+
+# Enforce consistent dimensions between data and adjm.
+# Remove duplicate column from data.
+out <- colnames(data) %notin% colnames(adjm)
+data <- data[,!out]
+
+# Enforce consistent order between data, adjm, and partitions.
+idx <- idy <- match(colnames(data),colnames(adjm))
+adjm <- adjm[idx,idy]
+check <- all(colnames(data) == colnames(adjm))
+if (!check) { message("Problem!") }
+idy <- match(colnames(data),colnames(partitions))
+partitions <- as.data.frame(partitions)[,idy]
+if (!check) { message("Problem!") }
+check <- all(colnames(data) == colnames(partitions))
 
 # Weighted or unweighted?
 # If weighted, then calculate power for approximate scale free fit.

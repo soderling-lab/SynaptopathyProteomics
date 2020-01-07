@@ -49,10 +49,15 @@ myfile <- file.path(rdatdir,"3_GO_partitions.csv")
 GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(GOparts) <- colnames(GOadjm)
 
+# Load PPI adjm.
+myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
+PPIadjm <- as.data.frame(fread(myfile,header=TRUE,drop=1))
+rownames(PPIadjm) <- colnames(PPIadjm)
+
 # Load PPI network partitions.
-#myfile <- file.path(rdatdir,"136845523_PPI_partitions.csv")
-#PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
-#colnames(GOparts) <- colnames(GOadjm)
+myfile <- file.path(rdatdir,"137847903_PPI_partitions.csv")
+PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
+colnames(PPIparts) <- colnames(PPIadjm)
 
 #-------------------------------------------------------------------------------
 ## Compare partitions.
@@ -75,6 +80,15 @@ GOpartitions <- lapply(c(1:100),function(x) {
 	      return(part)
 })
 
+# Split PPI partition df into list of partitions.
+# First, fix names.
+ids <- unlist(entrez_map[colnames(PPIparts)])
+PPIpartitions <- lapply(c(1:100),function(x) {
+	      part <- as.numeric(PPIparts[x,])
+	      names(part) <- ids
+	      return(part)
+})
+
 # Loop to compare co-expresion and GO similarity partitions at every 
 # resolution. Partition similarity evaluated as in Choodbar et al., 2019.
 message(paste("Calculating pairwise similiarty between networks..."))
@@ -84,7 +98,8 @@ for (i in 1:100) {
 	# Update pbar.
 	setTxtProgressBar(pbar,i)
 	p1 <- partitions[[i]]
-	p2 <- GOpartitions[[i]]
+	#p2 <- GOpartitions[[i]]
+	p2 <- PPIpartitions[[i]]
 	# Add missing genes. Assign to module 0 (un-assigned).
 	missing_ids <- names(p1)[names(p1) %notin% names(p2)]
 	missing <- vector(mode="numeric",length(missing_ids))
