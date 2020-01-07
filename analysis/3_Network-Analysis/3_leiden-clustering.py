@@ -97,7 +97,6 @@ print("Performing Leiden algorithm clustering of the"
         " protein co-expression network.\n", file = stderr)
 pbar = ProgressBar()
 resolution_range = linspace(rmin,step,rmax)
-resolution_range = linspace(0,1,1) #linspace(rmin,step,rmax)
 profile = list()
 for res in pbar(resolution_range):
     # Perfrom La clustering.
