@@ -108,7 +108,7 @@ message(paste0("Number of modules at ~best resolution: ", nModules))
 # Module size statistics.
 mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
 message(paste("Minumum module size:",mod_stats["Min."]))
-message(paste("Mean module size:",mod_stats["Mean"]))
+message(paste("Median module size:",mod_stats["Median"]))
 message(paste("Maximum module size:",mod_stats["Max."]))
 
 # Percent not clustered.
@@ -121,7 +121,7 @@ moduleGO <- GOresults[[best_res]]
 # Fix names...
 names(moduleGO) <- sapply(strsplit(names(moduleGO),"-"),"[",2)
 
-# Top GO from every module.
+# Collect top GO terms from every module.
 alpha <- 0.05
 topGO <- data.frame(Name = sapply(moduleGO, function(x) {
   x$shortDataSetName[x$rank == 1]
@@ -132,14 +132,12 @@ topGO$FDR <- sapply(moduleGO, function(x) x$FDR[x$rank == 1])
 topGO$FoldEnrichment <- sapply(moduleGO, function(x) x$enrichmentRatio[x$rank == 1])
 topGO$nProts <- sapply(moduleGO, function(x) x$nCommonGenes[x$rank == 1])
 topGO$isSig <- sapply(moduleGO, function(x) x$Bonferroni[x$rank == 1] < alpha)
-# Simplify row names.
-rownames(topGO) <- sapply(strsplit(rownames(topGO),"-"),"[",2)
-# topGO$Proteins <- sapply(moduleGO, function(x) x$overlapGenes[x$rank==1])
+
 
 # Percent modules with any significant GO enrichment (Bonferroni p-value).
 nSigGO <- sum(topGO$isSig)
 percentSigGO <- nSigGO / nModules
-message(paste(# Calculate Module eigengenes.
+
 # Note: Soft power does not influence MEs.
 MEdata <- moduleEigengenes(data,
   colors = partition,
@@ -219,6 +217,8 @@ message(paste0(
 
 # Dunnetts test for post-hoc comparisons.
 # Dunnetts test takes a few seconds...
+# Note: P-values returned by DunnettTest have already been adjusted for 
+# multiple comparisons!
 con <- paste("WT", net, sep = ".") # Control group.
 DT_list <- lapply(ME_list, function(x) {
   as.data.frame(DunnettTest(x, g, control = con)[[con]])
@@ -227,23 +227,23 @@ DT_list <- lapply(ME_list, function(x) {
 # Number of significant changes.
 alpha <- 0.05
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
-#nSigDT[sigModules]
 
-# Examine a module.
-i = 7
-namen <- sigModules[i]
-plots[[namen]]
-prots <- names(modules[[namen]])
-message(paste("TopGO term:",as.character(topGO[sigModules,]$Name[i])),
-	" p.adj = ", topGO[namen,]$Bonferroni,".")
-nsigProts <- sum(prots %in% sigProts)
-pSig <- round(nsigProts/length(prots),3)
-pSig
+# # Examine a module.
+# i = 7
+# namen <- sigModules[i]
+# plots[[namen]]
+# prots <- names(modules[[namen]])
+# message(paste("TopGO term:",as.character(topGO[sigModules,]$Name[i])),
+# 	" p.adj = ", topGO[namen,]$Bonferroni,".")
+# nsigProts <- sum(prots %in% sigProts)
+# pSig <- round(nsigProts/length(prots),3)
+# pSig
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.
 #------------------------------------------------------------------------------
 
+# Should graphs be sent to Cytoscape with RCy3?
 send_to_cytoscape <- TRUE
 
 # Load mouse interactome.
