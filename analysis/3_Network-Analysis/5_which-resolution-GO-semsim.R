@@ -9,8 +9,7 @@
 
 ## User parameters. 
 # Which co-expression network to analyze?
-net <- "Cortex" 
-#net <- "Striatum"
+net <- "Cortex" # Cortex or Striatum co-expression network.
 
 # Imports. 
 suppressPackageStartupMessages({
@@ -48,6 +47,17 @@ rownames(GOadjm) <- colnames(GOadjm)
 # Load GO network partitions.
 myfile <- file.path(rdatdir,"3_GO_partitions.csv")
 GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
+colnames(GOparts) <- colnames(GOadjm)
+
+# Load GO network partitions.
+myfile <- file.path(rdatdir,"3_GO_partitions.csv")
+GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
+colnames(GOparts) <- colnames(GOadjm)
+
+# Load PPI network partitions.
+myfile <- file.path(rdatdir,"136845523_PPI_partitions.csv")
+PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
+
 colnames(GOparts) <- colnames(GOadjm)
 
 #-------------------------------------------------------------------------------
