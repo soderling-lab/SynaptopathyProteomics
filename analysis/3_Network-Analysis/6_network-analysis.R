@@ -229,15 +229,16 @@ alpha <- 0.05
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
 
 # # Examine a module.
-# i = 7
-# namen <- sigModules[i]
-# plots[[namen]]
-# prots <- names(modules[[namen]])
-# message(paste("TopGO term:",as.character(topGO[sigModules,]$Name[i])),
-# 	" p.adj = ", topGO[namen,]$Bonferroni,".")
-# nsigProts <- sum(prots %in% sigProts)
-# pSig <- round(nsigProts/length(prots),3)
-# pSig
+i = 7
+namen <- sigModules[i]
+plots[[namen]]
+prots <- names(modules[[namen]])
+message(paste("TopGO term:",as.character(topGO[sigModules,]$Name[i])),
+	" p.adj = ", topGO[namen,]$Bonferroni,".")
+nsigProts <- sum(prots %in% sigProts)
+pSig <- round(nsigProts/length(prots),3)
+pSig
+nSigDT[namen]  
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.
@@ -279,6 +280,7 @@ for (i in c(1:17, 19:length(modules))) {
   # Send to cytoscape.
   namen <- names(modules)[i]
   if (send_to_cytoscape) {
+    library(RCy3)
     cytoscapePing()
     if (length(E(subg)) > 0) {
       createNetworkFromIgraph(subg, namen)
@@ -293,6 +295,8 @@ for (i in c(1:17, 19:length(modules))) {
   message("\n")
 } # Ends loop.
 
+# Some convergent modules are sparse!
+quit()
 
 #-------------------------------------------------------------------------------
 # Loop to examine KW and DT for all modules at every resolution.
