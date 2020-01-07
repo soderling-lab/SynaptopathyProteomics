@@ -49,28 +49,22 @@ myfile <- file.path(rdatdir,"3_GO_partitions.csv")
 GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(GOparts) <- colnames(GOadjm)
 
-# Load GO network partitions.
-myfile <- file.path(rdatdir,"3_GO_partitions.csv")
-GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
-colnames(GOparts) <- colnames(GOadjm)
-
 # Load PPI network partitions.
-myfile <- file.path(rdatdir,"136845523_PPI_partitions.csv")
-PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
-
-colnames(GOparts) <- colnames(GOadjm)
+#myfile <- file.path(rdatdir,"136845523_PPI_partitions.csv")
+#PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
+#colnames(GOparts) <- colnames(GOadjm)
 
 #-------------------------------------------------------------------------------
 ## Compare partitions.
 #-------------------------------------------------------------------------------
 
-# Remove duplicated Entrez id from GO adjm!
+# Remove duplicated Entrez id from GO adjm and partition df!
 out <- duplicated(colnames(GOadjm))
 GOadjm <- GOadjm[!out,!out]
 out <- duplicated(colnames(GOparts))
 GOparts <- GOparts[,!out]
 
-# Split GOSemSim partition df into list of partitions.
+# Split GO partition df into list of partitions.
 # First, fix names.
 entrez_map <- as.list(prot_map$ids)
 names(entrez_map) <- prot_map$entrez
@@ -82,7 +76,8 @@ GOpartitions <- lapply(c(1:100),function(x) {
 })
 
 # Loop to compare co-expresion and GO similarity partitions at every 
-# resolution.
+# resolution. Partition similarity evaluated as in Choodbar et al., 2019.
+message(paste("Calculating pairwise similiarty between networks..."))
 part_similarity <- vector(mode="numeric",length=100)
 pbar <- txtProgressBar(min=1,max=100,style=3)
 for (i in 1:100) {
@@ -95,22 +90,35 @@ for (i in 1:100) {
 	missing <- vector(mode="numeric",length(missing_ids))
 	names(missing) <- missing_ids
 	p2 <- c(p2,missing)
-	# Calculate similarity.
-	part_similarity[i] <- module_assignment_similarity(p1,p2)
+	# Calculate similarity, update similarity vector.
+	ps <- module_assignment_similarity(p1,p2)
+	part_similarity[i] <- ps
 	# Close pbar.
 	if (i==100) { close(pbar); message("\n") }
 }
 
-# ~Best resolution...
+# ~Best resolution is resolution at which co-expression modules
+# are most similar to GO functional similarity modules.
 s <- part_similarity
 s[is.na(s)] <- 0
 best_part <- c(1:100)[s==max(s)]
 message(paste("Best resolution:",best_part))
 
-p = partitions[[best_part]]
-table(p)
-nModules <- length(table(p))-1
+# Examine ~best partitions.
+p1 = partitions[[best_part]]
+p2 = GOpartitions[[best_part]]
+table(p1)
+table(p2)
+nMod1 <- length(table(p1))
+nMod2 <- length(table(p2))
 
+# Save best resolution.
+myfile <- file.path(rdatdir,paste0("3_",net,"_GO_Best_Resolution.RData"))
+saveRDS(best_part,myfile)
+
+#--------------------------------------------------------------------
+# Scraps below:
+quit()
 
 #-------------------------------------------------------------------------------
 ## Is there a relationship between co-expresion and functional similarity?
@@ -175,3 +183,137 @@ PPIadjm <- as.matrix(as_adjacency_matrix(g))
 # Write to file.
 myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
 data.table::fwrite(PPIadjm,myfile,row.names=TRUE)
+
+
+#------------------------------------------------------------------------------
+## Build SynGO gene collection.
+#------------------------------------------------------------------------------
+
+# Load SynGO annotations.
+# Data downloaded from: https://syngoportal.org/
+myfile <- file.path(rdatdir,"SynGO_bulk_download_release_20180731",
+		   "syngo_annotations.xlsx")
+synGO <- readxl::read_excel(myfile)
+
+# Load SynGO gene mapping table.
+myfile <- file.path(rdatdir,"SynGO_bulk_download_release_20180731",
+		   "syngo_genes.xlsx")
+genes <- readxl::read_excel(myfile)
+
+# Some rows contain multiple MGI ids, seperate these.
+genes <- tidyr::separate_rows(genes, mgi_id,sep=",")
+
+# Map MGI ids to mouse entrez.
+library(getPPIs)
+
+mgi <- paste0("MGI:",genes$mgi_id)
+entrez <- mapIDs(mgi,from="mgi",to="entrez",species="mouse")
+names(entrez) <- genes$mgi_id
+genes$mus_entrez <- entrez
+
+# Map Human HGNC ids to mouse entrez.
+idx <- match(synGO$"human ortholog gene hgnc_id",genes$hgnc_id)
+synGO$mus_entrez <- genes$mus_entrez[idx]
+
+# Remove rows with unmapped genes.
+synGO <- subset(synGO,!is.na(synGO$mus_entrez))
+
+# Collect as named list of genes.
+mus_entrez <- synGO$mus_entrez
+data_list <- split(mus_entrez,synGO$"GO term ID")
+
+# Loop to build gene sets from SynGO:
+library(anRichment)
+geneSets <- list()
+for (i in 1:length(data_list)) {
+	id <- names(data_list)[i]
+	geneSets[[i]] <- newGeneSet(geneEntrez = data_list[[i]],
+				    geneEvidence = "IEA", # Inferred from Electronic Annotation
+				    geneSource = "SynGO",
+				    ID = id, 
+				    name = id,
+				    description = "Synaptic gene ontology",
+				    source = "https://syngoportal.org/data/download.php?file=SynGO_bulk_download_release_20180731.zip",
+				    organism = "mouse",
+				    internalClassification = "SynGO",
+				    groups = "PL",
+				    lastModified = "2020-01-03")
+}
+
+# Annotate collection with group name.
+SynGOgroup = newGroup(name = "SynGO", 
+		   description = "Currated synaptic gene ontology from SynGO database.",
+		   source = "syngoportal.org")
+
+# Combine as gene collection.
+SynGOcollection <- newCollection(dataSets = geneSets, groups = list(SynGOgroup))
+
+# Save as Rdata.
+myfile <- file.path(rdatdir,"3_SynGOcollection.RData")
+saveRDS(SynGOcollection,myfile)
+
+## Combine SynGO with all other mouse GO data.
+
+# Build mouse GO collection:
+musGOcollection <- buildGOcollection(organism="mouse")
+
+# Which GO groups would you like to use in your analysis?
+keep <- c("GO","GO.BP","GO.MF","GO.CC")
+musGOcollection <- subsetCollection(musGOcollection, tags = keep)
+
+# Combine SynGO and GO datasets.
+GOcollection <- newCollection()
+GOcollection <- addToCollection(musGOcollection,SynGOcollection)
+
+GOcollection <- addToCollection(musGOcollection)
+
+write_excel(GO_results,"temp.xlsx")
+
+sum(sapply(GO_results,function(x) any(x$FDR<0.05)))
+
+#------------------------------------------------------------------------------
+## Perform GO analysis of modules at every resolution.
+#------------------------------------------------------------------------------
+
+# What about disease enrichment...
+#myfile <- file.path(rdatdir,"mouse_DisGeneNETcollection.RData")
+#GOcollection <- readRDS(myfile)
+
+# Loop to perform GO enrichment for modules at every resolution.
+myparts <- GOpartitions[[best_part]]
+
+x = moduleGOenrichment(GOpartitions, best_part, prot_map, GOcollection)
+
+message("Performing GO enrichment analysis...")
+GOresults <- list()
+for (i in seq_along(partitions)) {
+  # Initialize progress bar.
+  if (i == 1) {
+    pb <- txtProgressBar(min = 0, max = length(partitions), style = 3)
+  }
+  # Perform GO analysis.
+  GOresults[[i]] <- moduleGOenrichment(myparts,i, prot_map,GOcollection)
+  # Update progress bar.
+  setTxtProgressBar(pb, i)
+  # Close pb.
+  if (i == length(partitions)) {
+	  close(pb)
+	  message("\n")
+  }
+} # Ends loop.
+
+# Save results.
+#myfile <- file.path(rdatdir,paste0("3_",net,"_Module_GO_Results.RData")) 
+#saveRDS(GOresults, myfile)
+
+data = GOresults[[50]]
+write_excel(data,"temp.xlsx")
+
+
+s = sapply(GOresults,function(x) sum(sapply(x,function(y) any(y$FDR <0.05))))
+
+s == max(s)
+
+sum(sapply(data,function(x) any(x$FDR <0.05)))
+length(data)
+

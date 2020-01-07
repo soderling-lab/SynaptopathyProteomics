@@ -43,6 +43,12 @@ module_assignment_similarity <- function(p1,p2,ignore = 0) {
 	# Euclidean inner (dot) product/Product of Euclidean norms.
 	dp <- pracma::dot(Pmk1[!out],Pmk2[!out])
 	enorm <- sqrt(sum(Pmk1^2,na.rm=TRUE)) * sqrt(sum(Pmk2^2,na.rm=TRUE))
+	#dp <- pracma::dot(x,y)
+	#enorm <- sqrt(sum(x^2)) * sqrt(sum(y^2))
 	partition_similarity  <- dp/enorm
-	return(partition_similarity)
+	if (is.na(partition_similarity)) {
+		return(0)
+	} else {
+		return(partition_similarity)
+	}
 }

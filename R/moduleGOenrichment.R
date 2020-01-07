@@ -18,7 +18,7 @@
 #' @examples
 #' moduleGOenrichment()
 moduleGOenrichment <- function(partitions, resolution, protmap,musGOcollection,
-			       exclude="0") {
+			       exclude="0",verbose = 1) {
 # Function to perform GO enrichment for all modules in a given partition.
 	suppressPackageStartupMessages({
 		library(org.Mm.eg.db)
@@ -43,13 +43,15 @@ moduleGOenrichment <- function(partitions, resolution, protmap,musGOcollection,
 					   classLabels,
 					   identifiers = entrez,
 	                                   refCollection = musGOcollection,
+					   active = NULL,
+					   inactive = NULL,
 					   useBackground = "given",
 					   threshold = 1,
 					   thresholdType = "Bonferroni",
 					   getOverlapEntrez = TRUE,
 					   getOverlapSymbols = TRUE,
 					   ignoreLabels = "NA",
-					   verbose = 0 
+					   verbose 
 					   )
 	# Collect the results.
 	GO_results <- list()

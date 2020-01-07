@@ -159,11 +159,6 @@ s == max(s)
 sum(sapply(data,function(x) any(x$FDR <0.05)))
 length(data)
 
-
-sappl
-
-
-
 #------------------------------------------------------------------------------
 ## Examine GO results in order to define ~best resolution.
 #------------------------------------------------------------------------------
