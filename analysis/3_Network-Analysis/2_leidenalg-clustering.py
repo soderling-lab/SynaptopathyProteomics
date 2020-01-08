@@ -5,8 +5,8 @@
 #input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
 input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 output_name = "GO" # Output filename.
-#method = 'RBConfigurationVertexPartition' # Seems best for PPI graph.
-method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+method = 'SurpriseVertexPartition' # Best for ppi graph? Single resolution...
+#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
 rmin = 0 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.

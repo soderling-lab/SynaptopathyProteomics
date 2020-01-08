@@ -41,13 +41,14 @@ myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
 # Load Disease ontology.
-options <- c("SFARI-Gene",
+n <- 5
+dataset <- c("SFARI-Gene",
 	     "SFARI-Animal",
-	     "DisGeneNet-All",
-	     "DisGeneNet-Variants")
-
-#myfile <- file.path(rdatdir,"mouse_SFARI-Gene_genes.RData")
-myfile <- file.path(rdatdir,"mouse_DisGeneNet_All_Disease_Genes.RData")
+	     "DisGeneNet_Curated_Variants",
+	     "DisGeneNet_All_Disease_Genes",
+	     "DisGeneNet_All_Variants",
+	     "DisGeneNet_Curated_Variants")[n]
+myfile <- list.files(rdatdir,pattern=dataset,full.names=TRUE)
 GOcollection <- readRDS(myfile)
 
 #-------------------------------------------------------------------------------
@@ -75,9 +76,12 @@ for (i in 1:100){
 }
 r <- seq_along(partitions)[nsig==max(nsig)]
 
-result = GOresults[[r]]
-mods <- sapply(strsplit(names(result),"-"),"[",2)
-mods[sapply(result,function(x) any(x$FDR<0.05))]
+result = GOresults[[r[4]]]
+names(result) <- sapply(strsplit(names(result),"-"),"[",2)
+mods = names(result)[sapply(result,function(x) any(x$FDR<0.05))]
+mods
+df = result[[mods]]
+df$dataSetName[df$FDR<0.05]
 
 #score <- sapply(res,function(x) x$enrichmentRatio*-log(x$pValue))
 #score[score==max(score)]

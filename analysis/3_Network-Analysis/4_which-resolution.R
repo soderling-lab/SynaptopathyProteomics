@@ -55,7 +55,8 @@ PPIadjm <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 rownames(PPIadjm) <- colnames(PPIadjm)
 
 # Load PPI network partitions.
-myfile <- file.path(rdatdir,"137847903_PPI_partitions.csv")
+myfile <- file.path(rdatdir,"3_PPI_partitions.csv")
+#myfile <- file.path(rdatdir,"137847903_PPI_partitions.csv")
 PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(PPIparts) <- colnames(PPIadjm)
 
@@ -88,6 +89,13 @@ PPIpartitions <- lapply(c(1:100),function(x) {
 	      names(part) <- ids
 	      return(part)
 })
+
+# Remove small modules.
+filtPartitions <- lapply(PPIpartitions,function(x) {
+				 x[x %in% as.numeric(names(table(x))[table(x) < 3])] <- 0
+				 return(x)
+})
+
 
 # Loop to compare co-expresion and GO similarity partitions at every 
 # resolution. Partition similarity evaluated as in Choodbar et al., 2019.
