@@ -92,25 +92,42 @@ PPIpartitions <- lapply(c(1:100),function(x) {
 # Loop to compare co-expresion and GO similarity partitions at every 
 # resolution. Partition similarity evaluated as in Choodbar et al., 2019.
 message(paste("Calculating pairwise similiarty between networks..."))
-part_similarity <- vector(mode="numeric",length=100)
+part_similarity <- list()
 pbar <- txtProgressBar(min=1,max=100,style=3)
 for (i in 1:100) {
 	# Update pbar.
 	setTxtProgressBar(pbar,i)
 	p1 <- partitions[[i]]
-	#p2 <- GOpartitions[[i]]
-	p2 <- PPIpartitions[[i]]
+	p2 <- GOpartitions[[i]]
+	p3 <- PPIpartitions[[i]]
 	# Add missing genes. Assign to module 0 (un-assigned).
 	missing_ids <- names(p1)[names(p1) %notin% names(p2)]
 	missing <- vector(mode="numeric",length(missing_ids))
 	names(missing) <- missing_ids
 	p2 <- c(p2,missing)
+	# Add missing genes. Assign to module 0 (un-assigned).
+	missing_ids <- names(p1)[names(p1) %notin% names(p3)]
+	missing <- vector(mode="numeric",length(missing_ids))
+	names(missing) <- missing_ids
+	p3 <- c(p3,missing)
 	# Calculate similarity, update similarity vector.
-	ps <- module_assignment_similarity(p1,p2)
-	part_similarity[i] <- ps
+	ps1 <- module_assignment_similarity(p1,p2)
+	ps2 <- module_assignment_similarity(p1,p3)
+	part_similarity[[i]] <- c(GO=ps1,PPI=ps2)
 	# Close pbar.
 	if (i==100) { close(pbar); message("\n") }
 }
+
+
+#idmax <- function(x){
+#}
+#dm = matrix(randi(100),nrow=10,ncol=10)
+#dim(dm)
+
+# Best resolution based on both GO and PPI...
+x = do.call(rbind,part_similarity)
+xavg = apply(x,1,function(x) mean(x,na.rm=TRUE))
+c(1:length(xavg))[xavg == max(xavg)]
 
 # ~Best resolution is resolution at which co-expression modules
 # are most similar to GO functional similarity modules.

@@ -1,19 +1,81 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
-#------------------------------------------------------------------------------
-## Load the adjacency matrix.
-#------------------------------------------------------------------------------
-
-# User parameters to change: 
+## User parameters: 
 #input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
-input_adjm = "3_PPI_Adjm.csv"
-output_name = "PPI"
+input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
+output_name = "PPI" # Output filename.
+method = 'RBConfigurationVertexPartition' # Seems best for PPI graph.
+#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+method = 'SignificanceVertexPartition'
 rmin = 0 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.
-sft = 1 # Power (soft-threshold) for weighting the network. Note, If even then 
+sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
+
+## Notes: sft -- This is the power to which the adjacency matrix is raised in
+# order to apply a soft-threshold to the network. If this power is even then the
 # network will become unsigned. 
+
+## Methods: Leidenalg supports the following methods for optimization
+#           of community detection:
+#
+# Methods for positive edge weights, no resolution parameter:
+# [1] ModularityVertexPartition -- Implements modularity. Only 
+#     well-defined for positive edge weights. No resolution parameter.
+# [2] SurpriseVertexPartition -- Implements (asymptotic) Surprise. 
+#     This quality function is well-defined only for positive edge 
+#     weights. No resolution parameter.
+#
+# Methods for positive edges with linear resolution parameter:
+# [3] RBConfigurationVertexPartition -- Implements Reichardt and 
+#     Bornholdt’s Potts model with a configuration null model. 
+#     Only well-defined for positive edge weights.
+# [4] RBERVertexPartition -- Implements Reichardt and Bornholdt’s 
+#     Potts model with a configuration null model. 
+#     Only well-defined for positive edge weights. 
+#
+# Methods for positive and negative edge weights:
+# [5] CPMVertexPartition -- Implements CPM. Quality function is 
+#     well-defined for both positive and negative edge weights. 
+#     Can utilize a linear resolution parameter.
+#
+# Method for unweighted graphs without resolution parameter:
+# [6] SignificanceVertexPartition -- Implements Significance. This 
+#     quality function is well-defined only for unweighted graphs.
+#     Does not utilize a resolution parameter, but tries to find
+#     the best resolution/partition.
+
+#------------------------------------------------------------------------------
+## Define some utility functions.
+#------------------------------------------------------------------------------
+
+# xstr
+def xstr(s):
+    ''' Convert NoneType to blank ('') string.'''
+    if s is None:
+        return ''
+    else:
+        return str(s)
+# EOF
+
+# contains
+def contains(mylist,value,return_index=False):
+    ''' Check if list contains a value. 
+    Like list.index(value) but returns False if the provided list
+    does not contain value. 
+    '''
+    list_as_dict = dict(zip(mylist,range(len(mylist))))
+    idx = list_as_dict.get(value)
+    if not return_index: 
+        return type(x) is int
+    else:
+        return idx
+# EOF
+
+#------------------------------------------------------------------------------
+## Load the input adjacency matrix.
+#------------------------------------------------------------------------------
 
 # Imports.
 import os
@@ -21,13 +83,6 @@ import glob
 from os.path import dirname
 from sys import stderr
 from pandas import read_csv
-
-# Define a function to convert NoneType to blank string.
-def xstr(s):
-	if s is None:
-		return ''
-	return str(s)
-# Ends function.
 
 # Get system variables.
 myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
@@ -85,28 +140,45 @@ g = g.simplify(multiple = False, loops = True)
 ## Community detection with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
-import leidenalg as la
 from numpy import linspace
-from leidenalg import find_partition
-from leidenalg import CPMVertexPartition
 from leidenalg import Optimiser
+from leidenalg import find_partition
 from progressbar import ProgressBar
+from importlib import import_module
 
-# Loop to perform leidenalg community detection at n resolutions.
-print("Performing Leiden algorithm clustering of the" 
-        " protein co-expression network.\n", file = stderr)
-pbar = ProgressBar()
-resolution_range = linspace(rmin,step,rmax)
-profile = list()
-for res in pbar(resolution_range):
-    # Perfrom La clustering.
-    partition = find_partition(g, CPMVertexPartition, 
-            weights='weight', resolution_parameter=res)
-    # Partition optimization... this takes extra time.
-    optimiser = la.Optimiser()
-    diff = optimiser.optimise_partition(partition,n_iterations=-1)
-    # Add optimized partition to profile list.
+# Dynamically load the partition_type class--the clusering optimization method.
+partition_type = getattr(import_module('leidenalg'), method)
+
+# Methods that don't support multi-resolution clustering:
+out = ["ModularityVertexPartition", 
+        "SurpriseVertexPartition",
+        "SignificanceVertexPartition"]
+# Check if optimization method supports resolution parameter. 
+single_resolution = contains(out,method)
+
+# Perform Leidenalg community detection. 
+if (single_resolution):
+    # Single resolution clustering:
+    profile = list()
+    partition = find_partition(g, partition_type, weights='weight')
     profile.append(partition)
+else:
+    # Loop to perform multi-resolution clustering.
+    print("Performing Leiden algorithm clustering of the" 
+        " protein co-expression network.\n", file = stderr)
+    pbar = ProgressBar()
+    resolution_range = linspace(rmin,step,rmax)
+    profile = list()
+    for resolution in pbar(resolution_range):
+        # Perfrom La clustering.
+        partition = find_partition(g, partition_type, 
+                weights='weight', resolution_parameter=resolution)
+        optimiser = Optimiser()
+        diff = optimiser.optimise_partition(partition,n_iterations=-1)
+        # Add optimized partition to profile list.
+        profile.append(partition)
+        # Ends loop.
+# Ends If/else.
 
 #------------------------------------------------------------------------------
 ## Save partition profile results.

@@ -40,22 +40,50 @@ data <- readRDS(myfile)
 myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
-# What about disease enrichment...
-list.files(rdatdir,pattern="DisGeneNet")
-myfile <- file.path(rdatdir,"DisGeneNet_Curated_Variants_mouse.RData")
+# Load Disease ontology.
+#myfile <- file.path(rdatdir,"mouse_SFARI-Gene_genes.RData")
+myfile <- file.path(rdatdir,"mouse_DisGeneNet_All_Disease_Genes.RData")
 GOcollection <- readRDS(myfile)
+
+#-------------------------------------------------------------------------------
+# Disease enrichment analysis.
+#-------------------------------------------------------------------------------
 
 # Mouse GO collection.
 #if (!exists("musGO")) { GOcollection <- buildGOcollection(organism="mouse") }
 
 # Perform GO analysis.
-res = 93
-GOresults <- moduleGOenrichment(partitions,res, protmap,GOcollection)
+GOresults <- list()
+pbar <- txtProgressBar(min=1,max=length(partitions),style=3)
+for (i in 1:length(partitions)){
+	setTxtProgressBar(pbar,i)   
+	GOresults[[i]] <- moduleGOenrichment(partitions, i, 
+					     protmap,
+					     GOcollection, verbose = 0)
+	if (i==length(partitions)) { close(pbar); message("\n") }
+}
 
-p = sapply(GOresults,function(x) min(x$pValue))
-c(1:length(p))[p==min(p)]
+# Any sig?
+nsig <- vector(mode="numeric",100)
+for (i in 1:100){
+	nsig[i] = sum(sapply(GOresults[[i]],function(x) any(x$FDR<0.05)))
+}
+r <- seq_along(partitions)[nsig==max(nsig)]
 
-sum(sapply(GOresults,function(x) any(x$FDR<0.1)))
+result = GOresults[[r]]
+mods <- sapply(strsplit(names(result),"-"),"[",2)
+mods[sapply(result,function(x) any(x$FDR<0.05))]
 
-write_excel(GOresults,"temp.xlsx")
+#score <- sapply(res,function(x) x$enrichmentRatio*-log(x$pValue))
+#score[score==max(score)]
+
+sapply(res,function(x) x$enrichmentRatio)
+p = partitions[[96]]
+m <- split(p,p)
+m[["3"]]
+
+write_excel(result,"temp.xlsx")
+
+
+
 
