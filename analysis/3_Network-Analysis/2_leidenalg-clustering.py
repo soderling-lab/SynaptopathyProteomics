@@ -5,11 +5,11 @@
 #input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
 input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 output_name = "GO" # Output filename.
-method = 'SurpriseVertexPartition' # Best for ppi graph? Single resolution...
-#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
-rmin = 0 # Min resolution.
-step = 1 # Step size.
-rmax = 100 # Max resolution.
+#method = 'SurpriseVertexPartition' # Best for ppi graph?
+method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+rmin = 1 # Min resolution.
+rmax = 1 # Max resolution. 
+nsteps = 1 # Number of steps.
 sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
 
 ## Notes: sft -- This is the power to which the adjacency matrix is raised in
@@ -171,7 +171,7 @@ else:
     print("Performing Leiden algorithm clustering of the" 
         " protein co-expression network.\n", file = stderr)
     pbar = ProgressBar()
-    resolution_range = linspace(rmin,step,rmax)
+    resolution_range = linspace(rmin,rmax,nsteps)
     profile = list()
     for resolution in pbar(resolution_range):
         # Perfrom La clustering.

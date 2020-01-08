@@ -81,8 +81,14 @@ g = g.simplify(multiple = False, loops = True)
 # [3] RBConfigurationVertexPartition -- Implements Reichardt and 
 # [4] RBERVertexPartition -- Implements Reichardt and Bornholdt’s 
 # [5] CPMVertexPartition -- Implements CPM. Quality function is 
-#
-# Single resolution
+
+import numpy as np
+from leidenalg import Optimiser
+from leidenalg import find_partition
+from progressbar import ProgressBar
+from importlib import import_module
+
+# Clustering methods.
 m1 = ["ModularityVertexPartition",
         "SurpriseVertexPartition"]
 m2 = ["RBConfigurationVertexPartition",
@@ -91,19 +97,11 @@ m2 = ["RBConfigurationVertexPartition",
 m3 = ["SignificanceVertexPartition"]
 methods = {"single" : m1, "multi" : m2, "unweighted" : m3}
 
-
-# Perfrom La clustering.
-import numpy as np
-from leidenalg import Optimiser
-from leidenalg import find_partition
-from progressbar import ProgressBar
-from importlib import import_module
-
-# Single resolution methods with optimization set.
-mtype = "multi"
-resolution = 0.1
+# Loop to explore methods as defined by:
+mtype = "unweighted"
+resolution = 0
 profile = list()
-min_size = 5
+min_size = 5 # Mimimum module size. If smaller then set to 0.
 for method in methods[mtype]:
     partition_type = getattr(import_module('leidenalg'), method)
     if mtype is "single":
