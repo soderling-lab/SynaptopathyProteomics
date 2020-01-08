@@ -2,11 +2,11 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
-#input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
-output_name = "PPI" # Output filename.
-method = 'RBConfigurationVertexPartition' # Seems best for PPI graph.
-#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+#input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
+input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
+output_name = "GO" # Output filename.
+#method = 'RBConfigurationVertexPartition' # Seems best for PPI graph.
+method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
 rmin = 0 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.
@@ -199,10 +199,12 @@ results = {
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
 # Save cluster membership.
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_partitions.csv")
+myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
+        method + "_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
 # Save partition profile.
 df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_profile.csv")
+myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
+        method + "_profile.csv")
 df.to_csv(myfile)
