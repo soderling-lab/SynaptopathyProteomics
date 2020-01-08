@@ -16,6 +16,11 @@ sft = 1 # Power (soft-threshold) for weighting the network. See notes.
 # order to apply a soft-threshold to the network. If this power is even then the
 # network will become unsigned. 
 
+# For PPI graph use SupriseVertexPartition -- this minimizes the percent
+# unclustered while maximizing the number of modules.
+# For GO graph use CPM with resolution parameter = 1.0. This minimizes the
+# percent unclustered while retaining a large number of modules.
+
 ## Methods: Leidenalg supports the following methods for optimization
 #           of community detection:
 #
