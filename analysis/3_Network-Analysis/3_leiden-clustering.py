@@ -2,12 +2,11 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-#input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
+#input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 output_name = "PPI" # Output filename.
 method = 'RBConfigurationVertexPartition' # Seems best for PPI graph.
 #method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
-method = 'SignificanceVertexPartition'
 rmin = 0 # Min resolution.
 step = 1 # Step size.
 rmax = 100 # Max resolution.
@@ -66,11 +65,11 @@ def contains(mylist,value,return_index=False):
     does not contain value. 
     '''
     list_as_dict = dict(zip(mylist,range(len(mylist))))
-    idx = list_as_dict.get(value)
+    index = list_as_dict.get(value)
     if not return_index: 
-        return type(x) is int
+        return type(index) is int # True if in list.
     else:
-        return idx
+        return index
 # EOF
 
 #------------------------------------------------------------------------------
@@ -153,15 +152,20 @@ partition_type = getattr(import_module('leidenalg'), method)
 out = ["ModularityVertexPartition", 
         "SurpriseVertexPartition",
         "SignificanceVertexPartition"]
-# Check if optimization method supports resolution parameter. 
+# Check if users optimization method supports resolution parameter. 
 single_resolution = contains(out,method)
 
 # Perform Leidenalg community detection. 
 if (single_resolution):
     # Single resolution clustering:
     profile = list()
-    partition = find_partition(g, partition_type, weights='weight')
-    profile.append(partition)
+    # SignificanceVertexPartition only supports unweighted graphs.
+    if method is "SignificanceVertexPartition":  
+        partition = find_partition(g, partition_type, weights=None,n_iterations=-1)
+        profile.append(partition)
+    else:
+        partition = find_partition(g, partition_type, weights='weight',n_iterations=-1)
+        profile.append(partition)
 else:
     # Loop to perform multi-resolution clustering.
     print("Performing Leiden algorithm clustering of the" 

@@ -41,6 +41,11 @@ myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
 # Load Disease ontology.
+options <- c("SFARI-Gene",
+	     "SFARI-Animal",
+	     "DisGeneNet-All",
+	     "DisGeneNet-Variants")
+
 #myfile <- file.path(rdatdir,"mouse_SFARI-Gene_genes.RData")
 myfile <- file.path(rdatdir,"mouse_DisGeneNet_All_Disease_Genes.RData")
 GOcollection <- readRDS(myfile)
