@@ -83,6 +83,10 @@ for (i in seq_along(partitions)){
 	message(paste("... Resolution",i,"similarity:",ps[i]))
 }
 
+partition_similarity(partitions[[1]],p2)
+
+partition_similarity(partitions[[100]],p2)
+
 #-------------------------------------------------------------------------------
 ## Compare partitions.
 #-------------------------------------------------------------------------------
@@ -174,9 +178,11 @@ nMod2 <- length(table(p2))
 myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
 saveRDS(best_part,myfile)
 
+quit()
+
 #--------------------------------------------------------------------
 # Scraps below:
-quit()
+#--------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 ## Is there a relationship between co-expresion and functional similarity?
@@ -214,120 +220,6 @@ df3 <- df1[!out,]
 # Spearman rank correlation.
 rho <- cor(df3$Bicor,df3$GOSemSim,method="spearman")
 # Overall correalation is extremely modest....
-
-#---------------------------------------------------------------------
-## Generate PPI graph.
-#---------------------------------------------------------------------
-
-library(getPPIs)
-
-# Load mouse interactome.
-data("musInteractome")
-
-# Subset mouse interactome, keep data from mouse, human, and rat.
-idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
-ppis <- subset(musInteractome, idx)
-
-# Get entrez IDs for all proteins in co-expression network.
-prots <- colnames(adjm)
-entrez <- prot_map$entrez[match(prots, prot_map$ids)]
-
-# Build a ppi graph.
-g <- buildNetwork(ppis, entrez, taxid = 10090)
-
-# Get ppi adjacency matrix.
-PPIadjm <- as.matrix(as_adjacency_matrix(g))
-
-# Write to file.
-myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
-data.table::fwrite(PPIadjm,myfile,row.names=TRUE)
-
-
-#------------------------------------------------------------------------------
-## Build SynGO gene collection.
-#------------------------------------------------------------------------------
-
-# Load SynGO annotations.
-# Data downloaded from: https://syngoportal.org/
-myfile <- file.path(rdatdir,"SynGO_bulk_download_release_20180731",
-		   "syngo_annotations.xlsx")
-synGO <- readxl::read_excel(myfile)
-
-# Load SynGO gene mapping table.
-myfile <- file.path(rdatdir,"SynGO_bulk_download_release_20180731",
-		   "syngo_genes.xlsx")
-genes <- readxl::read_excel(myfile)
-
-# Some rows contain multiple MGI ids, seperate these.
-genes <- tidyr::separate_rows(genes, mgi_id,sep=",")
-
-# Map MGI ids to mouse entrez.
-library(getPPIs)
-
-mgi <- paste0("MGI:",genes$mgi_id)
-entrez <- mapIDs(mgi,from="mgi",to="entrez",species="mouse")
-names(entrez) <- genes$mgi_id
-genes$mus_entrez <- entrez
-
-# Map Human HGNC ids to mouse entrez.
-idx <- match(synGO$"human ortholog gene hgnc_id",genes$hgnc_id)
-synGO$mus_entrez <- genes$mus_entrez[idx]
-
-# Remove rows with unmapped genes.
-synGO <- subset(synGO,!is.na(synGO$mus_entrez))
-
-# Collect as named list of genes.
-mus_entrez <- synGO$mus_entrez
-data_list <- split(mus_entrez,synGO$"GO term ID")
-
-# Loop to build gene sets from SynGO:
-library(anRichment)
-geneSets <- list()
-for (i in 1:length(data_list)) {
-	id <- names(data_list)[i]
-	geneSets[[i]] <- newGeneSet(geneEntrez = data_list[[i]],
-				    geneEvidence = "IEA", # Inferred from Electronic Annotation
-				    geneSource = "SynGO",
-				    ID = id, 
-				    name = id,
-				    description = "Synaptic gene ontology",
-				    source = "https://syngoportal.org/data/download.php?file=SynGO_bulk_download_release_20180731.zip",
-				    organism = "mouse",
-				    internalClassification = "SynGO",
-				    groups = "PL",
-				    lastModified = "2020-01-03")
-}
-
-# Annotate collection with group name.
-SynGOgroup = newGroup(name = "SynGO", 
-		   description = "Currated synaptic gene ontology from SynGO database.",
-		   source = "syngoportal.org")
-
-# Combine as gene collection.
-SynGOcollection <- newCollection(dataSets = geneSets, groups = list(SynGOgroup))
-
-# Save as Rdata.
-myfile <- file.path(rdatdir,"3_SynGOcollection.RData")
-saveRDS(SynGOcollection,myfile)
-
-## Combine SynGO with all other mouse GO data.
-
-# Build mouse GO collection:
-musGOcollection <- buildGOcollection(organism="mouse")
-
-# Which GO groups would you like to use in your analysis?
-keep <- c("GO","GO.BP","GO.MF","GO.CC")
-musGOcollection <- subsetCollection(musGOcollection, tags = keep)
-
-# Combine SynGO and GO datasets.
-GOcollection <- newCollection()
-GOcollection <- addToCollection(musGOcollection,SynGOcollection)
-
-GOcollection <- addToCollection(musGOcollection)
-
-write_excel(GO_results,"temp.xlsx")
-
-sum(sapply(GO_results,function(x) any(x$FDR<0.05)))
 
 #------------------------------------------------------------------------------
 ## Perform GO analysis of modules at every resolution.
