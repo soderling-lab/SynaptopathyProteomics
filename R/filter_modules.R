@@ -1,8 +1,10 @@
 #' filter_modules
 #'
-#' remove small modules from partition
+#' remove modules less than a minimum size from a partition
 #'
-#' @param partition - named vector 
+#' @param partition - graph partition, a named vector.
+#'
+#' @param min_size - size cut off.
 #'
 #' @return none
 #'
@@ -13,12 +15,11 @@
 #' @keywords none
 #'
 #' @export
-#'
+#' 
 #' @examples
-#'filter_modules(partition,cutoff=5)
-filter_modules <- function(partition, cutoff = 1) {
-modules <- split(partition, partition)
-out <- names(modules)[sapply(modules, function(x) table(x) < cutoff)]
-partition[partition %in% out] <- 0
-return(partition)
+#' filter_modules(partition,min_size=5)
+filter_modules <- function(partition,min_size=3) {
+	# Remove modules smaller than minimum size from a partition.
+	partition[partition %in% as.numeric(names(table(partition))[table(partition) < min_size])] <- 0
+	return(partition)
 }

@@ -68,41 +68,19 @@ colnames(PPIparts) <- ids
 ## Compare Coexpression partitions with partition of PPI graph.
 #-------------------------------------------------------------------------------
 
-filter_modules <- function(partition,min_size=3) {
-	# Remove modules smaller than minimum size from a partition.
-	partition[partition %in% as.numeric(names(table(partition))[table(partition) < min_size])] <- 0
-	return(partition)
-}
-
-add_missing <- function(p1,p2) {
-	# Add missing nodes to a partition.
-	all_names <- unique(c(names(p1),names(p2)))
-	n1 <- as.integer(length(all_names[all_names %notin% names(p1)]))
-	n2 <- as.integer(length(all_names[all_names %notin% names(p2)]))
-	if (n1 > 0) {
-		missing_p1 <- vector(mode="numeric",length(n2))
-		names(missing_p1) <- all_names[all_names %notin% names(p1)]
-		p1 <- c(p1,missing_p1)
-	}
-	if (n2 > 0) {
-		missing_p2 <- vector(mode="numeric",length(n2))
-		names(missing_p2) <- all_names[all_names %notin% names(p2)]
-		p2 <- c(p2,missing_p2)
-	}
-	return(p1)
-}
-
 # Loop to calculate pairwise similarity.
 ps <- vector(mode="numeric",length(partitions))
-for (i in rev(seq_along(partitions))){
+for (i in seq_along(partitions)){
 	p1 <- partitions[[i]]
 	p2 <- as.numeric(PPIparts[1,])
 	names(p2) <- colnames(PPIparts)
 	p2 <- filter_modules(p2)
-	p1 <- add_missing(p1,p2)
-	p2 <- add_missing(p2,p1)
-	ps[i] <- module_assignment_similarity(p1,p2)
-	message(paste("Resolution",i,"similarity:",ps[i]))
+	p1 <- add_missing_nodes(p1,p2)
+	p2 <- add_missing_nodes(p2,p1)
+	ps[i] <- partition_similarity(p1,p2)
+	message("Network 1 number of modules:",length(split(p1,p1)))
+	message("Network 2 number of modules:",length(split(p2,p2)))
+	message(paste("... Resolution",i,"similarity:",ps[i]))
 }
 
 #-------------------------------------------------------------------------------
