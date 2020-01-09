@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
+# FIXME: error when saving data. single resolution methods don't have resoltuion parameter...
+
 ## User parameters: 
-#input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
-input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
-output_name = "GO" # Output filename.
-#method = 'SurpriseVertexPartition' # Best for ppi graph?
-method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
+#input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
+output_name = "PPI" # Output filename.
+method = 'SurpriseVertexPartition' # Best for PPI graph.
+#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
+
+## For multiresolution methods:
 rmin = 1 # Min resolution.
 rmax = 1 # Max resolution. 
 nsteps = 1 # Number of steps.
-sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
 
 ## Notes: sft -- This is the power to which the adjacency matrix is raised in
 # order to apply a soft-threshold to the network. If this power is even then the
@@ -164,15 +168,20 @@ single_resolution = contains(out,method)
 if (single_resolution):
     # Single resolution clustering:
     profile = list()
-    # SignificanceVertexPartition only supports unweighted graphs.
     if method is "SignificanceVertexPartition":  
-        partition = find_partition(g, partition_type, weights=None,n_iterations=-1)
+        # SignificanceVertexPartition only supports unweighted graphs.
+        partition = find_partition(g, partition_type, weights=None)
+        optimiser = Optimiser()
+        diff = optimiser.optimise_partition(partition,n_iterations=-1)
         profile.append(partition)
     else:
-        partition = find_partition(g, partition_type, weights='weight',n_iterations=-1)
+        # Analysis of weighted graph at single resolution.
+        partition = find_partition(g, partition_type, weights='weight')
+        optimiser = Optimiser()
+        diff = optimiser.optimise_partition(partition,n_iterations=-1)
         profile.append(partition)
 else:
-    # Loop to perform multi-resolution clustering.
+    # Loop to perform multi-resolution clustering:
     print("Performing Leiden algorithm clustering of the" 
         " protein co-expression network.\n", file = stderr)
     pbar = ProgressBar()
@@ -184,31 +193,31 @@ else:
                 weights='weight', resolution_parameter=resolution)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        # Add optimized partition to profile list.
         profile.append(partition)
         # Ends loop.
 # Ends If/else.
 
 #------------------------------------------------------------------------------
-## Save partition profile results.
+## Save clustering results.
 #------------------------------------------------------------------------------
 
 from pandas import DataFrame
 
 # Collect partition results. 
-print(f"Complete! Examined network at {len(profile)} resolutions!", file = stderr)
+print(f"Complete! Examined network at {len(profile)} resolutions!", 
+        file = stderr)
 results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
         'Summary'    : [partition.summary() for partition in profile],
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 
-# Save cluster membership.
+# Save cluster membership vectors.
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_partitions.csv")
 DataFrame(results['Membership']).to_csv(myfile)
 
-# Save partition profile.
+# Save partition profile summary data.
 df = DataFrame.from_dict(results)
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_profile.csv")
