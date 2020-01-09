@@ -83,10 +83,7 @@ for (i in seq_along(partitions)){
 	message(paste("... Resolution",i,"similarity:",ps[i]))
 }
 
-partition_similarity(partitions[[1]],p2)
-
-partition_similarity(partitions[[100]],p2)
-
+quit()
 #-------------------------------------------------------------------------------
 ## Compare partitions.
 #-------------------------------------------------------------------------------
