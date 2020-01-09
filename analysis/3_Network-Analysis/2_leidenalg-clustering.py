@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
-# FIXME: error when saving data. single resolution methods don't have resoltuion parameter...
-
 ## User parameters: 
 input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
 #input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 output_name = "PPI" # Output filename.
-method = 'SurpriseVertexPartition' # Best for PPI graph.
-#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+#method = 'SurpriseVertexPartition' # Best for PPI graph.
+method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
 sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
 
 ## For multiresolution methods:
-rmin = 1 # Min resolution.
+rmin = 0 # Min resolution.
 rmax = 1 # Max resolution. 
-nsteps = 1 # Number of steps.
+nsteps = 100 # Number of steps.
 
 ## Notes: sft -- This is the power to which the adjacency matrix is raised in
 # order to apply a soft-threshold to the network. If this power is even then the
@@ -79,6 +77,21 @@ def contains(mylist,value,return_index=False):
         return type(index) is int # True if in list.
     else:
         return index
+# EOF
+
+# filter_modules
+def filter_modules(partition,min_size=5,unassigned=0):
+    """ Set modules with size less than minimum size to 0. """
+    import numpy as np
+    membership = np.array(partition.membership)
+    sizes = np.array(partition.sizes())
+    remove = np.array(range(len(sizes)))[sizes < min_size]
+    out = [node in remove for node in membership]
+    membership[out] = unassigned
+    partition.set_membership(membership)
+    m = np.array(partition.membership)
+    unassigned = sum(m==unassigned)/len(m)
+    return partition
 # EOF
 
 #------------------------------------------------------------------------------
@@ -173,12 +186,14 @@ if (single_resolution):
         partition = find_partition(g, partition_type, weights=None)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
+        partition = filter_modules(partition)
         profile.append(partition)
     else:
         # Analysis of weighted graph at single resolution.
         partition = find_partition(g, partition_type, weights='weight')
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
+        partition = filter_modules(partition)
         profile.append(partition)
 else:
     # Loop to perform multi-resolution clustering:
@@ -193,9 +208,13 @@ else:
                 weights='weight', resolution_parameter=resolution)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
+        partition = filter_modules(partition)
         profile.append(partition)
         # Ends loop.
 # Ends If/else.
+
+print(f"Complete! Examined network at {len(profile)} resolutions!", 
+        file = stderr)
 
 #------------------------------------------------------------------------------
 ## Save clustering results.
@@ -203,10 +222,16 @@ else:
 
 from pandas import DataFrame
 
-# Collect partition results. 
-print(f"Complete! Examined network at {len(profile)} resolutions!", 
-        file = stderr)
-results = {
+# Collect partition results and save as csv. 
+if len(profile) is 1:
+    # Single resolution profile:
+    results = {
+            'Modularity' : [partition.modularity for partition in profile],
+            'Membership' : [partition.membership for partition in profile],
+            'Summary'    : [partition.summary() for partition in profile]}
+else: 
+    # Multi-resolution profile:
+    results = {
         'Modularity' : [partition.modularity for partition in profile],
         'Membership' : [partition.membership for partition in profile],
         'Summary'    : [partition.summary() for partition in profile],
@@ -222,3 +247,7 @@ df = DataFrame.from_dict(results)
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_profile.csv")
 df.to_csv(myfile)
+
+
+
+

@@ -82,7 +82,8 @@ myfiles <- c(
   Cortex = list.files(rdatdir, "Cortex_Best", full.names = TRUE),
   Striatum = list.files(rdatdir, "Striatum_Best", full.names = TRUE)
 )
-best_res <-readRDS(myfiles[net])
+# best_res <- readRDS(myfiles[net])
+best_res = 91
 message(paste("Best resolution of",net,"network:",best_res))
 
 # Load network comparison results.
@@ -91,8 +92,19 @@ myfile <- list.files(rdatdir, pattern = "10403846", full.names = TRUE)
 net_comparisons <- readRDS(myfile)
 
 #------------------------------------------------------------------------------
+# Perform module GO analysis.
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# Module enrichment for SFARI genes.
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
 # Examine ~best resolution.
 #------------------------------------------------------------------------------
+
+# Dunnett test is not working... problem arises when spliting MEs into list.
+# Names change!
 
 # Get partition of ~best resolution.
 partition <- partitions[[best_res]]
@@ -224,12 +236,15 @@ DT_list <- lapply(ME_list, function(x) {
   as.data.frame(DunnettTest(x, g, control = con)[[con]])
 })
 
+DunnettTest(ME_list$M85,g,control="WT.Cortex")
+
+
 # Number of significant changes.
 alpha <- 0.05
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
 
 # # Examine a module.
-i = 7
+i = 6
 namen <- sigModules[i]
 plots[[namen]]
 prots <- names(modules[[namen]])
@@ -239,6 +254,7 @@ nsigProts <- sum(prots %in% sigProts)
 pSig <- round(nsigProts/length(prots),3)
 pSig
 nSigDT[namen]  
+DT_list[[namen]]
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.

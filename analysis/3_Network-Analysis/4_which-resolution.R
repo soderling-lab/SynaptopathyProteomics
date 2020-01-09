@@ -9,7 +9,8 @@
 
 ## User parameters. 
 # Which co-expression network to analyze?
-net <- "Cortex" # Cortex or Striatum co-expression network.
+#net <- "Cortex" # Cortex or Striatum co-expression network.
+net <- "Striatum"
 
 # Imports. 
 suppressPackageStartupMessages({
@@ -45,7 +46,7 @@ GOadjm <- as.matrix(fread(myfile,header=TRUE,drop=1))
 rownames(GOadjm) <- colnames(GOadjm)
 
 # Load GO network partitions.
-myfile <- file.path(rdatdir,"3_GO_partitions.csv")
+myfile <- file.path(rdatdir,"3_GO_CPMVertexPartition_partitions.csv")
 GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(GOparts) <- colnames(GOadjm)
 
@@ -55,10 +56,55 @@ PPIadjm <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 rownames(PPIadjm) <- colnames(PPIadjm)
 
 # Load PPI network partitions.
-myfile <- file.path(rdatdir,"3_PPI_partitions.csv")
-#myfile <- file.path(rdatdir,"137847903_PPI_partitions.csv")
+myfile <- file.path(rdatdir,"3_PPI_SurpriseVertexPartition_partitions.csv")
 PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(PPIparts) <- colnames(PPIadjm)
+
+# Map genes to ids.
+ids <- prot_map$ids[match(colnames(PPIparts),prot_map$entrez)]
+colnames(PPIparts) <- ids
+
+#-------------------------------------------------------------------------------
+## Compare Coexpression partitions with partition of PPI graph.
+#-------------------------------------------------------------------------------
+
+filter_modules <- function(partition,min_size=3) {
+	# Remove modules smaller than minimum size from a partition.
+	partition[partition %in% as.numeric(names(table(partition))[table(partition) < min_size])] <- 0
+	return(partition)
+}
+
+add_missing <- function(p1,p2) {
+	# Add missing nodes to a partition.
+	all_names <- unique(c(names(p1),names(p2)))
+	n1 <- as.integer(length(all_names[all_names %notin% names(p1)]))
+	n2 <- as.integer(length(all_names[all_names %notin% names(p2)]))
+	if (n1 > 0) {
+		missing_p1 <- vector(mode="numeric",length(n2))
+		names(missing_p1) <- all_names[all_names %notin% names(p1)]
+		p1 <- c(p1,missing_p1)
+	}
+	if (n2 > 0) {
+		missing_p2 <- vector(mode="numeric",length(n2))
+		names(missing_p2) <- all_names[all_names %notin% names(p2)]
+		p2 <- c(p2,missing_p2)
+	}
+	return(p1)
+}
+
+# Loop to calculate pairwise similarity.
+ps <- vector(mode="numeric",length(partitions))
+for (i in rev(seq_along(partitions))){
+	p1 <- partitions[[i]]
+	p2 <- as.numeric(PPIparts[1,])
+	names(p2) <- colnames(PPIparts)
+	p2 <- filter_modules(p2)
+	p1 <- add_missing(p1,p2)
+	p2 <- add_missing(p2,p1)
+	ps[i] <- module_assignment_similarity(p1,p2)
+	message(paste("Resolution",i,"similarity:",ps[i]))
+}
+
 
 #-------------------------------------------------------------------------------
 ## Compare partitions.
@@ -69,45 +115,40 @@ out <- duplicated(colnames(GOadjm))
 GOadjm <- GOadjm[!out,!out]
 out <- duplicated(colnames(GOparts))
 GOparts <- GOparts[,!out]
+GOpartition <- as.numeric(GOparts[1,])
+names(GOpartition) <- colnames(GOparts)
 
-# Split GO partition df into list of partitions.
-# First, fix names.
-entrez_map <- as.list(prot_map$ids)
-names(entrez_map) <- prot_map$entrez
-ids <- unlist(entrez_map[colnames(GOparts)])
-GOpartitions <- lapply(c(1:100),function(x) {
-	      part <- as.numeric(GOparts[x,])
-	      names(part) <- ids
-	      return(part)
-})
-
-# Split PPI partition df into list of partitions.
-# First, fix names.
-ids <- unlist(entrez_map[colnames(PPIparts)])
-PPIpartitions <- lapply(c(1:100),function(x) {
-	      part <- as.numeric(PPIparts[x,])
-	      names(part) <- ids
-	      return(part)
-})
+# Remove duplicated Entrez id from GO adjm and partition df!
+out <- duplicated(colnames(PPIadjm))
+PPIadjm <- PPIadjm[!out,!out]
+out <- duplicated(colnames(PPIparts))
+PPIparts <- PPIparts[,!out]
+PPIpartition <- as.numeric(PPIparts[1,])
+names(PPIpartition) <- colnames(PPIparts)
 
 # Remove small modules.
-filtPartitions <- lapply(PPIpartitions,function(x) {
-				 x[x %in% as.numeric(names(table(x))[table(x) < 3])] <- 0
-				 return(x)
-})
+min_size <- 3
+x <- PPIpartition
+x[x %in% as.numeric(names(table(x))[table(x) < min_size])] <- 0
+PPIpartition <- x
 
+min_size <- 3
+x <- GOpartition
+x[x %in% as.numeric(names(table(x))[table(x) < min_size])] <- 0
+GOpartition <- x
 
 # Loop to compare co-expresion and GO similarity partitions at every 
 # resolution. Partition similarity evaluated as in Choodbar et al., 2019.
 message(paste("Calculating pairwise similiarty between networks..."))
 part_similarity <- list()
 pbar <- txtProgressBar(min=1,max=100,style=3)
+
 for (i in 1:100) {
-	# Update pbar.
+
 	setTxtProgressBar(pbar,i)
 	p1 <- partitions[[i]]
-	p2 <- GOpartitions[[i]]
-	p3 <- PPIpartitions[[i]]
+	p2 <- GOpartition
+	p3 <- PPIpartition
 	# Add missing genes. Assign to module 0 (un-assigned).
 	missing_ids <- names(p1)[names(p1) %notin% names(p2)]
 	missing <- vector(mode="numeric",length(missing_ids))
