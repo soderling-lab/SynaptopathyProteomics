@@ -145,7 +145,6 @@ topGO$FoldEnrichment <- sapply(moduleGO, function(x) x$enrichmentRatio[x$rank ==
 topGO$nProts <- sapply(moduleGO, function(x) x$nCommonGenes[x$rank == 1])
 topGO$isSig <- sapply(moduleGO, function(x) x$Bonferroni[x$rank == 1] < alpha)
 
-
 # Percent modules with any significant GO enrichment (Bonferroni p-value).
 nSigGO <- sum(topGO$isSig)
 percentSigGO <- nSigGO / nModules
@@ -166,15 +165,38 @@ message(paste("Mean module coherence (PVE):",
 
 # Create list of MEs.
 ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
+ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
 names(ME_list) <- names(modules)
 
 # Calculate module membership (kME).
 KMEdata <- signedKME(data, MEs, corFnc = "bicor")
 
+# Sample to group mapping.
+# Define groups for verbose box plot.
+traits$Sample.Model.Tissue <- paste(traits$Sample.Model, 
+                                    traits$Tissue, sep = ".")
+groups <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+names(groups) <- rownames(MEs)
+
+# Perform KW test.
+x = ME_list[[1]]
+KWdata <- t(sapply(ME_list, function(x) kruskal.test(x ~ groups[names(x)])))
+ 
+# Correct p-values for n comparisons.
+method <- "bonferroni"
+KWdata$p.adj <- p.adjust(KWdata$p.value, method)
+
+
+
+
+
+
+
 # Define groups for verbose box plot.
 traits$Sample.Model.Tissue <- paste(traits$Sample.Model, 
 				    traits$Tissue, sep = ".")
 g <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+
 # Group all WT samples from a tissue type together.
 g[grepl("WT.*.Cortex", g)] <- "WT.Cortex"
 g[grepl("WT.*.Striatum", g)] <- "WT.Striatum"
@@ -208,7 +230,10 @@ for (k in seq_along(plots)) {
 }
 
 # Perform KW tests.
-KWdata <- as.data.frame(t(sapply(ME_list, function(x) kruskal.test(x ~ g))))
+x = ME_list[[1]]
+g = names(x)
+
+KWdata <- as.data.frame(t(sapply(ME_list, function(x) kruskal.test(x ~ names(x)))))
 KWdata <- KWdata[, c(1, 2, 3)] # Remove unnecessary columns.
 
 # Remove M0. Do this before p.adjustment.
@@ -235,6 +260,7 @@ con <- paste("WT", net, sep = ".") # Control group.
 DT_list <- lapply(ME_list, function(x) {
   as.data.frame(DunnettTest(x, g, control = con)[[con]])
 })
+
 
 DunnettTest(ME_list$M85,g,control="WT.Cortex")
 

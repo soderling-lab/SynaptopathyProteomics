@@ -9,8 +9,8 @@
 
 ## User parameters. 
 # Which co-expression network to analyze?
-#net <- "Cortex" # Cortex or Striatum co-expression network.
-net <- "Striatum"
+net <- "Cortex" # Cortex or Striatum co-expression network.
+#net <- "Striatum"
 
 # Imports. 
 suppressPackageStartupMessages({
@@ -104,7 +104,6 @@ for (i in rev(seq_along(partitions))){
 	ps[i] <- module_assignment_similarity(p1,p2)
 	message(paste("Resolution",i,"similarity:",ps[i]))
 }
-
 
 #-------------------------------------------------------------------------------
 ## Compare partitions.

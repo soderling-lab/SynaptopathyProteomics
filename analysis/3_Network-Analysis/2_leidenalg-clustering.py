@@ -8,6 +8,7 @@ output_name = "PPI" # Output filename.
 #method = 'SurpriseVertexPartition' # Best for PPI graph.
 method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
 sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
+weighted = False
 
 ## For multiresolution methods:
 rmin = 0 # Min resolution.
@@ -132,6 +133,9 @@ from igraph import Graph
 edges = adjm.stack().reset_index()
 edges.columns = ['protA','protB','weight']
 
+# Remove weight == 0.
+edges[edges.weight != 0]
+
 # Define dictionary of nodes.
 nodes = dict(zip(adjm.columns, range(len(adjm.columns))))
 
@@ -152,10 +156,17 @@ g.vs['label'] = nodes.keys()
 # Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
 # This will take several minutes.
 g.add_edges(el)
-g.es['weight'] = edges['weight']**sft
+if weighted:
+    g.es['weight'] = edges['weight']**sft
+elif not g.is_weighted():
+    print("Analyzing unweighted graph.")
 
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
+
+# Get single largest connected component.
+# Errors may be caused by la clustering of un-connected components.
+g = g.clusters().giant()
 
 #------------------------------------------------------------------------------
 ## Community detection with the Leiden algorithm.
@@ -204,12 +215,22 @@ else:
     profile = list()
     for resolution in pbar(resolution_range):
         # Perfrom La clustering.
-        partition = find_partition(g, partition_type, 
-                weights='weight', resolution_parameter=resolution)
-        optimiser = Optimiser()
-        diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        partition = filter_modules(partition)
-        profile.append(partition)
+        if weighted:
+            # Analysis of weighted graph.
+            partition = find_partition(g, partition_type, 
+                    weights='weight', resolution_parameter=resolution)
+            optimiser = Optimiser()
+            diff = optimiser.optimise_partition(partition,n_iterations=-1)
+            partition = filter_modules(partition)
+            profile.append(partition)
+        else:
+            # Analysis of unweighted graph.
+            partition = find_partition(g, partition_type, 
+                    resolution_parameter=resolution)
+            optimiser = Optimiser()
+            diff = optimiser.optimise_partition(partition,n_iterations=-1)
+            partition = filter_modules(partition)
+            profile.append(partition)
         # Ends loop.
 # Ends If/else.
 

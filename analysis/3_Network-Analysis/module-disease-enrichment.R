@@ -41,13 +41,14 @@ myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
 # Load Disease ontology.
-n <- 5
-dataset <- c("SFARI-Gene",
-	     "SFARI-Animal",
-	     "DisGeneNet_Curated_Variants",
-	     "DisGeneNet_All_Disease_Genes",
-	     "DisGeneNet_All_Variants",
-	     "DisGeneNet_Curated_Variants")[n]
+n <- 7
+dataset <- c("SFARI-Gene", # 1
+	     "SFARI-Animal", # 2
+	     "DisGeneNet_Curated_Variants", # 3
+	     "DisGeneNet_All_Disease_Genes", # 4
+	     "DisGeneNet_All_Variants", # 5
+	     "DisGeneNet_Curated_Variants", # 6
+	     "mouse_DBD-Genes-Full-Data")[n] # 7
 myfile <- list.files(rdatdir,pattern=dataset,full.names=TRUE)
 GOcollection <- readRDS(myfile)
 
@@ -62,6 +63,7 @@ GOcollection <- readRDS(myfile)
 GOresults <- list()
 pbar <- txtProgressBar(min=1,max=length(partitions),style=3)
 for (i in 1:length(partitions)){
+#for (i in 1){
 	setTxtProgressBar(pbar,i)   
 	GOresults[[i]] <- moduleGOenrichment(partitions, i, 
 					     protmap,
@@ -70,17 +72,19 @@ for (i in 1:length(partitions)){
 }
 
 # Any sig?
-nsig <- vector(mode="numeric",100)
-for (i in 1:100){
+# Doesnt work for list len 1.
+nsig <- vector(mode="numeric",length(GOresults))
+for (i in 1:length(GOresults)){
 	nsig[i] = sum(sapply(GOresults[[i]],function(x) any(x$FDR<0.05)))
 }
 r <- seq_along(partitions)[nsig==max(nsig)]
 
-result = GOresults[[r[4]]]
+
+result = GOresults[[r[3]]]
 names(result) <- sapply(strsplit(names(result),"-"),"[",2)
 mods = names(result)[sapply(result,function(x) any(x$FDR<0.05))]
-mods
-df = result[[mods]]
+
+df = result[mods[3]]
 df$dataSetName[df$FDR<0.05]
 
 #score <- sapply(res,function(x) x$enrichmentRatio*-log(x$pValue))
