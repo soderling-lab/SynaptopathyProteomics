@@ -1,29 +1,18 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
-# FIXME: Something isn't working... clustering of ppi graph returns one
-# module...
-
 ## User parameters: 
 input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
 #input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 output_name = "PPI" # Output filename.
-#method = 'SurpriseVertexPartition' # Best for PPI graph.
 method = "ModularityVertexPartition" 
-#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
-sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
-weighted = False
 
 ## Resolution range for multiresolution methods:
 rmin = 0 # Min resolution.
 rmax = 1 # Max resolution. 
 nsteps = 100 # Number of steps.
 
-## Notes: sft -- This is the power to which the adjacency matrix is raised in
-# order to apply a soft-threshold to the network. If this power is even then the
-# network will become unsigned. 
-
-# For PPI graph use SupriseVertexPartition -- this minimizes the percent
+# For PPI graph use SurpriseVertexPartition -- this minimizes the percent
 # unclustered while maximizing the number of modules.
 # For GO graph use CPM with resolution parameter = 1.0. This minimizes the
 # percent unclustered while retaining a large number of modules.
@@ -61,7 +50,6 @@ nsteps = 100 # Number of steps.
 ## Prepare the workspace.
 #------------------------------------------------------------------------------
 
-# Imports.
 import sys
 import os
 import glob
@@ -86,8 +74,6 @@ jobID = myfun.xstr(envars['SLURM_JOBID'])
 #------------------------------------------------------------------------------
 ## Load input adjacency matrix and create an igraph object.
 #------------------------------------------------------------------------------
-# I tried a couple ways of creating an igraph object. Simplier approaches like
-# using the igraph.Weighted_Adjacency function didn't work for me...
 
 from pandas import read_csv
 from igraph import Graph
@@ -95,48 +81,16 @@ from igraph import Graph
 # Read bicor adjacency matrix as input.
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
+adjm = adjm.set_index(keys=adjm.columns) # Add row names.
 
-# Add rownames.
-adjm = adjm.set_index(keys=adjm.columns)
-
-# Create edge list.
-edges = adjm.stack().reset_index()
-edges.columns = ['protA','protB','weight']
-
-# Remove weight == 0.
-edges[edges.weight != 0]
-
-# Define dictionary of nodes.
-nodes = dict(zip(adjm.columns, range(len(adjm.columns))))
-
-# Create list of edge tuples.
-edge_list = list(zip(edges['protA'],edges['protB']))
-
-# Edges need to be referenced by node id (a number). 
-el = list(zip([nodes.get(e[0]) for e in edge_list],
-    [nodes.get(e[1]) for e in edge_list]))
-
-# Create empty graph.
-g = Graph()
-
-# Add vertices and their labels.
-g.add_vertices(len(nodes))
-g.vs['label'] = nodes.keys()
-
-# Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
-# This will take several minutes.
-g.add_edges(el)
-if weighted:
-    g.es['weight'] = edges['weight']**sft
-elif not g.is_weighted():
-    print("Analyzing an unweighted graph.")
+# Create igraph object.
+A = adjm.values
+g = Graph.Adjacency((A > 0).tolist())
+g.es['weight'] = A[A.nonzero()]
+g.vs['label'] = adjm.columns
 
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
-
-# Get single largest connected component.
-# Errors may be caused by la clustering of un-connected components.
-#g = g.clusters().giant()
 
 #------------------------------------------------------------------------------
 ## Community detection with the Leiden algorithm.

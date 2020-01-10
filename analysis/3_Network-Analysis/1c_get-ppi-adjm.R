@@ -49,6 +49,13 @@ entrez <- prot_map$entrez
 message("Building PPI graph...")
 g <- buildNetwork(ppis, entrez, taxid = 10090)
 
+# Louvain clustering.
+partition = cluster_louvain(g, weights = NULL)
+m <- partition$membership
+names(m) <- partition$names
+modules = split(m,m)
+module_sizes <- sapply(modules,length)
+
 # Get ppi adjacency matrix.
 PPIadjm <- as.matrix(as_adjacency_matrix(g))
 

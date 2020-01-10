@@ -4,8 +4,8 @@
 ## Load the input adjacency matrix.
 #------------------------------------------------------------------------------
 
-#input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
-input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
+input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
+#input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 
 # Imports.
 import os
@@ -13,11 +13,6 @@ import glob
 from os.path import dirname
 from sys import stderr
 from pandas import read_csv
-
-# Get system variables.
-myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
-envars = {var:os.environ.get(var) for var in myvars}
-jobID = xstr(envars['SLURM_JOBID'])
 
 # Read bicor adjacency matrix as input.
 here = os.getcwd()
@@ -36,6 +31,19 @@ adjm = adjm.set_index(keys=adjm.columns)
 # using the igraph.Weighted_Adjacency function didn't work for me...
 
 from igraph import Graph
+
+import igraph
+import pandas as pd
+
+# Get the values as np.array, it's more convenenient.
+node_names = adjm.columns
+A = adjm.values
+# Create graph, A.astype(bool).tolist() or (A / A).tolist() can also be used.
+g = Graph.Adjacency((A > 0).tolist())
+# Add edge weights and node labels.
+g.es['weight'] = A[A.nonzero()]
+g.vs['label'] = node_names  # or a.index/a.columns
+
 
 # Create edge list.
 edges = adjm.stack().reset_index()
@@ -66,6 +74,7 @@ g.es['weight'] = edges['weight']**sft
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
 
+
 #------------------------------------------------------------------------------
 ## Explore Community detection methods.
 #------------------------------------------------------------------------------
@@ -87,6 +96,7 @@ from leidenalg import Optimiser
 from leidenalg import find_partition
 from progressbar import ProgressBar
 from importlib import import_module
+
 
 # Clustering methods.
 m1 = ["ModularityVertexPartition",
