@@ -14,7 +14,7 @@ method = "ModularityVertexPartition"
 sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
 weighted = False
 
-## For multiresolution methods:
+## Resolution range for multiresolution methods:
 rmin = 0 # Min resolution.
 rmax = 1 # Max resolution. 
 nsteps = 100 # Number of steps.
@@ -58,80 +58,46 @@ nsteps = 100 # Number of steps.
 #     the best resolution/partition.
 
 #------------------------------------------------------------------------------
-## Define some utility functions.
-#------------------------------------------------------------------------------
-
-# xstr
-def xstr(s):
-    ''' Convert NoneType to blank ('') string.'''
-    if s is None:
-        return ''
-    else:
-        return str(s)
-# EOF
-
-# contains
-def contains(mylist,value,return_index=False):
-    ''' Check if list contains a value. 
-    Like list.index(value) but returns False if the provided list
-    does not contain value. 
-    '''
-    list_as_dict = dict(zip(mylist,range(len(mylist))))
-    index = list_as_dict.get(value)
-    if not return_index: 
-        return type(index) is int # True if in list.
-    else:
-        return index
-# EOF
-
-# filter_modules
-def filter_modules(partition,min_size=5,unassigned=0):
-    """ Set modules with size less than minimum size to 0. """
-    import numpy as np
-    membership = np.array(partition.membership)
-    sizes = np.array(partition.sizes())
-    remove = np.array(range(len(sizes)))[sizes < min_size]
-    out = [node in remove for node in membership]
-    membership[out] = unassigned
-    partition.set_membership(membership)
-    m = np.array(partition.membership)
-    unassigned = sum(m==unassigned)/len(m)
-    return partition
-# EOF
-
-#------------------------------------------------------------------------------
-## Load the input adjacency matrix.
+## Prepare the workspace.
 #------------------------------------------------------------------------------
 
 # Imports.
+import sys
 import os
 import glob
 from os.path import dirname
 from sys import stderr
-from pandas import read_csv
+
+# Directories.
+here = os.getcwd()
+root = dirname(dirname(here))
+datadir = os.path.join(root,"rdata")
+funcdir = os.path.join(root,"Py")
+
+# Load functions.
+sys.path.append(root)
+from Py import myfun
 
 # Get system variables.
 myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
 envars = {var:os.environ.get(var) for var in myvars}
-jobID = xstr(envars['SLURM_JOBID'])
+jobID = myfun.xstr(envars['SLURM_JOBID'])
+
+#------------------------------------------------------------------------------
+## Load input adjacency matrix and create an igraph object.
+#------------------------------------------------------------------------------
+# I tried a couple ways of creating an igraph object. Simplier approaches like
+# using the igraph.Weighted_Adjacency function didn't work for me...
+
+from pandas import read_csv
+from igraph import Graph
 
 # Read bicor adjacency matrix as input.
-here = os.getcwd()
-root = dirname(dirname(here))
-datadir = os.path.join(root,"rdata")
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
 
 # Add rownames.
 adjm = adjm.set_index(keys=adjm.columns)
-
-#------------------------------------------------------------------------------
-## Create an igraph object.
-#------------------------------------------------------------------------------
-# I tried a couple ways of creating an igraph object. Simplier approaches like
-# using the igraph.Weighted_Adjacency function didn't work for me...
-
-from igraph import Graph
 
 # Create edge list.
 edges = adjm.stack().reset_index()
@@ -170,7 +136,7 @@ g = g.simplify(multiple = False, loops = True)
 
 # Get single largest connected component.
 # Errors may be caused by la clustering of un-connected components.
-g = g.clusters().giant()
+#g = g.clusters().giant()
 
 #------------------------------------------------------------------------------
 ## Community detection with the Leiden algorithm.
@@ -190,7 +156,7 @@ out = ["ModularityVertexPartition",
         "SurpriseVertexPartition",
         "SignificanceVertexPartition"]
 # Check if users optimization method supports resolution parameter. 
-single_resolution = contains(out,method)
+single_resolution = myfun.contains(out,method)
 
 # Perform Leidenalg community detection. 
 if (single_resolution):
@@ -201,14 +167,14 @@ if (single_resolution):
         partition = find_partition(g, partition_type, weights='weight')
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        partition = filter_modules(partition)
+        partition = myfun.filter_modules(partition)
         profile.append(partition)
     else:
         # Analysis of unweighted graph at single resolution.
         partition = find_partition(g, partition_type)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        partition = filter_modules(partition)
+        partition = myfun.filter_modules(partition)
         profile.append(partition)
 else:
     # Loop to perform multi-resolution clustering:
@@ -225,7 +191,7 @@ else:
                     weights='weight', resolution_parameter=resolution)
             optimiser = Optimiser()
             diff = optimiser.optimise_partition(partition,n_iterations=-1)
-            partition = filter_modules(partition)
+            partition = myfun.filter_modules(partition)
             profile.append(partition)
         else:
             # Analysis of unweighted graph.
@@ -233,7 +199,7 @@ else:
                     resolution_parameter=resolution)
             optimiser = Optimiser()
             diff = optimiser.optimise_partition(partition,n_iterations=-1)
-            partition = filter_modules(partition)
+            partition = myfun.filter_modules(partition)
             profile.append(partition)
         # Ends loop.
 # Ends If/else.

@@ -60,16 +60,9 @@ GOcollection <- readRDS(myfile)
 #if (!exists("musGO")) { GOcollection <- buildGOcollection(organism="mouse") }
 
 # Perform GO analysis.
-GOresults <- list()
-pbar <- txtProgressBar(min=1,max=length(partitions),style=3)
-for (i in 1:length(partitions)){
-#for (i in 1){
-	setTxtProgressBar(pbar,i)   
-	GOresults[[i]] <- moduleGOenrichment(partitions, i, 
-					     protmap,
-					     GOcollection, verbose = 0)
-	if (i==length(partitions)) { close(pbar); message("\n") }
-}
+GOresults <- lapply(seq_along(partitions),function(x) {
+			    moduleGOenrichment(partitions, x, protmap,GOcollection)
+	     })
 
 # Any sig?
 # Doesnt work for list len 1.
@@ -79,24 +72,11 @@ for (i in 1:length(GOresults)){
 }
 r <- seq_along(partitions)[nsig==max(nsig)]
 
-
-result = GOresults[[r[3]]]
+res = r[1]
+result = GOresults[[res]]
 names(result) <- sapply(strsplit(names(result),"-"),"[",2)
 mods = names(result)[sapply(result,function(x) any(x$FDR<0.05))]
 
-df = result[mods[3]]
+df = result[[mods[4]]]
 df$dataSetName[df$FDR<0.05]
-
-#score <- sapply(res,function(x) x$enrichmentRatio*-log(x$pValue))
-#score[score==max(score)]
-
-sapply(res,function(x) x$enrichmentRatio)
-p = partitions[[96]]
-m <- split(p,p)
-m[["3"]]
-
-write_excel(result,"temp.xlsx")
-
-
-
 
