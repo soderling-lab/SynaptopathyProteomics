@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
+# FIXME: Something isn't working... clustering of ppi graph returns one
+# module...
+
 ## User parameters: 
 input_adjm = "3_PPI_Adjm.csv" # Input adjacency matrix.
 #input_adjm = "3_GO_Semantic_Similarity_RMS_Adjm.csv"
 output_name = "PPI" # Output filename.
 #method = 'SurpriseVertexPartition' # Best for PPI graph.
-method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
+method = "ModularityVertexPartition" 
+#method = 'CPMVertexPartition' # For signed co-expression graph and GO graph.
 sft = 1 # Power (soft-threshold) for weighting the network. See notes. 
 weighted = False
 
@@ -159,7 +163,7 @@ g.add_edges(el)
 if weighted:
     g.es['weight'] = edges['weight']**sft
 elif not g.is_weighted():
-    print("Analyzing unweighted graph.")
+    print("Analyzing an unweighted graph.")
 
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
@@ -190,18 +194,18 @@ single_resolution = contains(out,method)
 
 # Perform Leidenalg community detection. 
 if (single_resolution):
-    # Single resolution clustering:
+    # Single resolution clustering methods:
     profile = list()
-    if method is "SignificanceVertexPartition":  
-        # SignificanceVertexPartition only supports unweighted graphs.
-        partition = find_partition(g, partition_type, weights=None)
+    if weighted:  
+        # Analysis of weighted graph at single resolution.
+        partition = find_partition(g, partition_type, weights='weight')
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
         partition = filter_modules(partition)
         profile.append(partition)
     else:
-        # Analysis of weighted graph at single resolution.
-        partition = find_partition(g, partition_type, weights='weight')
+        # Analysis of unweighted graph at single resolution.
+        partition = find_partition(g, partition_type)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
         partition = filter_modules(partition)

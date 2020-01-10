@@ -14,24 +14,23 @@
 #'
 #' @keywords none
 #'
+#' @import dplyr
+#'
 #' @export
 #' 
 #' @examples
 #' add_missing_nodes(p1,p2)
-add_missing_nodes <- function(p1,p2) {
+add_missing_nodes <- function(p1,p2,...) {
 	# Add missing nodes to a partition.
-	all_names <- unique(c(names(p1),names(p2)))
-	n1 <- as.integer(length(all_names[all_names %notin% names(p1)]))
-	n2 <- as.integer(length(all_names[all_names %notin% names(p2)]))
-	if (n1 > 0) {
-		missing_p1 <- vector(mode="numeric",length(n2))
-		names(missing_p1) <- all_names[all_names %notin% names(p1)]
-		p1 <- c(p1,missing_p1)
-	}
-	if (n2 > 0) {
-		missing_p2 <- vector(mode="numeric",length(n2))
-		names(missing_p2) <- all_names[all_names %notin% names(p2)]
-		p2 <- c(p2,missing_p2)
-	}
-	return(p1)
+	parts_list <- c(as.list(environment()), list(...))
+	all_nodes <- unique(unlist(sapply(parts_list,function(x) names(x)))) 
+	new_parts <- sapply(parts_list,function(x) {
+				  missing <- all_nodes[all_nodes %notin% names(x)]
+				  new_nodes <- vector(mode="numeric",length(missing))
+				  names(new_nodes) <- missing
+				  new_part <- c(new_nodes,x)
+				  out <- duplicated(names(new_part))
+				  return(list(new_part[!out])) })
+	names(new_parts) <- paste0("p",seq(length(new_parts)))
+	return(new_parts)
 }

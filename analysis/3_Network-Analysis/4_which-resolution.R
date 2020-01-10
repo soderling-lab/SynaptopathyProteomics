@@ -15,6 +15,7 @@ net <- "Cortex" # Cortex or Striatum co-expression network.
 # Imports. 
 suppressPackageStartupMessages({
 	library(data.table)
+	library(dplyr)
 })
 
 # Directories.
@@ -49,6 +50,8 @@ rownames(GOadjm) <- colnames(GOadjm)
 myfile <- file.path(rdatdir,"3_GO_CPMVertexPartition_partitions.csv")
 GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(GOparts) <- colnames(GOadjm)
+GOpartition <- as.numeric(GOparts[1,])
+names(GOpartition) <- colnames(GOparts)
 
 # Load PPI adjm.
 myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
@@ -59,117 +62,44 @@ rownames(PPIadjm) <- colnames(PPIadjm)
 myfile <- file.path(rdatdir,"3_PPI_SurpriseVertexPartition_partitions.csv")
 PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 colnames(PPIparts) <- colnames(PPIadjm)
+PPIpartition <- as.numeric(PPIparts[1,])
+names(PPIpartition) <- colnames(PPIparts)
 
-# Map genes to ids.
-ids <- prot_map$ids[match(colnames(PPIparts),prot_map$entrez)]
-colnames(PPIparts) <- ids
+# Map PPI genes to protein ids.
+ids <- prot_map$ids[match(names(PPIpartition),prot_map$entrez)]
+names(PPIpartition) <- ids
+
+# Map GO genes to protein ids.
+ids <- prot_map$ids[match(names(GOpartition),prot_map$entrez)]
+names(GOpartition) <- ids
 
 #-------------------------------------------------------------------------------
 ## Compare Coexpression partitions with partition of PPI graph.
 #-------------------------------------------------------------------------------
 
 # Loop to calculate pairwise similarity.
-ps <- vector(mode="numeric",length(partitions))
+ps_ppi <- vector(mode="numeric",length(partitions))
+ps_go <- vector(mode="numeric",length(partitions))
 for (i in seq_along(partitions)){
+	# Status.
+	message(paste("Working on resolution", i, "..."))
+	# Collect partitions, filter small modules.
 	p1 <- partitions[[i]]
-	p2 <- as.numeric(PPIparts[1,])
-	names(p2) <- colnames(PPIparts)
-	p2 <- filter_modules(p2)
-	p1 <- add_missing_nodes(p1,p2)
-	p2 <- add_missing_nodes(p2,p1)
-	ps[i] <- partition_similarity(p1,p2)
-	message("Network 1 number of modules:",length(split(p1,p1)))
-	message("Network 2 number of modules:",length(split(p2,p2)))
-	message(paste("... Resolution",i,"similarity:",ps[i]))
+	p2 <- filter_modules(PPIpartition,min_size=5)
+	p3 <- filter_modules(GOpartition,min_size=5)
+	# Add missing nodes.
+	parts_list <- add_missing_nodes(p1,p2,p3)
+	p1 <- parts_list$p1
+	p2 <- parts_list$p2
+	p3 <- parts_list$p3
+	# Calculate similarity.
+	ps_ppi[i] <- partition_similarity(p1,p2)
+	ps_go[i] <- partition_similarity(p1,p3)
+	# Status report.
+	message(paste("... . GO similarity:", round(ps_go[i],3)))
+	message(paste("...  PPI similarity:", round(ps_ppi[i],3)))
+	message(paste("... Mean similarity:", round(mean(ps_go[i],ps_ppi[i]),3),"\n"))
 }
-
-quit()
-#-------------------------------------------------------------------------------
-## Compare partitions.
-#-------------------------------------------------------------------------------
-
-# Remove duplicated Entrez id from GO adjm and partition df!
-out <- duplicated(colnames(GOadjm))
-GOadjm <- GOadjm[!out,!out]
-out <- duplicated(colnames(GOparts))
-GOparts <- GOparts[,!out]
-GOpartition <- as.numeric(GOparts[1,])
-names(GOpartition) <- colnames(GOparts)
-
-# Remove duplicated Entrez id from GO adjm and partition df!
-out <- duplicated(colnames(PPIadjm))
-PPIadjm <- PPIadjm[!out,!out]
-out <- duplicated(colnames(PPIparts))
-PPIparts <- PPIparts[,!out]
-PPIpartition <- as.numeric(PPIparts[1,])
-names(PPIpartition) <- colnames(PPIparts)
-
-# Remove small modules.
-min_size <- 3
-x <- PPIpartition
-x[x %in% as.numeric(names(table(x))[table(x) < min_size])] <- 0
-PPIpartition <- x
-
-min_size <- 3
-x <- GOpartition
-x[x %in% as.numeric(names(table(x))[table(x) < min_size])] <- 0
-GOpartition <- x
-
-# Loop to compare co-expresion and GO similarity partitions at every 
-# resolution. Partition similarity evaluated as in Choodbar et al., 2019.
-message(paste("Calculating pairwise similiarty between networks..."))
-part_similarity <- list()
-pbar <- txtProgressBar(min=1,max=100,style=3)
-
-for (i in 1:100) {
-
-	setTxtProgressBar(pbar,i)
-	p1 <- partitions[[i]]
-	p2 <- GOpartition
-	p3 <- PPIpartition
-	# Add missing genes. Assign to module 0 (un-assigned).
-	missing_ids <- names(p1)[names(p1) %notin% names(p2)]
-	missing <- vector(mode="numeric",length(missing_ids))
-	names(missing) <- missing_ids
-	p2 <- c(p2,missing)
-	# Add missing genes. Assign to module 0 (un-assigned).
-	missing_ids <- names(p1)[names(p1) %notin% names(p3)]
-	missing <- vector(mode="numeric",length(missing_ids))
-	names(missing) <- missing_ids
-	p3 <- c(p3,missing)
-	# Calculate similarity, update similarity vector.
-	ps1 <- module_assignment_similarity(p1,p2)
-	ps2 <- module_assignment_similarity(p1,p3)
-	part_similarity[[i]] <- c(GO=ps1,PPI=ps2)
-	# Close pbar.
-	if (i==100) { close(pbar); message("\n") }
-}
-
-
-#idmax <- function(x){
-#}
-#dm = matrix(randi(100),nrow=10,ncol=10)
-#dim(dm)
-
-# Best resolution based on both GO and PPI...
-x = do.call(rbind,part_similarity)
-xavg = apply(x,1,function(x) mean(x,na.rm=TRUE))
-c(1:length(xavg))[xavg == max(xavg)]
-
-# ~Best resolution is resolution at which co-expression modules
-# are most similar to GO functional similarity modules.
-s <- part_similarity
-s[is.na(s)] <- 0
-best_part <- c(1:100)[s==max(s)]
-message(paste("Best resolution:",best_part))
-
-# Examine ~best partitions.
-p1 <- partitions[[best_part]]
-p2 <- GOpartitions[[best_part]]
-#table(p1)
-#table(p2)
-nMod1 <- length(table(p1))
-nMod2 <- length(table(p2))
 
 # Save best resolution.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
@@ -177,9 +107,8 @@ saveRDS(best_part,myfile)
 
 quit()
 
-#--------------------------------------------------------------------
-# Scraps below:
-#--------------------------------------------------------------------
+
+
 
 #-------------------------------------------------------------------------------
 ## Is there a relationship between co-expresion and functional similarity?
@@ -217,50 +146,3 @@ df3 <- df1[!out,]
 # Spearman rank correlation.
 rho <- cor(df3$Bicor,df3$GOSemSim,method="spearman")
 # Overall correalation is extremely modest....
-
-#------------------------------------------------------------------------------
-## Perform GO analysis of modules at every resolution.
-#------------------------------------------------------------------------------
-
-# What about disease enrichment...
-#myfile <- file.path(rdatdir,"mouse_DisGeneNETcollection.RData")
-#GOcollection <- readRDS(myfile)
-
-# Loop to perform GO enrichment for modules at every resolution.
-myparts <- GOpartitions[[best_part]]
-
-x = moduleGOenrichment(GOpartitions, best_part, prot_map, GOcollection)
-
-message("Performing GO enrichment analysis...")
-GOresults <- list()
-for (i in seq_along(partitions)) {
-  # Initialize progress bar.
-  if (i == 1) {
-    pb <- txtProgressBar(min = 0, max = length(partitions), style = 3)
-  }
-  # Perform GO analysis.
-  GOresults[[i]] <- moduleGOenrichment(myparts,i, prot_map,GOcollection)
-  # Update progress bar.
-  setTxtProgressBar(pb, i)
-  # Close pb.
-  if (i == length(partitions)) {
-	  close(pb)
-	  message("\n")
-  }
-} # Ends loop.
-
-# Save results.
-#myfile <- file.path(rdatdir,paste0("3_",net,"_Module_GO_Results.RData")) 
-#saveRDS(GOresults, myfile)
-
-data = GOresults[[50]]
-write_excel(data,"temp.xlsx")
-
-
-s = sapply(GOresults,function(x) sum(sapply(x,function(y) any(y$FDR <0.05))))
-
-s == max(s)
-
-sum(sapply(data,function(x) any(x$FDR <0.05)))
-length(data)
-
