@@ -2,8 +2,8 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-input_adjm = "PPI" # See adjms below.
-method = 0 # See methods below.
+adjm_type = "PPI" # See adjms below.
+method = 5 # See methods below.
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -51,7 +51,8 @@ parameters = methods.get(method)
 method = parameters.get('partition_type')
 
 # Status report.
-print("Performing Leidenalg clustering utilizing the {}".format(method),
+print("Performing Leidenalg clustering of the {}".format(adjm_type),
+        "graph utilizing the {}".format(method),
         "method to find optimal partition(s)...", file=stderr)
 
 #------------------------------------------------------------------------------
@@ -85,10 +86,11 @@ from pandas import read_csv, DataFrame
 from igraph import Graph
 
 # Read bicor adjacency matrix.
-input_adjm = adjms.get(input_adjm)
+input_adjm = adjms.get(adjm_type)
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
 adjm = adjm.set_index(keys=adjm.columns) # Add row names.
+adjm = adjm.fillna(0)
 
 # Incorporate weighted, positive, unweighted graph types.
 if parameters['weights'] is 'positive':
@@ -97,8 +99,8 @@ else:
     A = adjm.values
 
 # Create igraph object.
-#g = Graph.Adjacency(A.tolist())
-g = Graph.Adjacency((A > 0).tolist())
+g = Graph.Adjacency(A.tolist())
+#g = Graph.Adjacency((A > 0).tolist())
 g.es['weight'] = A[A.nonzero()]
 g.vs['label'] = adjm.columns
 
@@ -128,7 +130,7 @@ from importlib import import_module
 parameters['partition_type'] = getattr(import_module('leidenalg'),method)
 
 # Update n_iterations parameter.
-parameters['n_iterations'] = -1
+#parameters['n_iterations'] = -1
 
 # Remove any None type parameters.
 out = [key for key in parameters if parameters.get(key) is None]
