@@ -4,6 +4,9 @@
 ## User parameters: 
 adjm_type = "Cortex" # See adjms below.
 method = 4 # See methods below.
+rmin = 0
+rmax = 1
+nsteps = 100
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -19,7 +22,7 @@ adjms = {"Cortex" : "3_Cortex_Adjm.csv",
         "PPI" : "3_PPI_Adjm.csv",
         "GO" : "3_GO_Semantic_Similarity_RMS_Adjm.csv"}
 
-## Leidenalg supports the following methods for optimization methods:
+## Leidenalg supports the following optimization methods:
 methods = {
         # Modularity
         0: {'partition_type' : 'ModularityVertexPartition', 
@@ -32,15 +35,15 @@ methods = {
         # RBConfig
         2: {'partition_type' : 'RBConfigurationVertexPartition', 
             'weights' : 'positive',
-            'resolution_parameter' : {'start':0,'stop':1,'num':100}},
+            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # RBEVertex
         3: {'partition_type' : 'RBERVertexPartition', 
             'weights' : 'positive',
-            'resolution_parameter' : {'start':0,'stop':1,'num':100}},
+            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # CPM
         4: {'partition_type' : 'CPMVertexPartition', 
             'weights' : 'positive and negative',
-            'resolution_parameter' : {'start':0,'stop':1,'num':100}},
+            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # Significance
         5: {'partition_type' : 'SignificanceVertexPartition', 
             'weights':None,
@@ -130,7 +133,7 @@ from importlib import import_module
 parameters['partition_type'] = getattr(import_module('leidenalg'),method)
 
 # Update n_iterations parameter.
-#parameters['n_iterations'] = -1
+parameters['n_iterations'] = -1
 
 # Remove any None type parameters.
 out = [key for key in parameters if parameters.get(key) is None]
@@ -164,6 +167,8 @@ else:
         # Ends loop.
 # Ends If/else.
 
+profile[0].summary()
+
 #------------------------------------------------------------------------------
 ## Save clustering results.
 #------------------------------------------------------------------------------
@@ -194,3 +199,49 @@ df = DataFrame.from_dict(results)
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_profile.csv")
 df.to_csv(myfile)
+
+quit()
+
+#--------------------------------------------------------------------
+# Other method of creating a graph...
+#--------------------------------------------------------------------
+
+# Get the values as np.array, it's more convenenient.
+node_names = adjm.columns
+A = adjm.values
+# Create graph, A.astype(bool).tolist() or (A / A).tolist() can also be used.
+g = Graph.Adjacency((A > 0).tolist())
+# Add edge weights and node labels.
+g.es['weight'] = A[A.nonzero()]
+g.vs['label'] = node_names  # or a.index/a.columns
+
+
+# Create edge list.
+edges = adjm.stack().reset_index()
+edges.columns = ['protA','protB','weight']
+
+# Define dictionary of nodes.
+nodes = dict(zip(adjm.columns, range(len(adjm.columns))))
+
+# Create list of edge tuples.
+edge_list = list(zip(edges['protA'],edges['protB']))
+
+# Edges need to be referenced by node id (a number). 
+el = list(zip([nodes.get(e[0]) for e in edge_list],
+    [nodes.get(e[1]) for e in edge_list]))
+
+# Create empty graph.
+g = Graph()
+
+# Add vertices and their labels.
+g.add_vertices(len(nodes))
+g.vs['label'] = nodes.keys()
+
+# Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
+# This will take several minutes.
+
+g.add_edges(el)
+g.es['weight'] = edges['weight']**sft
+
+# Remove self-loops.
+g = g.simplify(multiple = False, loops = True)
