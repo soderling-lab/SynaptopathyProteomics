@@ -2,8 +2,8 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-myfile = 0 # See input_adjm below.
-method = 5 # See methods below.
+input_adjm = "PPI" # See adjms below.
+method = 0 # See methods below.
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -13,7 +13,11 @@ import sys
 from sys import stderr
 
 ## Input adjacency matrix.
-input_adjm = ["3_PPI_Adjm.csv","3_GO_Semantic_Similarity_RMS_Adjm.csv"][myfile]
+adjms = {"Cortex" : "3_Cortex_Adjm.csv",
+        "Striatum" : "3_Striatum_Adjm.csv",
+        "Combined" : "3_Combined_Adjm.csv",
+        "PPI" : "3_PPI_Adjm.csv",
+        "GO" : "3_GO_Semantic_Similarity_RMS_Adjm.csv"}
 
 ## Leidenalg supports the following methods for optimization methods:
 methods = {
@@ -30,7 +34,7 @@ methods = {
             'weights' : 'positive',
             'resolution_parameter' : {'start':0,'stop':1,'num':100}},
         # RBEVertex
-        3: {'partition_type' : 'RBEVertexPartition', 
+        3: {'partition_type' : 'RBERVertexPartition', 
             'weights' : 'positive',
             'resolution_parameter' : {'start':0,'stop':1,'num':100}},
         # CPM
@@ -48,7 +52,7 @@ method = parameters.get('partition_type')
 
 # Status report.
 print("Performing Leidenalg clustering utilizing the {}".format(method),
-        "method to find optimal partition(s).", file=stderr)
+        "method to find optimal partition(s)...", file=stderr)
 
 #------------------------------------------------------------------------------
 ## Prepare the workspace.
@@ -81,6 +85,7 @@ from pandas import read_csv, DataFrame
 from igraph import Graph
 
 # Read bicor adjacency matrix.
+input_adjm = adjms.get(input_adjm)
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
 adjm = adjm.set_index(keys=adjm.columns) # Add row names.
@@ -92,7 +97,8 @@ else:
     A = adjm.values
 
 # Create igraph object.
-g = Graph.Adjacency(A.tolist())  #g = Graph.Adjacency((A > 0).tolist()) # Unweighted or positive?
+#g = Graph.Adjacency(A.tolist())
+g = Graph.Adjacency((A > 0).tolist())
 g.es['weight'] = A[A.nonzero()]
 g.vs['label'] = adjm.columns
 
@@ -110,6 +116,7 @@ parameters['graph'] = g
 ## Community detection with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
+import numpy as np
 from numpy import linspace
 from leidenalg import Optimiser, find_partition
 from progressbar import ProgressBar
@@ -136,6 +143,10 @@ if parameters.get('resolution_parameter') is None:
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
     partition = myfun.filter_modules(partition)
     profile.append(partition)
+    m = np.array(partition.membership)
+    unclustered = sum(m==0)/len(m)
+    print(partition.summary())
+    print("Percent unclustered: {}".format(unclustered) + " (%).\n")
 else:
     # Loop to perform multi-resolution clustering methods.
     pbar = ProgressBar()
