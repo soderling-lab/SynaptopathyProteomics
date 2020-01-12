@@ -2,8 +2,8 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-adjm_type = "PPI" # See adjms below.
-method = 5 # See methods below.
+adjm_type = "Cortex" # See adjms below.
+method = 4 # See methods below.
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
