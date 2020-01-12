@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
+## User parameters: 
+myfile = 0 # See input_adjm below.
+method = 5 # See methods below.
+
+#------------------------------------------------------------------------------
+## Parse the user provided parameters.
+#------------------------------------------------------------------------------
+
 import sys
 from sys import stderr
-
-## User parameters: 
-myfile = 0
-method = 0 # See methods and details below.
 
 ## Input adjacency matrix.
 input_adjm = ["3_PPI_Adjm.csv","3_GO_Semantic_Similarity_RMS_Adjm.csv"][myfile]
@@ -17,8 +21,8 @@ methods = {
         0: {'partition_type' : 'ModularityVertexPartition', 
             'weights' : 'positive',
             'resolution_parameter' : None},
-        # Suprise
-        1: {'partition_type' : 'SupriseVertexPartition', 
+        # Surprise
+        1: {'partition_type' : 'SurpriseVertexPartition', 
             'weights' : 'positive',
             'resolution_parameter' : None},
         # RBConfig
@@ -31,7 +35,7 @@ methods = {
             'resolution_parameter' : {'start':0,'stop':1,'num':100}},
         # CPM
         4: {'partition_type' : 'CPMVertexPartition', 
-            'weights' : 'weighted',
+            'weights' : 'positive and negative',
             'resolution_parameter' : {'start':0,'stop':1,'num':100}},
         # Significance
         5: {'partition_type' : 'SignificanceVertexPartition', 
@@ -84,7 +88,7 @@ adjm = adjm.set_index(keys=adjm.columns) # Add row names.
 # Incorporate weighted, positive, unweighted graph types.
 if parameters['weights'] is 'positive':
     A = abs(adjm.values)
-elif parameters['weights'] is 'weighted':
+else:
     A = adjm.values
 
 # Create igraph object.
@@ -92,8 +96,9 @@ g = Graph.Adjacency(A.tolist())  #g = Graph.Adjacency((A > 0).tolist()) # Unweig
 g.es['weight'] = A[A.nonzero()]
 g.vs['label'] = adjm.columns
 
-# Update weights parameter.
-parameters['weights'] = 'weight'
+# Update weights parameter for weighted graphs.
+if parameters.get('weights') is not None:
+    parameters['weights'] = 'weight'
 
 # Remove self-loops.
 g = g.simplify(multiple = False, loops = True)
