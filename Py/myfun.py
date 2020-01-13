@@ -1,3 +1,7 @@
+#!/usr/bin/env Python3
+
+#--------------------------------------------------------------------
+# xstr
 def xstr(s):
     ''' Convert NoneType to blank ('') string.'''
     if s is None:
@@ -6,6 +10,7 @@ def xstr(s):
         return str(s)
 # EOF
 
+#--------------------------------------------------------------------
 # contains
 def contains(mylist,value,return_index=False):
     ''' Check if list contains a value. 
@@ -20,6 +25,7 @@ def contains(mylist,value,return_index=False):
         return index
 # EOF
 
+#--------------------------------------------------------------------
 # filter_modules
 def filter_modules(partition,min_size=5,unassigned=0):
     """ Set modules with size less than minimum size to 0. """
@@ -34,3 +40,22 @@ def filter_modules(partition,min_size=5,unassigned=0):
     unassigned = sum(m==unassigned)/len(m)
     return partition
 # EOF
+
+#--------------------------------------------------------------------
+# graph_from_adjm
+def graph_from_adjm(adjm,weighted=True,signed=True):
+    # Simplifing graph seems to mess things up.
+    import numpy as np
+    from igraph import Graph
+    from pandas import DataFrame
+    if not signed: adjm = abs(adjm)
+    # Simplify graph by keeping only upper tri...
+    # Melt upper triangle into edges df.
+    #idx = np.triu(np.ones(adjm.shape)).astype(np.bool)
+    #adjm = adjm.where(idx)
+    edges = adjm.stack().reset_index()
+    edges.columns = ['nodeA','nodeB','weight']
+    edge_tuples = list(zip(edges.nodeA,edges.nodeB,edges.weight))
+    if weighted: g = Graph.TupleList(edge_tuples,weights=True)
+    if not weighted: g = Graph.TupleList(edge_tuples,weights=False)
+    return g

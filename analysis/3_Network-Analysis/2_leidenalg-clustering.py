@@ -2,8 +2,10 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-adjm_type = "Cortex" # See adjms below.
-method = 4 # See methods below.
+adjm_type = 'Cortex' # See adjms below.
+method = 'CPM' # See methods below.
+
+## Resolution parameters for multi-resolution methods:
 rmin = 0
 rmax = 1
 nsteps = 100
@@ -25,28 +27,28 @@ adjms = {"Cortex" : "3_Cortex_Adjm.csv",
 ## Leidenalg supports the following optimization methods:
 methods = {
         # Modularity
-        0: {'partition_type' : 'ModularityVertexPartition', 
-            'weights' : 'positive',
+        "Modularity": {'partition_type' : 'ModularityVertexPartition', 
+            'weights' : True, 'signed' : False,
             'resolution_parameter' : None},
         # Surprise
-        1: {'partition_type' : 'SurpriseVertexPartition', 
-            'weights' : 'positive',
+        "Surprise": {'partition_type' : 'SurpriseVertexPartition', 
+            'weights' : True, 'signed' : False,
             'resolution_parameter' : None},
         # RBConfig
-        2: {'partition_type' : 'RBConfigurationVertexPartition', 
-            'weights' : 'positive',
+        "RBConfig": {'partition_type' : 'RBConfigurationVertexPartition', 
+            'weights' : True, 'signed' : False,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
-        # RBEVertex
-        3: {'partition_type' : 'RBERVertexPartition', 
-            'weights' : 'positive',
+        # RBERVertex
+        "RBEVertex": {'partition_type' : 'RBERVertexPartition', 
+            'weights' : True, 'signed' : False,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # CPM
-        4: {'partition_type' : 'CPMVertexPartition', 
-            'weights' : 'positive and negative',
+        "CPM": {'partition_type' : 'CPMVertexPartition', 
+            'weights' : True, 'signed' : True,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # Significance
-        5: {'partition_type' : 'SignificanceVertexPartition', 
-            'weights':None,
+        "Significance": {'partition_type' : 'SignificanceVertexPartition', 
+            'weights':None, 'signed' : False,
             'resolution_parameter' : None}}
 
 # Parameters for clustering.
@@ -92,27 +94,17 @@ from igraph import Graph
 input_adjm = adjms.get(adjm_type)
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
-adjm = adjm.set_index(keys=adjm.columns) # Add row names.
-adjm = adjm.fillna(0)
+adjm = adjm.set_index(keys=adjm.columns)
 
-# Incorporate weighted, positive, unweighted graph types.
-if parameters['weights'] is 'positive':
-    A = abs(adjm.values)
+# Create igraph graph.
+if parameters.get('weights') is not None:
+    g = graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
 else:
-    A = adjm.values
+    g = graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
 
-# Create igraph object.
-g = Graph.Adjacency(A.tolist())
-#g = Graph.Adjacency((A > 0).tolist())
-g.es['weight'] = A[A.nonzero()]
-g.vs['label'] = adjm.columns
-
-# Update weights parameter for weighted graphs.
+# Update weights parameter.
 if parameters.get('weights') is not None:
     parameters['weights'] = 'weight'
-
-# Remove self-loops.
-g = g.simplify(multiple = False, loops = True)
 
 # Add graph to input parameters for clustering.
 parameters['graph'] = g
@@ -164,10 +156,12 @@ else:
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
         partition = myfun.filter_modules(partition)
         profile.append(partition)
+        m = np.array(partition.membership)
+        unclustered = sum(m==0)/len(m)
+        print(partition.summary())
+        print("Percent unclustered: {}".format(unclustered) + " (%).\n")
         # Ends loop.
 # Ends If/else.
-
-profile[0].summary()
 
 #------------------------------------------------------------------------------
 ## Save clustering results.
@@ -199,49 +193,3 @@ df = DataFrame.from_dict(results)
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_profile.csv")
 df.to_csv(myfile)
-
-quit()
-
-#--------------------------------------------------------------------
-# Other method of creating a graph...
-#--------------------------------------------------------------------
-
-# Get the values as np.array, it's more convenenient.
-node_names = adjm.columns
-A = adjm.values
-# Create graph, A.astype(bool).tolist() or (A / A).tolist() can also be used.
-g = Graph.Adjacency((A > 0).tolist())
-# Add edge weights and node labels.
-g.es['weight'] = A[A.nonzero()]
-g.vs['label'] = node_names  # or a.index/a.columns
-
-
-# Create edge list.
-edges = adjm.stack().reset_index()
-edges.columns = ['protA','protB','weight']
-
-# Define dictionary of nodes.
-nodes = dict(zip(adjm.columns, range(len(adjm.columns))))
-
-# Create list of edge tuples.
-edge_list = list(zip(edges['protA'],edges['protB']))
-
-# Edges need to be referenced by node id (a number). 
-el = list(zip([nodes.get(e[0]) for e in edge_list],
-    [nodes.get(e[1]) for e in edge_list]))
-
-# Create empty graph.
-g = Graph()
-
-# Add vertices and their labels.
-g.add_vertices(len(nodes))
-g.vs['label'] = nodes.keys()
-
-# Add edges as list of tuples; ex: (1,2) = node 1 interacts with node 2.
-# This will take several minutes.
-
-g.add_edges(el)
-g.es['weight'] = edges['weight']**sft
-
-# Remove self-loops.
-g = g.simplify(multiple = False, loops = True)
