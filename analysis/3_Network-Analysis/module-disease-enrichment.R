@@ -41,23 +41,17 @@ myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
 # Load Disease ontology.
-n <- 7
-dataset <- c("SFARI-Gene", # 1
-	     "SFARI-Animal", # 2
-	     "DisGeneNet_Curated_Variants", # 3
-	     "DisGeneNet_All_Disease_Genes", # 4
-	     "DisGeneNet_All_Variants", # 5
-	     "DisGeneNet_Curated_Variants", # 6
-	     "mouse_DBD-Genes-Full-Data")[n] # 7
-myfile <- list.files(rdatdir,pattern=dataset,full.names=TRUE)
+geneSet <- "Combined"
+myfiles <- list.files(rdatdir,pattern=c("mouse","geneSet"),full.names=TRUE)
+myfile <- myfiles[grep(geneSet,myfiles)]
 GOcollection <- readRDS(myfile)
+
+# Mouse GO collection.
+#if (!exists("musGO")) { GOcollection <- buildGOcollection(organism="mouse") }
 
 #-------------------------------------------------------------------------------
 # Disease enrichment analysis.
 #-------------------------------------------------------------------------------
-
-# Mouse GO collection.
-#if (!exists("musGO")) { GOcollection <- buildGOcollection(organism="mouse") }
 
 # Perform GO analysis.
 GOresults <- lapply(seq_along(partitions),function(x) {
@@ -77,6 +71,6 @@ result = GOresults[[res]]
 names(result) <- sapply(strsplit(names(result),"-"),"[",2)
 mods = names(result)[sapply(result,function(x) any(x$FDR<0.05))]
 
-df = result[[mods[4]]]
-df$dataSetName[df$FDR<0.05]
+write_excel(result[mods],"temp.xlsx")
+
 

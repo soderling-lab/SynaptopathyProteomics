@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
+# FIXME:  PPI graph utilizing the RBERVertexPartition --> segmentation fault, core dumped.
+# FIXME: GO graph utilizing the RBERVertexPartition --> segmentation fault, core
+# dumped.
+# FIXME: GO graph utilizing the CPMVertexPartition 
+# FIXME: GO graph utilizing the RBConfigurationVertexPartition
+
 ## User parameters: 
 adjm_type = 'PPI' # See adjms below.
 method = 'Significance' # See methods below.
