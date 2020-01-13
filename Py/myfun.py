@@ -55,6 +55,7 @@ def graph_from_adjm(adjm,weighted=True,signed=True):
     #adjm = adjm.where(idx)
     edges = adjm.stack().reset_index()
     edges.columns = ['nodeA','nodeB','weight']
+    if not weighted: edges = edges[edges.weight != 0]
     edge_tuples = list(zip(edges.nodeA,edges.nodeB,edges.weight))
     if weighted: g = Graph.TupleList(edge_tuples,weights=True)
     if not weighted: g = Graph.TupleList(edge_tuples,weights=False)

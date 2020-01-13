@@ -2,8 +2,8 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-adjm_type = 'Cortex' # See adjms below.
-method = 'CPM' # See methods below.
+adjm_type = 'PPI' # See adjms below.
+method = 'Significance' # See methods below.
 
 ## Resolution parameters for multi-resolution methods:
 rmin = 0
@@ -39,7 +39,7 @@ methods = {
             'weights' : True, 'signed' : False,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # RBERVertex
-        "RBEVertex": {'partition_type' : 'RBERVertexPartition', 
+        "RBERVertex": {'partition_type' : 'RBERVertexPartition', 
             'weights' : True, 'signed' : False,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # CPM
@@ -48,7 +48,7 @@ methods = {
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # Significance
         "Significance": {'partition_type' : 'SignificanceVertexPartition', 
-            'weights':None, 'signed' : False,
+            'weights': None, 'signed' : False,
             'resolution_parameter' : None}}
 
 # Parameters for clustering.
@@ -98,9 +98,9 @@ adjm = adjm.set_index(keys=adjm.columns)
 
 # Create igraph graph.
 if parameters.get('weights') is not None:
-    g = graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
+    g = myfun.graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
 else:
-    g = graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
+    g = myfun.graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
 
 # Update weights parameter.
 if parameters.get('weights') is not None:
