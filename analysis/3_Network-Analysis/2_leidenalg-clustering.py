@@ -4,12 +4,11 @@
 # FIXME:  PPI graph utilizing the RBERVertexPartition --> segmentation fault, core dumped.
 # FIXME: GO graph utilizing the RBERVertexPartition --> segmentation fault, core
 # dumped.
-# FIXME: GO graph utilizing the CPMVertexPartition 
 # FIXME: GO graph utilizing the RBConfigurationVertexPartition
 
 ## User parameters: 
 adjm_type = 'PPI' # See adjms below.
-method = 'Significance' # See methods below.
+method = 'Modularity' # See methods below.
 
 ## Resolution parameters for multi-resolution methods:
 rmin = 0
@@ -162,10 +161,6 @@ else:
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
         partition = myfun.filter_modules(partition)
         profile.append(partition)
-        m = np.array(partition.membership)
-        unclustered = sum(m==0)/len(m)
-        print(partition.summary())
-        print("Percent unclustered: {}".format(unclustered) + " (%).\n")
         # Ends loop.
 # Ends If/else.
 
@@ -187,12 +182,15 @@ else:
         'Membership' : [partition.membership for partition in profile],
         'Summary'    : [partition.summary() for partition in profile],
         'Resolution' : [partition.resolution_parameter for partition in profile]}
+# Ends if/else
 
 # Save cluster membership vectors.
 output_name = input_adjm.split("_")[1]
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_partitions.csv")
-DataFrame(results['Membership']).to_csv(myfile)
+df = DataFrame(results['Membership'])
+df.columns = profile[0].graph.vs['name']
+df.to_csv(myfile)
 
 # Save partition profile summary data.
 df = DataFrame.from_dict(results)
