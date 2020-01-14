@@ -5,6 +5,7 @@
 .RData
 *.Rproj
 *.swp
+__pycache__/
 
 # Other files to ignore.
 downloads/

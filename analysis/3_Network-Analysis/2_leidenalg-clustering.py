@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
-# FIXME:  PPI graph utilizing the RBERVertexPartition --> segmentation fault, core dumped.
-# FIXME: GO graph utilizing the RBERVertexPartition --> segmentation fault, core
-# dumped.
-# FIXME: GO graph utilizing the RBConfigurationVertexPartition
+# FIXME: Significance method doesn't seem to be working.
 
 ## User parameters: 
-adjm_type = 'PPI' # See adjms below.
-method = 'Modularity' # See methods below.
-
-## Resolution parameters for multi-resolution methods:
+# Input adjacency matrix.
+adjm_type = 'GO' 
+# Optimization method.
+# One of: Modularity, Surprise, RBConfiguration, RBER, CPM, or Significance.
+method = 'CPM' 
+# Resolution parameters for multi-resolution methods.
 rmin = 0
 rmax = 1
 nsteps = 100
@@ -39,12 +38,12 @@ methods = {
         "Surprise": {'partition_type' : 'SurpriseVertexPartition', 
             'weights' : True, 'signed' : False,
             'resolution_parameter' : None},
-        # RBConfig
-        "RBConfig": {'partition_type' : 'RBConfigurationVertexPartition', 
+        # RBConfiguration
+        "RBConfiguration": {'partition_type' : 'RBConfigurationVertexPartition', 
             'weights' : True, 'signed' : False,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
-        # RBERVertex
-        "RBERVertex": {'partition_type' : 'RBERVertexPartition', 
+        # RBER
+        "RBER": {'partition_type' : 'RBERVertexPartition', 
             'weights' : True, 'signed' : False,
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
         # CPM

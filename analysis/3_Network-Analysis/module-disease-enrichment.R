@@ -41,9 +41,8 @@ myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
 # Load Disease ontology.
-geneSet <- "Combined"
-myfiles <- list.files(rdatdir,pattern=c("mouse","geneSet"),full.names=TRUE)
-myfile <- myfiles[grep(geneSet,myfiles)]
+geneSet <- "mouse_Combined_DBD_geneSets.RData"
+myfile <- list.files(rdatdir,pattern=geneSet,full.names=TRUE)
 GOcollection <- readRDS(myfile)
 
 # Mouse GO collection.
@@ -56,7 +55,7 @@ GOcollection <- readRDS(myfile)
 # Perform GO analysis.
 GOresults <- lapply(seq_along(partitions),function(x) {
 			    moduleGOenrichment(partitions, x, protmap,GOcollection)
-	     })
+})
 
 # Any sig?
 # Doesnt work for list len 1.
@@ -66,11 +65,10 @@ for (i in 1:length(GOresults)){
 }
 r <- seq_along(partitions)[nsig==max(nsig)]
 
-res = r[1]
+res = 100
 result = GOresults[[res]]
 names(result) <- sapply(strsplit(names(result),"-"),"[",2)
 mods = names(result)[sapply(result,function(x) any(x$FDR<0.05))]
-
 write_excel(result[mods],"temp.xlsx")
 
 
