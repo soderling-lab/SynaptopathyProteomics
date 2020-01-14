@@ -45,7 +45,6 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
 exprDat <- "Cortex"
 self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","Cortex","Striatum","Sombined", "PPI", "GO")
 nres <- 100 # Total number of resolutions to be anlyzed.
@@ -96,9 +95,11 @@ myfile <- file.path(datadir, paste0("3_", self, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
+paste0("3_", self, "CPMVertexPartition_partitions.csv")
+
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfile <- list.files(datadir, pattern=paste0("3_", self, "CPMVertexPartition_partitions.csv"),
-		     full.name=TRUE)
+myfile <- c("Cortex" = file.path(datadir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
+	    "Striatum" = "")[self]
 partitions <- data.table::fread(myfile, drop = 1, skip = 1)
 colnames(partitions) <- colnames(adjm)
 
@@ -117,24 +118,6 @@ partitions <- as.data.frame(partitions)[,idy]
 if (!check) { message("Problem!") }
 check <- all(colnames(data) == colnames(partitions))
 
-# Weighted or unweighted?
-# If weighted, then calculate power for approximate scale free fit.
-if (weighted) {
-  message("Calculating soft-power for weighting co-expression graph!")
-  sft <- silently({
-    pickSoftThreshold(data,
-      corFnc = "bicor",
-      networkType = "signed",
-      RsquaredCut = 0.8
-    )$powerEstimate
-  })
-  names(sft) <- self
-} else {
-  # Power = 1 == Unweighted
-  sft <- 1
-  names(sft) <- self
-}
-
 #-------------------------------------------------------------------------------
 ## Permutation testing.
 #-------------------------------------------------------------------------------
@@ -143,7 +126,7 @@ if (weighted) {
 # Networks (edges) should be positive -> AbsoluteValue()
 data_list <- list(self = data)
 correlation_list <- list(self = adjm)
-network_list <- list(self = abs(adjm^sft[self]))
+network_list <- list(self = abs(adjm))
 
 # Module preservation stats.
 module_stats <- paste(c(

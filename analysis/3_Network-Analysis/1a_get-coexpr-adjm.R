@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: 1_calc-adjacency.R
-#' description: generate wt and ko bicor correlation matrices.
+#' title: 1a_calc-adjacency.R
+#' description: generate co-expresion adjacency matrices.
 #' authors: Tyler W. Bradshaw
 #' ---
 

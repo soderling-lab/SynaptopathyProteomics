@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: 
-#' description:
+#' title: 1c_get-ppi-adjm.R
+#' description: Generate PPI adjacency matrix.
 #' authors: Tyler W Bradshaw
 #' ---
 

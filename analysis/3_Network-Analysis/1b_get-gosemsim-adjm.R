@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# User parameters.
+## User parameters.
 calc_GO_Sem_Sim = FALSE
 
 # Imports.
