@@ -29,9 +29,16 @@ partition_similarity <- function(p1,p2,ignore = 0,normalized=TRUE) {
 	if (!all(names(p1) %in% names(p2))){
 		stop("Partition vectors should contain identical names.")
 	}
+	p1[p1==ignore] <- NA
+	p2[p2==ignore] <- NA
 	# Create module assignment df.
 	df <- data.table::CJ("NodeA"=names(p1),"NodeB"=names(p1), unique = TRUE)
 	df <- df[!df$NodeA==df$NodeB,] # Remove self-interactions.
+	df$NodeA_P1 <- as.numeric(p1[df$NodeA])
+	df$NodeB_P1 <- as.numeric(p1[df$NodeB])
+	df$NodeA_P2 <- as.numeric(p2[df$NodeA])
+	df$NodeB_P2 <- as.numeric(p2[df$NodeB])
+	df <- na.omit(df)
 	# Check if ProtA and ProtB are in same modules in each partition (Pmk).
 	Pmk1 <- as.numeric(p1[df$NodeA] ==  p1[df$NodeB])
 	Pmk2 <- as.numeric(p2[df$NodeA] ==  p2[df$NodeB])
@@ -43,12 +50,12 @@ partition_similarity <- function(p1,p2,ignore = 0,normalized=TRUE) {
 	ps <- dp/(enorm_x * enorm_y)
 	if (normalized) {
 		# Normalize by percent clustered.
-		not_clustered <- sum(p1==ignore) + sum(p2==ignore)
+		not_clustered <- sum(is.na(p1)) + sum(is.na(p1))
 		percent_clust = 1 - (not_clustered / length(c(p1,p2))) 
 		ps <- ps * percent_clust
 	}
 	if (is.na(ps)) {
-		message("Warning: Partition Similarity is NA, returning 0.")
+		#message("Warning: Partition Similarity is NA, returning 0.")
 		return(0)
 	} else {
 		return(ps)

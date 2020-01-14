@@ -1,0 +1,11 @@
+method,rbest,nMods,not_clustered
+GO_CPMVertexPartition,100,53,0.477061055536392
+GO_ModularityVertexPartition,1,2,0.488444291134874
+GO_RBConfigurationVertexPartition,99,2,0.508106243532253
+GO_RBERVertexPartition,100,31,0.686788547775095
+GO_SignificanceVertexPartition,1,36,0.583304587788893
+PPI_CPMVertexPartition,17,229,0.222383720930233
+PPI_ModularityVertexPartition,1,7,0.23546511627907
+PPI_RBConfigurationVertexPartition,96,6,0.201671511627907
+PPI_RBERVertexPartition,100,48,0.570494186046512
+PPI_SignificanceVertexPartition,1,0,1

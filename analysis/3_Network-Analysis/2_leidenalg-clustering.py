@@ -5,7 +5,7 @@
 
 ## User parameters: 
 # Input adjacency matrix.
-adjm_type = 'Cortex' 
+adjm_type = 'GO' 
 # Optimization method.
 # One of: Modularity, Surprise, RBConfiguration, RBER, CPM, or Significance.
 method = 'CPM' 
@@ -106,7 +106,7 @@ if parameters.get('weights') is not None:
 else:
     g = myfun.graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
 
-# Update weights parameter.
+# Update weights parameter for clustering.
 if parameters.get('weights') is not None:
     parameters['weights'] = 'weight'
 

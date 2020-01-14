@@ -87,16 +87,16 @@ names(output) <- names(gosemsim)
 # Combined BP + MF + CC results by calculating RMS.
 # This is fast, but any missing value (NA) will cause combined, RMS 
 # value to be NA.
-x1 <- output[[1]]
-x2 <- output[[2]]
-x3 <- output[[3]]
-rms <- sqrt((x1^2 + x2^2 + x3^2)/3) 
-n_missing <- sum(is.na(rms))
+#x1 <- output[[1]]
+#x2 <- output[[2]]
+#x3 <- output[[3]]
+#rms <- sqrt((x1^2 + x2^2 + x3^2)/3) 
+#n_missing <- sum(is.na(rms))
 #message(paste("Percent missing:",round(100*(n_missing/length(rms)),2)))
 # Approx. 25% missing values!
 
 # Lets try another way...
-# Melt and merge data into single df.
+# Melt and merge GO semantic similarity data into single df.
 # Use cbind, because its fast.
 melted_gosemsim <- lapply(output,reshape2::melt) 
 gosemsim_df <- do.call(cbind,melted_gosemsim)
@@ -117,14 +117,6 @@ for (i in 1:nrow(gosemsim_df)){
 	if (i==nrow(gosemsim_df)) { close(pbar); message("\n") }
 }
 
-# Are there missing values?
-n_missing <- sum(is.na(rms))
-message(paste("Percent missing:",round(100*(n_missing/length(rms)),2)))
-# Better, but missing values cause error with LA clustering...
-
-# Replace missing values with 0.
-#rms[is.na(rms)] <- 0 # Didn't work.
-
 # Cast into dm. 
 # Should be in correct order as we are just casting the previously
 # melted matrix.
@@ -132,34 +124,13 @@ gosemsim_df$GOsim.RMS <- rms
 rms_adjm <- matrix(rms,nrow=nrow(adjm),ncol=ncol(adjm))
 colnames(rms_adjm) <- rownames(rms_adjm) <- colnames(adjm)
 
-# Replace missing values with row minimum.
-foo = apply(rms_adjm,1,function(x) min(x,na.rm=TRUE))
+# Replace missing values with 0. 
+idx <- is.na(rms_adjm)
+rms_adjm[idx] <- 0
 
-x = apply(rms_adjm,1,function(x) sum(is.na(x)))
-
-
-# Sorted, remove self-interactions == 1.
-gosemsim_df$rms
-y <- gosemsim_df[order(gosemsim_df$rms,decreasing=TRUE),]
-
-y <- subset(y,y$rms != 1)
-y$ProteinA <- prot_map$id[match(y$EntrezA,prot_map$entrez)]
-y$ProteinB <- prot_map$id[match(y$EntrezB,prot_map$entrez)]
-
-# Save.
-#data.table::fwrite(y,"Sorted_GO_SemSim_RMS.csv")
-
-# Loop with parallel execution.
-# Is this faster? Does this work?
-run = FALSE
-if (run) {
-	library(foreach)
-	library(doMC)
-	registerDoMC(6)
-	rms <- foreach(i=1:nrow(y)) %dopar% {
-		sqrt(mean(as.numeric(y[i,c(4:6)])^2,na.rm=TRUE))
-	}
-}
+# Map names back to protein ids.
+ids <- prot_map$ids[match(colnames(rms_adjm),prot_map$entrez)]
+colnames(rms_adjm) <- rownames(rms_adjm) <- ids
 
 # Write to file for LA clusting!
 myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")

@@ -41,41 +41,130 @@ mypart <- c(Cortex = "10773682",Striatum = "10781799")[net] # relaxed criterion
 myfile <- list.files(rdatdir,pattern=mypart,full.names=TRUE)
 partitions <- readRDS(myfile)
 
-# Load GO semantic similarity adjm.
-myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
-GOadjm <- as.matrix(fread(myfile,header=TRUE,drop=1))
-rownames(GOadjm) <- colnames(GOadjm)
-
-# Load GO network partitions.
-myfile <- file.path(rdatdir,"3_GO_CPMVertexPartition_partitions.csv")
-GOparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
-colnames(GOparts) <- colnames(GOadjm)
-GOpartition <- as.numeric(GOparts[1,])
-names(GOpartition) <- colnames(GOparts)
-
 # Load PPI adjm.
 myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
 PPIadjm <- as.data.frame(fread(myfile,header=TRUE,drop=1))
 rownames(PPIadjm) <- colnames(PPIadjm)
 
-# Load PPI network partitions.
-myfile <- file.path(rdatdir,"3_PPI_SurpriseVertexPartition_partitions.csv")
-PPIparts <- as.data.frame(fread(myfile,header=TRUE,drop=1))
-colnames(PPIparts) <- colnames(PPIadjm)
-PPIpartition <- as.numeric(PPIparts[1,])
-names(PPIpartition) <- colnames(PPIparts)
+# Load GO semantic similarity adjm.
+myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
+GOadjm <- as.matrix(fread(myfile,header=TRUE,drop=1))
+rownames(GOadjm) <- colnames(GOadjm)
 
-# Map PPI genes to protein ids.
-ids <- prot_map$ids[match(names(PPIpartition),prot_map$entrez)]
-names(PPIpartition) <- ids
+#---------------------------------------------------------------------
+## Which method to use for GO and PPI graph clustering?
+#---------------------------------------------------------------------
+
+# Load partitions files.
+file_prefix <- c("3_PPI_","3_GO_")
+file_suffix <- "VertexPartition_partitions.csv"
+partition_methods <- c("CPM","Modularity","RBConfiguration","RBER","Significance")
+parts_files <- apply(expand.grid(file_prefix,partition_methods,file_suffix), 1, paste, collapse="")
+parts_data <- lapply(parts_files, function(myfile) {
+		       # Check if file exists.
+		       if (file.exists(file.path(rdatdir,myfile))) { 
+			       data <- fread(file.path(rdatdir,myfile),header=TRUE,drop=1) 
+			       return(data)
+		       } else {
+			       message(paste("Warning", myfile,"does not exist!"))
+			       return(NA)
+		       }
+		 })
+names(parts_data) <- tools::file_path_sans_ext(parts_files) # Name.
+parts_data <- parts_data[order(names(parts_data))] # Sort.
+
+# Loop through data.
+# Best partition maximizes the number of clustered proteins.
+results <- list()
+for (partition in names(parts_data)) {
+	parts <- parts_data[[partition]]
+	method <- paste(sapply(strsplit(partition,"_"),"[",c(2,3)),collapse="_")
+	not_clustered <- apply(parts,1,function(x) sum(x==0)/length(x))
+	rbest <- seq(not_clustered)[not_clustered==min(not_clustered)]
+	nMods <- sum(names(table(as.numeric(parts[rbest,])))!="0")
+	results[[method]] <- c("method" = method,"rbest"=as.numeric(rbest),
+	  "nMods"=nMods,"not_clustered"=not_clustered[rbest])
+}
+
+# Best partition minimizes percent unclustered.
+df <- as.data.frame(do.call(rbind,results))
+idx <- grep("CPM",df$method)
+rbest <- as.character(df[idx,]$rbest)
+names(rbest) <- c("GO","PPI")
+
+x = as.numeric(GOparts[x,])
+
+sapply(c(1:100),function(x) sum(names(table(as.numeric(GOparts[x,])))!="0"))
+
+
+# Get best GO partition.
+r <- as.numeric(rbest["GO"])
+r <- 100
+GOparts <- parts_data[["3_GO_CPMVertexPartition_partitions"]]
 
 # Map GO genes to protein ids.
-ids <- prot_map$ids[match(names(GOpartition),prot_map$entrez)]
-names(GOpartition) <- ids
+ids <- prot_map$ids[match(colnames(GOparts),prot_map$entrez)]
+colnames(GOparts) <- ids
+GOpartition <- as.numeric(GOparts[r,])
+names(GOpartition) <- colnames(GOparts)
+
+# Get best PPI partition.
+r <- as.numeric(rbest["PPI"])
+r <- 13
+PPIparts <- parts_data[["3_PPI_CPMVertexPartition_partitions"]]
+PPIpartition <- as.numeric(PPIparts[r,])
+names(PPIpartition) <- colnames(PPIparts)
+
+ps12 <- ps13 <- vector(mode="numeric",length=100)
+for (i in 1:100){
+p1 <- partitions[[i]]
+p2 <- PPIpartition
+p3 <- GOpartition
+parts_list <- add_missing_nodes(p1,p2,p3)
+p1 <- parts_list$p1
+p2 <- parts_list$p2
+p3 <- parts_list$p3
+ps12[i]=dendextend::FM_index_R(p1,p2)[1]
+ps13[i]=dendextend::FM_index_R(p1,p3)[1]
+}
+
 
 #-------------------------------------------------------------------------------
 ## Compare Coexpression partitions with partition of PPI graph.
 #-------------------------------------------------------------------------------
+
+fmi = list()
+ps = list()
+for (i in 1:100){
+p1 = partitions[[i]]
+p2 = as.numeric(GOparts[i,])
+names(p2) <- colnames(GOparts)
+p3 = as.numeric(PPIparts[i,])
+names(p3) <- colnames(PPIparts)
+# Add missing nodes.
+parts_list <- add_missing_nodes(p1,p2,p3)
+p1 <- parts_list$p1
+p2 <- parts_list$p2
+p3 <- parts_list$p3
+# Calculate FM similarity.
+fmi1 <- dendextend::FM_index_R(p1,p2)
+fmi2 <- dendextend::FM_index_R(p1,p3)
+fmi3 <- dendextend::FM_index_R(p2,p3)
+# Calculate similarity.
+#ps1 <- partition_similarity(p1,p2)
+#ps2 <- partition_similarity(p1,p3)
+#ps3 <- partition_similarity(p2,p3)
+fmi[[i]] = c(fmi1,fmi2,fmi3)
+ps[[i]] = c(ps1,ps2,ps3)
+}
+
+fmi_df <- as.data.frame(do.call(rbind,fmi))
+colnames(fmi_df) <- c("GO","PPI","GO-PPI")
+
+ps_df <- as.data.frame(do.call(rbind,ps))
+colnames(ps_df) <- c("GO","PPI","GO-PPI")
+
+
 
 # Loop to calculate pairwise similarity.
 ps_ppi <- vector(mode="numeric",length(partitions))
@@ -101,15 +190,15 @@ for (i in seq_along(partitions)){
 	message(paste("... Mean similarity:", round(mean(ps_go[i],ps_ppi[i]),3),"\n"))
 }
 
+seq(ps_go)[ps_go==max(ps_go)]
+seq(ps_ppi)[ps_ppi==max(ps_ppi)]
+
+
 # Save best resolution.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Best_Resolution.RData"))
 saveRDS(best_part,myfile)
 
 quit()
-
-
-
-
 #-------------------------------------------------------------------------------
 ## Is there a relationship between co-expresion and functional similarity?
 #-------------------------------------------------------------------------------
