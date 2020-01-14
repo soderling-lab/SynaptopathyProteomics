@@ -17,6 +17,15 @@
 # 4. Network partitions.
 
 ## Permutation Statistics:
+# 1. avg.weight
+# 2. coherence
+# 3. cor.cor - Don't use! Sensitive to small changes.
+# 4. cor.degree - Don't use! Sensitive to small changes.
+# 5. cor.contrib - Don't use! Sensitive to small changes.
+# 6. avg.cor
+# 7. avg.contrib
+
+## Permutation Statistics:
 # 1. avg.weight (average edge weight) - Calculated from network. Assumes edge
 #    weights are positive.
 # 2. coherence - Calculated from the data. Quantifies the percent variance
@@ -33,21 +42,12 @@
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
 #    to summary profile.
 
-## Permutation Statistics:
-# 1. avg.weight
-# 2. coherence
-# 3. cor.cor - Don't use! Sensitive to small changes.
-# 4. cor.degree - Don't use! Sensitive to small changes.
-# 5. cor.contrib - Don't use! Sensitive to small changes.
-# 6. avg.cor
-# 7. avg.contrib
-
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
 weighted <- FALSE # Weighted or unweighted. If TRUE, then appropriate soft-power will be calculated.
-exprDat <- "Combined"
-self <- network <- "PPI" # Which networks to test self preservation in? #self = c("wt","ko","cortex","striatum","combined", "PPI", "GO")
+exprDat <- "Cortex"
+self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","Cortex","Striatum","Sombined", "PPI", "GO")
 nres <- 100 # Total number of resolutions to be anlyzed.
 verbose <- FALSE
 
@@ -92,12 +92,12 @@ data <- t(data)
 colnames(data) <- colNames
 
 # Load adjmatrix or interaction network.
-myfile <- file.path(datadir, paste0("3_", network, "_Adjm.RData"))
+myfile <- file.path(datadir, paste0("3_", self, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfile <- list.files(datadir, pattern=paste0("3_", self, "_partitions.csv"),
+myfile <- list.files(datadir, pattern=paste0("3_", self, "CPMVertexPartition_partitions.csv"),
 		     full.name=TRUE)
 partitions <- data.table::fread(myfile, drop = 1, skip = 1)
 colnames(partitions) <- colnames(adjm)
