@@ -5,7 +5,7 @@
 
 ## User parameters: 
 # Input adjacency matrix.
-adjm_type = 'Striatum' 
+adjm_type = 'Cortex' 
 # Optimization method.
 # One of: Modularity, Surprise, RBConfiguration, RBER, CPM, or Significance.
 method = 'CPM' 
