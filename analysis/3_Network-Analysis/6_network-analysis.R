@@ -96,21 +96,74 @@ myfile <- list.files(rdatdir,pattern=geneSet,full.names=TRUE)
 GOcollection <- readRDS(myfile)
 
 # Perform enrichment analysis.
+message("Performing module enrichment analysis for DBD-associated genes...")
+pbar <- txtProgressBar(min=1,max=100,style=3)
 results <- lapply(seq_along(partitions), function(x) {
-			    moduleGOenrichment(partitions, x, protmap,GOcollection)
+			  setTxtProgressBar(pbar,x)
+			  result <- moduleGOenrichment(partitions, x, protmap,GOcollection)
+			  return(result)
 })
+message("\n"); close(pbar) 
 
 # Check the number of significant modules at every resolution.
 nsig <- vector(mode="numeric",length(results))
 disease_sig <- list()
 for (i in 1:length(results)){
-	namen <- sapply(results[[i]],function(x) any(x$FDR<0.05))
+	#namen <- sapply(results[[i]],function(x) any(x$FDR<0.05))
+	namen <- sapply(results[[i]],function(x) any(x$Bonferroni<0.05))
 	disease_sig[[i]] <- sapply(strsplit(names(namen[namen]),"-"),"[",2)
 	nsig[i] <- sum(namen)
 }
 
+# Jaacard Similarity.
+js <- function(x,y) {
+	s <- length(union(x,y))/length(unique(c(x,y)))
+	return(s)
+}
+
+# Function to compare modules.
+compare_modules <- function(r1,r2){
+# First module.
+p1 = partitions[[r1]]
+m1 <- split(p1,p1)
+names(m1) <- paste0("M",names(m1))
+x = names(m1[["M2"]])
+# Second module.
+p2 = partitions[[r2]]
+m2 <- split(p2,p2)
+names(m2) <- paste0("M",names(m2))
+y = names(m2[["M2"]])
+s <- js(x,y)
+return(s)
+}
+
+compare_modules(1,100)
+
+# Iterate through all comparisons, calculate js between M2 in 
+# partition 1 and partition 2.
+df <- expand.grid(r1=c(1:100),r2=c(1:100)) 
+contrasts <- split(df,seq(nrow(df)))
+pbar <- txtProgressBar(min=1,max=length(contrasts),style=3)
+module_js <- lapply(seq_along(contrasts),function(x) {
+			    setTxtProgressBar(pbar,x)
+			    r1 <- contrasts[[x]][["r1"]]
+			    r2 <- contrasts[[x]][["r1"]]
+			    s <- compare_modules(r1,r2)
+			    return(s)
+})
+close(pbar);message("\n")
+
+s <- unlist(module_js)
+
+p = partitions[[77]]
+m = split(p,p)
+names(m) <- paste0("M",names(m))
+m$M13
+
+sapply(partitions,function(x) length(x[x==2]))
+
 #------------------------------------------------------------------------------
-## Changes in module summary expression.
+## Loop to explore changes in module summary expression.
 #------------------------------------------------------------------------------
 
 # Get partition of ~best resolution.
@@ -122,7 +175,7 @@ for (r in 1:100){
 	names(modules) <- paste0("M", names(modules))
 	# Number of modules.
 	nModules <- sum(names(modules) != "M0")
-	message(paste0("Number of modules at resolution ",r,": ", nModules))
+	message(paste("Number of modules:", nModules))
 	# Module size statistics.
 	mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
 	message(paste("Minumum module size:",mod_stats["Min."]))
@@ -193,9 +246,116 @@ for (r in 1:100){
 	message(paste("Number of significant modules with",
 		      "significant enrichment of DBD-associated genes:",
 		      nSigDisease))
-	print(disease_sig[[r]][sigModules])
+	message("Summary of Dunnett's test changes for DBD-associated modules:")
+	print(nSigDT[sigModules][disease_sig[[r]]])
 	message("\n")
 }
+
+#------------------------------------------------------------------------------
+## Examine changes in module summary expression.
+#------------------------------------------------------------------------------
+
+r <- 77
+
+# Get Modules.
+partition <- partitions[[r]]
+modules <- split(partition, partition)
+names(modules) <- paste0("M", names(modules))
+
+# Number of modules.
+nModules <- sum(names(modules) != "M0")
+message(paste("Number of modules:", nModules))
+
+# Module size statistics.
+mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
+message(paste("Minumum module size:",mod_stats["Min."]))
+message(paste("Median module size:",mod_stats["Median"]))
+message(paste("Maximum module size:",mod_stats["Max."]))
+
+# Percent not clustered.
+percentNC <- sum(partition == 0) / length(partition)
+message(paste("Percent of proteins not clustered:", 
+	      round(100 * percentNC, 2), "(%)"))
+
+# Calculate Module Eigengenes.
+# Note: Soft power does not influence MEs.
+MEdata <- moduleEigengenes(data,
+  colors = partition,
+  softPower = 1, impute = FALSE
+)
+MEs <- as.matrix(MEdata$eigengenes)
+
+# Get Percent Variance explained (PVE)
+PVE <- MEdata$varExplained
+names(PVE) <- names(modules)
+meanPVE <- mean(as.numeric(PVE[names(PVE) != "M0"]))
+message(paste("Mean module coherence (PVE):", 
+	      round(100 * meanPVE, 2), "(%)."))
+
+# Create list of MEs.
+ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
+ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
+names(ME_list) <- names(modules)
+
+# Calculate module membership (kME).
+KMEdata <- signedKME(data, MEs, corFnc = "bicor")
+
+# Define sample groups.
+traits$Sample.Model.Tissue <- paste(traits$Sample.Model, 
+				    traits$Tissue, sep = ".")
+groups <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+names(groups) <- rownames(MEs)
+
+# Group all WT samples from a tissue type together.
+groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
+groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
+groups <- as.factor(groups) # Coerce to factor.
+
+# Perform KW tests.
+KWdata <- t(sapply(ME_list, function(x) kruskal.test(x ~ groups[names(x)])))
+KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary columns.
+
+# Remove M0. Do this before p.adjustment.
+KWdata <- KWdata[!rownames(KWdata) == "M0", ]
+
+# Correct p-values for n comparisons.
+method <- "bonferroni"
+KWdata$p.adj <- p.adjust(KWdata$p.value, method)
+
+# Significant modules.
+alpha <- 0.05
+sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
+nSigModules <- length(sigModules)
+message(paste0(
+  "Number of modules with significant (p.adj < ", alpha, ")",
+  " Kruskal-Wallis test: ", nSigModules,"."
+))
+
+# Dunnetts test for post-hoc comparisons.
+# Note: P-values returned by DunnettTest have already been adjusted for 
+# multiple comparisons!
+cont <- paste("WT", net, sep = ".") # Control group.
+DT_list <- lapply(ME_list, function(x) {
+			  DunnettTest(x,
+				      as.factor(groups[names(x)]), 
+				      control = cont)
+})
+DT_list <- lapply(sapply(DT_list,"[",cont), as.data.frame)
+names(DT_list) <- sapply(strsplit(names(DT_list),"\\."),"[",1)
+
+# Number of significant changes.
+alpha <- 0.05
+nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
+message("Summary of Dunnett's test changes for significant modules:")
+print(nSigDT[sigModules])
+
+# Modules with DBD-association.
+nSigDisease <- sum(disease_sig[[r]] %in% sigModules)
+message(paste("Number of significant modules with",
+	      "significant enrichment of DBD-associated genes:",
+	      nSigDisease))
+message("Summary of Dunnett's test changes for DBD-associated modules:")
+print(nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]])
 
 quit()
 
