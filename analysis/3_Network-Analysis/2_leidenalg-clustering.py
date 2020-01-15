@@ -4,12 +4,14 @@
 # FIXME: Significance method doesn't seem to be working.
 
 ## User parameters: 
-# Input adjacency matrix.
-adjm_type = 'GO' 
-# Optimization method.
-# One of: Modularity, Surprise, RBConfiguration, RBER, CPM, or Significance.
+# adjm_type - string specifying input adjacency matrix.
+# method - string specifying the optimization method. One of: Modularity, 
+#    Surprise, RBConfiguration, RBER, CPM, or Significance.
+# rmin - min resolution
+# rmax - max resolution
+# nsteps - number of steps between rmin and rmax.
+adjm_type = 'Striatum' 
 method = 'CPM' 
-# Resolution parameters for multi-resolution methods.
 rmin = 0
 rmax = 1
 nsteps = 100
