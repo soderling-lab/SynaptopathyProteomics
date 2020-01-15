@@ -17,21 +17,14 @@
 #'
 #' @examples
 #' ggplotVerboseBoxplot(x, g, contrasts)
-ggplotVerboseBoxplot <- function(x, g, contrasts, box_order = NULL, ...) {
+ggplotVerboseBoxplot <- function(x, groups) {
   # Imports
   suppressPackageStartupMessages({
     require(FSA)
     require(ggplot2)
   })
   # Bind data together as a data.frame.
-  df <- data.frame(x = as.numeric(x), g = as.factor(g))
-  # Parse the df's levels.
-  lvls <- if (!is.null(box_order)) {
-    lvls <- box_order
-  } else {
-    lvls <- unique(df$g)
-  }
-  levels(df$g) <- lvls
+  df <- data.frame(x=as.numeric(x), g = groups[names(x)])
   # Define tissue type grouping for faceted plot.
   df$tissue <- ""
   df$tissue[grep("Cortex", df$g)] <- "Cortex"

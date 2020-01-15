@@ -115,6 +115,10 @@ for (i in 1:length(results)){
 	nsig[i] <- sum(namen)
 }
 
+#--------------------------------------------------------------------
+## Examining module similarity between partitions.
+#--------------------------------------------------------------------
+
 # Which module is similar to my module???
 
 # Iterate through all comparisons of resolution, calculate jaacard
@@ -165,48 +169,30 @@ for (i in seq_along(module_js)){
 	if (i == length(s)) { close(pbar); message("\n ") } 
 }
 
-
 ## Examine flow of proteins across resolutions...
 g_layers <- list()
 contrasts <- as.data.frame(cbind(r1=seq(1,100,by=2),r2=seq(2,100,by=2)))
-
 for (i in seq(nrow(contrasts))){
 	if (i==1) { pbar <- txtProgressBar(min=i,max=dim(contrasts)[1],style=3)}
 	setTxtProgressBar(pbar,i)
 	# First partition.
-
 	r1 <- contrasts[i,"r1"]
 	p1 <- partitions[[r1]]
 	m1 <- split(p1,p1)
 	names(m1) <- paste0("M",names(m1))
-
 	# Second partition.
 	r2 <- contrasts[i,"r2"]
 	p2 <- partitions[[r2]]
 	m2 <- split(p2,p2)
 	names(m2) <- paste0("M",names(m2))
-
+	# Calculate js between modules of p1 and p2.
 	df <- expand.grid(p1=names(m1),p2=names(m2))
 	x <- split(df,seq(nrow(df)))
-
-	for (i in seq_along(x)){
-
-		js(names(m1[[x[[i]][["p1"]]]]),names(m2[[x[[i]][["p2"]]]]))
-
-
-
-
+	df$js <- sapply(seq_along(x),function(i){
+	       js(names(m1[[x[[i]][["p1"]]]]),names(m2[[x[[i]][["p2"]]]]))})
 	g_layers[[i]] <- subset(df,df$js!=0)
 	if (i == dim(contrasts)[1]) { close(pbar);message("\n") } 
 }
-
-
-p = partitions[[77]]
-m = split(p,p)
-names(m) <- paste0("M",names(m))
-m$M13
-
-sapply(partitions,function(x) length(x[x==2]))
 
 #------------------------------------------------------------------------------
 ## Loop to explore changes in module summary expression.
@@ -214,6 +200,7 @@ sapply(partitions,function(x) length(x[x==2]))
 
 modules_of_interest <- list()
 for (r in 1:100){
+
 	message(paste("Working on resolution",r,"..."))
 	partition <- partitions[[r]]
 	# Get Modules.
@@ -248,21 +235,27 @@ for (r in 1:100){
 	ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
 	ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
 	names(ME_list) <- names(modules)
-	# Calculate module membership (kME).
-	KMEdata <- signedKME(data, MEs, corFnc = "bicor")
-	# Sample to group mapping--groups for verbose box plot.
+	# Remove M0. Do this before p.adjustment.
+	ME_list <- ME_list[names(ME_list)!="M0"]
+	# Sample to group mapping.
 	traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
 	groups <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
 	names(groups) <- rownames(MEs)
 	# Group all WT samples from a tissue type together.
 	groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
 	groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
-	groups <- as.factor(groups) # Coerce to factor.
+
+	#groups <- as.factor(groups) # Coerce to factor.
+
+	# Fix levels (order).
+	g <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
+	box_order <- paste(g,net,sep=".")
+	as.factor(groups
+	levels(groups) <- box_order
+
 	# Perform KW tests.
 	KWdata <- t(sapply(ME_list, function(x) kruskal.test(x ~ groups[names(x)])))
-	KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary columns.
-	# Remove M0. Do this before p.adjustment.
-	KWdata <- KWdata[!rownames(KWdata) == "M0", ]
+	KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary cols.
 	# Correct p-values for n comparisons.
 	method <- "bonferroni"
 	KWdata$p.adj <- p.adjust(KWdata$p.value, method)
@@ -298,7 +291,17 @@ for (r in 1:100){
 	message("Summary of Dunnett's test changes for DBD-associated modules:")
 	print(moi)
 	message("\n")
-}
+	## Generate plots...
+	# Order of the bars in the boxplot.
+
+	# Use lapply to generate plots.
+	message("Generating plots, this will take several moments...")
+       	plots <- lapply(ME_list,function(x) {
+			 ggplotVerboseBoxplot(x,groups,box_order)
+			     })
+	names(plots) <- names(ME_list)
+
+unlist(modules_of_interest)
 
 #------------------------------------------------------------------------------
 ## Examine changes in module summary expression.
