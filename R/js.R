@@ -19,6 +19,6 @@
 #' @examples
 #' js(x,y)
 js <- function(x,y){
-	s <- length(union(x,y))/length(unique(c(x,y)))
+	s <- length(intersect(x,y))/length(union(x,y))
 	return(s)
 }
