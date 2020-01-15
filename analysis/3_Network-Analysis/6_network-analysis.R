@@ -115,39 +115,91 @@ for (i in 1:length(results)){
 	nsig[i] <- sum(namen)
 }
 
-# Loop to compare module M2
-for (r in 
-# First module.
-p1 = partitions[[r1]]
-m1 <- split(p1,p1)
-names(m1) <- paste0("M",names(m1))
-x = names(m1[["M2"]])
-# Second module.
-p2 = partitions[[r2]]
-m2 <- split(p2,p2)
-names(m2) <- paste0("M",names(m2))
-y = names(m2[["M2"]])
-s <- js(x,y)
-return(s)
-}
+# Which module is similar to my module???
 
-compare_modules(1,100)
-
-# Iterate through all comparisons, calculate js between M2 in 
-# partition 1 and partition 2.
+# Iterate through all comparisons of resolution, calculate jaacard
+# similarity (js) between M2 in partition 1 and partition 2.
 df <- expand.grid(r1=c(1:100),r2=c(1:100)) 
 contrasts <- split(df,seq(nrow(df)))
-pbar <- txtProgressBar(min=1,max=length(contrasts),style=3)
-module_js <- lapply(seq_along(contrasts),function(x) {
-			    setTxtProgressBar(pbar,x)
-			    r1 <- contrasts[[x]][["r1"]]
-			    r2 <- contrasts[[x]][["r1"]]
-			    s <- compare_modules(r1,r2)
-			    return(s)
-})
-close(pbar);message("\n")
+module_js <- vector(mode="numeric",length=length(contrasts))
+for (i in seq_along(contrasts)){
+	if (i==1) { pbar <- txtProgressBar(min=i,max=length(contrasts),style=3)}
+	setTxtProgressBar(pbar,i)
+	# First module.
+	r1 <- contrasts[[i]][["r1"]]
+	p1 <- partitions[[r1]]
+	m1 <- split(p1,p1)
+	names(m1) <- paste0("M",names(m1))
+	x <- names(m1[["M2"]])
+	# Second module.
+	r2 <- contrasts[[i]][["r2"]]
+	p2 <- partitions[[r2]]
+	m2 <- split(p2,p2)
+	names(m2) <- paste0("M",names(m2))
+	y <- names(m2[["M2"]])
+	s <- js(x,y)
+	module_js[i] <- s
+	if (i == length(contrasts)) { close(pbar);message("\n") } 
+}
 
-s <- unlist(module_js)
+## Is my module conserved across resolutions...
+moi <- "M20"
+module_js <- vector("list",length=100)
+most_similar <- vector("character",length=100)
+for (i in seq_along(module_js)){
+	if (i==1) { pbar <- txtProgressBar(min=i,max=length(s),style=3)}
+	setTxtProgressBar(pbar,i)
+	# First module.
+	m1 <- split(partitions[[1]],partitions[[1]])
+	names(m1) <- paste0("M",names(m1))
+	x <- names(m1[[moi]])
+	# Second module.
+	p2 <- partitions[[i]]
+	m2 <- split(p2,p2)
+	names(m2) <- paste0("M",names(m2))
+	s <- sapply(m2,function(y) js(x,names(y)))
+	s <- s[names(s)!="M0"]
+	ms <- s[order(s,decreasing=TRUE)][1]
+	module_js[[i]] <- s
+	most_similar[i] <- names(ms)
+	if (i == length(s)) { close(pbar); message("\n ") } 
+}
+
+
+## Examine flow of proteins across resolutions...
+g_layers <- list()
+contrasts <- as.data.frame(cbind(r1=seq(1,100,by=2),r2=seq(2,100,by=2)))
+
+for (i in seq(nrow(contrasts))){
+	if (i==1) { pbar <- txtProgressBar(min=i,max=dim(contrasts)[1],style=3)}
+	setTxtProgressBar(pbar,i)
+	# First partition.
+
+	r1 <- contrasts[i,"r1"]
+	p1 <- partitions[[r1]]
+	m1 <- split(p1,p1)
+	names(m1) <- paste0("M",names(m1))
+
+	# Second partition.
+	r2 <- contrasts[i,"r2"]
+	p2 <- partitions[[r2]]
+	m2 <- split(p2,p2)
+	names(m2) <- paste0("M",names(m2))
+
+	df <- expand.grid(p1=names(m1),p2=names(m2))
+	x <- split(df,seq(nrow(df)))
+
+	for (i in seq_along(x)){
+
+		js(names(m1[[x[[i]][["p1"]]]]),names(m2[[x[[i]][["p2"]]]]))
+
+
+
+
+	g_layers[[i]] <- subset(df,df$js!=0)
+	if (i == dim(contrasts)[1]) { close(pbar);message("\n") } 
+}
+
 
 p = partitions[[77]]
 m = split(p,p)
@@ -160,7 +212,7 @@ sapply(partitions,function(x) length(x[x==2]))
 ## Loop to explore changes in module summary expression.
 #------------------------------------------------------------------------------
 
-# Get partition of ~best resolution.
+modules_of_interest <- list()
 for (r in 1:100){
 	message(paste("Working on resolution",r,"..."))
 	partition <- partitions[[r]]
@@ -240,8 +292,11 @@ for (r in 1:100){
 	message(paste("Number of significant modules with",
 		      "significant enrichment of DBD-associated genes:",
 		      nSigDisease))
+	# Numer of significant modules with disease association...
+	moi <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
+	modules_of_interest[[r]] <- moi
 	message("Summary of Dunnett's test changes for DBD-associated modules:")
-	print(nSigDT[sigModules][disease_sig[[r]]])
+	print(moi)
 	message("\n")
 }
 
