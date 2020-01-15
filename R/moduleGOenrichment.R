@@ -18,14 +18,12 @@
 #' @examples
 #' moduleGOenrichment()
 moduleGOenrichment <- function(partitions, resolution, protmap,GOcollection,
-			       exclude="0",verbose = 1) {
-
+			       exclude="0") {
 # Function to perform GO enrichment for all modules in a given partition.
 	suppressPackageStartupMessages({
 		library(org.Mm.eg.db)
 	        library(anRichment)
 	})
-
 	# Create a matrix of module labels to be passed to anRichment.
 	part <- partitions[[resolution]]
 	modules <- split(part, part)
@@ -38,13 +36,10 @@ moduleGOenrichment <- function(partitions, resolution, protmap,GOcollection,
 		classLabels[logic[, i], i] <- col_header
 		classLabels[!logic[, i], i] <- "NA"
 	}
-
 	classLabels <- classLabels[!duplicated(rownames(classLabels)),]
-
 	# Map protein ids to to entrez.
 	entrez <- protmap$entrez[match(rownames(classLabels), protmap$ids)]
 	rownames(classLabels) <- entrez
-
 	# Perform GO enrichment.
 	GOenrichment <- enrichmentAnalysis(
 					   classLabels,
@@ -58,9 +53,8 @@ moduleGOenrichment <- function(partitions, resolution, protmap,GOcollection,
 					   getOverlapEntrez = TRUE,
 					   getOverlapSymbols = FALSE,
 					   ignoreLabels = "NA",
-					   verbose 
+					   verbose = 0
 					   )
-
 	# Collect the results.
 	GO_results <- list()
 	for (r in 1:length(GOenrichment$setResults)) {
