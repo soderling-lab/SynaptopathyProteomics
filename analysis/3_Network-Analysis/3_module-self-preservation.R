@@ -45,7 +45,6 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-exprDat <- "Striatum"
 self <- "Striatum" # Which networks to test self preservation in? #self = c("wt","ko","Cortex","Striatum","Sombined", "PPI", "GO")
 nres <- 100 # Total number of resolutions to be anlyzed.
 verbose <- FALSE
@@ -84,7 +83,7 @@ myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(datadir, paste0("3_", exprDat, "_cleanDat.RData"))
+myfile <- file.path(datadir, paste0("3_", self, "_cleanDat.RData"))
 data <- readRDS(myfile)
 colNames <- rownames(data)
 data <- t(data)
@@ -95,13 +94,10 @@ myfile <- file.path(datadir, paste0("3_", self, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
-paste0("3_", self, "CPMVertexPartition_partitions.csv")
-
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfile <- c("Cortex" = file.path(datadir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
-	    "Striatum" = "")[self]
-partitions <- data.table::fread(myfile, drop = 1, skip = 1)
-colnames(partitions) <- colnames(adjm)
+myfiles <- c("Cortex" = file.path(datadir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
+	    "Striatum" = file.path(datadir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
+partitions <- data.table::fread(myfiles[self], header=TRUE,drop = 1)
 
 # Enforce consistent dimensions between data and adjm.
 # Remove duplicate column from data.
