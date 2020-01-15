@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-net <- "Cortex" # Which network are we analyzing?
+net <- "Cortex" # Which network are we analyzing? One of: c("Cortex","Striatum")
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -95,7 +95,7 @@ geneSet <- "mouse_Combined_DBD_geneSets.RData"
 myfile <- list.files(rdatdir,pattern=geneSet,full.names=TRUE)
 GOcollection <- readRDS(myfile)
 
-# Perform enrichment analysis.
+# Perform disease enrichment analysis.
 message("Performing module enrichment analysis for DBD-associated genes...")
 pbar <- txtProgressBar(min=1,max=100,style=3)
 results <- lapply(seq_along(partitions), function(x) {
@@ -115,14 +115,8 @@ for (i in 1:length(results)){
 	nsig[i] <- sum(namen)
 }
 
-# Jaacard Similarity.
-js <- function(x,y) {
-	s <- length(union(x,y))/length(unique(c(x,y)))
-	return(s)
-}
-
-# Function to compare modules.
-compare_modules <- function(r1,r2){
+# Loop to compare module M2
+for (r in 
 # First module.
 p1 = partitions[[r1]]
 m1 <- split(p1,p1)

@@ -75,7 +75,7 @@ suppressPackageStartupMessages({
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-datadir <- file.path(root, "rdata")
+rdatdir <- file.path(root, "rdata")
 funcdir <- file.path(root, "R")
 
 # Functions.
@@ -83,20 +83,20 @@ myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(datadir, paste0("3_", self, "_cleanDat.RData"))
+myfile <- file.path(rdatdir, paste0("3_", self, "_cleanDat.RData"))
 data <- readRDS(myfile)
 colNames <- rownames(data)
 data <- t(data)
 colnames(data) <- colNames
 
 # Load adjmatrix or interaction network.
-myfile <- file.path(datadir, paste0("3_", self, "_Adjm.RData"))
+myfile <- file.path(rdatdir, paste0("3_", self, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = file.path(datadir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
-	    "Striatum" = file.path(datadir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
+myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
+	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
 partitions <- data.table::fread(myfiles[self], header=TRUE,drop = 1)
 
 # Enforce consistent dimensions between data and adjm.
@@ -181,7 +181,7 @@ for (i in 1:nres) {
   # Save to Rdata.
   if (i == nres) {
     output_name <- paste0(jobID, "_", self, "_Module_Self_Preservation.RData")
-    saveRDS(results, file.path(datadir, output_name))
+    saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }
 } # Ends loop.
