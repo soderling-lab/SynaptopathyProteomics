@@ -254,9 +254,10 @@ for (i in 1:length(DBDresults)){
 ## Loop to explore changes in module summary expression.
 #------------------------------------------------------------------------------
 
+plots <- list()
 modules_of_interest <- list()
-for (r in 1:100){
 
+for (r in 1:100){
 	message(paste("Working on resolution",r,"..."))
 	partition <- partitions[[r]]
 	# Get Modules.
@@ -300,15 +301,18 @@ for (r in 1:100){
 	# Group all WT samples from a tissue type together.
 	groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
 	groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
-
-	#groups <- as.factor(groups) # Coerce to factor.
-
 	# Fix levels (order).
 	g <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
-	box_order <- paste(g,net,sep=".")
-	as.factor(groups
-	levels(groups) <- box_order
-
+	groups <- as.factor(groups)
+	levels(groups) <- paste(g,net,sep=".")
+	## Generate plots...
+	# Use lapply to generate plots.
+	message("Generating plots, this will take several moments...")
+       	bplots <- lapply(ME_list,function(x) {
+			 ggplotVerboseBoxplot(x,groups)
+			     })
+	names(bplots) <- names(ME_list)
+	plots[[r]] <- bplots
 	# Perform KW tests.
 	KWdata <- t(sapply(ME_list, function(x) kruskal.test(x ~ groups[names(x)])))
 	KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary cols.
@@ -347,17 +351,7 @@ for (r in 1:100){
 	message("Summary of Dunnett's test changes for DBD-associated modules:")
 	print(moi)
 	message("\n")
-	## Generate plots...
-	# Order of the bars in the boxplot.
-
-	# Use lapply to generate plots.
-	message("Generating plots, this will take several moments...")
-       	plots <- lapply(ME_list,function(x) {
-			 ggplotVerboseBoxplot(x,groups,box_order)
-			     })
-	names(plots) <- names(ME_list)
-
-moi = unlist(modules_of_interest)
+}
 
 #------------------------------------------------------------------------------
 ## Generate PPI graphs.
