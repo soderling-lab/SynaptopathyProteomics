@@ -70,6 +70,175 @@ myfile <- list.files(rdatdir, pattern = ids[net], full.names = TRUE)
 partitions <- readRDS(myfile) 
 
 #------------------------------------------------------------------------------
+## Module enrichment for DBD-associated genes.
+#------------------------------------------------------------------------------
+
+# Load Disease ontology.
+geneSet <- "mouse_Combined_DBD_geneSets.RData"
+myfile <- list.files(rdatdir,pattern=geneSet,full.names=TRUE)
+GOcollection <- readRDS(myfile)
+
+# Perform disease enrichment analysis.
+myfile <- file.path(rdatdir,"3_Module_DBD_Enrichment.RData")
+if (!file.exists(myfile)){
+	message("Performing module enrichment analysis for DBD-associated genes...")
+	pbar <- txtProgressBar(min=1,max=100,style=3)
+	DBDresults <- lapply(seq_along(partitions), function(x) {
+				     setTxtProgressBar(pbar,x)
+				     result <- moduleGOenrichment(partitions, 
+						       x, 
+						       protmap,
+						       GOcollection)
+				     return(result)})
+	message("\n"); close(pbar) 
+	saveRDS(DBDresults,myfile)
+} else {
+	DBDresults <- readRDS(myfile)
+}
+
+# Check the number of significant modules at every resolution.
+nsig <- vector(mode="numeric",length(DBDresults))
+method <- "Bonferroni" # p-value adjust method for considering significance.
+disease_sig <- list()
+for (i in 1:length(DBDresults)){
+	namen <- sapply(DBDresults[[i]],function(x) any(x[[method]]<0.05))
+	disease_sig[[i]] <- sapply(strsplit(names(namen[namen]),"-"),"[",2)
+	nsig[i] <- sum(namen)
+}
+
+#------------------------------------------------------------------------------
+## Loop to explore changes in module summary expression.
+#------------------------------------------------------------------------------
+
+# Empty lists for output of loop:
+module_results <- list()
+ME_results <- list()
+KME_results <- list()
+KW_results <- list()
+plots <- list()
+DT_results <- list()
+nSigDT_results <- list()
+modules_of_interest <- list()
+
+# Loop:
+for (r in 1:100){
+	message(paste("Working on resolution",r,"..."))
+	partition <- partitions[[r]]
+	# Get Modules.
+	modules <- split(partition, partition)
+	names(modules) <- paste0("M", names(modules))
+	# Number of modules.
+	nModules <- sum(names(modules) != "M0")
+	message(paste("Number of modules:", nModules))
+	# Module size statistics.
+	mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
+	message(paste("Minumum module size:",mod_stats["Min."]))
+	message(paste("Median module size:",mod_stats["Median"]))
+	message(paste("Maximum module size:",mod_stats["Max."]))
+	# Percent not clustered.
+	percentNC <- sum(partition == 0) / length(partition)
+	message(paste("Percent of proteins not clustered:", 
+		      round(100 * percentNC, 2), "(%)"))
+	# Calculate Module Eigengenes.
+	# Note: Soft power does not influence MEs.
+	MEdata <- moduleEigengenes(data,
+	  colors = partition,
+	  softPower = 1, impute = FALSE
+	)
+	MEs <- as.matrix(MEdata$eigengenes)
+	# Get Percent Variance explained (PVE)
+	PVE <- MEdata$varExplained
+	names(PVE) <- names(modules)
+	meanPVE <- mean(as.numeric(PVE[names(PVE) != "M0"]))
+	message(paste("Mean module coherence (PVE):", 
+		      round(100 * meanPVE, 2), "(%)."))
+	# Create list of MEs.
+	ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
+	ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
+	names(ME_list) <- names(modules)
+	# Remove M0. Do this before p.adjustment.
+	ME_list <- ME_list[names(ME_list)!="M0"]
+	# Sample to group mapping.
+	traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
+	groups <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
+	names(groups) <- rownames(MEs)
+	# Group all WT samples from a tissue type together.
+	groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
+	groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
+	# Fix levels (order).
+	g <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
+	groups <- as.factor(groups)
+	levels(groups) <- paste(g,net,sep=".")
+	## Generate plots...
+	message("Generating plots, this will take several moments...")
+       	bplots <- lapply(ME_list,function(x) {
+			 ggplotVerboseBoxplot(x,groups)
+			     })
+	names(bplots) <- names(ME_list)
+	# Add Module name and PVE to plot titles. Simplify x-axis labels.
+	x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
+			  "Syngap1 HET","Ube3a KO"),2)
+	for (k in seq_along(bplots)) {
+		plot <- bplots[[k]]
+		namen <- names(bplots)[k]
+		txt <- paste("PVE:", round(PVE[namen], 3))
+		plot_title <- paste0(namen, " (", txt, plot$labels$title, ")")
+		plot$labels$title <- plot_title
+		plot <- plot + scale_x_discrete(labels = x_labels)
+		bplots[[k]] <- plot
+	} # Ends loop to fix plots.
+	# Perform KW tests.
+	KWdata <- t(sapply(ME_list, function(x) {
+				   kruskal.test(x ~ groups[names(x)])}))
+	KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary cols.
+	# Correct p-values for n comparisons.
+	method <- "bonferroni"
+	KWdata$p.adj <- p.adjust(KWdata$p.value, method)
+	# Significant modules.
+	alpha <- 0.05
+	sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
+	nSigModules <- length(sigModules)
+	message(paste0(
+	  "Number of modules with significant (p.adj < ", alpha, ")",
+	  " Kruskal-Wallis test: ", nSigModules,"."
+	))
+	# Dunnetts test for post-hoc comparisons.
+	# Note: P-values returned by DunnettTest have already been adjusted for 
+	# multiple comparisons!
+	cont <- paste("WT", net, sep = ".") # Control group.
+	DT_list <- lapply(ME_list, function(x) {
+				  DunnettTest(x ~ as.factor(groups[names(x)]), control = cont)
+	})
+	DT_list <- lapply(sapply(DT_list,"[",cont), as.data.frame)
+	names(DT_list) <- sapply(strsplit(names(DT_list),"\\."),"[",1)
+	# Number of significant changes.
+	alpha <- 0.05
+	nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
+	message("Summary of Dunnett's test changes for significant modules:")
+	print(nSigDT[sigModules])
+	nSigDisease <- sum(disease_sig[[r]] %in% sigModules)
+	message(paste("Number of significant modules with",
+		      "significant enrichment of DBD-associated genes:",
+		      nSigDisease))
+	# Numer of significant modules with disease association...
+	moi <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
+	message("Summary of Dunnett's test changes for DBD-associated modules:")
+	print(moi)
+	message("\n")
+	# Store results.
+	module_results[[r]] <- modules
+	ME_results[[r]] <- ME_list
+	KW_results[[r]] <- KWdata
+	plots[[r]] <- bplots 
+	DT_results[[r]] <- DT_list
+	nSigDT_results[[r]] <- nSigDT
+	modules_of_interest[[r]] <- moi
+}
+
+# Resolutions with two modules of interest:
+c(1:100)[sapply(modules_of_interest,length)==2]
+
+#------------------------------------------------------------------------------
 ## Compare partitions (similarity).
 #------------------------------------------------------------------------------
 # Evaluate similarity of graph partitions using the Folkes Mallow similarity 
@@ -102,7 +271,7 @@ n <- length(partitions)
 fmi_adjm <- matrix(fmi, nrow = n, ncol = n)
 colnames(fmi_adjm) <- rownames(fmi_adjm) <- paste0("R",seq(ncol(fmi_adjm)))
 
-# Convert to igraph object.
+# Convert to igraph object for modularity calculation.
 g <- graph_from_adjacency_matrix(fmi_adjm,mode="undirected",weighted=TRUE)
 
 # Convert matrix to distance object and cluster with hclust.
@@ -156,9 +325,11 @@ print(rep_partitions)
 
 # How many clusters in these partitions?
 rep_parts <- partitions[as.numeric(gsub("R","",rep_partitions))]
-sapply(rep_parts,function(x) length(unique(x)))
+#sapply(rep_parts,function(x) length(unique(x)))
 
+# Replace R55 with R54 for group 2.
 # Replace R83 with R77 for group 3.
+rep_partitions[2] <- "R55" # Partition with two disease associated modules.
 rep_partitions[3] <- "R77" # Partition with two disease associated modules.
 
 # Pick representative partitions...
@@ -207,7 +378,7 @@ contrasts <- expand.grid("M1"=rep_modules,"M2"=rep_modules,stringsAsFactors=FALS
 # comparisions. But the resulting matrix is easy to work with.
 myfile <- file.path(rdatdir,"3_Module_JS.RData")
 if (!file.exists(myfile)){
-	message("Calculating Module Jaacard Similarity!")
+	message("Calculating Module Jaacard Similarity...")
 	n <- dim(contrasts)[1]
 	modulejs <- vector("numeric",n)
 	pbar <- txtProgressBar(min=1,max=n,style=3)
@@ -270,6 +441,13 @@ g0 <- buildNetwork(ppis, entrez, taxid = 10090)
 # Remove self-connections and redundant edges.
 g0 <- simplify(g0)
 
+## FIXME: Plot of scale free topology.
+ppi_adjm <- as_adjacency_matrix(g0)
+dc <- apply(ppi_adjm,2,sum) # node degree is column sum.
+fit <- WGCNA::scaleFreeFitIndex(dc)
+r <- fit$Rsquared.SFT
+# Plot.
+
 # Loop through representative partitions, create graph.
 network_layers <- list()
 for (i in 1:length(rep_partitions)){
@@ -306,6 +484,7 @@ for (i in 1:length(rep_partitions)){
 	network_layers[[i]] <- g
 }
 
+## FIXME: Send graphs to cytoscape.
 # Send to cytoscape.
     library(RCy3)
     cytoscapePing()
@@ -314,255 +493,3 @@ for (i in 1:length(rep_partitions)){
     } else if (length(E(subg)) == 0) {
       message(paste("Warning:", namen, "contains no ppis!"))
     }
-
-#------------------------------------------------------------------------------
-## Module enrichment for DBD-associated genes.
-#------------------------------------------------------------------------------
-
-# Load Disease ontology.
-geneSet <- "mouse_Combined_DBD_geneSets.RData"
-myfile <- list.files(rdatdir,pattern=geneSet,full.names=TRUE)
-GOcollection <- readRDS(myfile)
-
-# Perform disease enrichment analysis.
-myfile <- file.path(rdatdir,"3_Module_DBD_Enrichment.RData")
-if (!file.exists(myfile)){
-	message("Performing module enrichment analysis for DBD-associated genes...")
-	pbar <- txtProgressBar(min=1,max=100,style=3)
-	DBDresults <- lapply(seq_along(partitions), function(x) {
-				     setTxtProgressBar(pbar,x)
-				     result <- moduleGOenrichment(partitions, 
-						       x, 
-						       protmap,
-						       GOcollection)
-				     return(result)})
-	message("\n"); close(pbar) 
-	saveRDS(DBDresults,myfile)
-} else {
-	DBDresults <- readRDS(myfile)
-}
-
-# Check the number of significant modules at every resolution.
-nsig <- vector(mode="numeric",length(DBDresults))
-method <- "Bonferroni" # p-value adjust method for considering significance.
-disease_sig <- list()
-for (i in 1:length(DBDresults)){
-	namen <- sapply(DBDresults[[i]],function(x) any(x[[method]]<0.05))
-	disease_sig[[i]] <- sapply(strsplit(names(namen[namen]),"-"),"[",2)
-	nsig[i] <- sum(namen)
-}
-
-#------------------------------------------------------------------------------
-## Loop to explore changes in module summary expression.
-#------------------------------------------------------------------------------
-
-# Empty lists for output of loop:
-module_results <- list()
-ME_results <- list()
-KME_results <- list()
-KW_results <- list()
-plots <- list()
-DT_results <- list()
-nSigDT_results <- list()
-modules_of_interest <- list()
-
-for (r in 1:100){
-	message(paste("Working on resolution",r,"..."))
-	partition <- partitions[[r]]
-	# Get Modules.
-	modules <- split(partition, partition)
-	names(modules) <- paste0("M", names(modules))
-	# Number of modules.
-	nModules <- sum(names(modules) != "M0")
-	message(paste("Number of modules:", nModules))
-	# Module size statistics.
-	mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
-	message(paste("Minumum module size:",mod_stats["Min."]))
-	message(paste("Median module size:",mod_stats["Median"]))
-	message(paste("Maximum module size:",mod_stats["Max."]))
-	# Percent not clustered.
-	percentNC <- sum(partition == 0) / length(partition)
-	message(paste("Percent of proteins not clustered:", 
-		      round(100 * percentNC, 2), "(%)"))
-	# Calculate Module Eigengenes.
-	# Note: Soft power does not influence MEs.
-	MEdata <- moduleEigengenes(data,
-	  colors = partition,
-	  softPower = 1, impute = FALSE
-	)
-	MEs <- as.matrix(MEdata$eigengenes)
-	# Get Percent Variance explained (PVE)
-	PVE <- MEdata$varExplained
-	names(PVE) <- names(modules)
-	meanPVE <- mean(as.numeric(PVE[names(PVE) != "M0"]))
-	message(paste("Mean module coherence (PVE):", 
-		      round(100 * meanPVE, 2), "(%)."))
-	# Create list of MEs.
-	ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
-	ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
-	names(ME_list) <- names(modules)
-	# Remove M0. Do this before p.adjustment.
-	ME_list <- ME_list[names(ME_list)!="M0"]
-	# Sample to group mapping.
-	traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
-	groups <- traits$Sample.Model.Tissue[match(rownames(MEs), traits$SampleID)]
-	names(groups) <- rownames(MEs)
-	# Group all WT samples from a tissue type together.
-	groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
-	groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
-	# Fix levels (order).
-	g <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
-	groups <- as.factor(groups)
-	levels(groups) <- paste(g,net,sep=".")
-	## Generate plots...
-	message("Generating plots, this will take several moments...")
-       	bplots <- lapply(ME_list,function(x) {
-			 ggplotVerboseBoxplot(x,groups)
-			     })
-	names(bplots) <- names(ME_list)
-	## FIXME:Fix plot titles.
-	##
-	# Perform KW tests.
-	KWdata <- t(sapply(ME_list, function(x) kruskal.test(x ~ groups[names(x)])))
-	KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary cols.
-	# Correct p-values for n comparisons.
-	method <- "bonferroni"
-	KWdata$p.adj <- p.adjust(KWdata$p.value, method)
-	# Significant modules.
-	alpha <- 0.05
-	sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
-	nSigModules <- length(sigModules)
-	message(paste0(
-	  "Number of modules with significant (p.adj < ", alpha, ")",
-	  " Kruskal-Wallis test: ", nSigModules,"."
-	))
-	# Dunnetts test for post-hoc comparisons.
-	# Note: P-values returned by DunnettTest have already been adjusted for 
-	# multiple comparisons!
-	cont <- paste("WT", net, sep = ".") # Control group.
-	DT_list <- lapply(ME_list, function(x) {
-				  DunnettTest(x ~ as.factor(groups[names(x)]), control = cont)
-	})
-	DT_list <- lapply(sapply(DT_list,"[",cont), as.data.frame)
-	names(DT_list) <- sapply(strsplit(names(DT_list),"\\."),"[",1)
-	# Number of significant changes.
-	alpha <- 0.05
-	nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
-	message("Summary of Dunnett's test changes for significant modules:")
-	print(nSigDT[sigModules])
-	nSigDisease <- sum(disease_sig[[r]] %in% sigModules)
-	message(paste("Number of significant modules with",
-		      "significant enrichment of DBD-associated genes:",
-		      nSigDisease))
-	# Numer of significant modules with disease association...
-	moi <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
-	message("Summary of Dunnett's test changes for DBD-associated modules:")
-	print(moi)
-	message("\n")
-	# Store results.
-	module_results[[r]] <- modules
-	ME_results[[r]] <- ME_list
-	KW_results[[r]] <- KWdata
-	plots[[r]] <- bplots 
-	DT_results[[r]] <- DT_list
-	nSigDT_results[[r]] <- nSigDT
-	modules_of_interest[[r]] <- moi
-}
-
-#------------------------------------------------------------------------------
-## Generate PPI graphs.
-#------------------------------------------------------------------------------
-
-# Should graphs be sent to Cytoscape with RCy3?
-send_to_cytoscape <- TRUE
-
-# Load mouse interactome.
-data("musInteractome")
-
-# Subset mouse interactome, keep data from mouse, human, and rat.
-idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
-ppis <- subset(musInteractome, idx)
-
-# Get entrez IDs for all proteins in data.
-prots <- colnames(data)
-entrez <- protmap$entrez[match(prots, protmap$ids)]
-
-# Build a graph with all proteins.
-g <- buildNetwork(ppis, entrez, taxid = 10090)
-
-# Loop through modules.
-# FIXME: How to handle modules with no PPIs?
-# FIXME: apply node color,size, other attributes..
-for (i in c(1:17, 19:length(modules))) {
-  message(paste("Working on module", names(modules)[i], "..."))
-  prots <- names(modules[[i]])
-  entrez <- protmap$entrez[match(prots, protmap$ids)]
-  subg <- induced_subgraph(g, entrez)
-  # Add sigprot vertex attribute.
-  sigEntrez <- protmap$entrez[match(sigProts, protmap$ids)]
-  anySig <- names(V(subg)) %in% sigEntrez
-  subg <- set_vertex_attr(subg, "sigProt", value = anySig)
-  # Switch node names to gene symbols.
-  subg <- set_vertex_attr(subg, "name", index = V(subg), vertex_attr(subg, "symbol"))
-  # Remove self-connections and redundant edges.
-  subg <- igraph::simplify(subg)
-  # Send to cytoscape.
-  namen <- names(modules)[i]
-  if (send_to_cytoscape) {
-    library(RCy3)
-    cytoscapePing()
-    if (length(E(subg)) > 0) {
-      createNetworkFromIgraph(subg, namen)
-    } else if (length(E(subg)) == 0) {
-      message(paste("Warning:", namen, "contains no ppis!"))
-    }
-  }
-  # How many ppis?
-  message(paste("Number of PPIs among nodes:", length(E(subg))))
-  # How many sig prots?
-  message(paste("Number of sig proteins:", sum(prots %in% sigProts)))
-  message("\n")
-} # Ends loop.
-
-# Some convergent modules are sparse!
-
-#--------------------------------------------------------------------
-## Examining module similarity between partitions.
-#--------------------------------------------------------------------
-
-# Which module is similar to my module???
-
-# Iterate through all comparisons of resolution, calculate jaacard
-# similarity (js) between M2 in partition 1 and partition 2.
-df <- expand.grid(r1=c(1:100),r2=c(1:100)) 
-contrasts <- split(df,seq(nrow(df)))
-module_js <- vector(mode="numeric",length=length(contrasts))
-for (i in seq_along(contrasts)){
-	if (i==1) { pbar <- txtProgressBar(min=i,max=length(contrasts),style=3)}
-	setTxtProgressBar(pbar,i)
-	# First module.
-	r1 <- contrasts[[i]][["r1"]]
-	p1 <- partitions[[r1]]
-	m1 <- split(p1,p1)
-	names(m1) <- paste0("M",names(m1))
-	x <- names(m1[["M2"]])
-	# Second module.
-	r2 <- contrasts[[i]][["r2"]]
-	p2 <- partitions[[r2]]
-	m2 <- split(p2,p2)
-	names(m2) <- paste0("M",names(m2))
-	y <- names(m2[["M2"]])
-	s <- js(x,y)
-	module_js[i] <- s
-	if (i == length(contrasts)) { close(pbar);message("\n") } 
-}
-
-## Is my module conserved across resolutions...
-r <- 1
-moi <- "M1"
-output <- list()
-
-for (i in seq_along(module_js)){
-
-	if (i==1) { pbar <- txtProgressBar(min=i,max=length(s),style=3)}
-
