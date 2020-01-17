@@ -1,1704 +1,0 @@
-Performing module enrichment analysis for DBD-associated genes...
-  |                                                                              |                                                                      |   0%  |                                                                              |=                                                                     |   1%  |                                                                              |=                                                                     |   2%  |                                                                              |==                                                                    |   3%  |                                                                              |===                                                                   |   4%  |                                                                              |====                                                                  |   5%  |                                                                              |====                                                                  |   6%  |                                                                              |=====                                                                 |   7%  |                                                                              |======                                                                |   8%  |                                                                              |======                                                                |   9%  |                                                                              |=======                                                               |  10%  |                                                                              |========                                                              |  11%  |                                                                              |========                                                              |  12%  |                                                                              |=========                                                             |  13%  |                                                                              |==========                                                            |  14%  |                                                                              |===========                                                           |  15%  |                                                                              |===========                                                           |  16%  |                                                                              |============                                                          |  17%  |                                                                              |=============                                                         |  18%  |                                                                              |=============                                                         |  19%  |                                                                              |==============                                                        |  20%  |                                                                              |===============                                                       |  21%  |                                                                              |================                                                      |  22%  |                                                                              |================                                                      |  23%  |                                                                              |=================                                                     |  24%  |                                                                              |==================                                                    |  25%  |                                                                              |==================                                                    |  26%  |                                                                              |===================                                                   |  27%  |                                                                              |====================                                                  |  28%  |                                                                              |=====================                                                 |  29%  |                                                                              |=====================                                                 |  30%  |                                                                              |======================                                                |  31%  |                                                                              |=======================                                               |  32%  |                                                                              |=======================                                               |  33%  |                                                                              |========================                                              |  34%  |                                                                              |=========================                                             |  35%  |                                                                              |=========================                                             |  36%  |                                                                              |==========================                                            |  37%  |                                                                              |===========================                                           |  38%  |                                                                              |============================                                          |  39%  |                                                                              |============================                                          |  40%  |                                                                              |=============================                                         |  41%  |                                                                              |==============================                                        |  42%  |                                                                              |==============================                                        |  43%  |                                                                              |===============================                                       |  44%  |                                                                              |================================                                      |  45%  |                                                                              |=================================                                     |  46%  |                                                                              |=================================                                     |  47%  |                                                                              |==================================                                    |  48%  |                                                                              |===================================                                   |  49%  |                                                                              |===================================                                   |  51%  |                                                                              |====================================                                  |  52%  |                                                                              |=====================================                                 |  53%  |                                                                              |=====================================                                 |  54%  |                                                                              |======================================                                |  55%  |                                                                              |=======================================                               |  56%  |                                                                              |========================================                              |  57%  |                                                                              |========================================                              |  58%  |                                                                              |=========================================                             |  59%  |                                                                              |==========================================                            |  60%  |                                                                              |==========================================                            |  61%  |                                                                              |===========================================                           |  62%  |                                                                              |============================================                          |  63%  |                                                                              |=============================================                         |  64%  |                                                                              |=============================================                         |  65%  |                                                                              |==============================================                        |  66%  |                                                                              |===============================================                       |  67%  |                                                                              |===============================================                       |  68%  |                                                                              |================================================                      |  69%  |                                                                              |=================================================                     |  70%  |                                                                              |=================================================                     |  71%  |                                                                              |==================================================                    |  72%  |                                                                              |===================================================                   |  73%  |                                                                              |====================================================                  |  74%  |                                                                              |====================================================                  |  75%  |                                                                              |=====================================================                 |  76%  |                                                                              |======================================================                |  77%  |                                                                              |======================================================                |  78%  |                                                                              |=======================================================               |  79%  |                                                                              |========================================================              |  80%  |                                                                              |=========================================================             |  81%  |                                                                              |=========================================================             |  82%  |                                                                              |==========================================================            |  83%  |                                                                              |===========================================================           |  84%  |                                                                              |===========================================================           |  85%  |                                                                              |============================================================          |  86%  |                                                                              |=============================================================         |  87%  |                                                                              |==============================================================        |  88%  |                                                                              |==============================================================        |  89%  |                                                                              |===============================================================       |  90%  |                                                                              |================================================================      |  91%  |                                                                              |================================================================      |  92%  |                                                                              |=================================================================     |  93%  |                                                                              |==================================================================    |  94%  |                                                                              |==================================================================    |  95%  |                                                                              |===================================================================   |  96%  |                                                                              |====================================================================  |  97%  |                                                                              |===================================================================== |  98%  |                                                                              |===================================================================== |  99%  |                                                                              |======================================================================| 100%
-
-
-Working on resolution 1 ...
-Number of modules: 3
-Minumum module size: 871
-Median module size: 958
-Maximum module size: 1089
-Percent of proteins not clustered: 0 (%)
-Mean module coherence (PVE): 31.01 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 2 ...
-Number of modules: 3
-Minumum module size: 872
-Median module size: 963
-Maximum module size: 1083
-Percent of proteins not clustered: 0 (%)
-Mean module coherence (PVE): 31 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 3 ...
-Number of modules: 3
-Minumum module size: 873
-Median module size: 958
-Maximum module size: 1084
-Percent of proteins not clustered: 0.1 (%)
-Mean module coherence (PVE): 31.02 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 4 ...
-Number of modules: 3
-Minumum module size: 870
-Median module size: 962
-Maximum module size: 1078
-Percent of proteins not clustered: 0.27 (%)
-Mean module coherence (PVE): 31.07 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 5 ...
-Number of modules: 3
-Minumum module size: 873
-Median module size: 961
-Maximum module size: 1074
-Percent of proteins not clustered: 0.34 (%)
-Mean module coherence (PVE): 31.07 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 6 ...
-Number of modules: 3
-Minumum module size: 876
-Median module size: 953
-Maximum module size: 1071
-Percent of proteins not clustered: 0.62 (%)
-Mean module coherence (PVE): 31.13 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 7 ...
-Number of modules: 3
-Minumum module size: 874
-Median module size: 951
-Maximum module size: 1064
-Percent of proteins not clustered: 0.99 (%)
-Mean module coherence (PVE): 31.23 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 8 ...
-Number of modules: 3
-Minumum module size: 872
-Median module size: 949
-Maximum module size: 1060
-Percent of proteins not clustered: 1.27 (%)
-Mean module coherence (PVE): 31.31 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 9 ...
-Number of modules: 3
-Minumum module size: 870
-Median module size: 946
-Maximum module size: 1055
-Percent of proteins not clustered: 1.61 (%)
-Mean module coherence (PVE): 31.4 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 10 ...
-Number of modules: 3
-Minumum module size: 867
-Median module size: 937
-Maximum module size: 1045
-Percent of proteins not clustered: 2.36 (%)
-Mean module coherence (PVE): 31.62 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 11 ...
-Number of modules: 3
-Minumum module size: 868
-Median module size: 921
-Maximum module size: 1039
-Percent of proteins not clustered: 3.08 (%)
-Mean module coherence (PVE): 31.81 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 12 ...
-Number of modules: 3
-Minumum module size: 859
-Median module size: 919
-Maximum module size: 1032
-Percent of proteins not clustered: 3.7 (%)
-Mean module coherence (PVE): 32.02 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 13 ...
-Number of modules: 3
-Minumum module size: 856
-Median module size: 911
-Maximum module size: 1019
-Percent of proteins not clustered: 4.52 (%)
-Mean module coherence (PVE): 32.26 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 14 ...
-Number of modules: 3
-Minumum module size: 848
-Median module size: 899
-Maximum module size: 1012
-Percent of proteins not clustered: 5.45 (%)
-Mean module coherence (PVE): 32.56 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 15 ...
-Number of modules: 3
-Minumum module size: 842
-Median module size: 891
-Maximum module size: 1004
-Percent of proteins not clustered: 6.2 (%)
-Mean module coherence (PVE): 32.79 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 16 ...
-Number of modules: 3
-Minumum module size: 834
-Median module size: 879
-Maximum module size: 994
-Percent of proteins not clustered: 7.23 (%)
-Mean module coherence (PVE): 33.12 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 17 ...
-Number of modules: 3
-Minumum module size: 828
-Median module size: 869
-Maximum module size: 988
-Percent of proteins not clustered: 7.98 (%)
-Mean module coherence (PVE): 33.36 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 18 ...
-Number of modules: 3
-Minumum module size: 822
-Median module size: 863
-Maximum module size: 981
-Percent of proteins not clustered: 8.64 (%)
-Mean module coherence (PVE): 33.58 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 19 ...
-Number of modules: 3
-Minumum module size: 814
-Median module size: 853
-Maximum module size: 972
-Percent of proteins not clustered: 9.56 (%)
-Mean module coherence (PVE): 33.9 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 20 ...
-Number of modules: 3
-Minumum module size: 810
-Median module size: 845
-Maximum module size: 964
-Percent of proteins not clustered: 10.25 (%)
-Mean module coherence (PVE): 34.12 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 21 ...
-Number of modules: 3
-Minumum module size: 802
-Median module size: 842
-Maximum module size: 951
-Percent of proteins not clustered: 11.07 (%)
-Mean module coherence (PVE): 34.38 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 22 ...
-Number of modules: 3
-Minumum module size: 798
-Median module size: 831
-Maximum module size: 947
-Percent of proteins not clustered: 11.72 (%)
-Mean module coherence (PVE): 34.6 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 23 ...
-Number of modules: 3
-Minumum module size: 791
-Median module size: 822
-Maximum module size: 934
-Percent of proteins not clustered: 12.71 (%)
-Mean module coherence (PVE): 34.92 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 24 ...
-Number of modules: 3
-Minumum module size: 782
-Median module size: 813
-Maximum module size: 920
-Percent of proteins not clustered: 13.81 (%)
-Mean module coherence (PVE): 35.29 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 25 ...
-Number of modules: 3
-Minumum module size: 778
-Median module size: 803
-Maximum module size: 907
-Percent of proteins not clustered: 14.74 (%)
-Mean module coherence (PVE): 35.57 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 26 ...
-Number of modules: 3
-Minumum module size: 769
-Median module size: 784
-Maximum module size: 890
-Percent of proteins not clustered: 16.28 (%)
-Mean module coherence (PVE): 36.07 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 27 ...
-Number of modules: 4
-Minumum module size: 41
-Median module size: 770
-Maximum module size: 881
-Percent of proteins not clustered: 15.63 (%)
-Mean module coherence (PVE): 35.52 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 28 ...
-Number of modules: 4
-Minumum module size: 70
-Median module size: 761
-Maximum module size: 871
-Percent of proteins not clustered: 15.59 (%)
-Mean module coherence (PVE): 34.91 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M2 
- 3  0 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 29 ...
-Number of modules: 4
-Minumum module size: 150
-Median module size: 749.5
-Maximum module size: 857
-Percent of proteins not clustered: 14.12 (%)
-Mean module coherence (PVE): 34.78 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M3 M4 
- 3  1  2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 30 ...
-Number of modules: 6
-Minumum module size: 79
-Median module size: 449.5
-Maximum module size: 844
-Percent of proteins not clustered: 8.53 (%)
-Mean module coherence (PVE): 33.07 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  2  3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 31 ...
-Number of modules: 7
-Minumum module size: 52
-Median module size: 158
-Maximum module size: 822
-Percent of proteins not clustered: 7.03 (%)
-Mean module coherence (PVE): 33.04 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  2  3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 32 ...
-Number of modules: 7
-Minumum module size: 34
-Median module size: 164
-Maximum module size: 822
-Percent of proteins not clustered: 8.09 (%)
-Mean module coherence (PVE): 33.39 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M6 
- 3  2  3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 33 ...
-Number of modules: 8
-Minumum module size: 32
-Median module size: 153.5
-Maximum module size: 799
-Percent of proteins not clustered: 7.06 (%)
-Mean module coherence (PVE): 34.06 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  1  3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 34 ...
-Number of modules: 9
-Minumum module size: 21
-Median module size: 157
-Maximum module size: 784
-Percent of proteins not clustered: 6.85 (%)
-Mean module coherence (PVE): 34.78 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  2  2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 35 ...
-Number of modules: 9
-Minumum module size: 27
-Median module size: 150
-Maximum module size: 772
-Percent of proteins not clustered: 7.68 (%)
-Mean module coherence (PVE): 35.47 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  1  3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 36 ...
-Number of modules: 9
-Minumum module size: 33
-Median module size: 163
-Maximum module size: 759
-Percent of proteins not clustered: 7.98 (%)
-Mean module coherence (PVE): 35.15 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  1  2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 37 ...
-Number of modules: 10
-Minumum module size: 25
-Median module size: 105.5
-Maximum module size: 731
-Percent of proteins not clustered: 7.2 (%)
-Mean module coherence (PVE): 35.4 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 4.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 M8 
- 3  2  2  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 38 ...
-Number of modules: 10
-Minumum module size: 27
-Median module size: 122
-Maximum module size: 717
-Percent of proteins not clustered: 8.05 (%)
-Mean module coherence (PVE): 35.83 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  2  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 39 ...
-Number of modules: 9
-Minumum module size: 28
-Median module size: 159
-Maximum module size: 705
-Percent of proteins not clustered: 10.08 (%)
-Mean module coherence (PVE): 36.1 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  2  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 40 ...
-Number of modules: 10
-Minumum module size: 29
-Median module size: 124
-Maximum module size: 694
-Percent of proteins not clustered: 9.18 (%)
-Mean module coherence (PVE): 36.28 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 M5 
- 3  2  1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 41 ...
-Number of modules: 10
-Minumum module size: 27
-Median module size: 122
-Maximum module size: 677
-Percent of proteins not clustered: 10.49 (%)
-Mean module coherence (PVE): 36.61 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M1 M4 
- 3  2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M1 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 42 ...
-Number of modules: 10
-Minumum module size: 27
-Median module size: 110.5
-Maximum module size: 672
-Percent of proteins not clustered: 11.51 (%)
-Mean module coherence (PVE): 37.62 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
-M2 M4 M5 
- 3  2  2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 43 ...
-Number of modules: 11
-Minumum module size: 28
-Median module size: 82
-Maximum module size: 665
-Percent of proteins not clustered: 11.07 (%)
-Mean module coherence (PVE): 37.25 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 4.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M5 M11 
-  3   2   1   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 44 ...
-Number of modules: 11
-Minumum module size: 32
-Median module size: 76
-Maximum module size: 659
-Percent of proteins not clustered: 12.37 (%)
-Mean module coherence (PVE): 38.03 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 4.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M5 M12 
-  3   2   1   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 45 ...
-Number of modules: 10
-Minumum module size: 31
-Median module size: 98
-Maximum module size: 655
-Percent of proteins not clustered: 14.12 (%)
-Mean module coherence (PVE): 38.51 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 2.
-Summary of Dunnett's test changes for significant modules:
-M2 M4 
- 3  2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 46 ...
-Number of modules: 15
-Minumum module size: 28
-Median module size: 48
-Maximum module size: 652
-Percent of proteins not clustered: 9.18 (%)
-Mean module coherence (PVE): 37.73 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M10 M13 M15 
-  3   2   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 47 ...
-Number of modules: 15
-Minumum module size: 25
-Median module size: 48
-Maximum module size: 642
-Percent of proteins not clustered: 10.28 (%)
-Mean module coherence (PVE): 37.95 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M7 M10 M15 
-  3   2   3   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 48 ...
-Number of modules: 16
-Minumum module size: 24
-Median module size: 47.5
-Maximum module size: 637
-Percent of proteins not clustered: 10.8 (%)
-Mean module coherence (PVE): 39.16 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 4.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M5 M15 
-  3   2   1   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 49 ...
-Number of modules: 17
-Minumum module size: 16
-Median module size: 42
-Maximum module size: 631
-Percent of proteins not clustered: 11.82 (%)
-Mean module coherence (PVE): 40.5 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M10 M15 M20 
-  3   2   2   3   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 50 ...
-Number of modules: 17
-Minumum module size: 22
-Median module size: 48
-Maximum module size: 625
-Percent of proteins not clustered: 11.99 (%)
-Mean module coherence (PVE): 40.06 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 4.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M8 M10 
-  3   2   3   1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 51 ...
-Number of modules: 19
-Minumum module size: 15
-Median module size: 45
-Maximum module size: 620
-Percent of proteins not clustered: 10.97 (%)
-Mean module coherence (PVE): 40.65 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M7  M8 M13 M17 M18 M19 
-  3   2   3   4   3   3   1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 52 ...
-Number of modules: 16
-Minumum module size: 18
-Median module size: 55
-Maximum module size: 618
-Percent of proteins not clustered: 14.6 (%)
-Mean module coherence (PVE): 40.61 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 4.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M14 M20 
-  3   2   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 53 ...
-Number of modules: 20
-Minumum module size: 13
-Median module size: 40
-Maximum module size: 616
-Percent of proteins not clustered: 12.68 (%)
-Mean module coherence (PVE): 41.55 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M8 M10 M12 
-  3   2   3   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 54 ...
-Number of modules: 19
-Minumum module size: 18
-Median module size: 40
-Maximum module size: 606
-Percent of proteins not clustered: 13.64 (%)
-Mean module coherence (PVE): 40.91 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M14 M20 
-  3   2   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 55 ...
-Number of modules: 23
-Minumum module size: 11
-Median module size: 32
-Maximum module size: 602
-Percent of proteins not clustered: 12.03 (%)
-Mean module coherence (PVE): 42.21 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M22 M31 
-  3   2   2   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 56 ...
-Number of modules: 24
-Minumum module size: 16
-Median module size: 36
-Maximum module size: 599
-Percent of proteins not clustered: 12.71 (%)
-Mean module coherence (PVE): 43.33 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M10 M13 M18 M23 M25 
-  3   2   3   2   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 57 ...
-Number of modules: 26
-Minumum module size: 11
-Median module size: 35.5
-Maximum module size: 592
-Percent of proteins not clustered: 11.89 (%)
-Mean module coherence (PVE): 43.38 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M7 M12 M23 M24 M29 
-  3   3   4   3   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 58 ...
-Number of modules: 23
-Minumum module size: 12
-Median module size: 31
-Maximum module size: 589
-Percent of proteins not clustered: 15.94 (%)
-Mean module coherence (PVE): 44.25 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M7  M8 M16 M21 
-  3   3   2   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 59 ...
-Number of modules: 22
-Minumum module size: 14
-Median module size: 41.5
-Maximum module size: 583
-Percent of proteins not clustered: 16.35 (%)
-Mean module coherence (PVE): 43.59 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 8.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M13 M18 M19 M25 M26 
-  3   2   3   3   2   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 60 ...
-Number of modules: 28
-Minumum module size: 12
-Median module size: 30.5
-Maximum module size: 579
-Percent of proteins not clustered: 14.5 (%)
-Mean module coherence (PVE): 45.52 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M15 M20 M23 M34 
-  3   3   2   3   1   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 61 ...
-Number of modules: 27
-Minumum module size: 11
-Median module size: 32
-Maximum module size: 575
-Percent of proteins not clustered: 15.18 (%)
-Mean module coherence (PVE): 45.07 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M16 M24 M25 
-  3   3   2   1   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 62 ...
-Number of modules: 27
-Minumum module size: 11
-Median module size: 31
-Maximum module size: 570
-Percent of proteins not clustered: 16 (%)
-Mean module coherence (PVE): 45.37 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 9.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M10 M18 M23 M24 M27 M30 
-  3   3   3   2   3   4   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 63 ...
-Number of modules: 29
-Minumum module size: 8
-Median module size: 31
-Maximum module size: 566
-Percent of proteins not clustered: 15.66 (%)
-Mean module coherence (PVE): 46.09 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M10 M23 M24 M26 M29 
-  3   3   2   2   3   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 64 ...
-Number of modules: 29
-Minumum module size: 11
-Median module size: 31
-Maximum module size: 565
-Percent of proteins not clustered: 17 (%)
-Mean module coherence (PVE): 46.41 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M9 M10 M20 M25 M28 
-  3   3   3   2   2   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 65 ...
-Number of modules: 29
-Minumum module size: 12
-Median module size: 31
-Maximum module size: 557
-Percent of proteins not clustered: 17.58 (%)
-Mean module coherence (PVE): 46.74 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 8.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M8 M10 M19 M23 M26 M28 
-  3   3   2   4   3   2   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 66 ...
-Number of modules: 28
-Minumum module size: 10
-Median module size: 31
-Maximum module size: 554
-Percent of proteins not clustered: 18.99 (%)
-Mean module coherence (PVE): 46.9 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4  M8 M12 M28 
-  3   3   2   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 67 ...
-Number of modules: 28
-Minumum module size: 11
-Median module size: 30
-Maximum module size: 546
-Percent of proteins not clustered: 20.25 (%)
-Mean module coherence (PVE): 46.88 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M9 M19 M22 M23 
-  3   2   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 68 ...
-Number of modules: 31
-Minumum module size: 8
-Median module size: 28
-Maximum module size: 542
-Percent of proteins not clustered: 20.22 (%)
-Mean module coherence (PVE): 48.4 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M21 M25 M29 M36 
-  3   3   2   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 69 ...
-Number of modules: 33
-Minumum module size: 8
-Median module size: 25
-Maximum module size: 537
-Percent of proteins not clustered: 20.22 (%)
-Mean module coherence (PVE): 49.19 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 3.
-Summary of Dunnett's test changes for significant modules:
- M2 M18 M40 
-  3   4   1 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 70 ...
-Number of modules: 33
-Minumum module size: 9
-Median module size: 26
-Maximum module size: 535
-Percent of proteins not clustered: 19.98 (%)
-Mean module coherence (PVE): 48.83 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M17 M21 M41 
-  3   3   3   1   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 71 ...
-Number of modules: 37
-Minumum module size: 11
-Median module size: 21
-Maximum module size: 526
-Percent of proteins not clustered: 20.08 (%)
-Mean module coherence (PVE): 49.78 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M19 M21 M26 M28 M38 
-  3   3   3   3   3   2   4 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 72 ...
-Number of modules: 35
-Minumum module size: 7
-Median module size: 24
-Maximum module size: 519
-Percent of proteins not clustered: 21.83 (%)
-Mean module coherence (PVE): 49.74 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2  M7 M20 M23 M25 M28 M30 
-  3   2   3   2   3   2   4 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 73 ...
-Number of modules: 35
-Minumum module size: 9
-Median module size: 21
-Maximum module size: 515
-Percent of proteins not clustered: 22.86 (%)
-Mean module coherence (PVE): 50.39 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2 M14 M19 M22 M30 
-  3   4   1   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> 
-   3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 74 ...
-Number of modules: 34
-Minumum module size: 7
-Median module size: 23
-Maximum module size: 513
-Percent of proteins not clustered: 24.26 (%)
-Mean module coherence (PVE): 51.11 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M11 M17 M23 
-  3   2   4   4   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 75 ...
-Number of modules: 42
-Minumum module size: 5
-Median module size: 19.5
-Maximum module size: 507
-Percent of proteins not clustered: 21.38 (%)
-Mean module coherence (PVE): 51.6 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 8.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M19 M20 M26 M29 M30 M34 
-  3   3   4   2   3   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 76 ...
-Number of modules: 39
-Minumum module size: 9
-Median module size: 21
-Maximum module size: 500
-Percent of proteins not clustered: 24.02 (%)
-Mean module coherence (PVE): 51.6 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2  M4 M14 M26 M36 M48 
-  3   3   2   3   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 77 ...
-Number of modules: 44
-Minumum module size: 9
-Median module size: 16
-Maximum module size: 490
-Percent of proteins not clustered: 23.47 (%)
-Mean module coherence (PVE): 52.6 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2 M10 M14 M20 M31 M33 M40 
-  3   3   3   2   2   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 2
-  M2 <NA> <NA>  M20 
-   3   NA   NA    2 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 78 ...
-Number of modules: 42
-Minumum module size: 8
-Median module size: 21
-Maximum module size: 489
-Percent of proteins not clustered: 23.68 (%)
-Mean module coherence (PVE): 52.49 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2 M11 M16 M25 M31 
-  3   3   4   3   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 79 ...
-Number of modules: 42
-Minumum module size: 4
-Median module size: 21.5
-Maximum module size: 484
-Percent of proteins not clustered: 25.36 (%)
-Mean module coherence (PVE): 53.44 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2 M11 M16 M17 M27 M28 M31 
-  3   3   2   4   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 80 ...
-Number of modules: 41
-Minumum module size: 8
-Median module size: 22
-Maximum module size: 481
-Percent of proteins not clustered: 25.91 (%)
-Mean module coherence (PVE): 53.65 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2 M16 M17 M18 M32 M35 M40 
-  3   3   3   3   3   3   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 81 ...
-Number of modules: 45
-Minumum module size: 9
-Median module size: 20
-Maximum module size: 476
-Percent of proteins not clustered: 26.32 (%)
-Mean module coherence (PVE): 54.32 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2 M13 M14 M16 M46 M49 
-  3   4   2   2   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 82 ...
-Number of modules: 44
-Minumum module size: 7
-Median module size: 19
-Maximum module size: 471
-Percent of proteins not clustered: 27.04 (%)
-Mean module coherence (PVE): 54.71 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 8.
-Summary of Dunnett's test changes for significant modules:
- M2 M13 M14 M15 M27 M28 M38 M42 
-  3   3   3   3   2   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 83 ...
-Number of modules: 46
-Minumum module size: 7
-Median module size: 18
-Maximum module size: 466
-Percent of proteins not clustered: 26.73 (%)
-Mean module coherence (PVE): 55.3 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 8.
-Summary of Dunnett's test changes for significant modules:
- M2 M16 M17 M25 M26 M29 M56 M58 
-  3   3   3   2   3   2   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 84 ...
-Number of modules: 46
-Minumum module size: 7
-Median module size: 17
-Maximum module size: 460
-Percent of proteins not clustered: 28.62 (%)
-Mean module coherence (PVE): 56.23 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M3  M4 M14 M19 M37 
-  3   3   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M3 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 85 ...
-Number of modules: 44
-Minumum module size: 8
-Median module size: 18.5
-Maximum module size: 455
-Percent of proteins not clustered: 29.85 (%)
-Mean module coherence (PVE): 56.23 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M3 M15 M16 M26 M29 
-  3   3   3   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M3 <NA> <NA> <NA> 
-   3   NA   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 86 ...
-Number of modules: 44
-Minumum module size: 5
-Median module size: 19
-Maximum module size: 449
-Percent of proteins not clustered: 29.78 (%)
-Mean module coherence (PVE): 56.45 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M3 M14 M19 M24 M33 M34 
-  3   3   3   1   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M3 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 87 ...
-Number of modules: 48
-Minumum module size: 5
-Median module size: 17
-Maximum module size: 443
-Percent of proteins not clustered: 30.29 (%)
-Mean module coherence (PVE): 57.46 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 9.
-Summary of Dunnett's test changes for significant modules:
- M3  M5 M12 M16 M18 M27 M30 M32 M36 
-  3   3   3   3   3   2   3   3   4 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M3 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 88 ...
-Number of modules: 47
-Minumum module size: 6
-Median module size: 17
-Maximum module size: 437
-Percent of proteins not clustered: 31.43 (%)
-Mean module coherence (PVE): 57.77 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2 M12 M14 M16 M23 M30 
-  3   3   3   3   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> 
-   3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 89 ...
-Number of modules: 47
-Minumum module size: 7
-Median module size: 16
-Maximum module size: 425
-Percent of proteins not clustered: 32.49 (%)
-Mean module coherence (PVE): 58.1 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2 M16 M18 M21 M29 M46 M72 
-  3   3   3   3   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M2 <NA> <NA> 
-   3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 90 ...
-Number of modules: 48
-Minumum module size: 7
-Median module size: 16
-Maximum module size: 420
-Percent of proteins not clustered: 32.66 (%)
-Mean module coherence (PVE): 58.35 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2 M13 M15 M19 M20 M38 
-  3   2   2   1   3   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 91 ...
-Number of modules: 46
-Minumum module size: 6
-Median module size: 15
-Maximum module size: 417
-Percent of proteins not clustered: 34.54 (%)
-Mean module coherence (PVE): 59.32 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2 M17 M18 M26 M35 M85 
-  3   3   3   2   3   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-M2 
- 3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 92 ...
-Number of modules: 51
-Minumum module size: 6
-Median module size: 14
-Maximum module size: 284
-Percent of proteins not clustered: 33.41 (%)
-Mean module coherence (PVE): 59.98 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M1  M7 M10 M16 M20 M25 M29 
-  3   3   3   3   3   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M1 <NA> <NA> <NA> 
-   3   NA   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 93 ...
-Number of modules: 52
-Minumum module size: 5
-Median module size: 15
-Maximum module size: 408
-Percent of proteins not clustered: 34.89 (%)
-Mean module coherence (PVE): 60.24 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2 M12 M14 M18 M27 M28 M32 
-  3   3   3   3   3   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 
-  NA    3 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 94 ...
-Number of modules: 53
-Minumum module size: 7
-Median module size: 15
-Maximum module size: 406
-Percent of proteins not clustered: 34.58 (%)
-Mean module coherence (PVE): 60.35 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2 M16 M20 M27 M37 
-  3   3   3   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 95 ...
-Number of modules: 52
-Minumum module size: 7
-Median module size: 15
-Maximum module size: 402
-Percent of proteins not clustered: 36.5 (%)
-Mean module coherence (PVE): 60.99 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M3 M14 M18 M20 M21 M30 
-  3   3   3   3   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M3 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 96 ...
-Number of modules: 48
-Minumum module size: 6
-Median module size: 15
-Maximum module size: 253
-Percent of proteins not clustered: 38.66 (%)
-Mean module coherence (PVE): 61.56 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M1 M15 M19 M21 M24 M33 
-  3   2   2   3   3   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M1 <NA> <NA> <NA> 
-   3   NA   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 97 ...
-Number of modules: 59
-Minumum module size: 6
-Median module size: 13
-Maximum module size: 391
-Percent of proteins not clustered: 36.67 (%)
-Mean module coherence (PVE): 61.86 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 7.
-Summary of Dunnett's test changes for significant modules:
- M2 M18 M23 M24 M29 M53 M58 
-  3   3   3   3   2   3   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> 
-  NA    3   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 98 ...
-Number of modules: 57
-Minumum module size: 5
-Median module size: 12
-Maximum module size: 239
-Percent of proteins not clustered: 37.59 (%)
-Mean module coherence (PVE): 62.49 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 8.
-Summary of Dunnett's test changes for significant modules:
- M1 M20 M22 M23 M33 M41 M47 M50 
-  3   2   3   3   3   2   2   2 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-  M1 <NA> <NA> <NA> 
-   3   NA   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 99 ...
-Number of modules: 60
-Minumum module size: 5
-Median module size: 13
-Maximum module size: 238
-Percent of proteins not clustered: 37.42 (%)
-Mean module coherence (PVE): 63.02 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 5.
-Summary of Dunnett's test changes for significant modules:
- M2 M17 M22 M45 M53 
-  3   3   3   3   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
-Working on resolution 100 ...
-Number of modules: 67
-Minumum module size: 5
-Median module size: 10
-Maximum module size: 232
-Percent of proteins not clustered: 36.94 (%)
-Mean module coherence (PVE): 63.52 (%).
-Number of modules with significant (p.adj < 0.05) Kruskal-Wallis test: 6.
-Summary of Dunnett's test changes for significant modules:
- M2 M15 M19 M23 M28 M38 
-  3   3   3   3   2   3 
-Number of significant modules with significant enrichment of DBD-associated genes: 1
-<NA>   M2 <NA> <NA> 
-  NA    3   NA   NA 
-Summary of Dunnett's test changes for DBD-associated modules:
-
-
