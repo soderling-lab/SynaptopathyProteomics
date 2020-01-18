@@ -60,3 +60,23 @@ def graph_from_adjm(adjm,weighted=True,signed=True):
     if weighted: g = Graph.TupleList(edge_tuples,weights=True)
     if not weighted: g = Graph.TupleList(edge_tuples,weights=False)
     return g
+
+#--------------------------------------------------------------------
+# add_method
+
+def add_method(cls):
+    ''' Add a method to an existing class.
+    Example:
+    @add_method(A)
+    def foo():
+        print('hello world!')
+    '''
+    from functools import wraps 
+    def decorator(func):
+        @wraps(func) 
+        def wrapper(self, *args, **kwargs): 
+            return func(*args, **kwargs)
+        setattr(cls, func.__name__, wrapper)
+        # Note we are not binding func, but wrapper which accepts self but does exactly the same as func
+        return func # returning func means func can still be used normally
+    return decorator

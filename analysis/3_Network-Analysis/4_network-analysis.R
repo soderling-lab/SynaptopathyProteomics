@@ -1,11 +1,11 @@
 #!/usr/bin/env Rscript
 
 #-------------------------------------------------------------------------------
-# Set-up the workspace.
+## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
 # User parameters to change:
-net <- "Striatum" # Which network are we analyzing? One of: c("Cortex","Striatum")
+net <- "Cortex" # Which network are we analyzing? One of: c("Cortex","Striatum")
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -82,8 +82,8 @@ GOcollection <- readRDS(myfile)
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
 if (!file.exists(myfile)){
 	message("Performing module enrichment analysis for DBD-associated genes...")
-	pbar <- txtProgressBar(min=1,max=100,style=3)
-	DBDresults <- lapply(seq_along(partitions), function(x) {
+	pbar <- txtProgressBar(min=1,max=10,style=3)
+	DBDresults <- lapply(seq_along(c(1:10)), function(x) {
 				     setTxtProgressBar(pbar,x)
 				     result <- moduleGOenrichment(partitions, 
 						       x, 
@@ -112,15 +112,30 @@ for (i in 1:length(DBDresults)){
 #--------------------------------------------------------------------
 
 # Build a GO collection.
-GOcollection <- buildGOcollection(organism="mouse")
+myfile <- file.path(rdatdir,"3_musGOcollection.RData")
+if (!file.exists(myfile)) {
+  GOcollection <- buildGOcollection(organism="mouse")
+  saveRDS(GOcollection,myfile)
+} else {
+  message("Loading saved GO collection!")
+  GOcollection <- readRDS(myfile)
+}
 
 # Loop to perform GO enrichment analysis.
-GOresults <- list()
-pbar <- txtProgressBar(min=1,max=100,style=3)
-for (i in 1:length(partitions)){
-	SetTxtProgresBar(pbar,i)
-	GOresults[[i]] <- moduleGOenrichment(partitions,i, protmap, GOcollection)
-}
+myfile <- file.path(rdatdir,paste0("3_All_",net,"_Module_GO_enrichment.RData"))
+if (!file.exists(myfile)) {
+  GOresults <- list()
+  pbar <- txtProgressBar(min=1,max=100,style=3)
+  for (i in 1:length(partitions)){
+    setTxtProgressBar(pbar,i)
+    GOresults[[i]] <- moduleGOenrichment(partitions,i, protmap, GOcollection)
+    if (i==length(partitions)) { close(pbar) ; message("/n") }
+  } # Ends loop.
+  saveRDS(GOresults,myfile)
+  } else {
+    message("Loading saved module GO enrichment results.")
+    GOresults <- readRDS(myfile)
+  } # Ends if/else.
 
 #------------------------------------------------------------------------------
 ## Loop to explore changes in module summary expression.
@@ -135,7 +150,6 @@ plots <- list()
 DT_results <- list()
 nSigDT_results <- list()
 modules_of_interest <- list()
-hubs_results <- list()
 
 # Loop:
 for (r in 1:100) {
@@ -164,7 +178,16 @@ for (r in 1:100) {
 	)
 	MEs <- as.matrix(MEdata$eigengenes)
 	# Module membership (KME).
-	KMEdata <- signedKME(data,MEdata$eigengenes,corFnc="bicor")
+	KMEdata <- signedKME(data,MEdata$eigengenes,corFnc="bicor",
+		                     outputColumnName = "M")
+	KME_list <- lapply(seq(ncol(KMEdata)),function(x) {
+		  v <- vector("numeric",length=nrow(KMEdata))
+	    names(v) <- rownames(KMEdata)
+	    v[] <- KMEdata[[x]]
+	    v <- v[order(v,decreasing=TRUE)]
+	    return(v)
+	    })
+	names(KME_list) <- colnames(KMEdata)
 	# Get Percent Variance explained (PVE)
 	PVE <- MEdata$varExplained
 	names(PVE) <- names(modules)
@@ -224,8 +247,10 @@ for (r in 1:100) {
 		      nSigDisease))
 	# Numer of significant modules with disease association...
 	moi <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
-	message("Summary of Dunnett's test changes for DBD-associated modules:")
-	print(moi)
+	if (length(moi) > 0) {
+	  message("Summary of Dunnett's test changes for DBD-associated modules:")
+	  print(moi)
+	}
 	message("\n")
 	## Generate plots...
        	bplots <- lapply(ME_list,function(x) {
@@ -235,7 +260,7 @@ for (r in 1:100) {
 	# Add Module name and PVE to plot titles. Simplify x-axis labels.
 	x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 			  "Syngap1 HET","Ube3a KO"),2)
-	# Loop to clean up plots.
+	# Loop to clean-up plots.
 	for (k in seq_along(bplots)) {
 		# Add title and fix xlabels.
 		plot <- bplots[[k]]
@@ -261,7 +286,7 @@ for (r in 1:100) {
 	# Store results.
 	module_results[[r]] <- modules
 	ME_results[[r]] <- ME_list
-	KME_results[[r]] <- KMEdata
+	KME_results[[r]] <- KME_list
 	KW_results[[r]] <- KWdata
 	plots[[r]] <- bplots 
 	DT_results[[r]] <- DT_list
@@ -269,16 +294,17 @@ for (r in 1:100) {
 	modules_of_interest[[r]] <- moi
 } # Ends loop.
 
-# Name lists.
+# Name lists results.
 names(module_results) <- paste0("R",c(1:100))
 names(ME_results) <- paste0("R",c(1:100))
+names(KME_results) <- paste0("R",c(1:100))
 names(KW_results) <- paste0("R",c(1:100))
 names(plots) <- paste0("R",c(1:100)) 
 names(DT_results) <- paste0("R",c(1:100))
 names(nSigDT_results) <- paste0("R",c(1:100))
 names(modules_of_interest) <- paste0("R",c(1:100))
 
-## Collect modules of interest... modules changing in all 4 genotypes...
+# Collect modules of interest: modules changing in all 4 genotypes.
 moi <- names(unlist(sapply(nSigDT_results,function(x) x[x==4]),recursive=FALSE))
 
 # Status.
@@ -286,7 +312,7 @@ message(paste("Number of modules exhibiting convergent dysregulation",
               "across all partitions:",length(moi)))
 
 #--------------------------------------------------------------------
-## How are these moi related?
+## How are these modules related?
 #--------------------------------------------------------------------
 
 # Collect all modules in a named list--includes M0.
@@ -337,12 +363,13 @@ hc <- hclust(as.dist(1 - adjm_js), method)
 
 # Examine dendrogram to asses how many (k) groups to cut it into.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro 
 
 # Convert to igraph object for modularity calculation.
 g <- graph_from_adjacency_matrix(adjm_js,mode="undirected",weighted=TRUE)
 
 # Examine number of groups and modularity given cut height.
-h <- seq(0,4,by=0.01)
+h <- seq(0,max(hc$height),by=0.01)
 hc_partitions <- lapply(h,function(x) cutree(hc,h=x))
 k <- sapply(h,function(x) length(unique(cutree(hc,h=x))))
 q <- sapply(hc_partitions,function(x) modularity(g, x, weights = edge_attr(g, "weight")))
@@ -378,43 +405,81 @@ for (i in 1:length(groups)) {
   rep_modules[i] <- names(col_sums[col_sums == min(col_sums)])
 }
 
+# Status.
+message("Representative divergent modules:")
+print(rep_modules[order(rep_modules)])
+
 #------------------------------------------------------------------------------
 ## Examine Representative modules.
 #------------------------------------------------------------------------------
 
-moi
+for (i in 1:length(rep_modules)){
+m <- rep_modules[i]
+idr <- unlist(strsplit(m,"\\."))[1]
+idm <- unlist(strsplit(m,"\\."))[2]
+plot <- plots[[idr]][[idm]]
+print(plot)
+prots <- all_modules[[m]]
+nprots <- length(prots)
+modSigProts <- prots[prots %in% sigProts]
+nsig <- length(modSigProts)
+kme <- KME_results[[idr]][[idm]]
+hubProts <- head(kme)
+hubSigProts <- hubProts[names(hubProts) %in% modSigProts]
+nHubSigProts <- length(hubSigProts)
+#x = kme[sigProts]
+#x= x[order(x,decreasing=TRUE)]
+# Summary.
+message(paste0(m," Summary:"))
+message(paste0("... Total proteins: ",nprots))
+message(paste0("... Sig proteins: ",nsig, " (",round(nsig/nprots,2)," %)"))
+message(paste0("... ... Sig hubs:"))
+print(hubSigProts)
+}
 
-sum(all_modules$R46.M11 %in% sigProts)
+#--------------------------------------------------------------------
+## Network summary plots.
+#--------------------------------------------------------------------
 
-sum(all_modules$R69.M29 %in% sigProts)
+# Number of clusters.
+# Cluster sizes (min, max, mean?)
+# Module quality - PVE
+# Percent unclustered.
+# Quality (Modularity)
+# Modularity of PPI graph.
+# Modularity of GOfx graph.
 
-
-#------------------------------------------------------------------------------
-## Compare partitions (similarity).
-#------------------------------------------------------------------------------
-# Evaluate similarity of graph partitions using the Folkes Mallow similarity 
-# index (fmi).
+#--------------------------------------------------------------------
+## Compare network partitions.
+#--------------------------------------------------------------------
+# Evaluate similarity of all graph partitions using the Folkes Mallow 
+# similarity index (fmi).
 
 # Generate contrasts matrix--all possible combinations of partitions.
-contrasts <- expand.grid(seq_along(partitions), seq_along(partitions))
-
-# Function to calculate fmi given row of contrasts matrix.
-fx <- function(x) {
-	p1 <- partitions[[as.numeric(x[1])]]
-	p2 <- partitions[[as.numeric(x[2])]]
-	fmi <- dendextend::FM_index_R(p1,p2)[1]
-	return(fmi)
-}
+contrasts <- expand.grid("P1"=seq_along(partitions), "P2"=seq_along(partitions))
+contrasts <- split(contrasts,seq(nrow(contrasts)))
 
 # Load or loop through all contrasts, calculate fmi.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Partitions_FMI.RData"))
-if (file.exists(myfile)){
-	message("Loading saved FMI.")
-	fmi <- readRDS(myfile)
+if (!file.exists(myfile)){
+  message("Calculating FMI, this will take several minutes...")
+  pbar <- txtProgressBar(min=1,max=length(contrasts),style=3)
+  fmi <- vector("numeric",length(contrasts))
+  for (i in seq_along(fmi)){
+    setTxtProgressBar(pbar,i)
+    p1 <- partitions[[contrasts[[i]]$P1]]
+    p2 <- partitions[[contrasts[[i]]$P2]]
+    if (p1 == p2) {
+      fmi[i] <- 1
+    } else {
+      fmi[i] <- dendextend::FM_index_R(p1,p2)
+      }
+    if (i==length(contrasts)) { close(pbar); message("\n") }
+  } # ends loop.
+  saveRDS(fmi,myfile)
 } else {
-	message("Calculating FMI, this will take several minutes...")
-	fmi <- apply(contrasts,1,fx)
-	saveRDS(fmi,myfile)
+  message("Loading saved FMI!")
+  fmi <- readRDS(myfile)
 }
 
 # Extract similarity statistic and convert this into a matrix.
@@ -430,10 +495,12 @@ method <- "ward.D2" # ward.D2
 hc <- hclust(as.dist(1 - fmi_adjm), method)
 
 # Try to reorder the leaves in resolution order.
+library(vegan)
 hc <- reorder(hc, c(1:100))
 
 # Examine dendrogram to asses how many (k) groups to cut it into.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro
 
 # Examine number of groups and modularity given cut height.
 h <- seq(0,max(hc$height),by=0.01)
@@ -445,6 +512,8 @@ q <- sapply(hc_partitions,function(x) modularity(g, x, weights = edge_attr(g, "w
 best_q <- unique(q[seq(h)[q==max(q)]])
 best_h <- median(h[seq(h)[q==max(q)]])
 best_k <- unique(k[seq(k)[q==max(q)]])
+message(paste("Cut height that produces the best partition:",best_h))
+message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")"))
 
 # Generate groups of similar partitions.
 k <- best_k
@@ -476,11 +545,12 @@ print(rep_partitions)
 
 # How many clusters in these partitions?
 rep_parts <- partitions[as.numeric(gsub("R","",rep_partitions))]
-sapply(rep_parts,function(x) length(unique(x)))
+nModules <- sapply(rep_parts,function(x) length(unique(x)))
+nModules
 
+if (net == "Cortex"){
 # Replace R55 with R54 for group 2.
 # Replace R83 with R77 for group 3.
-if (net == "Cortex"){
 	rep_partitions[2] <- "R55" # Partition with two disease associated modules.
 	rep_partitions[3] <- "R77" # Partition with two disease associated modules.
 }
@@ -489,7 +559,7 @@ if (net == "Cortex"){
 rep_partitions <- c("R1",rep_partitions,"R100")
 
 #------------------------------------------------------------------------------
-## Evaluate similarity between modules at different resolutions...
+## Evaluate similarity between modules from representative partitions.
 #------------------------------------------------------------------------------
 
 # Collect names of modules at every resolution.
@@ -589,12 +659,18 @@ g0 <- buildNetwork(ppis, entrez, taxid = 10090)
 # Remove self-connections and redundant edges.
 g0 <- simplify(g0)
 
-## FIXME: Plot of scale free topology.
+# Topology of PPI graph.
 ppi_adjm <- as_adjacency_matrix(g0)
 dc <- apply(ppi_adjm,2,sum) # node degree is column sum.
 fit <- WGCNA::scaleFreeFitIndex(dc)
 r <- fit$Rsquared.SFT
-## FIXME: plot.
+## FIXME: plots. Hist and scatter.
+
+# Toplogy of co-expression graph.
+dc <- apply(adjm,2,sum) # node degree is column sum.
+fit <- WGCNA::scaleFreeFitIndex(dc)
+r <- fit$Rsquared.SFT
+print(r)
 
 # Loop through representative partitions, create graph.
 network_layers <- list()
@@ -630,14 +706,11 @@ for (i in 1:length(rep_partitions)){
 	# Switch node names to gene symbols.
 	g <- set_vertex_attr(g, "name", index = V(g), vertex_attr(g, "symbol"))
 	network_layers[[i]] <- g
+	
+	# Send to cytoscape.
+	library(RCy3)
+	cytoscapePing()
+	createNetworkFromIgraph(g, rep_partitions[i])
 }
 
-## FIXME: Send graphs to cytoscape.
-# Send to cytoscape.
-    library(RCy3)
-    cytoscapePing()
-    if (length(E(subg)) > 0) {
-      createNetworkFromIgraph(subg, namen)
-    } else if (length(E(subg)) == 0) {
-      message(paste("Warning:", namen, "contains no ppis!"))
-    }
+
