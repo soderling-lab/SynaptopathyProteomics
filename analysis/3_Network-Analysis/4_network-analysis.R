@@ -77,7 +77,7 @@ myfile <- list.files(rdatdir, pattern = ids[net], full.names = TRUE)
 partitions <- readRDS(myfile) 
 
 # Reset partition index.
-#partitions <- lapply(partitions, reset_index)
+partitions <- lapply(partitions, reset_index)
 
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
