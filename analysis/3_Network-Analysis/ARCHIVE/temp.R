@@ -77,7 +77,7 @@ myfile <- list.files(rdatdir, pattern = ids[net], full.names = TRUE)
 partitions <- readRDS(myfile) 
 
 # Reset partition index.
-#partitions <- lapply(partitions, reset_index)
+partitions <- lapply(partitions, reset_index)
 
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
@@ -90,20 +90,15 @@ GOcollection <- readRDS(myfile)
 
 # Perform disease enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
-if (!file.exists(myfile)) {
-	message("Performing module enrichment analysis for DBD-associated genes...")
-	DBDresults <- list()
-	for (i in 1:100) {
-		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
-		setTxtProgressBar(pbar,i)
-		DBDresults[[i]] <- moduleGOenrichment(partitions,i,protmap,GOcollection)
-		if (i==100) { message("\n"); close(pbar) }
-	}
-	saveRDS(DBDresults,myfile)
-} else {
-	message("Loading saved module DBD enrichment results!")
-	DBDresults <- readRDS(myfile)
+message("Performing module enrichment analysis for DBD-associated genes...")
+DBDresults <- list()
+for (i in 1:100) {
+	if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
+	setTxtProgressBar(pbar,i)
+	DBDresults[[i]] <- moduleGOenrichment(partitions,i,protmap,GOcollection)
+	if (i==100) { message("\n"); close(pbar) }
 }
+saveRDS(DBDresults,myfile)
 
 # Collect modules with significant enrichment of DBD-genes.
 method <- "Bonferroni" 
@@ -113,10 +108,6 @@ for (i in 1:length(DBDresults)){
 	namen <- sapply(DBDresults[[i]],function(x) any(x[[method]] < alpha))
 	disease_sig[[i]] <- sapply(strsplit(names(namen[namen]),"-"),"[",2)
 }
-nsig <- sum(sapply(disease_sig,length))
-
-# Status.
-message(paste("Total number of disease associated modules:",nsig))
 
 #--------------------------------------------------------------------
 ## Module GO enrichment.
@@ -140,7 +131,7 @@ if (!file.exists(myfile)) {
   for (i in 1:length(partitions)){
     setTxtProgressBar(pbar,i)
     GOresults[[i]] <- moduleGOenrichment(partitions,i, protmap, GOcollection)
-    if (i==length(partitions)) { close(pbar) ; message("\n") }
+    if (i==length(partitions)) { close(pbar) ; message("/n") }
   } # Ends loop.
   saveRDS(GOresults,myfile)
   } else {
@@ -155,7 +146,6 @@ if (!file.exists(myfile)) {
 # Empty lists for output of loop:
 module_results <- list()
 ME_results <- list()
-PVE_results <- list()
 KME_results <- list()
 KW_results <- list()
 plots <- list()
@@ -163,53 +153,71 @@ DT_results <- list()
 nSigDT_results <- list()
 modules_of_interest <- list()
 
-# Loop:
-for (r in 1:100) {
-	message(paste("Working on resolution",r,"..."))
 	partition <- partitions[[r]]
-	# Get Modules.
-	modules <- split(partition, partition)
-	names(modules) <- paste0("M", names(modules))
-	# Number of modules.
-	nModules <- sum(names(modules) != "M0")
-	message(paste("Number of modules:", nModules))
-	# Module size statistics.
-	mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
-	message(paste("Minumum module size:",mod_stats["Min."]))
-	message(paste("Median module size:",mod_stats["Median"]))
-	message(paste("Maximum module size:",mod_stats["Max."]))
-	# Percent not clustered.
-	percentNC <- sum(partition == 0) / length(partition)
-	message(paste("Percent of proteins not clustered:", 
-		      round(100 * percentNC, 2), "(%)"))
-	# Calculate Module Eigengenes.
-	# Note: Soft power does not influence MEs.
-	MEdata <- moduleEigengenes(data,
-	  colors = partition,
-	  softPower = 1, impute = FALSE
-	)
-	MEs <- as.matrix(MEdata$eigengenes)
-	# Module membership (KME).
-	KMEdata <- signedKME(data,MEdata$eigengenes,corFnc="bicor",
-		                     outputColumnName = "M")
-	KME_list <- lapply(seq(ncol(KMEdata)),function(x) {
-		  v <- vector("numeric",length=nrow(KMEdata))
-	    names(v) <- rownames(KMEdata)
-	    v[] <- KMEdata[[x]]
-	    v <- v[order(v,decreasing=TRUE)]
-	    return(v)
+
+# Get Modules from every partition.
+modules <- lapply(partitions, function(x) split(x,x))
+names(modules) <- paste0("R", c(1:length(modules)))
+modules <- lapply(modules, function(x) { 
+			  names(x) <- paste0("M", c(1:length(x)))
+			  return(x) 
+})
+
+# Number of modules.
+nModules <- sapply(modules,function(x) sum(names(x) != "M0"))
+
+# Percent not clustered.
+percentNC <- sapply(partitions,function(x) sum(x == 0) / length(x))
+
+# Calculate Module Eigengenes.	
+# Note: Soft power does not influence MEs.
+softPower <- 1
+MEdata <- lapply(partitions, function(x) moduleEigengenes(data, x, softPower))
+
+# Calculate module membership (KME).
+getKME <- function(x){
+	KMEdata <- signedKME(datExpr=data,
+			     datME=x$eigengenes,
+			     corFnc="bicor",
+			     outputColumnName = "M")
+	return(KMEdata)
+}
+KMEdata <- lapply(MEdata,getKME)
+# Add resolution prefix to column names of KMEdata.
+KMEdata <- lapply(c(1:100), function(i) {
+	       df <- KMEdata[[i]]
+	       colnames(df) <- paste0("R",i,".",colnames(df))
+	       return(df)
+			     })
+# Collect all KME data in single df.
+KMEdata <- do.call(cbind,KMEdata)
+
+# Refomat module membership as a list of vectors.
+KME_list <- lapply(seq(ncol(KMEdata)),function(x) {
+		  KMEvec <- vector("numeric",length=nrow(KMEdata))
+	    names(KMEvec) <- rownames(KMEdata)
+	    KMEvec[] <- KMEdata[[x]]
+	    KMEvec <- KMEvec[order(KMEvec,decreasing=TRUE)]
+	    return(KMEvec)
 	    })
-	names(KME_list) <- colnames(KMEdata)
-	# Get Percent Variance explained (PVE).
-	PVE <- as.numeric(MEdata$varExplained)
-	names(PVE) <- names(modules)
-	medianPVE <- median(PVE[names(PVE) != "M0"])
-	message(paste("Median module coherence (PVE):", 
-		      round(100 * medianPVE, 2), "(%)."))
-	# Create list of MEs.
-	ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
+names(KME_list) <- colnames(KMEdata)
+
+# Get Percent Variance explained (PVE).
+PVE <- lapply(MEdata,function(x) x$varExplained)
+
+# Set PVE names to names of modules.
+fx <- function(x,y) { names(x) <- names(y); return(x) }
+PVE <- mapply(fx, PVE, modules)
+
+medianPVE <- sapply(PVE,function(x) median(as.numeric(x[names(x) != "M0"])))
+
+# Create list of MEs.
+MEs <- lapply(MEdata,function(x) as.matrix(x$eigengenes))
+
+ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
 	ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
 	names(ME_list) <- names(modules)
+
 	# Remove M0. Do this before p-value adjustment.
 	ME_list <- ME_list[names(ME_list)!="M0"]
 	# Sample to group mapping.
@@ -293,13 +301,12 @@ for (r in 1:100) {
 		df$symbol[df$p<0.0005] <- "***"
 		if (any(df$p<0.05)) {
 			plot <- plot + annotate("text",x=df$xpos,y=df$ypos,label=df$symbol,size=7) }
-		# Store results in list.
-		bplots[[k]] <- plot
+		# Store in list.
+	bplots[[k]] <- plot
 	} # Ends loop to fix plots.
-	# Store results in lists.
+	# Store results.
 	module_results[[r]] <- modules
 	ME_results[[r]] <- ME_list
-	PVE_results[[r]] <- PVE
 	KME_results[[r]] <- KME_list
 	KW_results[[r]] <- KWdata
 	plots[[r]] <- bplots 
@@ -308,7 +315,7 @@ for (r in 1:100) {
 	modules_of_interest[[r]] <- moi
 } # Ends loop.
 
-# Name results lists.
+# Name lists results.
 names(module_results) <- paste0("R",c(1:100))
 names(ME_results) <- paste0("R",c(1:100))
 names(KME_results) <- paste0("R",c(1:100))
@@ -318,22 +325,15 @@ names(DT_results) <- paste0("R",c(1:100))
 names(nSigDT_results) <- paste0("R",c(1:100))
 names(modules_of_interest) <- paste0("R",c(1:100))
 
-quit()
-
 # Collect modules of interest: modules changing in all 4 genotypes.
 moi <- names(unlist(sapply(nSigDT_results,function(x) x[x==4]),recursive=FALSE))
-
-# Resolutions from which the moi are drawn:
-roi <- gsub("\\.M[1-9]{1,3}","",moi)
 
 # Status.
 message(paste("Number of modules exhibiting convergent dysregulation",
               "across all partitions:",length(moi)))
 
-# Status.
-n <- sum(sapply(modules_of_interest,length))
-message(paste("Number of DBD-associated modules exhibiting dysregulation",
-              "across all partitions:",n))
+# Resolutions from which the moi are drawn:
+roi <- gsub("\\.M[1-9]{1,3}","",moi)
 
 #--------------------------------------------------------------------
 ## How convergent modules related?
@@ -380,10 +380,10 @@ n <- length(moi)
 adjm_js <- matrix(modulejs,nrow=n,ncol=n)
 colnames(adjm_js) <- rownames(adjm_js) <- moi
 
-# Convert similarity matrix to distance matrix, and then
-# cluster with hclust.
-method <- "ward.D2" # ward.D2, ward.D, single,complete,average,mcquitty,median,centroid
+# Convert similarity matrix to distance obj. and cluster with hclust.
+method <- "ward.D2" # ward.D2
 hc <- hclust(as.dist(1 - adjm_js), method)
+
 # Examine dendrogram.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
 dendro 
@@ -411,7 +411,7 @@ hc_partition <- cutree(hc, k)
 groups <- split(hc_partition,hc_partition)
 
 # Get representative module from each group, its medoid.
-# The medoid is the module which is most similar (closest) 
+# The medoid is the partition which is most similar (closest) 
 # to all others in its group.
 # Loop to get the medoid of each group:
 rep_modules <- vector("character",length(groups))
@@ -538,11 +538,50 @@ print(dbd_modules[order(dbd_modules)])
 # Get resolutions from which representative modules are drawn.
 dbd_roi <- gsub("\\.M[1-9]{1,3}","",dbd_modules)
 
+#------------------------------------------------------------------------------
+## Examine modules of interest.
+#------------------------------------------------------------------------------
+
+for (i in 1:length(rep_modules)){
+m <- rep_modules[i]
+idr <- unlist(strsplit(m,"\\."))[1]
+idm <- unlist(strsplit(m,"\\."))[2]
+plot <- plots[[idr]][[idm]]
+print(plot)
+prots <- all_modules[[m]]
+nprots <- length(prots)
+modSigProts <- prots[prots %in% sigProts]
+nsig <- length(modSigProts)
+kme <- KME_results[[idr]][[idm]]
+hubProts <- head(kme)
+hubSigProts <- hubProts[names(hubProts) %in% modSigProts]
+nHubSigProts <- length(hubSigProts)
+#x = kme[sigProts]
+#x= x[order(x,decreasing=TRUE)]
+# Summary.
+message(paste0(m," Summary:"))
+message(paste0("... Total proteins: ",nprots))
+message(paste0("... Sig proteins: ",nsig, " (",round(nsig/nprots,2)," %)"))
+message(paste0("... ... Sig hubs:"))
+print(hubSigProts)
+}
+
 #--------------------------------------------------------------------
-## Examine the overall structure of the network.
+## Network summary plots.
 #--------------------------------------------------------------------
-# Identify representative partitions of the network by evaluating 
-# the similarity of all graph partitions using the Folkes Mallow 
+
+# Number of clusters.
+# Cluster sizes (min, max, mean?)
+# Module quality - PVE
+# Percent unclustered.
+# Quality (Modularity)
+# Modularity of PPI graph.
+# Modularity of GOfx graph.
+
+#--------------------------------------------------------------------
+## Identify representative partitions of the network.
+#--------------------------------------------------------------------
+# Evaluate similarity of all graph partitions using the Folkes Mallow 
 # similarity index (fmi).
 
 # Generate contrasts matrix--all possible combinations of partitions.
@@ -636,15 +675,13 @@ print(rep_partitions)
 rep_parts <- partitions[as.numeric(gsub("R","",rep_partitions))]
 nModules <- sapply(rep_parts,function(x) length(unique(x)))
 
-#------------------------------------------------------------------------------
-## Evaluate similarity between modules from select partitions.
-#------------------------------------------------------------------------------
-
-# Combine representative partitions with partitions from resolutions of interest.
+# All resolutions of interest.
 all_roi <- unique(c(roi,dbd_roi,rep_partitions))
+all_roi <- c("R1",all_roi[order(all_roi)],"R100")
 
-# Add R1 and R100 as terminal endpoints.
-all_roi <- c("R1",all_roi[order(all_roi)],"R100") 
+#------------------------------------------------------------------------------
+## Evaluate similarity between modules from representative partitions.
+#------------------------------------------------------------------------------
 
 # Collect names of modules at every resolution.
 all_modules <- list()
@@ -820,44 +857,4 @@ for (i in 1:length(rep_partitions)){
 
 
 
-
-#------------------------------------------------------------------------------
-## Examine modules of interest.
-#------------------------------------------------------------------------------
-
-for (i in 1:length(rep_modules)){
-m <- rep_modules[i]
-idr <- unlist(strsplit(m,"\\."))[1]
-idm <- unlist(strsplit(m,"\\."))[2]
-plot <- plots[[idr]][[idm]]
-print(plot)
-prots <- all_modules[[m]]
-nprots <- length(prots)
-modSigProts <- prots[prots %in% sigProts]
-nsig <- length(modSigProts)
-kme <- KME_results[[idr]][[idm]]
-hubProts <- head(kme)
-hubSigProts <- hubProts[names(hubProts) %in% modSigProts]
-nHubSigProts <- length(hubSigProts)
-#x = kme[sigProts]
-#x= x[order(x,decreasing=TRUE)]
-# Summary.
-message(paste0(m," Summary:"))
-message(paste0("... Total proteins: ",nprots))
-message(paste0("... Sig proteins: ",nsig, " (",round(nsig/nprots,2)," %)"))
-message(paste0("... ... Sig hubs:"))
-print(hubSigProts)
-}
-
-#--------------------------------------------------------------------
-## Network summary plots.
-#--------------------------------------------------------------------
-
-# Number of clusters.
-# Cluster sizes (min, max, mean?)
-# Module quality - PVE
-# Percent unclustered.
-# Quality (Modularity)
-# Modularity of PPI graph.
-# Modularity of GOfx graph.
 

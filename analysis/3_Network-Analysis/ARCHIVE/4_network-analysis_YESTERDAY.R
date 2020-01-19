@@ -1,11 +1,5 @@
 #!/usr/bin/env Rscript
 
-# Find representative partitions of the graph.
-# Find modules of interest:
-#     1. DBD-associated modules.
-#     2. Convergent modules.
-# Combine these resolutions and generate multi-resolution graph.
-
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
@@ -25,7 +19,6 @@ suppressPackageStartupMessages({
   library(getPPIs)
   library(DescTools)
   library(igraph)
-  library(vegan)
 })
 
 # Directories.
@@ -76,9 +69,6 @@ ids <- c("Cortex"="14942508","Striatum"="14940918")
 myfile <- list.files(rdatdir, pattern = ids[net], full.names = TRUE)
 partitions <- readRDS(myfile) 
 
-# Reset partition index.
-#partitions <- lapply(partitions, reset_index)
-
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
@@ -90,33 +80,32 @@ GOcollection <- readRDS(myfile)
 
 # Perform disease enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
-if (!file.exists(myfile)) {
+if (!file.exists(myfile)){
 	message("Performing module enrichment analysis for DBD-associated genes...")
-	DBDresults <- list()
-	for (i in 1:100) {
-		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
-		setTxtProgressBar(pbar,i)
-		DBDresults[[i]] <- moduleGOenrichment(partitions,i,protmap,GOcollection)
-		if (i==100) { message("\n"); close(pbar) }
-	}
+	pbar <- txtProgressBar(min=1,max=10,style=3)
+	DBDresults <- lapply(seq_along(c(1:10)), function(x) {
+				     setTxtProgressBar(pbar,x)
+				     result <- moduleGOenrichment(partitions, 
+						       x, 
+						       protmap,
+						       GOcollection)
+				     return(result)})
+	message("\n"); close(pbar) 
 	saveRDS(DBDresults,myfile)
 } else {
-	message("Loading saved module DBD enrichment results!")
+	message("Loading saved disease enrichment results!")
 	DBDresults <- readRDS(myfile)
 }
 
-# Collect modules with significant enrichment of DBD-genes.
-method <- "Bonferroni" 
-alpha <- 0.05
+# Check the number of significant modules at every resolution.
+nsig <- vector(mode="numeric",length(DBDresults))
+method <- "Bonferroni" # p-value adjust method for considering significance.
 disease_sig <- list()
 for (i in 1:length(DBDresults)){
-	namen <- sapply(DBDresults[[i]],function(x) any(x[[method]] < alpha))
+	namen <- sapply(DBDresults[[i]],function(x) any(x[[method]]<0.05))
 	disease_sig[[i]] <- sapply(strsplit(names(namen[namen]),"-"),"[",2)
+	nsig[i] <- sum(namen)
 }
-nsig <- sum(sapply(disease_sig,length))
-
-# Status.
-message(paste("Total number of disease associated modules:",nsig))
 
 #--------------------------------------------------------------------
 ## Module GO enrichment.
@@ -140,11 +129,11 @@ if (!file.exists(myfile)) {
   for (i in 1:length(partitions)){
     setTxtProgressBar(pbar,i)
     GOresults[[i]] <- moduleGOenrichment(partitions,i, protmap, GOcollection)
-    if (i==length(partitions)) { close(pbar) ; message("\n") }
+    if (i==length(partitions)) { close(pbar) ; message("/n") }
   } # Ends loop.
   saveRDS(GOresults,myfile)
   } else {
-    message("Loading saved module GO enrichment results!")
+    message("Loading saved module GO enrichment results.")
     GOresults <- readRDS(myfile)
   } # Ends if/else.
 
@@ -155,7 +144,6 @@ if (!file.exists(myfile)) {
 # Empty lists for output of loop:
 module_results <- list()
 ME_results <- list()
-PVE_results <- list()
 KME_results <- list()
 KW_results <- list()
 plots <- list()
@@ -200,17 +188,17 @@ for (r in 1:100) {
 	    return(v)
 	    })
 	names(KME_list) <- colnames(KMEdata)
-	# Get Percent Variance explained (PVE).
-	PVE <- as.numeric(MEdata$varExplained)
+	# Get Percent Variance explained (PVE)
+	PVE <- MEdata$varExplained
 	names(PVE) <- names(modules)
-	medianPVE <- median(PVE[names(PVE) != "M0"])
-	message(paste("Median module coherence (PVE):", 
-		      round(100 * medianPVE, 2), "(%)."))
+	meanPVE <- mean(as.numeric(PVE[names(PVE) != "M0"]))
+	message(paste("Mean module coherence (PVE):", 
+		      round(100 * meanPVE, 2), "(%)."))
 	# Create list of MEs.
 	ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
 	ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
 	names(ME_list) <- names(modules)
-	# Remove M0. Do this before p-value adjustment.
+	# Remove M0. Do this before p.adjustment.
 	ME_list <- ME_list[names(ME_list)!="M0"]
 	# Sample to group mapping.
 	traits$Sample.Model.Tissue <- paste(traits$Sample.Model, traits$Tissue, sep = ".")
@@ -223,8 +211,7 @@ for (r in 1:100) {
 	g <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
 	groups <- as.factor(groups)
 	levels(groups) <- paste(g,net,sep=".")
-	# Perform Kruskal Wallis tests to identify modules whose summary
-	# expression profile is changing.
+	# Perform KW tests.
 	KWdata <- t(sapply(ME_list, function(x) {
 				   kruskal.test(x ~ groups[names(x)])}))
 	KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary cols.
@@ -258,14 +245,14 @@ for (r in 1:100) {
 	message(paste("Number of significant modules with",
 		      "significant enrichment of DBD-associated genes:",
 		      nSigDisease))
-	# Numer of significant modules with disease association.
+	# Numer of significant modules with disease association...
 	moi <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
 	if (length(moi) > 0) {
 	  message("Summary of Dunnett's test changes for DBD-associated modules:")
 	  print(moi)
 	}
 	message("\n")
-	## Generate plots:
+	## Generate plots...
        	bplots <- lapply(ME_list,function(x) {
 			 ggplotVerboseBoxplot(x,groups)
 			     })
@@ -293,13 +280,12 @@ for (r in 1:100) {
 		df$symbol[df$p<0.0005] <- "***"
 		if (any(df$p<0.05)) {
 			plot <- plot + annotate("text",x=df$xpos,y=df$ypos,label=df$symbol,size=7) }
-		# Store results in list.
-		bplots[[k]] <- plot
+		# Store in list.
+	bplots[[k]] <- plot
 	} # Ends loop to fix plots.
-	# Store results in lists.
+	# Store results.
 	module_results[[r]] <- modules
 	ME_results[[r]] <- ME_list
-	PVE_results[[r]] <- PVE
 	KME_results[[r]] <- KME_list
 	KW_results[[r]] <- KWdata
 	plots[[r]] <- bplots 
@@ -308,7 +294,7 @@ for (r in 1:100) {
 	modules_of_interest[[r]] <- moi
 } # Ends loop.
 
-# Name results lists.
+# Name lists results.
 names(module_results) <- paste0("R",c(1:100))
 names(ME_results) <- paste0("R",c(1:100))
 names(KME_results) <- paste0("R",c(1:100))
@@ -318,28 +304,16 @@ names(DT_results) <- paste0("R",c(1:100))
 names(nSigDT_results) <- paste0("R",c(1:100))
 names(modules_of_interest) <- paste0("R",c(1:100))
 
-quit()
-
 # Collect modules of interest: modules changing in all 4 genotypes.
 moi <- names(unlist(sapply(nSigDT_results,function(x) x[x==4]),recursive=FALSE))
-
-# Resolutions from which the moi are drawn:
-roi <- gsub("\\.M[1-9]{1,3}","",moi)
 
 # Status.
 message(paste("Number of modules exhibiting convergent dysregulation",
               "across all partitions:",length(moi)))
 
-# Status.
-n <- sum(sapply(modules_of_interest,length))
-message(paste("Number of DBD-associated modules exhibiting dysregulation",
-              "across all partitions:",n))
-
 #--------------------------------------------------------------------
-## How convergent modules related?
+## How are these modules related?
 #--------------------------------------------------------------------
-# There are too many moi to look at each one, can we summarize them
-# in some way?
 
 # Collect all modules in a named list--includes M0.
 named_parts <- partitions
@@ -351,12 +325,15 @@ modules_list <- sapply(modules_list,function(x) {
 all_modules <- unlist(modules_list,recursive=FALSE)
 all_modules <- sapply(all_modules,names)
 
+# Modules of interest from roi.
+rep_modules <- c(names(all_modules)[1:3],moi)
+
 # All comparisons (contrasts).
-contrasts <- expand.grid("M1"=moi,
-                         "M2"=moi,stringsAsFactors=FALSE)
+contrasts <- expand.grid("M1"=rep_modules,
+                         "M2"=rep_modules,stringsAsFactors=FALSE)
 
 # Examine module jaacard similarity for all comparisons between 
-# modules of interest.
+# representative modules.
 message("Calculating Module Jaacard Similarity...")
 n <- dim(contrasts)[1]
 modulejs <- vector("numeric",n)
@@ -376,19 +353,18 @@ for (i in 1:nrow(contrasts)){
 } # Ends loop.
 
 # Cast modulejs into similarity matrix.
-n <- length(moi)
+n <- length(rep_modules)
 adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- moi
+colnames(adjm_js) <- rownames(adjm_js) <- rep_modules
 
-# Convert similarity matrix to distance matrix, and then
-# cluster with hclust.
-method <- "ward.D2" # ward.D2, ward.D, single,complete,average,mcquitty,median,centroid
+# Convert matrix to distance object and cluster with hclust.
+method <- "ward.D2" # ward.D2
 hc <- hclust(as.dist(1 - adjm_js), method)
-# Examine dendrogram.
+
+# Examine dendrogram to asses how many (k) groups to cut it into.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
 dendro 
 
-# Utilize modularity to identify the optimimal number of groups.
 # Convert to igraph object for modularity calculation.
 g <- graph_from_adjacency_matrix(adjm_js,mode="undirected",weighted=TRUE)
 
@@ -402,8 +378,8 @@ q <- sapply(hc_partitions,function(x) modularity(g, x, weights = edge_attr(g, "w
 best_q <- unique(q[seq(h)[q==max(q)]])
 best_h <- median(h[seq(h)[q==max(q)]])
 best_k <- unique(k[seq(k)[q==max(q)]])
-message(paste0("Cut height that produces the best partition: ",best_h,"."))
-message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
+message(paste("Cut height that produces the best partition:",best_h))
+message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")"))
 
 # Generate groups of similar partitions.
 k <- best_k
@@ -411,7 +387,7 @@ hc_partition <- cutree(hc, k)
 groups <- split(hc_partition,hc_partition)
 
 # Get representative module from each group, its medoid.
-# The medoid is the module which is most similar (closest) 
+# The medoid is the partition which is most similar (closest) 
 # to all others in its group.
 # Loop to get the medoid of each group:
 rep_modules <- vector("character",length(groups))
@@ -433,116 +409,50 @@ for (i in 1:length(groups)) {
 message("Representative divergent modules:")
 print(rep_modules[order(rep_modules)])
 
-# Get resolutions from which representative modules are drawn.
-roi <- gsub("\\.M[1-9]{1,3}","",rep_modules)
+#------------------------------------------------------------------------------
+## Examine Representative modules.
+#------------------------------------------------------------------------------
 
-#--------------------------------------------------------------------
-## How are DBD-associated modules related?
-#--------------------------------------------------------------------
-
-# Collect modules of interest: modules associated with DBDs.
-moi <- names(unlist(modules_of_interest,recursive=FALSE))
-
-# Collect all modules in a named list--includes M0.
-named_parts <- partitions
-names(named_parts) <- paste0("R",c(1:length(partitions)))
-modules_list <- lapply(named_parts,function(x) split(x,x))
-modules_list <- sapply(modules_list,function(x) {
-		   names(x) <- paste0("M",names(x))
-		   return(x) })
-all_modules <- unlist(modules_list,recursive=FALSE)
-all_modules <- sapply(all_modules,names)
-
-# All comparisons (contrasts).
-contrasts <- expand.grid("M1"=moi,
-                         "M2"=moi,stringsAsFactors=FALSE)
-
-# Examine module jaacard similarity for all comparisons between 
-# modules of interest.
-message("Calculating Module Jaacard Similarity...")
-n <- dim(contrasts)[1]
-modulejs <- vector("numeric",n)
-pbar <- txtProgressBar(min=1,max=n,style=3)
-# Loop:
-for (i in 1:nrow(contrasts)){
-	setTxtProgressBar(pbar,i)
-	x <- contrasts[i,]
-	r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
-	m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
-	p1 <- partitions[[r[1]]]
-	m1 <- names(split(p1,p1)[[m[1]]])
-	p2 <- partitions[[r[2]]]
-	m2 <- names(split(p2,p2)[[m[2]]])
-	modulejs[i] <- js(m1,m2)
-	if (i == n) { close(pbar); message("\n") }
-} # Ends loop.
-
-# Cast modulejs into similarity matrix.
-n <- length(moi)
-adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- moi
-
-# Convert similarity matrix to distance obj. and cluster with hclust.
-method <- "ward.D2" # ward.D2
-hc <- hclust(as.dist(1 - adjm_js), method)
-
-# Examine dendrogram.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
-dendro 
-
-# Utilize modularity to identify the optimimal number of groups.
-# Convert to igraph object for modularity calculation.
-g <- graph_from_adjacency_matrix(adjm_js,mode="undirected",weighted=TRUE)
-
-# Examine number of groups and modularity given cut height.
-h <- seq(0,max(hc$height),by=0.01)
-hc_partitions <- lapply(h,function(x) cutree(hc,h=x))
-k <- sapply(h,function(x) length(unique(cutree(hc,h=x))))
-q <- sapply(hc_partitions,function(x) modularity(g, x, weights = edge_attr(g, "weight")))
-
-# Best cut height that maximizes modularity.
-best_q <- unique(q[seq(h)[q==max(q)]])
-best_h <- median(h[seq(h)[q==max(q)]])
-best_k <- unique(k[seq(k)[q==max(q)]])
-message(paste0("Cut height that produces the best partition: ",best_h,"."))
-message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
-
-# Generate groups of similar partitions.
-k <- best_k
-hc_partition <- cutree(hc, k)
-groups <- split(hc_partition,hc_partition)
-
-# Get representative module from each group, its medoid.
-# The medoid is the partition which is most similar (closest) 
-# to all others in its group.
-# Loop to get the medoid of each group:
-dbd_modules <- vector("character",length(groups))
-for (i in 1:length(groups)) {
-  # Get partitions in the group.
-  v <- names(groups[[i]])
-  idx <- idy <- colnames(adjm_js) %in% v
-  # Create distance matrix.
-  subdm <- 1 - adjm_js[idx, idy]
-  diag(subdm) <- NA
-  # Distance to all other partitions in the group is the colSum
-  # of the distance matrix. The medoid of the group is the 
-  # item that is closest to all others.
-  col_sums <- apply(subdm, 2, function(x) sum(x, na.rm = TRUE))
-  dbd_modules[i] <- names(col_sums[col_sums == min(col_sums)])
+for (i in 1:length(rep_modules)){
+m <- rep_modules[i]
+idr <- unlist(strsplit(m,"\\."))[1]
+idm <- unlist(strsplit(m,"\\."))[2]
+plot <- plots[[idr]][[idm]]
+print(plot)
+prots <- all_modules[[m]]
+nprots <- length(prots)
+modSigProts <- prots[prots %in% sigProts]
+nsig <- length(modSigProts)
+kme <- KME_results[[idr]][[idm]]
+hubProts <- head(kme)
+hubSigProts <- hubProts[names(hubProts) %in% modSigProts]
+nHubSigProts <- length(hubSigProts)
+#x = kme[sigProts]
+#x= x[order(x,decreasing=TRUE)]
+# Summary.
+message(paste0(m," Summary:"))
+message(paste0("... Total proteins: ",nprots))
+message(paste0("... Sig proteins: ",nsig, " (",round(nsig/nprots,2)," %)"))
+message(paste0("... ... Sig hubs:"))
+print(hubSigProts)
 }
 
-# Status.
-message("Representative DBD-associated modules:")
-print(dbd_modules[order(dbd_modules)])
+#--------------------------------------------------------------------
+## Network summary plots.
+#--------------------------------------------------------------------
 
-# Get resolutions from which representative modules are drawn.
-dbd_roi <- gsub("\\.M[1-9]{1,3}","",dbd_modules)
+# Number of clusters.
+# Cluster sizes (min, max, mean?)
+# Module quality - PVE
+# Percent unclustered.
+# Quality (Modularity)
+# Modularity of PPI graph.
+# Modularity of GOfx graph.
 
 #--------------------------------------------------------------------
-## Examine the overall structure of the network.
+## Compare network partitions.
 #--------------------------------------------------------------------
-# Identify representative partitions of the network by evaluating 
-# the similarity of all graph partitions using the Folkes Mallow 
+# Evaluate similarity of all graph partitions using the Folkes Mallow 
 # similarity index (fmi).
 
 # Generate contrasts matrix--all possible combinations of partitions.
@@ -585,7 +495,8 @@ method <- "ward.D2" # ward.D2
 hc <- hclust(as.dist(1 - fmi_adjm), method)
 
 # Try to reorder the leaves in resolution order.
-hc <- reorder(hc, rev(c(1:100)))
+library(vegan)
+hc <- reorder(hc, c(1:100))
 
 # Examine dendrogram to asses how many (k) groups to cut it into.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
@@ -635,16 +546,21 @@ print(rep_partitions)
 # How many clusters in these partitions?
 rep_parts <- partitions[as.numeric(gsub("R","",rep_partitions))]
 nModules <- sapply(rep_parts,function(x) length(unique(x)))
+nModules
+
+if (net == "Cortex"){
+# Replace R55 with R54 for group 2.
+# Replace R83 with R77 for group 3.
+	rep_partitions[2] <- "R55" # Partition with two disease associated modules.
+	rep_partitions[3] <- "R77" # Partition with two disease associated modules.
+}
+
+# Add resolution 1 and 100 as terminal endpoints.
+rep_partitions <- c("R1",rep_partitions,"R100")
 
 #------------------------------------------------------------------------------
-## Evaluate similarity between modules from select partitions.
+## Evaluate similarity between modules from representative partitions.
 #------------------------------------------------------------------------------
-
-# Combine representative partitions with partitions from resolutions of interest.
-all_roi <- unique(c(roi,dbd_roi,rep_partitions))
-
-# Add R1 and R100 as terminal endpoints.
-all_roi <- c("R1",all_roi[order(all_roi)],"R100") 
 
 # Collect names of modules at every resolution.
 all_modules <- list()
@@ -661,13 +577,16 @@ all_modules <- all_modules[-out]
 n <- length(all_modules)
 message(paste("Total number of modules identified:",n))
 
-# Collect modules from resolutions of interest.
-idx <- unlist(lapply(all_roi,function(x) grep(paste0(x,"\\."),all_modules)))
+# Collect modules from representative partitions.
+idx <- unlist(lapply(rep_partitions,function(x) grep(paste0(x,"\\."),all_modules)))
 rep_modules <- all_modules[idx]
 
-# Status.
-message(paste("Collected", length(rep_modules), 
-	      "modules from resolutions of interest!"))
+# Check that we didn't accidently get modules from any other resolutions.
+check <- all(unique(sapply(strsplit(rep_modules,"\\."),"[",1)) %in% rep_partitions)
+if (check) {
+	message(paste("Collected", length(rep_modules), 
+		      "modules from representative partitions!"))
+}
 
 # All comparisons (contrasts).
 contrasts <- expand.grid("M1"=rep_modules,"M2"=rep_modules,stringsAsFactors=FALSE)
@@ -675,23 +594,30 @@ contrasts <- expand.grid("M1"=rep_modules,"M2"=rep_modules,stringsAsFactors=FALS
 # Examine module jaacard similarity for all comparisons between 
 # representative modules. This is overkill since we wont be using 
 # comparisions. But the resulting matrix is easy to work with.
-message("Calculating Module Jaacard Similarity...")
-n <- dim(contrasts)[1]
-modulejs <- vector("numeric",n)
-pbar <- txtProgressBar(min=1,max=n,style=3)
-# Loop:
-for (i in 1:nrow(contrasts)){
-	setTxtProgressBar(pbar,i)
-	x <- contrasts[i,]
-	r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
-	m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
-	p1 <- partitions[[r[1]]]
-	m1 <- names(split(p1,p1)[[m[1]]])
-	p2 <- partitions[[r[2]]]
-	m2 <- names(split(p2,p2)[[m[2]]])
-	modulejs[i] <- js(m1,m2)
-	if (i == n) { close(pbar); message("\n") }
-} # Ends loop.
+myfile <- file.path(rdatdir,paste0("3_",net,"Module_JS.RData"))
+if (!file.exists(myfile)){
+	message("Calculating Module Jaacard Similarity...")
+	n <- dim(contrasts)[1]
+	modulejs <- vector("numeric",n)
+	pbar <- txtProgressBar(min=1,max=n,style=3)
+	# Loop:
+	for (i in 1:nrow(contrasts)){
+		setTxtProgressBar(pbar,i)
+		x <- contrasts[i,]
+		r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
+		m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
+		p1 <- partitions[[r[1]]]
+		m1 <- names(split(p1,p1)[[m[1]]])
+		p2 <- partitions[[r[2]]]
+		m2 <- names(split(p2,p2)[[m[2]]])
+		modulejs[i] <- js(m1,m2)
+		if (i == n) { close(pbar); message("\n") }
+	} # Ends loop.
+	saveRDS(modulejs,myfile)
+} else {
+	message("Loading Module Jaacard Similarity!")
+	modulejs <- readRDS(myfile)
+} # Ends if/else
 
 # Cast modulejs into similarity matrix.
 n <- length(rep_modules)
@@ -700,32 +626,12 @@ colnames(adjm_js) <- rownames(adjm_js) <- rep_modules
 
 # Assign modules a color based on similarity with three founding nodes.
 df <- data.table(module = rep_modules)
-
-df$red <- 255*adjm_js[df$module,"R1.M2"]
-df$green <- 255*adjm_js[df$module,"R1.M3"]
-df$blue <- 255*adjm_js[df$module,"R1.M4"]
-df$color <- rgb(df$red,df$green,df$blue,maxColorValue=255)
+df$red <- adjm_js[df$module,"R1.M2"]
+df$green <- adjm_js[df$module,"R1.M3"]
+df$blue <- adjm_js[df$module,"R1.M4"]
+df$color <- rgb(255*df$red,255*df$green,255*df$blue,maxColorValue=255)
 module_colors <- df$color
 names(module_colors) <- df$module
-
-# FIXME: RGB is a bit ugly.
-# Also, if any of the values fall below ~40 then color is black.
-# Need to enforce scale. 
-# y = mx + b
-pt1 = c(x1=0,y1=40)
-pt2 = c(x2=1,y2=255)
-m = (pt2['y2'] - pt1['y1']) / (pt2['x2'] - pt1['x1'])
-b = 40
-y = m*x + b
-
-# Red: maroon = #800000
-# Blue: navy = #000075
-# Green: #3cb44b
-
-#FIXME: summarize modules as single nodes:
-# size = number or proteins.
-# color = relationship to founder nodes
-# edges = sum of edges to other modules.
 
 # Add Grey modules to module_colors
 grey_modules <- rep("#808080",length(rep_partitions))
@@ -758,8 +664,13 @@ ppi_adjm <- as_adjacency_matrix(g0)
 dc <- apply(ppi_adjm,2,sum) # node degree is column sum.
 fit <- WGCNA::scaleFreeFitIndex(dc)
 r <- fit$Rsquared.SFT
-r
 ## FIXME: plots. Hist and scatter.
+
+# Toplogy of co-expression graph.
+dc <- apply(adjm,2,sum) # node degree is column sum.
+fit <- WGCNA::scaleFreeFitIndex(dc)
+r <- fit$Rsquared.SFT
+print(r)
 
 # Loop through representative partitions, create graph.
 network_layers <- list()
@@ -790,74 +701,16 @@ for (i in 1:length(rep_partitions)){
 	va <- split(va,rep(seq(1,length(es)),each=2))
 	together <- sapply(va,function(x) all(x==x[1]))
 	# If nodes are not together, then delete the edge.
-	# FIXME: edges between modules still remain!!!
 	message(paste("Removing",sum(!together),"edges from graph."))
 	g <- delete_edges(g,es[!together])
 	# Switch node names to gene symbols.
 	g <- set_vertex_attr(g, "name", index = V(g), vertex_attr(g, "symbol"))
+	network_layers[[i]] <- g
+	
 	# Send to cytoscape.
 	library(RCy3)
 	cytoscapePing()
-	# Set Node Color.
-	# Set Layout.
-	style.name <- rep_partitions[i]
-	defaults <- list(NODE_SHAPE="elipse",
-	                 NODE_SIZE=30,
-	                 EDGE_TRANSPARENCY=120)
-	nodeFills <- mapVisualProperty('node fill color','Module','p')
-
-
 	createNetworkFromIgraph(g, rep_partitions[i])
-	
-	#setVisualStyle(style.name)
-
-	saveSession('vignette_session') #.cys
-	full.path=paste(getwd(),'vignette_image',sep='/')
-	exportImage(full.path, 'PNG', zoom=200) #.png scaled by 200%
-	exportImage(full.path, 'PDF') #.pdf
-	
 }
 
-
-
-
-#------------------------------------------------------------------------------
-## Examine modules of interest.
-#------------------------------------------------------------------------------
-
-for (i in 1:length(rep_modules)){
-m <- rep_modules[i]
-idr <- unlist(strsplit(m,"\\."))[1]
-idm <- unlist(strsplit(m,"\\."))[2]
-plot <- plots[[idr]][[idm]]
-print(plot)
-prots <- all_modules[[m]]
-nprots <- length(prots)
-modSigProts <- prots[prots %in% sigProts]
-nsig <- length(modSigProts)
-kme <- KME_results[[idr]][[idm]]
-hubProts <- head(kme)
-hubSigProts <- hubProts[names(hubProts) %in% modSigProts]
-nHubSigProts <- length(hubSigProts)
-#x = kme[sigProts]
-#x= x[order(x,decreasing=TRUE)]
-# Summary.
-message(paste0(m," Summary:"))
-message(paste0("... Total proteins: ",nprots))
-message(paste0("... Sig proteins: ",nsig, " (",round(nsig/nprots,2)," %)"))
-message(paste0("... ... Sig hubs:"))
-print(hubSigProts)
-}
-
-#--------------------------------------------------------------------
-## Network summary plots.
-#--------------------------------------------------------------------
-
-# Number of clusters.
-# Cluster sizes (min, max, mean?)
-# Module quality - PVE
-# Percent unclustered.
-# Quality (Modularity)
-# Modularity of PPI graph.
-# Modularity of GOfx graph.
 
