@@ -1001,6 +1001,10 @@ for (i in seq_along(named_parts)){
 # Load all ppis mapped to mouse genes.
 data("musInteractome")
 
+# Label sigprots?
+# Label hubs?
+# Label sigmodules?
+
 # Subset mouse interactome, keep data from mouse, human, and rat.
 idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
 ppis <- subset(musInteractome, idx)
@@ -1022,16 +1026,17 @@ fit <- WGCNA::scaleFreeFitIndex(dc)
 r <- fit$Rsquared.SFT
 message(paste("Scale free fit of PPI graph:",round(r,3)))
 
-# Loop to create graphs.
-for (i in 1:length(partitions)){
+#Function to create PPI graphs.
+create_PPI_graphs <- function(g, partitions, resolution){
+  suppressPackageStartupMessages({
+    library(RCy3)
+  })
   # Check that we are connected to Cytoscape.
-  if (i == 1) { suppressPackageStartupMessages({ library(RCy3) }); cytoscapePing() }
-  # New graph.
+  cytoscapePing()
   namen <- paste0("R",i)
-	g <- g0
 	# Add protein ids.
-	ids <- protmap$ids[match(names(V(g)),protmap$entrez)]
-	g <- set_vertex_attr(g,"ProtID",value = ids)
+  ids <- protmap$ids[match(names(V(g)),protmap$entrez)]
+  g <- set_vertex_attr(g,"ProtID",value = ids)
 	# Add node color attribute.
 	part <- partitions[[i]]
 	part[] <- paste0("R",i,".","M",part)
@@ -1104,13 +1109,28 @@ for (i in 1:length(partitions)){
 	  layoutNetwork('force-directed')
 	  setCurrentNetwork(net$networks) # Resets network view.
 		}
-}
+  # Save
+  output_file <- paste0("R",resolution)
+  myfile <- file.path(figsdir,output_file)
+  saveSession(myfile)
+  # Delete network.
+  deleteAllNetworks()
+  cytoscapeFreeMemory()
+} # EOF
 
+# Loop to generate Cytoscape graphs.
+for (i in 1:100) {
+  if (i == 1) { pbar <- txtProgressBar(min=0,max=100,style=3) }
+  create_PPI_graphs(g, partitions, resolution=i)
+  setTxtProgressBar(pbar,i)
+  if (i==100) { message("\n"); close(pbar) }
+}
+  
 #------------------------------------------------------------------------------
 ## Examine modules of interest.
 #------------------------------------------------------------------------------
 
-for (i in 1:length(rep_modules)){
+for (i in 1:length()){
 m <- rep_modules[i]
 idr <- unlist(strsplit(m,"\\."))[1]
 idm <- unlist(strsplit(m,"\\."))[2]
