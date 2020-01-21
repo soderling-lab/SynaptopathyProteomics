@@ -26,6 +26,7 @@ suppressPackageStartupMessages({
   library(DescTools)
   library(igraph)
   library(vegan)
+  library(ggplot2)
 })
 
 # Directories.
@@ -35,6 +36,7 @@ if (rstudioapi::isAvailable()) {
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
+figsdir <- file.path(root, "figs")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
@@ -80,6 +82,10 @@ myfiles <- c(
 adjm <- as.matrix(readRDS(myfiles[net]))
 rownames(adjm) <- colnames(adjm)
 
+# Load GO semantic similarity graph.
+myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
+goadjm <- fread(myfile,drop=1)
+
 # Load network partitions-- self-preservation enforced.
 ids <- c("Cortex"="14942508","Striatum"="14940918")
 myfile <- list.files(rdatdir, pattern = ids[net], full.names = TRUE)
@@ -87,6 +93,10 @@ partitions <- readRDS(myfile)
 
 # Reset partition index.
 partitions <- lapply(partitions, reset_index)
+
+# Load theme for plots.
+# FIXME: ggtheme, default should not be tilted x labels. Also y axis labels should be same size.
+ggtheme()
 
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
@@ -447,8 +457,6 @@ pve <- x[names(hc_partition)]
 pve <- split(pve,hc_partition)
 best_mods <- sapply(pve,function(x) names(x[x==max(x)]))
 
-adjm_js[best_mods,best_mods] # There is litte overlap between these partitions.
-
 # What is the average similarity among groups?
 avg_sim <- lapply(groups,function(x) {
 	       idx <- idy <- match(names(x),colnames(adjm_js))
@@ -487,6 +495,10 @@ print(dys_modules[order(dys_modules)])
 
 # Get resolutions from which representative modules are drawn.
 roi <- gsub("\\.M[1-9]{1,3}","",dys_modules)
+
+# Status.
+message("Best (hightest PVE) divergent modules:")
+print(best_mods[order(best_mods)])
 
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
@@ -581,40 +593,6 @@ print(dbd_modules[order(dbd_modules)])
 dbd_roi <- gsub("\\.M[1-9]{1,3}","",dbd_modules)
 
 #--------------------------------------------------------------------
-## Examine key modules.
-#--------------------------------------------------------------------
-
-moi <- unique(c(dys_modules,dbd_modules))
-
-p1 <- plots$R12$M2
-p2 <- plots$R17$M1 #DBD
-p3 <- plots$R57$M7
-p4 <- plots$R66$M2 #DBD
-p5 <- plots$R86$M32
-p6 <- plots$R88$M14
-
-GOresults <- unlist(GOresults,recursive=FALSE)
-names(GOresults) <- gsub("-",".",names(GOresults))
-
-DBDresults <- unlist(DBDresults,recursive=FALSE)
-names(DBDresults) <- gsub("-",".",names(DBDresults))
-
-i = 2
-df = GOresults[[moi[i]]]
-df$score <- -log10(df$pValue) * df$enrichmentRatio
-df <- df[order(df$score),]
-df$shortDataSetName[c(1:5)]
-df$Bonferroni[c(1:5)]
-all_modules[[moi[i]]]
-
-# 
-df = DBDresults[[moi[i]]]
-df$score <- -log10(df$pValue) * df$enrichmentRatio
-df <- df[order(df$score),]
-df$shortDataSetName[c(1:5)]
-df$Bonferroni[c(1:5)]
-
-#--------------------------------------------------------------------
 ## Examine the overall structure of the network.
 #--------------------------------------------------------------------
 # Identify representative partitions of the network by evaluating 
@@ -681,7 +659,7 @@ message(paste("Cut height that produces the best partition:",best_h))
 message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")"))
 
 # Generate groups of similar partitions.
-k <- 6
+k <- best_k
 hc_partition <- cutree(hc, k)
 groups <- split(hc_partition,hc_partition)
 
@@ -708,109 +686,257 @@ for (i in 1:length(groups)) {
 message(paste("Representative partitions:"))
 print(rep_partitions)
 
+#--------------------------------------------------------------------
+## Plot number of clusters.
+#--------------------------------------------------------------------
+
+# Module quality - PVE
+# Percent unclustered.
+# Quality (Modularity)
+# Modularity of PPI graph.
+# Modularity of GOfx graph.
+
+# Calculate number of clusters at each resolution.
+k <- sapply(partitions,function(x) sum(names(split(x,x))!="0"))
+r <- c(1:length(partitions))
+df <- data.table(r = r, k = k)
+
+# Generate plot.
+plot <- ggplot(df, aes(x=r,y=k)) + geom_point() + geom_line(size=1) + 
+  xlab("Resolution") +
+  ylab("Clusters (k)")
+
+# Save.
+myfile <- file.path(figsdir,"3_Network-Analysis",paste0(net,"_Resolution_vs_k.tiff"))
+ggsave(myfile,plot,width=3.5,height=1.5)
+
+#--------------------------------------------------------------------
+## Plot modularity of ppi graph.
+#--------------------------------------------------------------------
+
+# Load all ppis mapped to mouse genes.
+data("musInteractome")
+
+# Subset mouse interactome, keep data from mouse, human, and rat.
+idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
+ppis <- subset(musInteractome, idx)
+
+# Get entrez IDs for all proteins in data.
+prots <- colnames(data)
+entrez <- protmap$entrez[match(prots, protmap$ids)]
+
+# Build a graph with all proteins.
+g <- buildNetwork(ppis, entrez, taxid = 10090)
+
+# Remove self-connections and redundant edges.
+g <- simplify(g)
+
+# Split by partitions.
+check <- all(names(partitions[[1]]) == names(partitions[[75]]))
+ids <- names(partitions[[1]])
+entrez <- protmap$entrez[match(ids,protmap$ids)]
+
+# Loop to calculate modularity of ppi graph given co-expression graph partition.
+q <- vector("numeric",length=length(partitions))
+for (i in seq_along(partitions)) {
+  p = partitions[[i]] + 1 # Add one to account for "M0"
+  p <- p[match(names(V(g)),entrez)] # Insure they are in the same order.
+  #check <- all(head(names(V(g))) == head(protmap$entrez[match(names(p),protmap$ids)]))
+  q[i] <- modularity(g, p)
+}
+
+# Normalize to max.
+q <- q*(1/max(q))
+r <- c(1:100)
+df <- data.table(q,r)
+
+# Generate plot.
+plot <- ggplot(df, aes(x=r,y=q)) + geom_point() + geom_line(size=1) + 
+  xlab("Resolution") +
+  ylab("Modularity")
+
+# Save.
+myfile <- file.path(figsdir,"3_Network-Analysis",
+                    paste0(net,"_Resolution_vs_PPI_Q.tiff"))
+ggsave(myfile,plot,width=3.5,height=1.5)
+
+#--------------------------------------------------------------------
+## Plot modularity of GO graph.
+#--------------------------------------------------------------------
+
+# GO Semantic Similarity RMS(CC+BP+MF) graph:
+# goadjm
+
+# Build a graph.
+dm <- as.matrix(goadjm)
+rownames(dm) <- colnames(dm)
+g <- graph_from_adjacency_matrix(dm,mode="undirected",weighted=TRUE,diag=FALSE)
+
+# Loop to calculate modularity of ppi graph given co-expression graph partition.
+q <- vector("numeric",length=length(partitions))
+for (i in seq_along(partitions)) {
+  p <- partitions[[i]] + 1 # Add one to account for "M0"
+  p <- p[match(names(V(g)),names(p))] # Insure they are in the same order.
+  #check <- all(head(names(V(g))) == head(names(p)))
+  q[i] <- modularity(g, p)
+}
+
+# Normalize to max.
+q <- q*(1/max(q))
+r <- c(1:100)
+df <- data.table(q,r)
+
+# Generate plot.
+plot <- ggplot(df, aes(x=r,y=q)) + geom_point() + geom_line(size=1) + 
+  xlab("Resolution") +
+  ylab("Modularity")
+
+# Save.
+myfile <- file.path(figsdir,"3_Network-Analysis",
+                    paste0(net,"_Resolution_vs_GO_Q.tiff"))
+ggsave(myfile,plot,width=3.5,height=1.5)
+
 #------------------------------------------------------------------------------
-## Evaluate similarity between modules from select partitions.
+## Examine PVE versus resolution.
 #------------------------------------------------------------------------------
 
-# Collect modules from resolutions of interest.
-roi <- c("R1",rep_partitions,"R100") # Include R1 and R100 as endpoints.
-idx <- unlist(lapply(roi,function(x) grep(paste0(x,"\\."),names(all_modules))))
-rep_modules <- names(all_modules[idx])
+# Collect PVE.
+pve <- unlist(PVE_results)
+df <- data.table(pve = pve)
+df$Res.Mod <- names(pve)
+df$r <- as.numeric(gsub("R","",sapply(strsplit(names(pve),"\\."),"[",1)))
+df$m <- sapply(strsplit(names(pve),"\\."),"[",2)
 
-# Status.
-message(paste("Collected", length(rep_modules), 
-	      "modules from resolutions of interest!"))
+# Summarize the data.
+df2 <- df %>% group_by(r) %>% 
+  dplyr::summarize(pvarexp = median(pve),
+                   stdev = sd(pve),
+                   maxpve = max(pve),
+                   minpve = min(pve))
+
+# Normalize to max.
+df2$pvarexp <- df2$pvarexp/max(df2$pvarexp)
+
+# Generate plot.
+plot <- ggplot(df2, aes(x=r, y=pvarexp)) + geom_point() + geom_line(size=1) + 
+  geom_pointrange(aes(ymin=pvarexp-stdev, ymax=pvarexp+stdev)) +
+  xlab("Resolution") +
+  ylab("Coherence")
+
+# Save.
+myfile <- file.path(figsdir,"3_Network-Analysis",
+                    paste0(net,"_Resolution_vs_Mod_PVE.tiff"))
+ggsave(myfile,plot,width=3.5,height=1.5)
+
+#------------------------------------------------------------------------------
+## Evaluate Jaacard similarity between all modules.
+#------------------------------------------------------------------------------
+
+# Name partitions.
+named_partitions <- partitions
+names(named_partitions) <- paste0("R",c(1:length(partitions)))
+
+# Get all modules.
+named_partitions <- lapply(named_partitions,function(x) {
+  m = split(x,x)
+  names(m) = paste0("M",names(m))
+  return(m)
+})
+all_modules <- unlist(named_partitions,recursive=FALSE)
+modules <- names(all_modules)
 
 # All comparisons (contrasts).
-contrasts <- expand.grid("M1"=rep_modules,"M2"=rep_modules,stringsAsFactors=FALSE)
+contrasts <- expand.grid("M1"=modules,"M2"=modules,stringsAsFactors=FALSE)
 
 # Examine module jaacard similarity for all comparisons between 
 # representative modules. This is overkill since we wont be using 
 # comparisions. But the resulting matrix is easy to work with.
-message("Calculating Module Jaacard Similarity...")
-n <- dim(contrasts)[1]
-modulejs <- vector("numeric",n)
-pbar <- txtProgressBar(min=1,max=n,style=3)
+
 # Loop:
-for (i in 1:nrow(contrasts)){
-	setTxtProgressBar(pbar,i)
-	x <- contrasts[i,]
-	r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
-	m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
-	p1 <- partitions[[r[1]]]
-	m1 <- names(split(p1,p1)[[m[1]]])
-	p2 <- partitions[[r[2]]]
-	m2 <- names(split(p2,p2)[[m[2]]])
-	modulejs[i] <- js(m1,m2)
-	if (i == n) { close(pbar); message("\n") }
-} # Ends loop.
+myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
+if (!file.exists(myfile)) {
+  message("Calculating Module Jaacard Similarity...")
+  n <- nrow(contrasts)
+  modulejs <- vector("numeric",n)
+  for (i in 1:n) {
+    if (i==1) { pbar <- txtProgressBar(min=1,max=n,style=3) }
+    setTxtProgressBar(pbar,i)
+    x <- contrasts[i,]
+    idm1 <- x[["M1"]]
+    idm2 <- x[["M2"]]
+    m1 <- names(all_modules[[idm1]])
+    m2 <- names(all_modules[[idm2]])
+    if (idm1 == idm2) {
+      modulejs[i] <- 1
+      } else {
+        modulejs[i] <- js(m1,m2)
+      }
+    if (i == n) { close(pbar); message("\n") }
+    } # Ends loop.
+  # Save.
+  myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
+  saveRDS(modulejs,myfile)
+} else {
+  message("Loading saved module JS!")
+  modulejs <- readRDS(myfile)
+}
 
 # Cast modulejs into similarity matrix.
-n <- length(rep_modules)
+n <- length(modules)
 adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- rep_modules
+colnames(adjm_js) <- rownames(adjm_js) <- modules
 
 # Assign modules a color based on similarity with three founding nodes.
 df <- data.table(
-  M1js = adjm_js[rep_modules,"R1.M1"],
-  M2js = adjm_js[rep_modules,"R1.M2"],
-  M3js = adjm_js[rep_modules,"R1.M3"]
+  M1js = adjm_js[modules,"R1.M1"],
+  M2js = adjm_js[modules,"R1.M2"],
+  M3js = adjm_js[modules,"R1.M3"]
 )
-rownames(df) <- rep_modules
+rownames(df) <- modules
 
 # Row-wise normalization.
-dm <- matrix(t(apply(df,1,function(x) x/max(x))), nrow=length(rep_modules),
-               dimnames = list(x=rep_modules,y=c("R","G","B")))
+dm <- matrix(t(apply(df,1,function(x) x/max(x))), nrow=length(modules),
+               dimnames = list(x=modules,y=c("R","G","B")))
 df <- cbind(df,dm)
 
 # Convert RGB to hexadecimal color.
 df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 
-# Enforce minimum value of 40.
-# b <- 40
-# pt1 = c(x=0, y=40)
-# pt2 = c(x=1, y=255)
-# m <- (pt2['y'] - pt1['y']) / (pt2['x'] - pt1['x'])
-# df$R <- (m * df$M1js) + 40
-# df$G <- (m * df$M2js) + 40
-# df$B <- (m * df$M3js) + 40
-# df$color <-  rgb(df$R, df$G, df$B, maxColorValue=255)
-
 # Collect color assignments.
 module_colors <- df$color
-names(module_colors) <- rep_modules
+names(module_colors) <- modules
 
-# Add Grey modules to module_colors
-grey_modules <- rep("#808080",length(rep_partitions))
-names(grey_modules) <- paste0(rep_partitions,".M0")
-module_colors <- c(module_colors,grey_modules)
+# Assign M0 to grey.
+module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
 #--------------------------------------------------------------------
-## Node size ~ Number of nodes.
+## Generate graph layers.
 #--------------------------------------------------------------------
 
-library(RCy3)
-cytoscapePing()
-
-# APPLY POWER TO make force-directed network look better?
-sftPower = 3
+# Parameters:
+sftPower <- 3 # Soft power for weighting the network.
+save_image <- TRUE # Should pdf be saved?
+file_format <- 'PNG' # PNG, PDF, JPEG, SVG...
+sleep_time <- 2 # How much time to wait after cytoscape steps... can help insure that final image looks correct?
 
 # Loop to generate network layers.
-for (i in seq_along(roi)){
+for (i in seq_along(named_parts)){
+  # Check that we are connected to cytoscape.
+  if (i == 1) { 
+    suppressPackageStartupMessages({ library(RCy3) }); cytoscapePing()
+  }
   # Build graph.
-  r <- roi[i]
-  p <- named_parts[[r]]
+  r <- resolution <- names(named_parts)[i]
+  p <- named_parts[[resolution]]
   modules <- split(p,p)
   names(modules) <- paste0("M",names(modules))
-  x <- sapply(modules,length) # Module size.
-  #y <- (m*x) + b # Size in Cytoscape. 
-  e <- cor(do.call(cbind,ME_results[[r]]))
+  ms <- sapply(modules,length) # Module size.
+  e <- cor(do.call(cbind,ME_results[[resolution]]))
   g <- graph_from_adjacency_matrix(e,mode="undirected",weighted=TRUE,diag=FALSE)
-  g <- set_vertex_attr(g,"n",value = x[names(V(g))])
   g <- set_vertex_attr(g,"color",value = module_colors[paste(r,names(V(g)),sep=".")])
-  g <- set_vertex_attr(g,"size", value = x[names(V(g))])  # Send to Cytoscape.
+  g <- set_vertex_attr(g,"size", value = ms[names(V(g))])  # Send to Cytoscape.
   g <- set_edge_attr(g,"cor",value=get.edge.attribute(g,"weight"))
-  g <- set_edge_attr(g,"weight",value=1-(get.edge.attribute(g,"weight")^sftPower))
+  g <- set_edge_attr(g,"weight",value= 1 - (get.edge.attribute(g,"weight")^sftPower))
   # Graph layout with KK algorithm.
   dm <- layout_with_kk(g) # dm is matrix of x and y coords.
   dm_dist <- fields::rdist(dm) # calculate distances between points.
@@ -820,7 +946,7 @@ for (i in seq_along(roi)){
   g <- set_vertex_attr(g,"xpos", value = scaling_factor*dm[,1])
   g <- set_vertex_attr(g,"ypos", value = scaling_factor*dm[,2])
   # Send to Cytoscape. 
-  createNetworkFromIgraph(g, title = r)
+  createNetworkFromIgraph(g, title = resolution)
   # Create a visual style.
   style.name = paste(r,"myStyle",sep="-")
   # DEFAULTS:
@@ -840,7 +966,7 @@ for (i in seq_along(roi)){
     mappings <- list(
       #NODE_LABELS = mapVisualProperty('node label','id','p'),
       NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
-      NODE_SIZE = mapVisualProperty('node size','n','c', c(5,1500), c(10,100)),
+      NODE_SIZE = mapVisualProperty('node size','size','c', c(5,1500), c(10,100)),
       EDGE_TRANSPARENCY = mapVisualProperty('edge transparency', 
                                             'cor', 'c', c(-1.0,0,1.0), c(255,0,255)),
       NODE_X_LOCATION = mapVisualProperty('node x location', 'xpos', 'p'),
@@ -851,10 +977,25 @@ for (i in seq_along(roi)){
   createVisualStyle(style.name, defaults = defaults, mappings = mappings)
   # Apply to graph.
   setVisualStyle(style.name)
+  # Wait a couple of seconds...
+  Sys.sleep(sleep_time)
+  # Save image as PDF.
+  if (save_image) {
+    fitContent()
+    Sys.sleep(sleep_time) # Wait... 
+    prefix <- formatC(i, width = 3, format = "d", flag = "0")
+    myfile <- file.path(figsdir,"3_Network-Analysis","Network_Slices",
+                      paste(prefix,r,"network",sep="_"))
+  exportImage(myfile, file_format)
+  }
+  if (i == 100) {
+    myfile <- file.path(figsdir,"Cytoscape_Networks")
+    saveSession(myfile)
+  }
 }
 
 #--------------------------------------------------------------------
-## Create graphs for representative partitions of the network.
+## Create PPI graphs. 
 #--------------------------------------------------------------------
 
 # Load all ppis mapped to mouse genes.
@@ -874,73 +1015,96 @@ g0 <- buildNetwork(ppis, entrez, taxid = 10090)
 # Remove self-connections and redundant edges.
 g0 <- simplify(g0)
 
-# Topology of PPI graph.
+# Check topology of PPI graph.
 ppi_adjm <- as_adjacency_matrix(g0)
 dc <- apply(ppi_adjm,2,sum) # node degree is column sum.
 fit <- WGCNA::scaleFreeFitIndex(dc)
 r <- fit$Rsquared.SFT
-r
-## FIXME: plots. Hist and scatter.
+message(paste("Scale free fit of PPI graph:",round(r,3)))
 
-# Loop through representative partitions, create graph.
-network_layers <- list()
-for (i in 1:length(rep_partitions)){
-	# New graph.
+# Loop to create graphs.
+for (i in 1:length(partitions)){
+  # Check that we are connected to Cytoscape.
+  if (i == 1) { suppressPackageStartupMessages({ library(RCy3) }); cytoscapePing() }
+  # New graph.
+  namen <- paste0("R",i)
 	g <- g0
-	# Get resolution of representative partition.
-	r <- as.numeric(gsub("R","",rep_partitions[i]))
 	# Add protein ids.
 	ids <- protmap$ids[match(names(V(g)),protmap$entrez)]
 	g <- set_vertex_attr(g,"ProtID",value = ids)
 	# Add node color attribute.
-	part <- partitions[[r]]
-	part[] <- paste0("R",r,".","M",part)
+	part <- partitions[[i]]
+	part[] <- paste0("R",i,".","M",part)
 	node_colors <- module_colors[part]
 	names(node_colors) <- names(part)
-	g <- set_vertex_attr(g,"Color", value = node_colors[vertex_attr(g, "ProtID")])
+	g <- set_vertex_attr(g,"color", value = node_colors[vertex_attr(g, "ProtID")])
 	# Add node module attribute.
-	g <- set_vertex_attr(g,"Module",value = part[vertex_attr(g, "ProtID")])
+	g <- set_vertex_attr(g,"module",value = part[vertex_attr(g, "ProtID")])
 	# Add sigprot vertex attribute.
 	sigEntrez <- protmap$entrez[match(sigProts, protmap$ids)]
 	anySig <- names(V(g)) %in% sigEntrez
 	g <- set_vertex_attr(g, "sigProt", value = anySig)
-	# Check if nodes are in same module.
-	es <- E(g)
-	vs <- ends(g,es)
-	va <- vertex_attr(g,"Module",index=vs)
-	va <- split(va,rep(seq(1,length(es)),each=2))
-	together <- sapply(va,function(x) all(x==x[1]))
-	# If nodes are not together, then delete the edge.
-	# FIXME: edges between modules still remain!!!
-	message(paste("Removing",sum(!together),"edges from graph."))
-	g <- delete_edges(g,es[!together])
-	# Switch node names to gene symbols.
-	g <- set_vertex_attr(g, "name", index = V(g), vertex_attr(g, "symbol"))
-	# Send to cytoscape.
-	library(RCy3)
-	cytoscapePing()
-	# Set Node Color.
-	# Set Layout.
-	style.name <- rep_partitions[i]
-	defaults <- list(NODE_SHAPE="elipse",
-	                 NODE_SIZE=30,
-	                 EDGE_TRANSPARENCY=120)
-	nodeFills <- mapVisualProperty('node fill color','Module','p')
-
-
-	createNetworkFromIgraph(g, rep_partitions[i])
-	
-	#setVisualStyle(style.name)
-
-	saveSession('vignette_session') #.cys
-	full.path=paste(getwd(),'vignette_image',sep='/')
-	exportImage(full.path, 'PNG', zoom=200) #.png scaled by 200%
-	exportImage(full.path, 'PDF') #.pdf
-	
+	# Faster to write graph to file and then load into Cytoscape 
+	# with importNetworkFromFile().
+	# Save graph to file.
+	edge_list <- as.data.table(as_edgelist(g, names = TRUE))
+	edge_list <- tibble::add_column(edge_list, type="pp",.after=1)
+	colnames(edge_list) <- c("NodeA","Type","NodeB")
+	myfile <- file.path(here,paste0(namen,".sif"))
+	fwrite(edge_list,file=myfile,sep="\t",col.names=FALSE)
+	# Load into Cytoscape.
+	net <- importNetworkFromFile(myfile) # Note, unconnected components are lost in this process.
+	unlink(myfile)
+	# Load node data into Cytoscape.
+	df <- as_long_data_frame(g)
+	df1 <- df[,grep("from",colnames(df))][,-c(1)]
+	colnames(df1) <- gsub("from_","",colnames(df1))
+	df2 <- df[,grep("to",colnames(df))][,-c(1)]
+	colnames(df2) <- gsub("to_","",colnames(df2))
+	noa <- unique(rbind(df1,df2))
+	loadTableData(noa, data.key.column = "name", table = "node",
+	              table.key.column = "shared name", namespace = "default")
+	# Create a visual style.
+	style.name = paste(r,"myStyle",sep="-")
+	# DEFAULTS:
+	defaults = list(
+	  NODE_LABEL = "",
+	  NODE_SHAPE = "ellipse",
+	  NODE_LABEL_TRANSPARENCY = 255,
+	  NODE_LABEL_FONT_SIZE = 12,
+	  NODE_LABEL_COLOR = col2hex("black"),
+	  NODE_BORDER_TRANSPARENCY = 200,
+	  NODE_BORDER_WIDTH = 2,
+	  NODE_BORDER_PAINT = col2hex("black"),
+	  NODE_TRANSPARENCY = 200,
+	  NETWORK_BACKGROUND_PAINT = col2hex("white")
+	)
+	# MAPPED PROPERTIES:
+	mappings <- list(
+	  NODE_LABELS = mapVisualProperty('node label','symbol','p'),
+	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p')
+	)
+	  #NODE_SIZE = mapVisualProperty('node size','size','c', c(5,1500), c(10,100)),
+	  #EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','cor', 'c', c(-1.0,0,1.0), c(255,0,255)),
+	  #NODE_X_LOCATION = mapVisualProperty('node x location', 'xpos', 'p'),
+	  #NODE_Y_LOCATION = mapVisualProperty('node y location', 'ypos', 'p')
+	#EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint',
+	# Create a visual style.
+	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
+	# Apply to graph.
+	setVisualStyle(style.name)
+	# Wait a couple of seconds...
+	Sys.sleep(sleep_time)
+	# Create module subnetworks.
+	module_names <- unique(part)
+	module_names <- module_names[order(module_names)]
+		for (module in module_names) {
+	  nodes <- noa$name[noa$module==module]
+	  createSubnetwork(nodes, nodes.by.col = "name", subnetwork.name = module)
+	  layoutNetwork('force-directed')
+	  setCurrentNetwork(net$networks) # Resets network view.
+		}
 }
-
-
-
 
 #------------------------------------------------------------------------------
 ## Examine modules of interest.
@@ -970,15 +1134,38 @@ message(paste0("... ... Sig hubs:"))
 print(hubSigProts)
 }
 
+
 #--------------------------------------------------------------------
-## Network summary plots.
+## Examine key modules.
 #--------------------------------------------------------------------
 
-# Number of clusters.
-# Cluster sizes (min, max, mean?)
-# Module quality - PVE
-# Percent unclustered.
-# Quality (Modularity)
-# Modularity of PPI graph.
-# Modularity of GOfx graph.
+moi <- unique(c(dys_modules,dbd_modules))
+
+p1 <- plots$R12$M2
+p2 <- plots$R17$M1 #DBD
+p3 <- plots$R57$M7
+p4 <- plots$R66$M2 #DBD
+p5 <- plots$R86$M32
+p6 <- plots$R88$M14
+
+GOresults <- unlist(GOresults,recursive=FALSE)
+names(GOresults) <- gsub("-",".",names(GOresults))
+
+DBDresults <- unlist(DBDresults,recursive=FALSE)
+names(DBDresults) <- gsub("-",".",names(DBDresults))
+
+i = 2
+df = GOresults[[moi[i]]]
+df$score <- -log10(df$pValue) * df$enrichmentRatio
+df <- df[order(df$score),]
+df$shortDataSetName[c(1:5)]
+df$Bonferroni[c(1:5)]
+all_modules[[moi[i]]]
+
+# 
+df = DBDresults[[moi[i]]]
+df$score <- -log10(df$pValue) * df$enrichmentRatio
+df <- df[order(df$score),]
+df$shortDataSetName[c(1:5)]
+df$Bonferroni[c(1:5)]
 
