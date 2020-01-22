@@ -133,6 +133,7 @@ for (i in 1:length(DBDresults)){
 	disease_sig[[i]] <- sapply(strsplit(names(namen[namen]),"-"),"[",2)
 }
 nsig <- sum(sapply(disease_sig,length))
+names(disease_sig) <- paste0("R",c(1:100))
 
 # Status.
 message(paste("Total number of disease associated modules:",nsig))
@@ -167,10 +168,28 @@ if (!file.exists(myfile)) {
     GOresults <- readRDS(myfile)
   } # Ends if/else.
 
+#--------------------------------------------------------------------
+## Get top GO term for every module.
+#--------------------------------------------------------------------
+
+# All go results.
+all_go <- unlist(GOresults,recursive = FALSE)
+names(all_go) <- gsub("-",".",names(all_go))
+
+# Top (1) go term for every module.
+topGO <- sapply(all_go,function(x) x$shortDataSetName[1])
+topGO_list <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
+
 #------------------------------------------------------------------------------
 ## Loop to explore changes in module summary expression.
 #------------------------------------------------------------------------------
 
+# Run the analysis?
+doLoop <- FALSE
+
+# Loop:
+if (doLoop) {
+	for (r in 1:100) {
 # Empty lists for output of loop:
 results <- list(module_results = list(),
 		ME_results = list(),
@@ -181,12 +200,6 @@ results <- list(module_results = list(),
 		DT_results = list(),
 		nSigDT_results = list(),
 		modules_of_interest = list())
-
-# Run the analysis?
-doLoop <- FALSE
-
-# Loop:
-if (doLoop) for (r in 1:100) {
 	message(paste("Working on resolution",r,"..."))
 	partition <- partitions[[r]]
 	# Get Modules.
@@ -329,9 +342,7 @@ if (doLoop) for (r in 1:100) {
 	results$nSigDT_results[[r]] <- nSigDT[sigModules]
 	results$modules_of_interest[[r]] <- moi
 } # Ends loop.
-
 # Name results lists and save.
-if (doLoop) {
 	message("Saving results, this will take several minutes...")
 	names(results$module_results) <- paste0("R",c(1:100))
 	names(results$ME_results) <- paste0("R",c(1:100))
@@ -374,6 +385,30 @@ message(paste("Number of modules exhibiting convergent dysregulation",
 n <- sum(sapply(modules_of_interest,length))
 message(paste("Number of DBD-associated modules exhibiting",
 	      "any dysregulation:",n))
+
+
+## Write all modules of interest to file for Scott.
+# DBD Modules
+x = names(unlist(modules_of_interest))
+idx <- as.numeric(gsub("R","",sapply(strsplit(x,"\\."),"[",1)))
+x = split(x,idx)
+add <- c(1:100)[as.character(c(1:100)) %notin% names(x)]
+v <- rep(NA,length(add))
+names(v) <- add
+x <- c(x,as.list(v))
+x <- x[order(as.numeric(names(x)))]
+# Convergent Modules.
+y = moi
+idy <- as.numeric(gsub("R","",sapply(strsplit(y,"\\."),"[",1)))
+y = split(y,idy)
+add <- c(1:100)[as.character(c(1:100)) %notin% names(y)]
+v <- rep(NA,length(add))
+names(v) <- add
+y <- c(y,as.list(v))
+y <- y[order(as.numeric(names(y)))]
+# Combine in df.
+df = data.table("Resolution" = c(1:100),"DBD-Modules"=x,"Convergent-Modules"=y)
+fwrite(df,"modules_of_interest.csv")
 
 #--------------------------------------------------------------------
 ## How are convergent modules related?
@@ -451,20 +486,25 @@ k <- best_k
 hc_partition <- cutree(hc, k)
 groups <- split(hc_partition,hc_partition)
 
+# Average similarity among the groups.
+avg_js <- sapply(groups,function(x) {
+			 subadjm <- adjm_js[names(x),names(x)]
+			 return(mean(subadjm[upper.tri(subadjm)]))
+			 })
+# Group 1 is highly similar.
+# Motivation to split other groups?
+avg_js
+
 # Find module with best (max) coherence in each group.
 x <- unlist(PVE_results,recursive=FALSE)
 pve <- x[names(hc_partition)]
 pve <- split(pve,hc_partition)
 best_mods <- sapply(pve,function(x) names(x[x==max(x)]))
 
-# What is the average similarity among groups?
-avg_sim <- lapply(groups,function(x) {
-	       idx <- idy <- match(names(x),colnames(adjm_js))
-	       dm <- adjm_js[idx,idy]
-	       mu <-mean(dm[upper.tri(dm)])
-	       return(mu)
-			 })
+# These modules are dissimilar.
+adjm_js[best_mods,best_mods]
 
+## Alternative:
 # Get representative module from each group, its medoid.
 # The medoid is the module which is most similar (closest) 
 # to all others in its group.
@@ -485,9 +525,10 @@ for (i in 1:length(groups)) {
 }
 
 # Is there protein overlap among these modules?
-idx <- idy <- match(dys_modules,colnames(adjm_js))
-dm <- adjm_js[idx,idy]
 # They are very different!
+adjm_js[dys_modules,dys_modules]
+
+# Alternative: Use ME to cluster.
 
 # Status.
 message("Representative divergent modules:")
@@ -499,6 +540,11 @@ roi <- gsub("\\.M[1-9]{1,3}","",dys_modules)
 # Status.
 message("Best (hightest PVE) divergent modules:")
 print(best_mods[order(best_mods)])
+
+# Representative Convergent Modules:
+
+# We can potentially refine larger co-expresion communities by breaking them
+# down with MCL clustering. This may facilitate hypothesis generation.
 
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
@@ -562,9 +608,16 @@ message(paste0("Cut height that produces the best partition: ",best_h,"."))
 message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
 
 # Generate groups of similar partitions.
+# Pick a better k.
 k <- best_k
 hc_partition <- cutree(hc, k)
 groups <- split(hc_partition,hc_partition)
+
+# Average similarity among the groups.
+avg_js <- sapply(groups,function(x) {
+			 subadjm <- adjm_js[names(x),names(x)]
+			 return(mean(subadjm[upper.tri(subadjm)]))
+			 })
 
 # Get representative module from each group, its medoid.
 # The medoid is the partition which is most similar (closest) 
@@ -584,6 +637,21 @@ for (i in 1:length(groups)) {
   col_sums <- apply(subdm, 2, function(x) sum(x, na.rm = TRUE))
   dbd_modules[i] <- names(col_sums[col_sums == min(col_sums)])
 }
+adjm_js[dbd_modules,dbd_modules]
+
+## Alternative approach.
+# Get modules that are MOST different!
+dc = apply(adjm_js,2,sum)
+dc <- dc[order(dc)]
+head(dc)
+
+# Now there are two obviously dissimilar modules.
+best_dbd <- names(dc[c(1,2)])
+best_dbd 
+# R77.M18 - 3x dys
+# R55.M4 - 1x dys - weak upregulation in shank3
+adjm_js[best_dbd,best_dbd]
+# These modules have no overlap.
 
 # Status.
 message("Representative DBD-associated modules:")
@@ -591,6 +659,101 @@ print(dbd_modules[order(dbd_modules)])
 
 # Get resolutions from which representative modules are drawn.
 dbd_roi <- gsub("\\.M[1-9]{1,3}","",dbd_modules)
+
+# Consider ME...
+all_ME <- unlist(ME_results,recursive=FALSE)
+x = do.call(cbind,all_ME[moi])
+dm = cor(x)
+
+# Convert similarity matrix to distance obj. and cluster with hclust.
+method <- "ward.D2" # ward.D2
+hc <- hclust(as.dist(1 - dm), method)
+
+# Examine dendrogram.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro 
+
+# Remove 2 outliers.
+h <- c(0,hc$height)
+names(h) <- hc$labels[hc$order]
+h <- h[order(h,decreasing=TRUE)]
+out <- names(h)[c(1,2)] # R77.M18 and R55.M4
+idx <- idy <- colnames(dm) %notin% out
+dm <- dm[idx,idy]
+
+# Convert similarity matrix to distance obj. and cluster with hclust.
+method <- "ward.D2" # ward.D2
+hc <- hclust(as.dist(1 - dm), method)
+
+# Examine dendrogram.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro 
+
+# Utilize modularity to identify the optimimal number of groups.
+# Convert to igraph object for modularity calculation.
+g <- graph_from_adjacency_matrix(dm,mode="undirected",weighted=TRUE)
+
+# Examine number of groups and modularity given cut height.
+h <- seq(0,max(hc$height),by=0.001)
+hc_partitions <- lapply(h,function(x) cutree(hc,h=x))
+k <- sapply(h,function(x) length(unique(cutree(hc,h=x))))
+q <- sapply(hc_partitions,function(x) modularity(g, x, weights = edge_attr(g, "weight")))
+
+# Best cut height that maximizes modularity.
+best_q <- unique(q[seq(h)[q==max(q)]])
+best_h <- median(h[seq(h)[q==max(q)]])
+best_k <- unique(k[seq(k)[q==max(q)]])
+message(paste0("Cut height that produces the best partition: ",best_h,"."))
+message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
+
+# STOP: Resolution limit encountered. Two groups of highly similar modules.
+
+# Generate groups of similar partitions.
+# Pick a better k.
+k <- 2
+hc_partition <- cutree(hc, k)
+groups <- split(hc_partition,hc_partition)
+
+# Average similarity among the groups.
+avg_js <- sapply(groups,function(x) {
+			 subadjm <- dm[names(x),names(x)]
+			 return(mean(subadjm[upper.tri(subadjm)]))
+			 })
+
+# Are 1 and 2 really different?
+# Loop to get the medoid of each group:
+rep_modules <- vector("character",length(groups))
+for (i in 1:length(groups)) {
+  # Get partitions in the group.
+  v <- names(groups[[i]])
+  idx <- idy <- colnames(dm) %in% v
+  # Create distance matrix.
+  subdm <- 1 - dm[idx, idy]
+  diag(subdm) <- NA
+  # Distance to all other partitions in the group is the colSum
+  # of the distance matrix. The medoid of the group is the 
+  # item that is closest to all others.
+  col_sums <- apply(subdm, 2, function(x) sum(x, na.rm = TRUE))
+  rep_modules[i] <- names(col_sums[col_sums == min(col_sums)])
+}
+
+dm[rep_modules,rep_modules]
+
+# These modules are highly similar.
+# Thus there appear to be 3 representative DBD-associated modules.
+dc <- apply(dm,2,sum)
+dc <- dc[order(dc,decreasing=TRUE)]
+head(dc)
+med <- names(dc)[1] # Medoid =  R36.M1
+
+# Find module with best (max) coherence in each group.
+pve <- unlist(PVE_results,recursive=FALSE)
+x <- pve[colnames(dm)]
+x = x[order(x,decreasing=TRUE)]
+# Best according to coherence = R99.M1.
+
+## Representative DBD-modules:
+# R55.M4, R77.M18, R99.M1
 
 #--------------------------------------------------------------------
 ## Examine the overall structure of the network.
@@ -685,6 +848,9 @@ for (i in 1:length(groups)) {
 # Which partitions are most representative?
 message(paste("Representative partitions:"))
 print(rep_partitions)
+
+write.table(rep_partitions,"network_representative_partitions.txt")
+
 
 #--------------------------------------------------------------------
 ## Plot number of clusters.
@@ -1119,6 +1285,7 @@ create_PPI_graphs <- function(g, partitions, resolution){
 } # EOF
 
 # Loop to generate Cytoscape graphs.
+# add coexpression edges!
 for (i in 1:100) {
   if (i == 1) { pbar <- txtProgressBar(min=0,max=100,style=3) }
   create_PPI_graphs(g, partitions, resolution=i)
@@ -1129,6 +1296,8 @@ for (i in 1:100) {
 #------------------------------------------------------------------------------
 ## Examine modules of interest.
 #------------------------------------------------------------------------------
+
+all_plots <- unlist(plots,recursive = FALSE)
 
 for (i in 1:length()){
 m <- rep_modules[i]
