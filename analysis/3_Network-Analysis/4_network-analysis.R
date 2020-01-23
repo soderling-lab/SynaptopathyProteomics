@@ -1293,6 +1293,140 @@ for (i in 1:100) {
   if (i==100) { message("\n"); close(pbar) }
 }
   
+#--------------------------------------------------------------------
+## Create graph of module of interest.
+#--------------------------------------------------------------------
+
+# Load all ppis mapped to mouse genes.
+data("musInteractome")
+
+# Combine PPI + CO-expression
+# Label sigprots
+# Label hubs = kme = size
+
+# Subset mouse interactome, keep data from mouse, human, and rat.
+idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
+ppis <- subset(musInteractome, idx)
+
+# Get entrez IDs for all proteins in data.
+prots <- colnames(data)
+entrez <- protmap$entrez[match(prots, protmap$ids)]
+
+# Build a graph with all proteins.
+g0 <- buildNetwork(ppis, entrez, taxid = 10090)
+
+# Remove self-connections and redundant edges.
+g0 <- simplify(g0)
+
+# Check topology of PPI graph.
+ppi_adjm <- as_adjacency_matrix(g0)
+dc <- apply(ppi_adjm,2,sum) # node degree is column sum.
+fit <- WGCNA::scaleFreeFitIndex(dc)
+r <- fit$Rsquared.SFT
+message(paste("Scale free fit of PPI graph:",round(r,3)))
+
+#Function to create PPI graphs.
+create_PPI_graphs <- function(g, partitions, resolution){
+  suppressPackageStartupMessages({
+    library(RCy3)
+  })
+  # Check that we are connected to Cytoscape.
+  cytoscapePing()
+  namen <- paste0("R",i)
+  # Add protein ids.
+  ids <- protmap$ids[match(names(V(g)),protmap$entrez)]
+  g <- set_vertex_attr(g,"ProtID",value = ids)
+  # Add node color attribute.
+  part <- partitions[[i]]
+  part[] <- paste0("R",i,".","M",part)
+  node_colors <- module_colors[part]
+  names(node_colors) <- names(part)
+  g <- set_vertex_attr(g,"color", value = node_colors[vertex_attr(g, "ProtID")])
+  # Add node module attribute.
+  g <- set_vertex_attr(g,"module",value = part[vertex_attr(g, "ProtID")])
+  # Add sigprot vertex attribute.
+  sigEntrez <- protmap$entrez[match(sigProts, protmap$ids)]
+  anySig <- names(V(g)) %in% sigEntrez
+  g <- set_vertex_attr(g, "sigProt", value = anySig)
+  # Faster to write graph to file and then load into Cytoscape 
+  # with importNetworkFromFile().
+  # Save graph to file.
+  edge_list <- as.data.table(as_edgelist(g, names = TRUE))
+  edge_list <- tibble::add_column(edge_list, type="pp",.after=1)
+  colnames(edge_list) <- c("NodeA","Type","NodeB")
+  myfile <- file.path(here,paste0(namen,".sif"))
+  fwrite(edge_list,file=myfile,sep="\t",col.names=FALSE)
+  # Load into Cytoscape.
+  net <- importNetworkFromFile(myfile) # Note, unconnected components are lost in this process.
+  unlink(myfile)
+  # Load node data into Cytoscape.
+  df <- as_long_data_frame(g)
+  df1 <- df[,grep("from",colnames(df))][,-c(1)]
+  colnames(df1) <- gsub("from_","",colnames(df1))
+  df2 <- df[,grep("to",colnames(df))][,-c(1)]
+  colnames(df2) <- gsub("to_","",colnames(df2))
+  noa <- unique(rbind(df1,df2))
+  loadTableData(noa, data.key.column = "name", table = "node",
+                table.key.column = "shared name", namespace = "default")
+  # Create a visual style.
+  style.name = paste(r,"myStyle",sep="-")
+  # DEFAULTS:
+  defaults = list(
+    NODE_LABEL = "",
+    NODE_SHAPE = "ellipse",
+    NODE_LABEL_TRANSPARENCY = 255,
+    NODE_LABEL_FONT_SIZE = 12,
+    NODE_LABEL_COLOR = col2hex("black"),
+    NODE_BORDER_TRANSPARENCY = 200,
+    NODE_BORDER_WIDTH = 2,
+    NODE_BORDER_PAINT = col2hex("black"),
+    NODE_TRANSPARENCY = 200,
+    NETWORK_BACKGROUND_PAINT = col2hex("white")
+  )
+  # MAPPED PROPERTIES:
+  mappings <- list(
+    NODE_LABELS = mapVisualProperty('node label','symbol','p'),
+    NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p')
+  )
+  #NODE_SIZE = mapVisualProperty('node size','size','c', c(5,1500), c(10,100)),
+  #EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','cor', 'c', c(-1.0,0,1.0), c(255,0,255)),
+  #NODE_X_LOCATION = mapVisualProperty('node x location', 'xpos', 'p'),
+  #NODE_Y_LOCATION = mapVisualProperty('node y location', 'ypos', 'p')
+  #EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint',
+  # Create a visual style.
+  createVisualStyle(style.name, defaults = defaults, mappings = mappings)
+  # Apply to graph.
+  setVisualStyle(style.name)
+  # Wait a couple of seconds...
+  Sys.sleep(sleep_time)
+  # Create module subnetworks.
+  module_names <- unique(part)
+  module_names <- module_names[order(module_names)]
+  for (module in module_names) {
+    nodes <- noa$name[noa$module==module]
+    createSubnetwork(nodes, nodes.by.col = "name", subnetwork.name = module)
+    layoutNetwork('force-directed')
+    setCurrentNetwork(net$networks) # Resets network view.
+  }
+  # Save
+  output_file <- paste0("R",resolution)
+  myfile <- file.path(figsdir,output_file)
+  saveSession(myfile)
+  # Delete network.
+  deleteAllNetworks()
+  cytoscapeFreeMemory()
+} # EOF
+
+# Loop to generate Cytoscape graphs.
+# add coexpression edges!
+for (i in 1:100) {
+  if (i == 1) { pbar <- txtProgressBar(min=0,max=100,style=3) }
+  create_PPI_graphs(g, partitions, resolution=i)
+  setTxtProgressBar(pbar,i)
+  if (i==100) { message("\n"); close(pbar) }
+}
+
+
 #------------------------------------------------------------------------------
 ## Examine modules of interest.
 #------------------------------------------------------------------------------
