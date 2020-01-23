@@ -946,6 +946,9 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats))
 # Store boxplots.
 all_plots[["all_box_plots"]] <- plot_list
 
+# Store seperately as 
+saveRDS(all_plots, "all_prot_bplots.RData")
+
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.
 #-------------------------------------------------------------------------------
