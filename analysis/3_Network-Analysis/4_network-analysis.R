@@ -10,7 +10,7 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-net <- "Cortex" # Which network are we analyzing? 
+net <- "Striatum" # Which network are we analyzing? 
 overwrite_figsdir = TRUE
 
 # Global options and imports.
@@ -39,6 +39,7 @@ funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
+netsdir <- file.path(root, "networks")
 
 # Create directory for figure output.
 script_name <- "4_network-analysis"
@@ -1035,21 +1036,8 @@ for (module in moi) {
 ## Generate Cytoscape graphs of modules at every resolution.
 #--------------------------------------------------------------------
 
-# Parameters:
-sftPower <- 3 # Soft power for weighting the ME network--improves layout.
-save_image <- TRUE # Should pdf be saved?
-file_format <- 'SVG' # PNG, PDF, JPEG, SVG...
-sleep_time <- 2 # How much time to wait after cytoscape steps... can help insure that final image looks correct?
-
-generate_module_summary_graphs = FALSE
-
-if (generate_module_summary_graphs) {
-  # Loop to generate network layers.
-  for (i in seq_along(named_parts)){
-    # Check that we are connected to cytoscape.
-    if (i == 1) { 
+create_Module_graph <- function(sftPower=3,save_image=TRUE,file_format="SVG") {
     suppressPackageStartupMessages({ library(RCy3) }); cytoscapePing()
-  }
   # Build graph.
   r <- resolution <- names(named_parts)[i]
   p <- named_parts[[resolution]]
@@ -1103,27 +1091,24 @@ if (generate_module_summary_graphs) {
   # Apply to graph.
   setVisualStyle(style.name)
   # Wait a couple of seconds...
-  Sys.sleep(sleep_time)
+  Sys.sleep(2)
   # Save image.
   if (save_image) {
     fitContent()
-    Sys.sleep(sleep_time) # Wait... 
+    Sys.sleep(2) # Wait... 
     prefix <- formatC(i, width = 3, format = "d", flag = "0")
     myfile <- file.path(figsdir,"3_Network-Analysis","Network_Slices",
                       paste(prefix,r,"network",sep="_"))
   exportImage(myfile, file_format)
   }
-  if (i == 100) {
-    myfile <- file.path(figsdir,"Cytoscape_Networks")
-    saveSession(myfile)
-  }
-} # Ends loop.
-} # Ends if statement.
+  cytoscapeFreeMemory()
+} #Ends function.
 
 #--------------------------------------------------------------------
 ## Create Synaptsome co-expression graph.
 #--------------------------------------------------------------------
-# # Create co-expression graph.
+
+# Create co-expression graph.
 g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 g0 <- simplify(g0)
 
@@ -1250,9 +1235,9 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name,
 	  NODE_LABELS = mapVisualProperty('node label','symbol','p'),
 	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
 	  NODE_SIZE = mapVisualProperty('node size','kme','c', c(min(V(g)$kme),max(V(g)$kme)), c(25,75)),
-	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','weight', 'c', c(-1.0,0,1.0), c(255,0,255)),
+	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','weight', 'c', c(0,1), c(0,255)),
 	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 'weight','c',
-	                                                   c(-1,1),c(col2hex("white"),col2hex("dark orange")))
+	                                                   c(min(E(g)$weight),max(E(g)$weight)),c(col2hex("white"),col2hex("dark orange")))
 	)
 	# Create a visual style.
 	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
@@ -1280,9 +1265,10 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name,
 	                     visual.property = "EDGE_BEND",
 	                     bypass = TRUE)
 	setEdgePropertyBypass(edge.names = selected_edges$edges,
-	                      new.values = 4,
+	                      new.values = 3,
 	                      visual.property = "EDGE_WIDTH",
 	                      bypass = TRUE)
+	clearSelection() # Removes any nodes/edges from selection.
 	# Wait a couple of seconds...
 	Sys.sleep(2)
 	layoutNetwork('force-directed edgeAttribute=weight')
@@ -1291,7 +1277,6 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name,
 	  myfile <- file.path(output_dir,module_name)
 	  saveSession(myfile)
 	  deleteAllNetworks()
-	  cytoscapeFreeMemory()
 	}
   # Save image.
   if (save_image) {
@@ -1300,13 +1285,13 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name,
     myfile <- file.path(output_dir,paste0(module_name,"_network"))
     exportImage(myfile, file_format)
   }
+	cytoscapeFreeMemory()
 }
 
-
-create_PPI_graph(g0,g1,all_modules,all_rep_modules[2],output_dir=figsdir)
-
-# Generate networks.
+# Generate networks for all modules of interest.
 for (i in 1:length(all_rep_modules)){
   message(paste("Working on module",all_rep_modules[i]))
   create_PPI_graph(g0,g1,all_modules,all_rep_modules[i],output_dir=figsdir)
+  myfile <- file.path(netsdir,paste0(net,"_Top_Modules"))
+  saveSession(myfile)
 }
