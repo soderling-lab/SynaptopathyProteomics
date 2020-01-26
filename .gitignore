@@ -9,6 +9,7 @@ __pycache__/
 
 # Other files to ignore.
 downloads/
+networks/
 out/
 figures/
 figs/

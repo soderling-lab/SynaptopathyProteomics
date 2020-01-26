@@ -1,10 +1,9 @@
 #!/usr/bin/env Rscript
 
 # Find representative partitions of the graph.
-# Find modules of interest:
+# Find representative modules of interest:
 #     1. DBD-associated modules.
 #     2. Convergent modules.
-# Combine these resolutions and generate multi-resolution graph.
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
@@ -84,7 +83,7 @@ rownames(adjm) <- colnames(adjm)
 
 # Load GO semantic similarity graph.
 myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
-goadjm <- fread(myfile,drop=1)
+adjm_go <- fread(myfile,drop=1)
 
 # Load network partitions-- self-preservation enforced.
 ids <- c("Cortex"="14942508","Striatum"="14940918")
@@ -95,31 +94,40 @@ partitions <- readRDS(myfile)
 partitions <- lapply(partitions, reset_index)
 
 # Load theme for plots.
-# FIXME: ggtheme, default should not be tilted x labels. Also y axis labels should be same size.
 ggtheme()
+
+#------------------------------------------------------------------------------
+## Collect all modules in a named list.
+#------------------------------------------------------------------------------
+
+# Name partitions.
+named_parts <- partitions
+names(named_parts) <- paste0("R",c(1:length(partitions)))
+
+# Name modules.
+modules_list <- lapply(named_parts,function(x) split(x,x))
+modules_list <- sapply(modules_list,function(x) {
+  names(x) <- paste0("M",names(x))
+  return(x) })
+
+# All named modules.
+all_modules <- unlist(modules_list,recursive=FALSE)
+all_modules <- sapply(all_modules,names)
 
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
 
-# FIXME: Why does loop fail on resoultion = 48.
-# Fails upon addition of satterstrom dataset.
-# Only a problem when combining Satterstrom data with other datasets.
-# Does not fail if using satterstrom data alone.
-
-# DBD enrichment from Satterstrom -- some modules, but only one gene!
-
-# Load Disease ontology.
-geneSet <- "mouse_Combined_DBD_geneSets.RData"
-#geneSet <- "mouse_Satterstrom_ASD_geneSet.RData"
-myfile <- file.path(rdatdir,geneSet)
-GOcollection <- readRDS(myfile)
+do_DBD_enrichment <- TRUE
 
 # Perform disease enrichment analysis.
-do_DBD_enrichment <- TRUE
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
 if (do_DBD_enrichment) {
 	message("Performing module enrichment analysis for DBD-associated genes...")
+  # Load Disease ontology.
+  geneSet <- "mouse_Combined_DBD_geneSets.RData"
+  myfile <- file.path(rdatdir,geneSet)
+  GOcollection <- readRDS(myfile)
 	DBDresults <- list()
 	for (i in 1:100) {
 		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
@@ -151,19 +159,20 @@ message(paste("Total number of disease associated modules:",nsig))
 ## Module GO enrichment.
 #--------------------------------------------------------------------
 
-# Build a GO collection.
-myfile <- file.path(rdatdir,"3_musGOcollection.RData")
-if (!file.exists(myfile)) {
-  GOcollection <- buildGOcollection(organism="mouse")
-  saveRDS(GOcollection,myfile)
-} else {
-  message("Loading saved GO collection!")
-  GOcollection <- readRDS(myfile)
-}
+do_GO_enrichment <- FALSE
 
 # Loop to perform GO enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_All_",net,"_Module_GO_enrichment.RData"))
-if (!file.exists(myfile)) {
+if (do_GO_enrichment) {
+  # Build a GO collection.
+  myfile <- file.path(rdatdir,"3_musGOcollection.RData")
+  if (!file.exists(myfile)) {
+    GOcollection <- buildGOcollection(organism="mouse")
+    saveRDS(GOcollection,myfile)
+  } else {
+    message("Loading saved GO collection!")
+    GOcollection <- readRDS(myfile)
+  }
   GOresults <- list()
   pbar <- txtProgressBar(min=1,max=100,style=3)
   for (i in 1:length(partitions)){
@@ -177,8 +186,6 @@ if (!file.exists(myfile)) {
     GOresults <- readRDS(myfile)
   } # Ends if/else.
 
-
-
 #--------------------------------------------------------------------
 ## Get top GO term for every module.
 #--------------------------------------------------------------------
@@ -189,14 +196,14 @@ names(all_go) <- gsub("-",".",names(all_go))
 
 # Top (1) go term for every module.
 topGO <- sapply(all_go,function(x) x$shortDataSetName[1])
-topGO_list <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
+all_topGO <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
 
 #------------------------------------------------------------------------------
 ## Loop to explore changes in module summary expression.
 #------------------------------------------------------------------------------
 
 # Run the analysis?
-doLoop <- TRUE
+doLoop <- FALSE
 
 # Loop:
 if (doLoop) {
@@ -388,22 +395,19 @@ modules_of_interest <- results$modules_of_interest
 n <- c("Cortex" = 4, "Striatum" = 3)[net]
 convergent_modules <- names(unlist(sapply(nSigDT_results,function(x) x[x>=n]),recursive=FALSE))
 
+# Collect modules of interest: DBD-associated modules.
+dbd_modules <- names(unlist(modules_of_interest))
+
 # Status.
 message(paste("Number of modules exhibiting convergent dysregulation",
-              "across all partitions:",length(moi)))
-
-# Collect modules of interest: DBD-associated modules.
-n <- sum(sapply(modules_of_interest,length))
-modules_of_interest
+              "across all partitions:",length(convergent_modules)))
 
 message(paste("Number of DBD-associated modules exhibiting",
-	      "any dysregulation:",n))
+	      "any dysregulation:",length(dbd_modules)))
 
 ## Summary:
-# Cortex: Convergent (==4): 76; DBD 76: 
-# Striatum: Convergent (>=3): 33; DBD: 0
-p = partitions[[75]]
-m = p[p==34]
+# Cortex:   Convergent (n==4): 76; DBD 97: 
+# Striatum: Convergent (n>=3): 33; DBD: 0
 
 #--------------------------------------------------------------------
 ## How are convergent modules related?
@@ -411,26 +415,18 @@ m = p[p==34]
 # There are too many moi to look at each one, can we summarize them
 # in some way?
 
-# Collect all modules in a named list--includes M0.
-named_parts <- partitions
-names(named_parts) <- paste0("R",c(1:length(partitions)))
-modules_list <- lapply(named_parts,function(x) split(x,x))
-modules_list <- sapply(modules_list,function(x) {
-		   names(x) <- paste0("M",names(x))
-		   return(x) })
-all_modules <- unlist(modules_list,recursive=FALSE)
-all_modules <- sapply(all_modules,names)
 
-# All comparisons (contrasts).
+# All comparisons between convergent modules (contrasts).
+moi <- convergent_modules
 contrasts <- expand.grid("M1"=moi,
                          "M2"=moi,stringsAsFactors=FALSE)
 
 # Examine module jaacard similarity for all comparisons between 
 # modules of interest.
-message("Calculating Module Jaacard Similarity...")
+message("Calculating Jaacard similarity between all convergent modules...")
 n <- dim(contrasts)[1]
 modulejs <- vector("numeric",n)
-pbar <- txtProgressBar(min=1,max=n,style=3)
+pbar <- txtProgressBar(min=0,max=n,style=3)
 # Loop:
 for (i in 1:nrow(contrasts)){
 	setTxtProgressBar(pbar,i)
@@ -450,10 +446,8 @@ n <- length(moi)
 adjm_js <- matrix(modulejs,nrow=n,ncol=n)
 colnames(adjm_js) <- rownames(adjm_js) <- moi
 
-# Convert similarity matrix to distance matrix, and then
-# cluster with hclust.
-method <- "ward.D2" # ward.D2, ward.D, single,complete,average,mcquitty,median,centroid
-hc <- hclust(as.dist(1 - adjm_js), method)
+# Convert similarity matrix to distance matrix, and cluster with hclust.
+hc <- hclust(as.dist(1 - adjm_js), method = "ward.D2")
 
 # Examine dendrogram.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
@@ -476,15 +470,8 @@ best_k <- unique(k[seq(k)[q==max(q)]])
 message(paste0("Cut height that produces the best partition: ",best_h,"."))
 message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
 
-# Update dendro with cutheight. Save.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE) + 
-  geom_hline(yintercept=best_h, color='red', size = 1)
-myfile <- file.path(figsdir,paste0("3_",net,"_Convergent_Modules_Dendro.tiff"))
-ggsave(myfile,plot=dendro, height=2.5, width = 3) 
-
 # Generate groups of similar partitions.
-k <- best_k
-hc_partition <- cutree(hc, k)
+hc_partition <- cutree(hc, h=best_h)
 groups <- split(hc_partition,hc_partition)
 
 # Average similarity among the groups.
@@ -495,63 +482,187 @@ avg_js <- sapply(groups,function(x) {
 
 # Replace NA for groups with length == 1. 
 avg_js[is.na(avg_js)] <- 1 # NA for groups with length == 1. 
-avg_js # Striatum group 1 is not very cohesive.
+avg_js
+
+# Get representative module from each group, its medoid.
+# The medoid is the module which is closes (i.e. most similar) 
+# to all others in its group.
+rep_convergent_modules <- getMedoid(adjm_js,h=best_h)
+	
+# Is there protein overlap among these modules?
+# They are very different!
+adjm_js[rep_convergent_modules,rep_convergent_modules] # R90.M50 shares ~50 overlap with several others.
+
+# Status.
+message("Representative divergent modules:")
+print(rep_convergent_modules[order(rep_convergent_modules)])
+
+# Update dendro with cutheight and representative modules.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
+  geom_hline(yintercept=best_h, color='red', size = 1)
+
+# Get dendrogram data.
+dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
+dend_data <- dend_data$labels
+dend_data$group <- as.factor(hc_partition[dend_data$label])
+dend_data$rep_module <- dend_data$label %in% rep_convergent_modules
+
+# Highlight representative modules with red text.
+dendro <- dendro + 
+  geom_text(data = dend_data, aes(x, y, label = label, color = rep_module),
+            hjust = 1, angle = 90, size = 3) + 
+  scale_colour_manual(values=c("black", "red")) +
+  theme(legend.position="none")
+dendro 
+
+# Save.
+myfile <- file.path(figsdir,paste0("3_",net,"_Convergent_Modules_Dendro.tiff"))
+ggsave(myfile,plot=dendro, height=2.5, width = 3)
+
+#--------------------------------------------------------------------
+## How are DBD-associated modules related?
+#--------------------------------------------------------------------
+# There are too many moi to look at each one, can we summarize them
+# in some way?
+
+# All comparisons between convergent modules (contrasts).
+moi <- dbd_modules
+contrasts <- expand.grid("M1"=moi,
+                         "M2"=moi, stringsAsFactors=FALSE)
+
+# Examine module jaacard similarity for all comparisons between 
+# modules of interest.
+message("Calculating Jaacard similarity between all DBD-associated modules...")
+n <- dim(contrasts)[1]
+modulejs <- vector("numeric",n)
+pbar <- txtProgressBar(min=0,max=n,style=3)
+# Loop:
+for (i in 1:nrow(contrasts)){
+  setTxtProgressBar(pbar,i)
+  x <- contrasts[i,]
+  r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
+  m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
+  p1 <- partitions[[r[1]]]
+  m1 <- names(split(p1,p1)[[m[1]]])
+  p2 <- partitions[[r[2]]]
+  m2 <- names(split(p2,p2)[[m[2]]])
+  modulejs[i] <- js(m1,m2)
+  if (i == n) { close(pbar); message("\n") }
+} # Ends loop.
+
+# Cast modulejs into similarity matrix.
+n <- length(moi)
+adjm_js <- matrix(modulejs,nrow=n,ncol=n)
+colnames(adjm_js) <- rownames(adjm_js) <- moi
+
+# Convert similarity matrix to distance matrix, and then
+# cluster with hclust.
+method <- "ward.D2" # ward.D2, ward.D, single,complete,average,mcquitty,median,centroid
+hc <- hclust(as.dist(1 - adjm_js), method)
+
+# Examine dendrogram.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro 
+
+# Try removing two outliers.
+x <- apply((1-adjm_js),2,sum)
+x <- x[order(x,decreasing = TRUE)]
+out <- colnames(adjm_js) %in% names(x)[c(1,2)]
+modules_out <- colnames(adjm_js)[out]
+
+# cluster with hclust.
+hc <- hclust(as.dist(1 - adjm_js[!out,!out]), method = "ward.D2")
+
+# Examine dendrogram.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro 
+
+# Utilize modularity to identify the optimimal number of groups.
+g <- graph_from_adjacency_matrix(adjm_js[!out,!out],
+                                 mode="undirected",weighted=TRUE)
+
+# Examine number of groups and modularity given cut height.
+h <- seq(0,max(hc$height),by=0.01)
+hc_partitions <- lapply(h,function(x) cutree(hc,h=x))
+k <- sapply(h,function(x) length(unique(cutree(hc,h=x))))
+q <- sapply(hc_partitions,function(x) {
+  modularity(g, x, weights = edge_attr(g, "weight")) })
+
+# Best cut height that maximizes modularity.
+best_q <- unique(q[seq(h)[q==max(q)]])
+best_h <- median(h[seq(h)[q==max(q)]])
+best_k <- unique(k[seq(k)[q==max(q)]])
+message(paste0("Cut height that produces the best partition: ",best_h,"."))
+message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
+
+# Generate groups of similar partitions.
+hc_partition <- cutree(hc, h=best_h)
+groups <- split(hc_partition,hc_partition)
+
+# Average similarity among the groups.
+avg_js <- sapply(groups,function(x) {
+  subadjm <- adjm_js[names(x),names(x)]
+  return(mean(subadjm[upper.tri(subadjm)]))
+})
+
+# Replace NA for groups with length == 1. 
+avg_js[is.na(avg_js)] <- 1 # NA for groups with length == 1. 
+avg_js
 
 # Get representative module from each group, its medoid.
 # The medoid is the module which is most similar (closest) 
 # to all others in its group.
-# Loop to get the medoid of each group:
-getMedoid <- function(hc,adjm,k,group,warn=FALSE) {
-	# The medoid of the group is the branch that is closest to 
-	# all branches in its group.
-	hc_partition <- cutree(hc, k)
-	hc_groups <- split(hc_partition,hc_partition)
-	v <- names(hc_groups[[group]])
-	if (length(v) == 1) {
-		if (warn) { warning("Cannot find the medoid if group size == 1!") }
-		return(v)
-	} else {
-		dm <- 1 - adjm[v,v]
-		diag(dm) <- NA
-		col_sums <- apply(dm, 2, function(x) sum(x, na.rm = TRUE))
-		med <- names(col_sums[col_sums == min(col_sums)])
-		if (length(med) > 1) {
-			if (warn) { warning("Ties found. Picking first branch as representative branch.") }
-		}
-		return(med[1])
-	}
-}
-med_parts <- sapply(c(1:length(groups)),function(x) getMedoid(hc,adjm_js,best_k,x))
+rep_dbd_modules <- getMedoid(adjm_js[!out,!out],h=best_h)
+
+# Combine with modules that were removed.
+rep_dbd_modules <- c(modules_out,rep_dbd_modules)
+rep_dbd_modules <- rep_dbd_modules[order(rep_dbd_modules)]
+names(rep_dbd_modules) <- NULL
 
 # Is there protein overlap among these modules?
 # They are very different!
-dys_modules <- med_parts
-adjm_js[dys_modules,dys_modules] # R90.M50 shares ~50 overlap with several others.
+adjm_js[rep_dbd_modules,rep_dbd_modules] # R90.M50 shares ~50 overlap with several others.
 
 # Status.
-message("Representative divergent modules:")
-print(dys_modules[order(dys_modules)])
+message("Representative DBD-associated modules:")
+print(rep_dbd_modules)
 
-# Representative Convergent Modules:
-# R12.M2  | R24.M2
-# R57.M7  | R80.M17
-# R86.M32 | R91.M54
-# R88.M14 | R98.M19
+# Update dendro with cutheight and representative modules.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
+  geom_hline(yintercept=best_h, color='red', size = 1)
 
-# We can potentially refine larger co-expresion communities by breaking them
-# down with MCL clustering. This may facilitate hypothesis generation.
+# Get dendrogram data.
+dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
+dend_data <- dend_data$labels
+dend_data$group <- as.factor(hc_partition[dend_data$label])
+dend_data$rep_module <- dend_data$label %in% rep_dbd_modules
+
+# Highlight representative modules with red text.
+dendro <- dendro + 
+  geom_text(data = dend_data, aes(x, y, label = label, color = rep_module),
+            hjust = 1, angle = 90, size = 3) + 
+  scale_colour_manual(values=c("black", "red")) +
+  theme(legend.position="none")
+
+# Save.
+myfile <- file.path(figsdir,paste0("3_",net,"_DBD_Modules_Dendro.tiff"))
+ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 #--------------------------------------------------------------------
 ## Save verbose boxplots for representative modules.
 #--------------------------------------------------------------------
 
+all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
+
 # Collect plots from representative modules.
 all_plots <- unlist(plots,recursive = FALSE)
-myplots <- all_plots[dys_modules]
+myplots <- all_plots[rep_convergent_modules]
 
 # Save.
 for (i in seq_along(myplots)) {
-  myfile <- file.path(figsdir,paste0(net,"_",names(myplots)[i],".tiff"))
+  file_name <- paste0(file_prefix(figsdir),"_",net,"_",
+                      names(myplots)[i],".tiff")
+  myfile <- file.path(figsdir,file_name)
   ggsave(myfile,myplots[[i]],height = 3.5,width=3.5)
 }
 
@@ -591,15 +702,14 @@ if (!file.exists(myfile)){
 
 # Extract similarity statistic and convert this into a matrix.
 n <- length(partitions)
-fmi_adjm <- matrix(fmi, nrow = n, ncol = n)
-colnames(fmi_adjm) <- rownames(fmi_adjm) <- paste0("R",seq(ncol(fmi_adjm)))
+adjm_fmi <- matrix(fmi, nrow = n, ncol = n)
+colnames(adjm_fmi) <- rownames(adjm_fmi) <- paste0("R",seq(ncol(adjm_fmi)))
 
 # Convert to igraph object for modularity calculation.
-g <- graph_from_adjacency_matrix(fmi_adjm,mode="undirected",weighted=TRUE)
+g <- graph_from_adjacency_matrix(adjm_fmi,mode="undirected",weighted=TRUE)
 
 # Convert matrix to distance object and cluster with hclust.
-method <- "ward.D2" # ward.D2
-hc <- hclust(as.dist(1 - fmi_adjm), method)
+hc <- hclust(as.dist(1 - adjm_fmi), method = "ward.D2")
 
 # Try to reorder the leaves in resolution order.
 hc <- reorder(hc, rev(c(1:100)))
@@ -621,51 +731,31 @@ best_k <- unique(k[seq(k)[q==max(q)]])
 message(paste("Cut height that produces the best partition:",best_h))
 message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")"))
 
-# Update dendrograph with cutheight.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE) +
-  geom_hline(yintercept = best_h,color="red",size=1)
-myfile <- file.path(figsdir,paste0("3_",net,"_All_Partitions_Dendro.tiff"))
-ggsave(myfile,plot=dendro, height=2.5, width = 3)
-
 # Generate groups of similar partitions.
 k <- best_k
-hc_partition <- cutree(hc, k)
+hc_partition <- cutree(hc, k, method)
 groups <- split(hc_partition,hc_partition)
 
 # Get representative paritition from each group, its medoid.
 # The medoid is the partition which is most similar (closest) 
 # to all others in its group.
 # Loop to get the medoid of each group:
-rep_partitions <- sapply(c(1:length(groups)),function(x) getMedoid(hc,fmi_adjm,best_k,x))
+rep_partitions <- getMedoid(adjm_fmi,k=best_k,method="ward.D2")
 
 # Which partitions are most representative?
 message(paste("Representative partitions:"))
 print(rep_partitions)
 
-#--------------------------------------------------------------------
-## GO Scatter Plots.
-#--------------------------------------------------------------------
-
-# Generate plots.
-plots <- list()
-
-modules <- paste0("R",1,
-		  paste0(".M",names(split(partitions[[1]],partitions[[1]]))))
-
-for (module in modules){
-	plots[[module]] <- ggplotGOscatter(all_go[[module]],
-					   color=module_colors[module])
-}
+# Update dendrograph with cutheight.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE) +
+  geom_hline(yintercept = best_h,color="red",size=1)
+dendro
+myfile <- file.path(figsdir,paste0("3_",net,"_All_Partitions_Dendro.tiff"))
+ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 #--------------------------------------------------------------------
-## Plot number of clusters.
+## Plot resolution versus number of clusters.
 #--------------------------------------------------------------------
-
-# Module quality - PVE
-# Percent unclustered.
-# Quality (Modularity)
-# Modularity of PPI graph.
-# Modularity of GOfx graph.
 
 # Calculate number of clusters at each resolution.
 k <- sapply(partitions,function(x) sum(names(split(x,x))!="0"))
@@ -682,7 +772,7 @@ myfile <- file.path(figsdir,"3_Network-Analysis",paste0(net,"_Resolution_vs_k.ti
 ggsave(myfile,plot,width=3,height=1.75)
 
 #--------------------------------------------------------------------
-## Plot modularity of ppi graph.
+## Plot resolution versus modularity of ppi graph.
 #--------------------------------------------------------------------
 
 # Load all ppis mapped to mouse genes.
@@ -732,14 +822,14 @@ myfile <- file.path(figsdir,"3_Network-Analysis",
 ggsave(myfile,plot,width=3.0,height=1.75)
 
 #--------------------------------------------------------------------
-## Plot modularity of GO graph.
+## Plot resolution versus modularity of GO graph.
 #--------------------------------------------------------------------
 
 # GO Semantic Similarity RMS(CC+BP+MF) graph:
-# goadjm
+# adjm_go
 
 # Build a graph.
-dm <- as.matrix(goadjm)
+dm <- as.matrix(adjm_go)
 rownames(dm) <- colnames(dm)
 g <- graph_from_adjacency_matrix(dm,mode="undirected",weighted=TRUE,diag=FALSE)
 
@@ -768,7 +858,7 @@ myfile <- file.path(figsdir,"3_Network-Analysis",
 ggsave(myfile,plot,width=3.0,height=1.75)
 
 #------------------------------------------------------------------------------
-## Examine PVE versus resolution.
+## Plot resolution versus module quality (PVE).
 #------------------------------------------------------------------------------
 
 # Collect PVE.
@@ -800,28 +890,17 @@ myfile <- file.path(figsdir,"3_Network-Analysis",
 ggsave(myfile,plot,width=3.0,height=1.75)
 
 #------------------------------------------------------------------------------
-## Evaluate Jaacard similarity between all modules (protein overlap).
+## Evaluate protein overlap between all modules.
 #------------------------------------------------------------------------------
 
-# Name partitions.
-named_partitions <- partitions
-names(named_partitions) <- paste0("R",c(1:length(partitions)))
-
-# Get all modules.
-named_partitions <- lapply(named_partitions,function(x) {
-  m = split(x,x)
-  names(m) = paste0("M",names(m))
-  return(m)
-})
-all_modules <- unlist(named_partitions,recursive=FALSE)
-modules <- names(all_modules)
+# Examine module jaacard similarity for all pairwise comparisons between 
+# modules. We will use this to assign modules a color based on their protein 
+# composition and similarity to three founding modules.
 
 # All comparisons (contrasts).
-contrasts <- expand.grid("M1"=modules,"M2"=modules,stringsAsFactors=FALSE)
-
-# Examine module jaacard similarity for all comparisons between 
-# representative modules. This is overkill since we wont be using 
-# comparisions. But the resulting matrix is easy to work with.
+all_module_names <- names(all_modules)
+contrasts <- expand.grid("M1"=all_module_names, "M2"=all_module_names,
+                         stringsAsFactors=FALSE)
 
 # Loop:
 myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
@@ -853,21 +932,21 @@ if (!file.exists(myfile)) {
 }
 
 # Cast modulejs into similarity matrix.
-n <- length(modules)
+n <- length(all_modules)
 adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- modules
+colnames(adjm_js) <- rownames(adjm_js) <- all_module_names
 
 # Assign modules a color based on similarity with three founding nodes.
 df <- data.table(
-  M1js = adjm_js[modules,"R1.M1"],
-  M2js = adjm_js[modules,"R1.M2"],
-  M3js = adjm_js[modules,"R1.M3"]
+  M1js = adjm_js[all_module_names,"R1.M1"],
+  M2js = adjm_js[all_module_names,"R1.M2"],
+  M3js = adjm_js[all_module_names,"R1.M3"]
 )
-rownames(df) <- modules
+rownames(df) <- all_module_names
 
 # Row-wise normalization.
-dm <- matrix(t(apply(df,1,function(x) x/max(x))), nrow=length(modules),
-               dimnames = list(x=modules,y=c("R","G","B")))
+dm <- matrix(t(apply(df,1,function(x) x/max(x))), nrow=length(all_modules),
+               dimnames = list(x=all_module_names,y=c("R","G","B")))
 df <- cbind(df,dm)
 
 # Convert RGB to hexadecimal color.
@@ -875,25 +954,29 @@ df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 
 # Collect color assignments.
 module_colors <- df$color
-names(module_colors) <- modules
+names(module_colors) <- all_module_names
 
 # Assign M0 to grey.
 module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
-# Color vector.
-hc <- hclust(as.dist(1-adjm_js),method="ward.D2")
-nColors <- length(unique(module_colors))
-color_vector <- unique(module_colors[hc$labels[hc$order]])
+#--------------------------------------------------------------------
+## GO Scatter Plots.
+#--------------------------------------------------------------------
 
+myplots <- list(
+  "R1.M1" = ggplotGOscatter(all_go[["R1.M1"]], color=module_colors["R1.M1"]),
+  "R1.M2" = ggplotGOscatter(all_go[["R1.M2"]], color=module_colors["R1.M2"]),
+  "R1.M3" = ggplotGOscatter(all_go[["R1.M3"]], color=module_colors["R1.M3"])
+)
 
-df <- data.frame("x" = c(1:length(color_vector)),
-                 "y" = rep(1,length(color_vector)),
-                 "color"=color_vector)
-plot <- ggplot(df,aes(x,y)) + geom_tile(fill=df$color)
-plot
+# Save.
+for (i in seq_along(myplots)) {
+  myfile <- file.path(figsdir,paste0(net,"_",names(myplots)[i],"_ModuleGO",".tiff"))
+  ggsave(myfile,myplots[[i]],height = 3.5,width=3.5)
+}
 
 #--------------------------------------------------------------------
-## Generate module graphs.
+## Generate Cytoscape graphs of modules at every resolution.
 #--------------------------------------------------------------------
 
 # Parameters:
@@ -978,7 +1061,7 @@ for (i in seq_along(named_parts)){
 }
 
 #--------------------------------------------------------------------
-## Create PPI graphs. 
+## Create Synaptosome PPI graph.
 #--------------------------------------------------------------------
 
 # Load all ppis mapped to mouse genes.
@@ -992,7 +1075,7 @@ ppis <- subset(musInteractome, idx)
 prots <- colnames(data)
 entrez <- protmap$entrez[match(prots, protmap$ids)]
 
-# Build a graph with all proteins.
+# Build a ppi graph with all proteins.
 g0 <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Remove self-connections and redundant edges.
@@ -1002,8 +1085,9 @@ g0 <- simplify(g0)
 ids <- protmap$ids[match(names(V(g0)),protmap$entrez)]
 g0 <- set_vertex_attr(g0,"name",value = ids)
 
-# Add edge attribute.
+# Add ppi edge attribute.
 g0 <- set_edge_attr(g0,"ppi",value=TRUE)
+
 
 # # Check topology of PPI graph.
 # ppi_adjm <- as_adjacency_matrix(g0)
@@ -1012,6 +1096,9 @@ g0 <- set_edge_attr(g0,"ppi",value=TRUE)
 # r <- fit$Rsquared.SFT
 # message(paste("Scale free fit of PPI graph:",round(r,3)))
 
+#--------------------------------------------------------------------
+## Create co-expression graph.
+#--------------------------------------------------------------------
 # # Create co-expression graph.
 g1 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 g1 <- simplify(g1)
@@ -1022,67 +1109,85 @@ g <- union(g0,g1)
 # Set Non-interacting proteins to FALSE.
 g <- set.edge.attribute(g,"ppi",value=!is.na(get.edge.attribute(g,"ppi")))
 
-# Subset graph.
-module <- "R100.40"
+g <- backup_graph
+
+#--------------------------------------------------------------------
+## Send graphs of modules of interest to Cytoscape.
+#--------------------------------------------------------------------
+
+# Named list of all KME results.
+all_KME <- unlist(KME_results,recursive = FALSE)
 
 
+module_name <- rep_modules[2]
 
 #Function to create PPI graphs.
 create_PPI_graph <- function(g, all_partitions, module_name){
   suppressPackageStartupMessages({
-    library(RCy3)
+    library(RCy3); cytoscapePing()
   })
-
+}
+  
+  # Subset graph.
+  nodes <- all_modules[[module_name]]
+  g <- induced_subgraph(g,vids = V(g)[match(nodes,names(V(g)))])
+  # Add node color attribute.
+  g <- set_vertex_attr(g,"color", value = module_colors[module_name])
+  # Add node module attribute.
+  g <- set_vertex_attr(g,"module",value = module_name)
+  # Add sigprot vertex attribute.
+  anySig <- names(V(g)) %in% sigProts
+  g <- set_vertex_attr(g, "sigProt", value = anySig)
+  # Add genotype specific sigprot attributes.
+  list_names <- names(sigProts_geno)
+  for (namen in list_names) {
+    g <- set_vertex_attr(g,namen,value=names(V(g)) %in% sigProts_geno[[namen]])
+  }
+  # Add hubiness (KME) attributes.
+  kme <- all_KME[[module_name]]
+  g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
+  # Keep only top 1% of edges.
+  q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.005))
+  g <- delete.edges(g, which(E(g)$weight >= q["0.5%"] | E(g)$weight <= q["99.5"]))
+  
+  # Send to Cytoscape.
+  cys_net <- createNetworkFromIgraph(g,module_name)
+  
+  # Merge with PPI graph.
+  addGraphToGraph(obj, other.graph) #object is window, other.graph is ppi graph.
+  
+  
+  
+  
+  # Load into Cytoscape.
+  
+  net <- importNetworkFromFile(sif)
+  unlink(sif)
+  
+    # Write graph node data as noa.
+    df <- as_long_data_frame(g)
+    df1 <- df[,grep("from",colnames(df))][,-c(1)]
+    colnames(df1) <- gsub("from_","",colnames(df1))
+    df2 <- df[,grep("to",colnames(df))][,-c(1)]
+    colnames(df2) <- gsub("to_","",colnames(df2))
+    node_df <- unique(rbind(df1,df2))
+    
+    #noa <- file.path(here,paste0(module_name,".noa"))
+    #fwrite(node_df,file=myfile,sep="\t",col.names=TRUE)
+    
+    loadTableData(
+      node_df,
+      data.key.column = "row.names",
+      table = "node",
+      table.key.column = "name",
+      namespace = "default",
+      network = NULL,
+      base.url = .defaultBaseUrl
+    )
+    
+    
   # Check that we are connected to Cytoscape.
-  cytoscapePing()
-  graph_name <- paste0("R",resolution)
-	# Add node color attribute.
-	part <- partitions[[resolution]]
-	part[] <- paste0("R",i,".","M",part)
-	node_colors <- module_colors[part]
-	names(node_colors) <- names(part)
-	g <- set_vertex_attr(g,"color", value = node_colors[names(V(g))])
-	# Add node module attribute.
-	g <- set_vertex_attr(g,"module",value = part[names(V(g))])
-	# Add sigprot vertex attribute.
-	anySig <- names(V(g)) %in% sigProts
-	g <- set_vertex_attr(g, "sigProt", value = anySig)
-	# Add genotype specific sigprot attributes.
-	list_names <- names(sigProts_geno)
-	for (namen in list_names) {
-	  g <- set_vertex_attr(g,namen,value=names(V(g)) %in% sigProts_geno[[namen]])
-	}
-	# Add hubiness (KME) attributes.
-	all_KME <- unlist(KME_results,recursive = FALSE)
-	all_KME <- lapply(x,function(x) x[match(names(V(g)),names(x))])
-	df_kme <- as.data.frame(do.call(cbind,all_KME))
-	list_names <- colnames(df_kme)
-	for (namen in list_names) {
-	  g <- set_vertex_attr(g,paste0(namen,".KME"),value=df_kme[[namen]])
-	}
-	
-	# Faster to write graph to file and then load into Cytoscape 
-	# with importNetworkFromFile().
-	# Save graph to file.
-	edge_list <- as.data.table(as_edgelist(g, names = TRUE))
-	edge_list <- tibble::add_column(edge_list, type="coexpr",.after=1)
-	colnames(edge_list) <- c("NodeA","Type","NodeB")
-	myfile <- file.path(here,paste0(graph_name,".sif"))
-	fwrite(edge_list,file=myfile,sep="\t",col.names=FALSE)
-	# Load into Cytoscape.
-	# Eek, loading entire co-expr graph takes a while!
-	net <- importNetworkFromFile(myfile) # Note, unconnected components are lost in this process.
-	Sys.sleep(sleep_time)
-	unlink(myfile)
-	# Load node data into Cytoscape.
-	df <- as_long_data_frame(g)
-	df1 <- df[,grep("from",colnames(df))][,-c(1)]
-	colnames(df1) <- gsub("from_","",colnames(df1))
-	df2 <- df[,grep("to",colnames(df))][,-c(1)]
-	colnames(df2) <- gsub("to_","",colnames(df2))
-	noa <- unique(rbind(df1,df2))
-	loadTableData(noa, data.key.column = "name", table = "node",
-	              table.key.column = "shared name", namespace = "default")
+  
 	# Create a visual style.
 	style.name = paste(r,"myStyle",sep="-")
 	# DEFAULTS:
@@ -1129,194 +1234,3 @@ create_PPI_graph <- function(g, all_partitions, module_name){
   # Delete network.
   deleteAllNetworks()
   cytoscapeFreeMemory()
-} # EOF
-
-# Loop to generate Cytoscape graphs.
-# add coexpression edges!
-for (i in 1:100) {
-  if (i == 1) { pbar <- txtProgressBar(min=0,max=100,style=3) }
-  create_PPI_graphs(g, partitions, resolution=i)
-  setTxtProgressBar(pbar,i)
-  if (i==100) { message("\n"); close(pbar) }
-}
-  
-#--------------------------------------------------------------------
-## Examine key modules.
-#--------------------------------------------------------------------
-
-moi <- unique(c(dys_modules,dbd_modules))
-
-p1 <- plots$R12$M2
-p2 <- plots$R17$M1 #DBD
-p3 <- plots$R57$M7
-p4 <- plots$R66$M2 #DBD
-p5 <- plots$R86$M32
-p6 <- plots$R88$M14
-
-GOresults <- unlist(GOresults,recursive=FALSE)
-names(GOresults) <- gsub("-",".",names(GOresults))
-
-DBDresults <- unlist(DBDresults,recursive=FALSE)
-names(DBDresults) <- gsub("-",".",names(DBDresults))
-
-i = 2
-df = GOresults[[moi[i]]]
-df$score <- -log10(df$pValue) * df$enrichmentRatio
-df <- df[order(df$score),]
-df$shortDataSetName[c(1:5)]
-df$Bonferroni[c(1:5)]
-all_modules[[moi[i]]]
-
-# 
-df = DBDresults[[moi[i]]]
-df$score <- -log10(df$pValue) * df$enrichmentRatio
-df <- df[order(df$score),]
-df$shortDataSetName[c(1:5)]
-df$Bonferroni[c(1:5)]
-
-#--------------------------------------------------------------------
-## Create PPI graphs for modules of interest. 
-#--------------------------------------------------------------------
-
-# Name partitions.
-named_partitions <- partitions
-names(named_partitions) <- paste0("R",c(1:length(partitions)))
-
-# Get all modules.
-named_partitions <- lapply(named_partitions,function(x) {
-  m = split(x,x)
-  names(m) = paste0("M",names(m))
-  return(m)
-})
-all_modules <- unlist(named_partitions,recursive=FALSE)
-
-# Load all ppis mapped to mouse genes.
-data("musInteractome")
-
-# Load co-expression (adjacency) matrices.
-myfiles <- c(
-  Cortex = file.path(rdatdir, "3_Cortex_Adjm.RData"),
-  Striatum = file.path(rdatdir, "3_Striatum_Adjm.RData")
-)
-adjm <- as.matrix(readRDS(myfiles[net]))
-rownames(adjm) <- colnames(adjm)
-
-# Subset mouse interactome, keep data from mouse, human, and rat.
-idx <- musInteractome$Interactor_A_Taxonomy %in% c(10090, 9606, 10116)
-ppis <- subset(musInteractome, idx)
-
-# Get entrez IDs for all proteins in data.
-prots <- colnames(data)
-entrez <- protmap$entrez[match(prots, protmap$ids)]
-
-# Build a graph with all proteins.
-g0 <- buildNetwork(ppis, entrez, taxid = 10090)
-
-# Remove self-connections and redundant edges.
-g0 <- simplify(g0)
-
-# Set vertex attribute as protein identifiers.
-ids <- protmap$ids[match(names(V(g0)),protmap$entrez)]
-g0 <- set_vertex_attr(g0,"name",value = ids)
-
-# Add edge attribute.
-g0 <- set_edge_attr(g0,"ppi",value=TRUE)
-
-# Create co-expression graph.
-g1 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
-g1 <- simplify(g1)
-
-# Combine co-expression and PPI graphs.
-g <- union(g0,g1)
-
-# Set Non-interacting proteins to FALSE.
-g <- set.edge.attribute(g,"ppi",value=!is.na(get.edge.attribute(g,"ppi")))
-
-# Get subgraph.
-module_name <- dys_modules[1]
-partition <- all_modules[[module_name]]
-v <- names(partition)
-subg <- induced_subgraph(g,vids=V(g)[match(v,names(V(g)))])
-nNodes <- length(V(subg))
-
-# Add node color attribute.
-g <- set_vertex_attr(g,"color", value = module_colors[module_name])
-
-# Add node module attribute.
-g <- set_vertex_attr(g,"module",value = module_name)
-
-# Add sigprot vertex attribute.
-anySig <- names(V(g)) %in% sigProts
-g <- set_vertex_attr(g, "sigProt", value = anySig)
-
-# Add genotype specific sigprot attributes.
-list_names <- names(sigProts_geno)
-for (namen in list_names) {
-  g <- set_vertex_attr(g,namen,value=names(V(g)) %in% sigProts_geno[[namen]])
-}
-
-# Add hubiness (KME) attributes.
-all_KME <- unlist(KME_results,recursive = FALSE)
-kme <- all_KME[[module_name]]
-g <- set_vertex_attr(g,"kme",value= kme[names(V(g))])
-
-# Send to Cytoscape. 
-cytoscapePing()
-createNetworkFromIgraph(g, title = module_name)
-
-# Create a visual style.
-style.name = paste(module_name,"style",sep="-")
-# DEFAULTS:
-defaults = list(
-  NODE_SHAPE = "ellipse",
-  NODE_LABEL_TRANSPARENCY = 255,
-  NODE_LABEL_FONT_SIZE = 12,
-  NODE_LABEL_COLOR = col2hex("black"),
-  NODE_BORDER_TRANSPARENCY = 200,
-  NODE_BORDER_WIDTH = 2,
-  NODE_BORDER_PAINT = col2hex("black"),
-  NODE_TRANSPARENCY = 200,
-  NETWORK_BACKGROUND_PAINT = col2hex("white")
-)
-# MAPPED PROPERTIES:
-mappings <- list(
-  NODE_LABELS = mapVisualProperty('node label','symbol','p'),
-  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
-  NODE_SIZE = mapVisualProperty('node size','size','c', c(5,1500), c(10,100)))
-#EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','cor', 'c', c(-1.0,0,1.0), c(255,0,255)),
-#NODE_X_LOCATION = mapVisualProperty('node x location', 'xpos', 'p'),
-#NODE_Y_LOCATION = mapVisualProperty('node y location', 'ypos', 'p')
-#EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint',
-
-# Create a visual style.
-createVisualStyle(style.name, defaults = defaults, mappings = mappings)
-# Apply to graph.
-setVisualStyle(style.name)
-# Wait a couple of seconds...
-Sys.sleep(sleep_time)
-# Create module subnetworks.
-module_names <- unique(part)
-module_names <- module_names[order(module_names)]
-for (module in module_names) {
-  nodes <- noa$name[noa$module==module]
-  createSubnetwork(nodes, nodes.by.col = "name", subnetwork.name = module)
-  layoutNetwork('force-directed')
-  setCurrentNetwork(net$networks) # Resets network view.
-}
-# Save
-myfile <- file.path(figsdir,graph_name)
-saveSession(myfile)
-# Delete network.
-deleteAllNetworks()
-cytoscapeFreeMemory()
-} # EOF
-
-# Loop to generate Cytoscape graphs.
-# add coexpression edges!
-for (i in 1:100) {
-  if (i == 1) { pbar <- txtProgressBar(min=0,max=100,style=3) }
-  create_PPI_graphs(g, partitions, resolution=i)
-  setTxtProgressBar(pbar,i)
-  if (i==100) { message("\n"); close(pbar) }
-}
-

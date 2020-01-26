@@ -27,7 +27,7 @@ ggtheme <- function() {
       plot.title = element_text(color = "black", size = 11, face = "bold", hjust = 0.5),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
       axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-      axis.text.x = element_text(color = "black", size = 11, angle = 45, hjust = 1.0)
+      axis.text.x = element_text(color = "black", size = 11, angle = 0, hjust = 1.0)
     )
   theme_set(ggtheme)
 }

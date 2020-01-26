@@ -18,20 +18,22 @@
 #'
 #' @examples
 #' ggplotGOscatter(GO_results, color, topN = 10)
-ggplotGOscatter <- function(GO_results, color, topN = 10) {
+ggplotGOscatter <- function(GO_results, color, topN = 15) {
 	# Collect data in df.
 	library(data.table)
 	library(ggplot2)
 	library(ggrepel)
 	df <- data.table(x = GO_results$enrichmentRatio,
 		   y = -log(GO_results$pValue),
+		   pValue = as.numeric(GO_results$pValue),
 		   FDR = as.numeric(GO_results$FDR),
 		   pAdj = as.numeric(GO_results$Bonferroni),
 		   nGenes = as.numeric(GO_results$nCommonGenes),
 		   label = as.character(GO_results$shortDataSetName))
-	df <- df[order(df$FDR), ]
+	df$score <- df$x * df$y
+	df <- df[order(df$score, decreasing = TRUE), ]
 	# Display only the topN terms.
-	if (dim(df)[1]+1 > topN) { topN <- dim(df)[1]-1 }
+	if (dim(df)[1]+1 < topN) { topN <- dim(df)[1]-1 }
 	df$label[seq(topN + 1, nrow(df))] <- ""
 	# Generate plot.
 	plot <- ggplot(df, aes(x = x, y = y, colour = FDR, 
