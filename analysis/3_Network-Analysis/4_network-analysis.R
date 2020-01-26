@@ -11,7 +11,7 @@
 
 ## User parameters to change:
 net <- "Cortex" # Which network are we analyzing? 
-overwrite_figsdir <- TRUE
+overwrite_figsdir = TRUE
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -44,7 +44,7 @@ tabsdir <- file.path(root, "tables")
 script_name <- "4_network-analysis"
 figsdir <- file.path(root,"figs",Sys.Date(),script_name)
 if(overwrite_figsdir) {
-  message(paste("Warning, overwriting",figsdir))
+  message(paste("Warning, overwriting files in:\n",figsdir))
   unlink(figsdir,recursive = TRUE)
   dir.create(figsdir,recursive = TRUE)
 } else if (!dir.exists(figsdir)) {
@@ -129,7 +129,7 @@ all_modules <- sapply(all_modules,names)
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
 
-do_DBD_enrichment <- FALSE
+do_DBD_enrichment <- TRUE
 
 # Perform disease enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
@@ -138,12 +138,12 @@ if (do_DBD_enrichment) {
   # Load Disease ontology.
   geneSet <- "mouse_Combined_DBD_geneSets.RData"
   myfile <- file.path(rdatdir,geneSet)
-  GOcollection <- readRDS(myfile)
+  DBDcollection <- readRDS(myfile)
 	DBDresults <- list()
 	for (i in 1:100) {
 		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
 		setTxtProgressBar(pbar,i)
-		DBDresults[[i]] <- moduleGOenrichment(partitions,i,protmap,GOcollection)
+		DBDresults[[i]] <- moduleGOenrichment(partitions,i,protmap,DBDcollection)
 		if (i==100) { message("\n"); close(pbar) }
 	}
 	saveRDS(DBDresults,myfile)
@@ -165,6 +165,28 @@ names(disease_sig) <- paste0("R",c(1:100))
 
 # Status.
 message(paste("Total number of disease associated modules:",nsig))
+
+# Collect as named gene lists.
+gene_lists <- lapply(DBDcollection$dataSets,function(x) x$data$Entrez)
+names(gene_lists) <- paste(
+  sapply(DBDcollection$dataSets,function(x) x$internalClassification[2]),
+      sapply(DBDcollection$dataSets,function(x) x$name),sep=":")
+
+DBD_prots <- lapply(gene_lists, function(x) {
+  idx <- match(x,protmap$entrez)
+  protmap$ids[idx[!is.na(idx)]]
+})
+
+# Remove groups with 0 genes.
+out <- which(sapply(DBD_prots,length)==0)
+DBD_prots <- DBD_prots[-out]
+
+# Collect named list of DBD proteins and their annotations.
+df <- data.table("Annotation"=names(unlist(DBD_prots)),
+                 "Protein" = unlist(DBD_prots))
+dbd_list <- df %>% group_by(Protein) %>% group_split()
+names(dbd_list) <- sapply(dbd_list,function(x) unique(x$Protein))
+all_dbd_prots <- lapply(dbd_list,function(x) x$Annotation)
 
 #--------------------------------------------------------------------
 ## Module GO enrichment.
@@ -432,7 +454,6 @@ message(paste("Number of DBD-associated modules exhibiting",
 # There are too many moi to look at each one, can we summarize them
 # in some way?
 
-
 # All comparisons between convergent modules (contrasts).
 moi <- convergent_modules
 contrasts <- expand.grid("M1"=moi,
@@ -673,6 +694,7 @@ ggsave(myfile,plot=dendro, height=2.5, width = 3)
 ## Save verbose boxplots for representative modules.
 #--------------------------------------------------------------------
 
+# Collect all representative modules.
 all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
 
 # Collect plots from representative modules.
@@ -681,8 +703,7 @@ myplots <- all_plots[rep_convergent_modules]
 
 # Save.
 for (i in seq_along(myplots)) {
-  file_name <- paste0(file_prefix(figsdir),"_",net,"_",
-                      names(myplots)[i],".tiff")
+  file_name <- paste0(names(myplots)[i],".tiff")
   myfile <- prefix_file(file.path(figsdir,file_name))
   ggsave(myfile,myplots[[i]],height = 3.5,width=3.5)
 }
@@ -1017,10 +1038,13 @@ save_image <- TRUE # Should pdf be saved?
 file_format <- 'SVG' # PNG, PDF, JPEG, SVG...
 sleep_time <- 2 # How much time to wait after cytoscape steps... can help insure that final image looks correct?
 
-# Loop to generate network layers.
-for (i in seq_along(named_parts)){
-  # Check that we are connected to cytoscape.
-  if (i == 1) { 
+generate_module_summary_graphs = FALSE
+
+if (generate_module_summary_graphs) {
+  # Loop to generate network layers.
+  for (i in seq_along(named_parts)){
+    # Check that we are connected to cytoscape.
+    if (i == 1) { 
     suppressPackageStartupMessages({ library(RCy3) }); cytoscapePing()
   }
   # Build graph.
@@ -1077,7 +1101,7 @@ for (i in seq_along(named_parts)){
   setVisualStyle(style.name)
   # Wait a couple of seconds...
   Sys.sleep(sleep_time)
-  # Save image as PDF.
+  # Save image.
   if (save_image) {
     fitContent()
     Sys.sleep(sleep_time) # Wait... 
@@ -1090,7 +1114,8 @@ for (i in seq_along(named_parts)){
     myfile <- file.path(figsdir,"Cytoscape_Networks")
     saveSession(myfile)
   }
-}
+} # Ends loop.
+} # Ends if statement.
 
 #--------------------------------------------------------------------
 ## Create Synaptsome co-expression graph.
@@ -1098,6 +1123,10 @@ for (i in seq_along(named_parts)){
 # # Create co-expression graph.
 g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 g0 <- simplify(g0)
+
+# Add Gene symbol attribute.
+gene_symbols <- protmap$gene[match(names(V(g0)),protmap$ids)]
+g0 <- set_vertex_attr(g0,"symbol",value = gene_symbols)
 
 #--------------------------------------------------------------------
 ## Create Synaptosome PPI graph.
@@ -1155,20 +1184,13 @@ ggsave(myfile,p2,width=3,height=3)
 ## Send graphs of modules of interest to Cytoscape.
 #--------------------------------------------------------------------
 
-module_name <- all_rep_modules[1]
-
-
-# 1. Send coexpr graph.
-# 2. Send ppi graph.
-frac_to_keep <- 0.05
-
-#Function to create PPI graphs.
-create_PPI_graph <- function(g0, g1, all_partitions, module_name){
+# Function to create PPI graphs.
+create_PPI_graph <- function(g0, g1, all_modules, module_name, 
+                             frac_to_keep=0.15, save_image = FALSE,
+                             output_dir, file_format="PNG",save_network=FALSE) {
   suppressPackageStartupMessages({
     library(RCy3); cytoscapePing()
   })
-}
-  
   # Subset graph.
   nodes <- all_modules[[module_name]]
   g <- induced_subgraph(g0,vids = V(g0)[match(nodes,names(V(g0)))])
@@ -1188,78 +1210,100 @@ create_PPI_graph <- function(g0, g1, all_partitions, module_name){
   kme <- all_KME[[module_name]]
   g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
   # Keep only top N% of edges.
-  nEdges <- length(E(g))
-  q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.005))
-  contrasts <- split(cbind(c(1:length(q)),c(length(q):1)),seq(length(q)))
-  contrasts <- lapply(contrasts, function(x) c(names(q)[x[1]],names(q)[x[2]]))
-  contrasts <- contrasts[1:101] # We don't need the reverse instances.
-  # This is slow for large graphs!
-  message(paste("Pruning edges from graph,",
-                "this will take several minutes for large graphs..."))
-  fracEdges <- sapply(c(1:length(contrasts)), function(x) {
-    if (x==1) { pbar <- txtProgressBar(min=0,max=length(contrasts),style=3) }
-    setTxtProgressBar(pbar,x)
-    x <- contrasts[[x]]
-    e <- sum(E(g)$weight <= q[x[1]] | E(g)$weight >= q[x[2]])/length(E(g))
-    if (x == length(contrasts)) { close(pbar) ; message("\n") }
-    return(e)
-  })
-  limits <- as.list(contrasts[[max(which(fracEdges <= frac_to_keep))]])
-  names(limits) <- c("bottom","top")
-  g <- delete.edges(g, which(E(g)$weight >= q[limits$bottom] & E(g)$weight <= q[limits$top]))
-  length(E(g))
-  
+  q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
+  cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
+  g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
+  message(paste("Number of remaining coexpression edges:",length(E(g))))
+  # Fix missing values. 
+  E(g)$weight[which(is.na(E(g)$weight))] <- 0 # Set NA to 0.
+  # DBD annotations.
+  dbd_annotations <- all_dbd_prots[names(V(g))]
+  g <- set_vertex_attr(g,"dbdProt", value = sapply(dbd_annotations,function(x) length(x) > 0))
   # Send to Cytoscape.
   cys_net <- createNetworkFromIgraph(g,module_name)
-  
-  # Merge with PPI graph.
-  # Subset graph.
-  other.graph <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
-  addGraphToGraph(cys_net,other.graph)
-  
 	# Create a visual style.
-	style.name = paste(r,"myStyle",sep="-")
+	style.name <- paste(module_name,"style",sep="-")
+	# Get all network properties and their default.
+	#all_properties <- allNetworkProperties()
 	# DEFAULTS:
 	defaults = list(
-	  NODE_LABEL = "",
+	  NODE_FILL_COLOR = col2hex("gray"),
+	  NODE_TRANSPARENCY = 200,
+	  NODE_SIZE = 35,
 	  NODE_SHAPE = "ellipse",
 	  NODE_LABEL_TRANSPARENCY = 255,
 	  NODE_LABEL_FONT_SIZE = 12,
 	  NODE_LABEL_COLOR = col2hex("black"),
 	  NODE_BORDER_TRANSPARENCY = 200,
-	  NODE_BORDER_WIDTH = 2,
+	  NODE_BORDER_WIDTH = 4,
 	  NODE_BORDER_PAINT = col2hex("black"),
 	  NODE_TRANSPARENCY = 200,
+	  EDGE_STROKE_UNSELECTED_PAINT = col2hex("black"),
+	  EDGE_WIDTH = 2,
 	  NETWORK_BACKGROUND_PAINT = col2hex("white")
 	)
 	# MAPPED PROPERTIES:
 	mappings <- list(
 	  NODE_LABELS = mapVisualProperty('node label','symbol','p'),
-	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p')
+	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
+	  NODE_SIZE = mapVisualProperty('node size','kme','c', c(min(V(g)$kme),max(V(g)$kme)), c(25,75)),
+	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','weight', 'c', c(-1.0,0,1.0), c(255,0,255)),
+	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 'weight','c',
+	                                                   c(-1,1),c(col2hex("white"),col2hex("dark orange")))
 	)
-	  #NODE_SIZE = mapVisualProperty('node size','size','c', c(5,1500), c(10,100)),
-	  #EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','cor', 'c', c(-1.0,0,1.0), c(255,0,255)),
-	  #NODE_X_LOCATION = mapVisualProperty('node x location', 'xpos', 'p'),
-	  #NODE_Y_LOCATION = mapVisualProperty('node y location', 'ypos', 'p')
-	#EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint',
 	# Create a visual style.
 	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
 	# Apply to graph.
 	setVisualStyle(style.name)
+	# Set NS nodes to Gray.
+	setNodePropertyBypass(
+	  node.names = names(V(g))[which(V(g)$sigProt==FALSE)],
+	  new.values = col2hex("gray"),
+	  visual.property = "NODE_FILL_COLOR",
+	  bypass = TRUE,
+	)
+	# Add PPI edges.
+	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
+	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
+	ppi_edges <- addCyEdges(edge_list)
+	# Set PPIs to black.
+	selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
+	setEdgePropertyBypass(edge.names = selected_edges$edges,
+	                      new.values = col2hex("black"),
+	                      visual.property = "EDGE_STROKE_UNSELECTED_PAINT",
+	                      bypass = TRUE)
+	setEdgePropertyBypass(edge.names = selected_edges$edges,
+	                     new.values = TRUE,
+	                     visual.property = "EDGE_BEND",
+	                     bypass = TRUE)
+	setEdgePropertyBypass(edge.names = selected_edges$edges,
+	                      new.values = 4,
+	                      visual.property = "EDGE_WIDTH",
+	                      bypass = TRUE)
 	# Wait a couple of seconds...
-	Sys.sleep(sleep_time)
-	# Create module subnetworks.
-	module_names <- unique(part)
-	module_names <- module_names[order(module_names)]
-		for (module in module_names) {
-	  nodes <- noa$name[noa$module==module]
-	  createSubnetwork(nodes, nodes.by.col = "name", subnetwork.name = module)
-	  layoutNetwork('force-directed')
-	  setCurrentNetwork(net$networks) # Resets network view.
-		}
+	Sys.sleep(2)
+	layoutNetwork('force-directed edgeAttribute=weight')
   # Save
-  myfile <- file.path(figsdir,graph_name)
-  saveSession(myfile)
-  # Delete network.
-  deleteAllNetworks()
-  cytoscapeFreeMemory()
+	if (save_network) {
+	  myfile <- file.path(output_dir,module_name)
+	  saveSession(myfile)
+	  deleteAllNetworks()
+	  cytoscapeFreeMemory()
+	}
+  # Save image.
+  if (save_image) {
+    fitContent()
+    Sys.sleep(2) # Wait... 
+    myfile <- file.path(output_dir,paste0(module_name,"_network"))
+    exportImage(myfile, file_format)
+  }
+}
+
+
+create_PPI_graph(g0,g1,all_modules,all_rep_modules[2],output_dir=figsdir)
+
+# Generate networks.
+for (i in 1:length(all_rep_modules)){
+  message(paste("Working on module",all_rep_modules[i]))
+  create_PPI_graph(g0,g1,all_modules,all_rep_modules[i],output_dir=figsdir)
+}
