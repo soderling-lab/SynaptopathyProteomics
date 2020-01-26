@@ -52,8 +52,11 @@ if(overwrite_figsdir) {
 }
 
 # Functions.
-myfun <- list.files(funcdir, full.names = TRUE)
-invisible(sapply(myfun, source))
+source_funcdir <- function(funcdir){
+  myfun <- list.files(funcdir, pattern="*.R",full.names = TRUE)
+  invisible(sapply(myfun, source))
+}
+source_funcdir(funcdir)
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
