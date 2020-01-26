@@ -9,8 +9,9 @@
 ## Set-up the workspace.
 #-------------------------------------------------------------------------------
 
-# User parameters to change:
-net <- "Cortex" # Which network are we analyzing? One of: c("Cortex","Striatum")
+## User parameters to change:
+net <- "Cortex" # Which network are we analyzing? 
+overwrite_figsdir <- TRUE
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -39,10 +40,16 @@ datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 
-# Create directory for output figures.
+# Create directory for figure output.
 script_name <- "4_network-analysis"
 figsdir <- file.path(root,"figs",Sys.Date(),script_name)
-dir.create(figsdir,recursive = TRUE)
+if(overwrite_figsdir) {
+  message(paste("Warning, overwriting",figsdir))
+  unlink(figsdir,recursive = TRUE)
+  dir.create(figsdir,recursive = TRUE)
+} else if (!dir.exists(figsdir)) {
+  dir.create(figsdir,recursive = TRUE)
+}
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
@@ -395,9 +402,15 @@ DT_results <- results$DT_results
 nSigDT_results <- results$nSigDT_results
 modules_of_interest <- results$modules_of_interest
 
+# Un-nest some key results.
+all_ME <- unlist(ME_results,recursive=FALSE)
+all_KME <- unlist(KME_results,recursive=FALSE)
+all_plots <- unlist(plots,recursive=FALSE)
+all_nSigDT <- unlist(nSigDT_results,recursive = FALSE)
+
 # Collect modules of interest: modules changing in all 4 genotypes.
 n <- c("Cortex" = 4, "Striatum" = 3)[net]
-convergent_modules <- names(unlist(sapply(nSigDT_results,function(x) x[x>=n]),recursive=FALSE))
+convergent_modules <- names(all_nSigDT)[which(all_nSigDT >= n)]
 
 # Collect modules of interest: DBD-associated modules.
 dbd_modules <- names(unlist(modules_of_interest))
@@ -1142,15 +1155,12 @@ ggsave(myfile,p2,width=3,height=3)
 ## Send graphs of modules of interest to Cytoscape.
 #--------------------------------------------------------------------
 
-# Named list of all KME results.
-all_KME <- unlist(KME_results,recursive = FALSE)
-
 module_name <- all_rep_modules[1]
 
 
 # 1. Send coexpr graph.
 # 2. Send ppi graph.
-frac_to_keep <- 0.25
+frac_to_keep <- 0.05
 
 #Function to create PPI graphs.
 create_PPI_graph <- function(g0, g1, all_partitions, module_name){
@@ -1182,54 +1192,30 @@ create_PPI_graph <- function(g0, g1, all_partitions, module_name){
   q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.005))
   contrasts <- split(cbind(c(1:length(q)),c(length(q):1)),seq(length(q)))
   contrasts <- lapply(contrasts, function(x) c(names(q)[x[1]],names(q)[x[2]]))
-  contrasts <- contrasts[1:100] # We don't need the reverse instances.
-  fracEdges <- sapply(contrasts, function(x) {
-    sum(E(g)$weight <= q[x[1]] | E(g)$weight >= q[x[2]])/length(E(g))
+  contrasts <- contrasts[1:101] # We don't need the reverse instances.
+  # This is slow for large graphs!
+  message(paste("Pruning edges from graph,",
+                "this will take several minutes for large graphs..."))
+  fracEdges <- sapply(c(1:length(contrasts)), function(x) {
+    if (x==1) { pbar <- txtProgressBar(min=0,max=length(contrasts),style=3) }
+    setTxtProgressBar(pbar,x)
+    x <- contrasts[[x]]
+    e <- sum(E(g)$weight <= q[x[1]] | E(g)$weight >= q[x[2]])/length(E(g))
+    if (x == length(contrasts)) { close(pbar) ; message("\n") }
+    return(e)
   })
   limits <- as.list(contrasts[[max(which(fracEdges <= frac_to_keep))]])
   names(limits) <- c("bottom","top")
   g <- delete.edges(g, which(E(g)$weight >= q[limits$bottom] & E(g)$weight <= q[limits$top]))
-  
-  nRemaining <- length(E(g))
-  message(paste(nRemaining,"of",nEdges,limits))
+  length(E(g))
   
   # Send to Cytoscape.
   cys_net <- createNetworkFromIgraph(g,module_name)
   
   # Merge with PPI graph.
-  addGraphToGraph(obj, other.graph) #object is window, other.graph is ppi graph.
-  
-  
-  
-  
-  # Load into Cytoscape.
-  
-  net <- importNetworkFromFile(sif)
-  unlink(sif)
-  
-    # Write graph node data as noa.
-    df <- as_long_data_frame(g)
-    df1 <- df[,grep("from",colnames(df))][,-c(1)]
-    colnames(df1) <- gsub("from_","",colnames(df1))
-    df2 <- df[,grep("to",colnames(df))][,-c(1)]
-    colnames(df2) <- gsub("to_","",colnames(df2))
-    node_df <- unique(rbind(df1,df2))
-    
-    #noa <- file.path(here,paste0(module_name,".noa"))
-    #fwrite(node_df,file=myfile,sep="\t",col.names=TRUE)
-    
-    loadTableData(
-      node_df,
-      data.key.column = "row.names",
-      table = "node",
-      table.key.column = "name",
-      namespace = "default",
-      network = NULL,
-      base.url = .defaultBaseUrl
-    )
-    
-    
-  # Check that we are connected to Cytoscape.
+  # Subset graph.
+  other.graph <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
+  addGraphToGraph(cys_net,other.graph)
   
 	# Create a visual style.
 	style.name = paste(r,"myStyle",sep="-")
