@@ -1,4 +1,4 @@
-#' ggplotScaleFreePlot
+#' ggplotScaleFreeFit
 #'
 #' evaluate the scale free fit of a graph
 #'
@@ -18,7 +18,7 @@
 #'
 #' @examples
 #' ggplotScaleFreePlot(connectivity)
-ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
+ggplotScaleFreeFit <- function(connectivity, nBreaks = 10, truncated = FALSE,
                                 removeFirst = FALSE, main = "", ...) {
   suppressPackageStartupMessages({
     require(WGCNA)
@@ -67,6 +67,5 @@ ggplotScaleFreePlot <- function(connectivity, nBreaks = 10, truncated = FALSE,
       axis.title.x = element_text(hjust = 0.5, color = "black", size = 11),
       axis.title.y = element_text(hjust = 0.5, color = "black", size = 11)
     )
-  out <- list(ggplot = plot, stats = OUTPUT)
-  return(out)
+  return(plot)
 }

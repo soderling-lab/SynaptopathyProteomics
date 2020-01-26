@@ -35,10 +35,14 @@ if (rstudioapi::isAvailable()) {
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
-figsdir <- file.path(root, "figs")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
+
+# Create directory for output figures.
+script_name <- "4_network-analysis"
+figsdir <- file.path(root,"figs",Sys.Date(),script_name)
+dir.create(figsdir,recursive = TRUE)
 
 # Functions.
 myfun <- list.files(funcdir, full.names = TRUE)
@@ -118,7 +122,7 @@ all_modules <- sapply(all_modules,names)
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
 
-do_DBD_enrichment <- TRUE
+do_DBD_enrichment <- FALSE
 
 # Perform disease enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
@@ -516,7 +520,9 @@ dendro <- dendro +
 dendro 
 
 # Save.
-myfile <- file.path(figsdir,paste0("3_",net,"_Convergent_Modules_Dendro.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_Convergent_Modules_Dendro.tiff"))
+})
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 #--------------------------------------------------------------------
@@ -645,7 +651,9 @@ dendro <- dendro +
   theme(legend.position="none")
 
 # Save.
-myfile <- file.path(figsdir,paste0("3_",net,"_DBD_Modules_Dendro.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_DBD_Modules_Dendro.tiff"))
+})
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 #--------------------------------------------------------------------
@@ -662,7 +670,7 @@ myplots <- all_plots[rep_convergent_modules]
 for (i in seq_along(myplots)) {
   file_name <- paste0(file_prefix(figsdir),"_",net,"_",
                       names(myplots)[i],".tiff")
-  myfile <- file.path(figsdir,file_name)
+  myfile <- prefix_file(file.path(figsdir,file_name))
   ggsave(myfile,myplots[[i]],height = 3.5,width=3.5)
 }
 
@@ -750,7 +758,9 @@ print(rep_partitions)
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE) +
   geom_hline(yintercept = best_h,color="red",size=1)
 dendro
-myfile <- file.path(figsdir,paste0("3_",net,"_All_Partitions_Dendro.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_All_Partitions_Dendro.tiff"))
+})
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 #--------------------------------------------------------------------
@@ -768,7 +778,9 @@ plot <- ggplot(df, aes(x=r,y=k)) + geom_point() + geom_line(size=1) +
   ylab("Clusters (k)") + ggtitle("Number of Modules")
 
 # Save.
-myfile <- file.path(figsdir,"3_Network-Analysis",paste0(net,"_Resolution_vs_k.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_Resolution_vs_k.tiff"))
+})
 ggsave(myfile,plot,width=3,height=1.75)
 
 #--------------------------------------------------------------------
@@ -817,8 +829,9 @@ plot <- ggplot(df, aes(x=r,y=q)) + geom_point() + geom_line(size=1) +
   ylab("Modularity") + ggtitle("PPI Partition Quality")
 
 # Save.
-myfile <- file.path(figsdir,"3_Network-Analysis",
-                    paste0(net,"_Resolution_vs_PPI_Q.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir, paste0(net,"_Resolution_vs_PPI_Q.tiff"))
+})
 ggsave(myfile,plot,width=3.0,height=1.75)
 
 #--------------------------------------------------------------------
@@ -853,8 +866,9 @@ plot <- ggplot(df, aes(x=r,y=q)) + geom_point() + geom_line(size=1) +
   ylab("Modularity") + ggtitle("GO Partition Quality")
 
 # Save.
-myfile <- file.path(figsdir,"3_Network-Analysis",
-                    paste0(net,"_Resolution_vs_GO_Q.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_Resolution_vs_GO_Q.tiff"))
+})
 ggsave(myfile,plot,width=3.0,height=1.75)
 
 #------------------------------------------------------------------------------
@@ -885,8 +899,9 @@ plot <- ggplot(df2, aes(x=r, y=pvarexp)) + geom_point() + geom_line(size=1) +
   ylab("Coherence") + ggtitle("Module Quality")
 
 # Save.
-myfile <- file.path(figsdir,"3_Network-Analysis",
-                    paste0(net,"_Resolution_vs_Mod_PVE.tiff"))
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_Resolution_vs_Mod_PVE.tiff"))
+})
 ggsave(myfile,plot,width=3.0,height=1.75)
 
 #------------------------------------------------------------------------------
@@ -960,19 +975,23 @@ names(module_colors) <- all_module_names
 module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
 #--------------------------------------------------------------------
-## GO Scatter Plots.
+## GO Scatter Plots of founder modules and modules of interest.
 #--------------------------------------------------------------------
 
-myplots <- list(
-  "R1.M1" = ggplotGOscatter(all_go[["R1.M1"]], color=module_colors["R1.M1"]),
-  "R1.M2" = ggplotGOscatter(all_go[["R1.M2"]], color=module_colors["R1.M2"]),
-  "R1.M3" = ggplotGOscatter(all_go[["R1.M3"]], color=module_colors["R1.M3"])
-)
+# Collect modules of interest.
+moi <- c("R1.M1","R1.M2","R1.M3", all_rep_modules)
+names(moi) <- NULL
+moi <- moi[order(moi)]
 
-# Save.
-for (i in seq_along(myplots)) {
-  myfile <- file.path(figsdir,paste0(net,"_",names(myplots)[i],"_ModuleGO",".tiff"))
-  ggsave(myfile,myplots[[i]],height = 3.5,width=3.5)
+# Loop to generate and save plots.
+for (module in moi) {
+  plot <- ggplotGOscatter(all_go[[module]], color=module_colors[module])
+  plot <- plot + ggtitle(module) + 
+    theme(plot.title = element_text(size=12))
+  myfile <- prefix_file({
+    file.path(figsdir,paste0(net,"_",module,"_ModuleGO",".tiff"))
+  })
+  ggsave(myfile,plot,height = 5,width=5)
 }
 
 #--------------------------------------------------------------------
@@ -1061,6 +1080,13 @@ for (i in seq_along(named_parts)){
 }
 
 #--------------------------------------------------------------------
+## Create Synaptsome co-expression graph.
+#--------------------------------------------------------------------
+# # Create co-expression graph.
+g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
+g0 <- simplify(g0)
+
+#--------------------------------------------------------------------
 ## Create Synaptosome PPI graph.
 #--------------------------------------------------------------------
 
@@ -1076,40 +1102,41 @@ prots <- colnames(data)
 entrez <- protmap$entrez[match(prots, protmap$ids)]
 
 # Build a ppi graph with all proteins.
-g0 <- buildNetwork(ppis, entrez, taxid = 10090)
+g1 <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Remove self-connections and redundant edges.
-g0 <- simplify(g0)
+g1 <- simplify(g1)
 
 # Set vertex attribute as protein identifiers.
-ids <- protmap$ids[match(names(V(g0)),protmap$entrez)]
-g0 <- set_vertex_attr(g0,"name",value = ids)
+ids <- protmap$ids[match(names(V(g1)),protmap$entrez)]
+g1 <- set_vertex_attr(g1,"name",value = ids)
 
 # Add ppi edge attribute.
-g0 <- set_edge_attr(g0,"ppi",value=TRUE)
-
-
-# # Check topology of PPI graph.
-# ppi_adjm <- as_adjacency_matrix(g0)
-# dc <- apply(ppi_adjm,2,sum) # node degree is column sum.
-# fit <- WGCNA::scaleFreeFitIndex(dc)
-# r <- fit$Rsquared.SFT
-# message(paste("Scale free fit of PPI graph:",round(r,3)))
+g1 <- set_edge_attr(g1,"ppi",value=TRUE)
 
 #--------------------------------------------------------------------
-## Create co-expression graph.
+## Plot topology of ppi graph.
 #--------------------------------------------------------------------
-# # Create co-expression graph.
-g1 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
-g1 <- simplify(g1)
- 
-# Combine co-expression and PPI graphs.
-g <- union(g0,g1)
 
-# Set Non-interacting proteins to FALSE.
-g <- set.edge.attribute(g,"ppi",value=!is.na(get.edge.attribute(g,"ppi")))
+# Check topology of PPI graph.
+adjm_ppi <- as_adjacency_matrix(g1)
 
-g <- backup_graph
+# node degree is column sum.
+connectivity <- apply(adjm_ppi,2,sum) 
+
+# Scatter plot.
+p1 <- ggplotScaleFreeFit(connectivity)
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_ScaleFreeFit.tiff"))
+  })
+ggsave(myfile,p1,width=3,height=3)
+
+# Histogram.
+p2 <- ggplotHistConnectivity(connectivity)
+myfile <- prefix_file({
+  file.path(figsdir,paste0(net,"_ScaleFreeHist.tiff"))
+  })
+ggsave(myfile,p2,width=3,height=3)
 
 #--------------------------------------------------------------------
 ## Send graphs of modules of interest to Cytoscape.
@@ -1118,11 +1145,15 @@ g <- backup_graph
 # Named list of all KME results.
 all_KME <- unlist(KME_results,recursive = FALSE)
 
+module_name <- all_rep_modules[1]
 
-module_name <- rep_modules[2]
+
+# 1. Send coexpr graph.
+# 2. Send ppi graph.
+frac_to_keep <- 0.25
 
 #Function to create PPI graphs.
-create_PPI_graph <- function(g, all_partitions, module_name){
+create_PPI_graph <- function(g0, g1, all_partitions, module_name){
   suppressPackageStartupMessages({
     library(RCy3); cytoscapePing()
   })
@@ -1130,7 +1161,7 @@ create_PPI_graph <- function(g, all_partitions, module_name){
   
   # Subset graph.
   nodes <- all_modules[[module_name]]
-  g <- induced_subgraph(g,vids = V(g)[match(nodes,names(V(g)))])
+  g <- induced_subgraph(g0,vids = V(g0)[match(nodes,names(V(g0)))])
   # Add node color attribute.
   g <- set_vertex_attr(g,"color", value = module_colors[module_name])
   # Add node module attribute.
@@ -1146,9 +1177,21 @@ create_PPI_graph <- function(g, all_partitions, module_name){
   # Add hubiness (KME) attributes.
   kme <- all_KME[[module_name]]
   g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
-  # Keep only top 1% of edges.
+  # Keep only top N% of edges.
+  nEdges <- length(E(g))
   q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.005))
-  g <- delete.edges(g, which(E(g)$weight >= q["0.5%"] | E(g)$weight <= q["99.5"]))
+  contrasts <- split(cbind(c(1:length(q)),c(length(q):1)),seq(length(q)))
+  contrasts <- lapply(contrasts, function(x) c(names(q)[x[1]],names(q)[x[2]]))
+  contrasts <- contrasts[1:100] # We don't need the reverse instances.
+  fracEdges <- sapply(contrasts, function(x) {
+    sum(E(g)$weight <= q[x[1]] | E(g)$weight >= q[x[2]])/length(E(g))
+  })
+  limits <- as.list(contrasts[[max(which(fracEdges <= frac_to_keep))]])
+  names(limits) <- c("bottom","top")
+  g <- delete.edges(g, which(E(g)$weight >= q[limits$bottom] & E(g)$weight <= q[limits$top]))
+  
+  nRemaining <- length(E(g))
+  message(paste(nRemaining,"of",nEdges,limits))
   
   # Send to Cytoscape.
   cys_net <- createNetworkFromIgraph(g,module_name)
