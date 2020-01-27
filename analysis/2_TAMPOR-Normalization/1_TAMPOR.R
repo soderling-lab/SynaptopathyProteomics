@@ -55,14 +55,16 @@ outputtabs <- paste(rootdir, "tables", sep = "/")
 myfun <- list.files(functiondir, pattern = ".R", full.names = TRUE)
 invisible(sapply(myfun, source))
 
+# Create a directory for figure output.
+script_name <- "1_TAMPOR"
+outputfigs <- file.path(rootdir,"figs",Sys.Date(),script_name)
+dir.create(outputfigs,recursive=FALSE)
+
 # Define prefix for output figures and tables.
 outputMatName <- paste0("2_", tissue)
 
 # Globally set ggplots theme.
 ggtheme()
-
-# Store any plots in list.
-all_plots <- list()
 
 #-------------------------------------------------------------------------------
 ## Merge cortex and striatum data.
@@ -186,9 +188,6 @@ sample_connectivity <- ggplotSampleConnectivity(data_in, log = TRUE, colID = "b.
 plot <- sample_connectivity$connectivityplot +
   ggtitle("Sample Connectivity post-TAMPOR")
 
-# Store plot.
-all_plots[["TAMPOR_Oldham_Outliers"]] <- plot
-
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
 threshold <- -3.0
@@ -251,11 +250,6 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
   colID = "b.",
   title = "Combined"
 )
-
-# Store in list.
-all_plots[["Cortex_postTAMPOR_PCA"]] <- plot1
-all_plots[["Striatum_postTAMPOR_PCA"]] <- plot2
-all_plots[["Combined_postTAMPOR_PCA"]] <- plot3
 
 #-------------------------------------------------------------------------------
 ## Create protein identifier map.
@@ -353,10 +347,6 @@ colnames(design) <- levels(y_DGE$samples$group)
 # Estimate dispersion:
 y_DGE <- estimateDisp(y_DGE, design, robust = TRUE)
 
-# PlotBCV
-# plot <- ggplotBCV(y_DGE)
-# all_plots[["TAMPOR_BCV"]] <- plot
-
 # Fit a general linear model.
 fit <- glmQLFit(y_DGE, design, robust = TRUE)
 
@@ -418,9 +408,6 @@ mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
   t = 1, l = 1, r = ncol(mytable)
 )
-
-# Store in list.
-all_plots[["TAMPOR_DE_Table"]] <- mytable
 
 # Call topTags to add FDR. Gather tabularized results.
 glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
@@ -598,11 +585,6 @@ vp1 <- plots$Shank2
 vp2 <- plots$Shank3
 vp3 <- plots$Syngap1
 vp4 <- plots$Ube3a
-
-all_plots[["Shank2_VP"]] <- vp1
-all_plots[["Shank3_VP"]] <- vp2
-all_plots[["Syngap1_VP"]] <- vp3
-all_plots[["Ube3a_VP"]] <- vp4
 
 #-------------------------------------------------------------------------------
 ## GSE analaysis for each genotype.
@@ -898,8 +880,9 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
   )) +
   coord_fixed()
 
-# Store plot
-all_plots[["TAMPOR_Condition_Overlap"]] <- plot
+# Save.
+myfile <- prefix_file(file.path(outputfigs,"Condition_Overlap_Plot.tiff"))
+ggsave(myfile,plot)
 
 #--------------------------------------------------------------------------------
 ## Generate protein boxplots.
@@ -942,12 +925,6 @@ plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors
 
 # Facet plots, add significance stars, and reformat x.axis labels.
 plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats))
-
-# Store boxplots.
-all_plots[["all_box_plots"]] <- plot_list
-
-# Store seperately as 
-saveRDS(all_plots, "all_prot_bplots.RData")
 
 #-------------------------------------------------------------------------------
 ## Write data to excel spreadsheet.
@@ -997,9 +974,5 @@ writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
 myfile <- file.path(rootdir, "tables", "2_Combined_TMT_Data.xlsx")
 saveWorkbook(wb, myfile, overwrite = TRUE)
-
-# Save all plots.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.RData"))
-saveRDS(all_plots, myfile)
 
 message("Done!")

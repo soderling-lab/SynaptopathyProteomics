@@ -10,8 +10,11 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-net <- "Striatum" # Which network are we analyzing? 
+net = "Cortex" # Which network are we analyzing? 
 overwrite_figsdir = TRUE
+do_DBD_enrichment = FALSE
+do_GO_enrichment = FALSE
+do_module_analysis = TRUE
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -133,16 +136,15 @@ all_modules <- sapply(all_modules,names)
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
 
-do_DBD_enrichment <- TRUE
+# Load Disease ontology.
+geneSet <- "mouse_Combined_DBD_geneSets.RData"
+myfile <- file.path(rdatdir,geneSet)
+DBDcollection <- readRDS(myfile)
 
 # Perform disease enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_",net,"_Module_DBD_Enrichment.RData"))
 if (do_DBD_enrichment) {
 	message("Performing module enrichment analysis for DBD-associated genes...")
-  # Load Disease ontology.
-  geneSet <- "mouse_Combined_DBD_geneSets.RData"
-  myfile <- file.path(rdatdir,geneSet)
-  DBDcollection <- readRDS(myfile)
 	DBDresults <- list()
 	for (i in 1:100) {
 		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
@@ -170,7 +172,7 @@ names(disease_sig) <- paste0("R",c(1:100))
 # Status.
 message(paste("Total number of disease associated modules:",nsig))
 
-# Collect as named gene lists.
+# Collect DBD genes in named list.
 gene_lists <- lapply(DBDcollection$dataSets,function(x) x$data$Entrez)
 names(gene_lists) <- paste(
   sapply(DBDcollection$dataSets,function(x) x$internalClassification[2]),
@@ -195,8 +197,6 @@ all_dbd_prots <- lapply(dbd_list,function(x) x$Annotation)
 #--------------------------------------------------------------------
 ## Module GO enrichment.
 #--------------------------------------------------------------------
-
-do_GO_enrichment <- FALSE
 
 # Loop to perform GO enrichment analysis.
 myfile <- file.path(rdatdir,paste0("3_All_",net,"_Module_GO_enrichment.RData"))
@@ -239,11 +239,8 @@ all_topGO <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
 ## Loop to explore changes in module summary expression.
 #------------------------------------------------------------------------------
 
-# Run the analysis?
-doLoop <- FALSE
-
 # Loop:
-if (doLoop) {
+if (do_module_analysis) {
 	# Empty lists for output of loop:
 	results <- list(module_results = list(),
 	ME_results = list(),
@@ -360,23 +357,24 @@ if (doLoop) {
 				 ggplotVerboseBoxplot(x,groups)
 				     })
 		names(bplots) <- names(ME_list)
-		# Add Module name and PVE to plot titles. Simplify x-axis labels.
+		# Add R#.M# + PVE + pvalue to plot titles. Simplify x-axis labels.
 		x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 				  "Syngap1 HET","Ube3a KO"),2)
 		# Loop to clean-up plots.
 		for (k in seq_along(bplots)) {
 			# Add title and fix xlabels.
 			plot <- bplots[[k]]
-			namen <- names(bplots)[k]
-			txt <- paste0("P.adj = ", round(KWdata[namen,"p.adj"],3),
-				      "; ","PVE = ", round(PVE[namen], 3))
-			plot_title <- paste0(namen, " (", txt, plot$labels$title, ")")
+			m <- names(bplots)[k]
+			namen <- paste0("R",r,".",m)
+			txt <- paste0("P.adj = ", round(KWdata[m,"p.adj"],3),
+				      "; ","PVE = ", round(PVE[m], 3))
+			plot_title <- paste0(namen, " (", txt, ")")
 			plot$labels$title <- plot_title
 			plot <- plot + scale_x_discrete(labels = x_labels)
 			# Add significance stars!
 			df <- data.table(xpos=c(2:5),
 					 ypos = 1.01 * max(plot$data$x),
-					 p=DT_list[[namen]]$pval,
+					 p=DT_list[[m]]$pval,
 					 symbol="")
 			df$symbol[df$p<0.05] <- "*"
 			df$symbol[df$p<0.005] <- "**"
@@ -530,7 +528,8 @@ avg_js
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
 rep_convergent_modules <- getMedoid(adjm_js,h=best_h)
-	
+rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
+
 # Is there protein overlap among these modules?
 # They are very different!
 adjm_js[rep_convergent_modules,rep_convergent_modules] # R90.M50 shares ~50 overlap with several others.
@@ -699,11 +698,13 @@ ggsave(myfile,plot=dendro, height=2.5, width = 3)
 #--------------------------------------------------------------------
 
 # Collect all representative modules.
+names(rep_convergent_modules) <- rep("Convergent",length(rep_convergent_modules))
+names(rep_dbd_modules) <- rep("DBD",length(rep_dbd_modules))
 all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
 
 # Collect plots from representative modules.
 all_plots <- unlist(plots,recursive = FALSE)
-myplots <- all_plots[rep_convergent_modules]
+myplots <- all_plots[all_rep_modules]
 
 # Save.
 for (i in seq_along(myplots)) {
@@ -1169,15 +1170,79 @@ myfile <- prefix_file({
 ggsave(myfile,p2,width=3,height=3)
 
 #--------------------------------------------------------------------
+## Demonstrate that interacting proteins are highly co-expressed.
+#--------------------------------------------------------------------
+
+# Merge PPI and co-expression graphs, and create a data.table.
+df <- as.data.table(as_long_data_frame(union(g0,g1)))
+df <- df %>% dplyr::select(c(from_name,weight,ppi))
+df$ppi[is.na(df$ppi)] <- FALSE # Convert na to FALSE.
+
+# Randomly sample 10,000 edges drawn from interacting and 
+# non-interacting proteins.
+n <- 10000
+idx <- c(sample(which(df$ppi),n),sample(which(!df$ppi),n))
+subdat <- df[idx,]
+subdat$ppi <- factor(subdat$ppi,levels=c(FALSE,TRUE)) 
+
+# Check the mean of each group.
+subdat %>% group_by(ppi) %>% summarize(mean(weight))
+
+# Calculate WRS p-value.
+# Refactor, test that TRUE > FALSE.
+WRS_test <- wilcox.test(subdat$weight ~ subdat$ppi, alternative = "less")
+WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
+
+# Generate a plot.
+  plot <- ggplot(subdat, aes(x = ppi, y = weight, fill = ppi)) +
+    geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
+    scale_x_discrete(labels = c("PPI = False", "PPI = True")) +
+    ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
+    scale_fill_manual(values = c("gray", "dark orange")) +
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 11, face = "bold"),
+      legend.position = "none"
+    )
+  
+  # Add Annotation.
+  plot <- plot + annotate("text", x = 1.5, y = 1.0,
+    label = paste("p-value =",WRS_pval), size = 6, color = "black")
+
+# Save as tiff.
+myfile <- prefix_file(file.path(figsdir,"WRS_PPI_Bicor_Proteins.tiff"))
+ggsave(myfile, plot, height = 4, width = 4)
+
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+
+# # Biological significance of representative modules.
+# all_rep_modules <- c(rep_dbd_modules,rep_convergent_modules)
+# module <- all_rep_modules[[1]]
+# x = glm_stats$FDR
+# x$module <- module[rownames(x)]
+
+
+
+
+#--------------------------------------------------------------------
 ## Send graphs of modules of interest to Cytoscape.
 #--------------------------------------------------------------------
 
+# We cannot plot all the edges.
+# Two approaches for hard threshholding:
+# Apply a hard cut-off such that:
+#     1) Top N% of edges are preserved.
+#     2) Maximum cut-off that preserves a completely connected graph.
+
 # Function to create PPI graphs.
-create_PPI_graph <- function(g0, g1, all_modules, module_name, 
-                             frac_to_keep=0.15, save_image = FALSE,
-                             output_dir, file_format="PNG",save_network=FALSE) {
+create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
+                             output_file) {
   suppressPackageStartupMessages({
-    library(RCy3); cytoscapePing()
+    library(RCy3)
+    cytoscapePing()
   })
   # Subset graph.
   nodes <- all_modules[[module_name]]
@@ -1197,22 +1262,47 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name,
   # Add hubiness (KME) attributes.
   kme <- all_KME[[module_name]]
   g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
+  # Determine the maximal threshhold in order to have connected component.
+  message(paste("Determining best hard threshold for the network.\n",
+  "    For large graphs, this may take several minutes..."))
+  # FIXME: This approach is slow!
+  nEdges <- length(E(g))
+  e_max <- max(E(g)$weight)
+  e_min <- min(E(g)$weight)
+  cut_off <- seq(e_min,e_max,by=0.01)
+  check <- vector("logical",length = length(cut_off))
+  for (i in seq_along(cut_off)) {
+    threshold <- cut_off[i]
+    g_temp <- g
+    g_temp <- delete.edges(g_temp, which(E(g_temp)$weight <= threshold))
+    check[i] <- is.connected(g_temp)
+  }
+  cutoff_limit <- cut_off[max(which(check))]
   # Keep only top N% of edges.
-  q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
-  cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
+  #q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
+  #cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
   g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
-  message(paste("Number of remaining coexpression edges:",length(E(g))))
+  message(paste0("... Edges remaining after thresholding: ",
+                length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
   # Fix missing values. 
   E(g)$weight[which(is.na(E(g)$weight))] <- 0 # Set NA to 0.
-  # DBD annotations.
+  # Add DBD annotations.
   dbd_annotations <- all_dbd_prots[names(V(g))]
   g <- set_vertex_attr(g,"dbdProt", value = sapply(dbd_annotations,function(x) length(x) > 0))
-  # Send to Cytoscape.
-  cys_net <- createNetworkFromIgraph(g,module_name)
+  # Change SigProt and dbdProt F,T annotations to 0,1.
+  V(g)$sigProt <- as.numeric(V(g)$sigProt)
+  V(g)$dbdProt <- as.numeric(V(g)$dbdProt)
+  # Write graph to file.
+  message("Writing graph to file ...")
+  myfile <- paste0(module_name,".gml")
+  write_graph(g,file=myfile,format="gml")
+  # FIXME: warnings about boolean attributes.
+  message("Loading graph into cytoscape...")
+  cys_net <- importNetworkFromFile(myfile)
+  Sys.sleep(5)
+  unlink(myfile)
 	# Create a visual style.
 	style.name <- paste(module_name,"style",sep="-")
-	# Get all network properties and their default.
-	#all_properties <- allNetworkProperties()
 	# DEFAULTS:
 	defaults = list(
 	  NODE_FILL_COLOR = col2hex("gray"),
@@ -1232,66 +1322,88 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name,
 	)
 	# MAPPED PROPERTIES:
 	mappings <- list(
-	  NODE_LABELS = mapVisualProperty('node label','symbol','p'),
-	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
-	  NODE_SIZE = mapVisualProperty('node size','kme','c', c(min(V(g)$kme),max(V(g)$kme)), c(25,75)),
-	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency','weight', 'c', c(0,1), c(0,255)),
-	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 'weight','c',
-	                                                   c(min(E(g)$weight),max(E(g)$weight)),c(col2hex("white"),col2hex("dark orange")))
+	  NODE_LABEL = mapVisualProperty('node label', 'symbol', 'p'),
+	  NODE_FILL_COLOR = mapVisualProperty('node fill color',
+	                                      'color',
+	                                      'p'),
+	  NODE_SIZE = mapVisualProperty('node size',
+	                                'kme',
+	                                'c', 
+	                                c(min(V(g)$kme),max(V(g)$kme)), 
+	                                c(25,75)),
+	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency',
+	                                        'weight', 
+	                                        'c', 
+	                                        c(min(E(g)$weight),max(E(g)$weight)), 
+	                                        c(155,255)),
+	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 
+	                                                   'weight','c',
+	                                                   c(min(E(g)$weight),max(E(g)$weight)),
+	                                                   c(col2hex("gray"),col2hex("dark grey")))
 	)
 	# Create a visual style.
 	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
 	# Apply to graph.
 	setVisualStyle(style.name)
-	# Set NS nodes to Gray.
+	Sys.sleep(2)
+	# Set NS nodes to gray.
 	setNodePropertyBypass(
-	  node.names = names(V(g))[which(V(g)$sigProt==FALSE)],
+	  node.names = names(V(g))[which(V(g)$sigProt==0)],
 	  new.values = col2hex("gray"),
 	  visual.property = "NODE_FILL_COLOR",
+	  bypass = TRUE,
+	)
+	setNodePropertyBypass(
+	  node.names = names(V(g))[which(V(g)$sigProt==0)],
+	  new.values = 200,
+	  visual.property = "NODE_TRANSPARENCY",
 	  bypass = TRUE,
 	)
 	# Add PPI edges.
 	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
 	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
-	ppi_edges <- addCyEdges(edge_list)
-	# Set PPIs to black.
-	selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
-	setEdgePropertyBypass(edge.names = selected_edges$edges,
-	                      new.values = col2hex("black"),
-	                      visual.property = "EDGE_STROKE_UNSELECTED_PAINT",
-	                      bypass = TRUE)
-	setEdgePropertyBypass(edge.names = selected_edges$edges,
+	if (length(edge_list) > 0) {
+	  ppi_edges <- addCyEdges(edge_list)
+	  # Add PPIs and set to black.
+	  selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
+	  setEdgePropertyBypass(edge.names = selected_edges$edges,
+	                        new.values = col2hex("black"),
+	                        visual.property = "EDGE_STROKE_UNSELECTED_PAINT",
+	                        bypass = TRUE)
+	  setEdgePropertyBypass(edge.names = selected_edges$edges,
 	                     new.values = TRUE,
 	                     visual.property = "EDGE_BEND",
 	                     bypass = TRUE)
-	setEdgePropertyBypass(edge.names = selected_edges$edges,
-	                      new.values = 3,
-	                      visual.property = "EDGE_WIDTH",
-	                      bypass = TRUE)
-	clearSelection() # Removes any nodes/edges from selection.
+	# Removes any nodes/edges from selection.
+	clearSelection()
+	}
 	# Wait a couple of seconds...
 	Sys.sleep(2)
-	layoutNetwork('force-directed edgeAttribute=weight')
-  # Save
-	if (save_network) {
-	  myfile <- file.path(output_dir,module_name)
-	  saveSession(myfile)
-	  deleteAllNetworks()
-	}
-  # Save image.
-  if (save_image) {
-    fitContent()
-    Sys.sleep(2) # Wait... 
-    myfile <- file.path(output_dir,paste0(module_name,"_network"))
-    exportImage(myfile, file_format)
-  }
+	# Apply layout.
+	layoutNetwork(network_layout)
+	Sys.sleep(4)
+	fitContent()
+	# Save.
+	if (!is.null(output_file)) { saveSession(output_file) }
+	# Free up some memory.
 	cytoscapeFreeMemory()
 }
 
-# Generate networks for all modules of interest.
-for (i in 1:length(all_rep_modules)){
-  message(paste("Working on module",all_rep_modules[i]))
-  create_PPI_graph(g0,g1,all_modules,all_rep_modules[i],output_dir=figsdir)
-  myfile <- file.path(netsdir,paste0(net,"_Top_Modules"))
-  saveSession(myfile)
+# Generate networks for representative convergent modules.
+for (i in 2:length(rep_convergent_modules)){
+  network_layout <- 'force-directed edgeAttribute=weight'
+  message(paste("Working on module",rep_convergent_modules[i],"..."))
+  myfile <- file.path(netsdir,paste0(net,"_Top_Convergent_Modules"))
+  create_PPI_graph(g0,g1,all_modules,
+                   rep_convergent_modules[i],network_layout,output_file=myfile)
+}
+deleteAllNetworks()
+
+# Generate networks for representative DBD-associated modules.
+for (i in 2:length(rep_dbd_modules)){
+  network_layout <- 'force-directed edgeAttribute=weight'
+  message(paste("Working on module",rep_dbd_modules[i], "..."))
+  myfile <- file.path(netsdir,paste0(net,"_Top_DBD_Modules"))
+  create_PPI_graph(g0,g1,all_modules,
+                   rep_dbd_modules[i],network_layout,output_file=myfile)
 }
