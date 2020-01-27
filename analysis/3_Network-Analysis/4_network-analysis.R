@@ -1034,6 +1034,44 @@ for (module in moi) {
 }
 
 #--------------------------------------------------------------------
+## Get DBD results for modules of interst.
+#--------------------------------------------------------------------
+
+# Collect results.
+all_DBD_results <- unlist(DBDresults,recursive=FALSE)
+names(all_DBD_results) <- gsub("-",".",names(all_DBD_results))
+myresults <- all_DBD_results[rep_dbd_modules]
+
+# Loop to save results.
+for (i in 1:length(myresults)) {
+  module <- names(myresults)[i]
+  myfile <- prefix_file({
+    file.path(tabsdir,paste0(module,"_DBD_enrichment.xlsx"))
+  })
+  write_excel(myresults[[i]],myfile)
+}
+  
+# Generate disease enrichment scatter plots.
+for (i in 1:length(myresults)) {
+  module <- names(myresults)[i]
+  plot <- ggplotGOscatter(myresults[[i]],color=module_colors[module])
+  plot <- plot + ggtitle(module) + theme(plot.title = element_text(size=12))
+  idx <- max(which(myresults[[i]]$FDR < 0.05))
+  pval_threshold <- -log(myresults[[i]]$pValue[idx])
+  plot <- plot + 
+    geom_hline(yintercept=pval_threshold, color='red', size = 0.5, linetype=2)
+  myfile <- prefix_file({
+    file.path(figsdir,paste0(module,"_DBD_enrichment.tiff"))
+  })
+  ggsave(myfile,plot,height = 3.5, width = 3.5)
+}
+
+# Which proteins are in this module?
+prots <- all_modules[[module]]
+DBDprots <- prots[which(prots %in% names(all_dbd_prots))]
+all_dbd_prots[DBDprots]
+
+#--------------------------------------------------------------------
 ## Generate Cytoscape graphs of modules at every resolution.
 #--------------------------------------------------------------------
 
@@ -1181,6 +1219,11 @@ df$ppi[is.na(df$ppi)] <- FALSE # Convert na to FALSE.
 # Randomly sample 10,000 edges drawn from interacting and 
 # non-interacting proteins.
 n <- 10000
+
+# Seed seed for reproducibility.
+set.seed(0) 
+
+# Get random samples.
 idx <- c(sample(which(df$ppi),n),sample(which(!df$ppi),n))
 subdat <- df[idx,]
 subdat$ppi <- factor(subdat$ppi,levels=c(FALSE,TRUE)) 
@@ -1390,7 +1433,7 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
 }
 
 # Generate networks for representative convergent modules.
-for (i in 2:length(rep_convergent_modules)){
+for (i in 1:length(rep_convergent_modules)){
   network_layout <- 'force-directed edgeAttribute=weight'
   message(paste("Working on module",rep_convergent_modules[i],"..."))
   myfile <- file.path(netsdir,paste0(net,"_Top_Convergent_Modules"))
@@ -1400,7 +1443,7 @@ for (i in 2:length(rep_convergent_modules)){
 deleteAllNetworks()
 
 # Generate networks for representative DBD-associated modules.
-for (i in 2:length(rep_dbd_modules)){
+for (i in 1:length(rep_dbd_modules)){
   network_layout <- 'force-directed edgeAttribute=weight'
   message(paste("Working on module",rep_dbd_modules[i], "..."))
   myfile <- file.path(netsdir,paste0(net,"_Top_DBD_Modules"))
