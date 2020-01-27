@@ -755,6 +755,8 @@ labels <- as.matrix(labels)
 # will be passed to enrichmentAnalysis().
 
 # Build a GO annotation collection:
+skip = TRUE
+if (!skip) {
 myfile <- file.path(Rdatadir, "musGOcollection.RData")
 if (file.exists(myfile)) {
   musGOcollection <- readRDS(myfile)
@@ -792,6 +794,7 @@ names(results_GOenrichment) <- colnames(labels)
 # Save.
 myfile <- file.path(outputtabs, "2_Combined_GO_Analysis.xlsx")
 write_excel(results_GOenrichment, myfile)
+}
 
 #-------------------------------------------------------------------------------
 ## Condition overlap plot.
