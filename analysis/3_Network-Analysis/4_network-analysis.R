@@ -14,7 +14,7 @@ net = "Cortex" # Which network are we analyzing?
 overwrite_figsdir = TRUE
 do_DBD_enrichment = FALSE
 do_GO_enrichment = FALSE
-do_module_analysis = TRUE
+do_module_analysis = FALSE
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -433,7 +433,7 @@ all_plots <- unlist(plots,recursive=FALSE)
 all_nSigDT <- unlist(nSigDT_results,recursive = FALSE)
 
 # Collect modules of interest: modules changing in all 4 genotypes.
-n <- c("Cortex" = 4, "Striatum" = 3)[net]
+n <- c("Cortex" = 4, "Striatum" = 4)[net]
 convergent_modules <- names(all_nSigDT)[which(all_nSigDT >= n)]
 
 # Collect modules of interest: DBD-associated modules.
@@ -448,7 +448,7 @@ message(paste("Number of DBD-associated modules exhibiting",
 
 ## Summary:
 # Cortex:   Convergent (n==4): 76; DBD 97: 
-# Striatum: Convergent (n>=3): 33; DBD: 0
+# Striatum: Convergent (n>=3): 33 (2); DBD: 0
 
 #--------------------------------------------------------------------
 ## How are convergent modules related?
@@ -486,6 +486,24 @@ n <- length(moi)
 adjm_js <- matrix(modulejs,nrow=n,ncol=n)
 colnames(adjm_js) <- rownames(adjm_js) <- moi
 
+# Use ME instead!
+adjm_js <- cor(do.call(cbind,all_ME[moi]))
+
+# Convert similarity matrix to distance matrix, and cluster with hclust.
+hc <- hclust(as.dist(1 - adjm_js), method = "ward.D2")
+
+# Examine dendrogram.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
+dendro 
+
+# Remove any outliers.
+dm_colSums <- apply((1-adjm_js),2,sum)
+dm_colSums = dm_colSums[order(dm_colSums,decreasing = TRUE)]
+head(dm_colSums)
+out <- names(x)[c(1:4)]
+idx <- idy <- match(out,colnames(adjm_js))
+adjm_js <- adjm_js[-idx,-idy]
+
 # Convert similarity matrix to distance matrix, and cluster with hclust.
 hc <- hclust(as.dist(1 - adjm_js), method = "ward.D2")
 
@@ -498,10 +516,11 @@ dendro
 g <- graph_from_adjacency_matrix(adjm_js,mode="undirected",weighted=TRUE)
 
 # Examine number of groups and modularity given cut height.
-h <- seq(0,max(hc$height),by=0.01)
+h <- seq(0,max(hc$height),by=0.005)
 hc_partitions <- lapply(h,function(x) cutree(hc,h=x))
 k <- sapply(h,function(x) length(unique(cutree(hc,h=x))))
-q <- sapply(hc_partitions,function(x) modularity(g, x, weights = edge_attr(g, "weight")))
+# Modularity cannot handle negative weights!
+q <- sapply(hc_partitions,function(x) modularity(g, x, weights = abs(edge_attr(g, "weight"))))
 
 # Best cut height that maximizes modularity.
 best_q <- unique(q[seq(h)[q==max(q)]])
@@ -527,6 +546,7 @@ avg_js
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
+## FIXME: Handle groups with N=1.
 rep_convergent_modules <- getMedoid(adjm_js,h=best_h)
 rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
 
@@ -561,6 +581,10 @@ myfile <- prefix_file({
   file.path(figsdir,paste0(net,"_Convergent_Modules_Dendro.tiff"))
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
+
+# Manually set modules of interest for striatum.
+rep_convergent_modules <- c("R75.M33","R86.M46","R95.M51","R97.M92",out)
+rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
 
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
@@ -692,6 +716,9 @@ myfile <- prefix_file({
   file.path(figsdir,paste0(net,"_DBD_Modules_Dendro.tiff"))
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
+
+# Manually set rep_DBD modules for striatum.
+rep_dbd_modules <- NULL
 
 #--------------------------------------------------------------------
 ## Save verbose boxplots for representative modules.
@@ -1267,9 +1294,6 @@ ggsave(myfile, plot, height = 4, width = 4)
 # x = glm_stats$FDR
 # x$module <- module[rownames(x)]
 
-
-
-
 #--------------------------------------------------------------------
 ## Send graphs of modules of interest to Cytoscape.
 #--------------------------------------------------------------------
@@ -1308,6 +1332,8 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
   # Determine the maximal threshhold in order to have connected component.
   message(paste("Determining best hard threshold for the network.\n",
   "    For large graphs, this may take several minutes..."))
+  # METHOD 1:
+  if (threshold_method == 1) {
   # FIXME: This approach is slow!
   nEdges <- length(E(g))
   e_max <- max(E(g)$weight)
@@ -1321,12 +1347,18 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
     check[i] <- is.connected(g_temp)
   }
   cutoff_limit <- cut_off[max(which(check))]
-  # Keep only top N% of edges.
-  #q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
-  #cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
+  }
+  # METHOD 2.
+  if (threshold_method == 2) {
+    # Keep only top N% of edges.
+    frac_to_keep = 0.05
+    q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
+    cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
+  }
+  # Prune edges.
   g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
   message(paste0("... Edges remaining after thresholding: ",
-                length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
+                 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
   # Fix missing values. 
   E(g)$weight[which(is.na(E(g)$weight))] <- 0 # Set NA to 0.
   # Add DBD annotations.
@@ -1402,7 +1434,9 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
 	  visual.property = "NODE_TRANSPARENCY",
 	  bypass = TRUE,
 	)
+	#commandsGET(cmd.string, base.url = .defaultBaseUrl)
 	# Add PPI edges.
+	nodes <- nodes[-which(nodes %notin% names(V(g1)))] # If any nodes not in ppi graph then problems.
 	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
 	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
 	if (length(edge_list) > 0) {
@@ -1443,7 +1477,7 @@ for (i in 1:length(rep_convergent_modules)){
 deleteAllNetworks()
 
 # Generate networks for representative DBD-associated modules.
-for (i in 1:length(rep_dbd_modules)){
+for (i in 1){
   network_layout <- 'force-directed edgeAttribute=weight'
   message(paste("Working on module",rep_dbd_modules[i], "..."))
   myfile <- file.path(netsdir,paste0(net,"_Top_DBD_Modules"))

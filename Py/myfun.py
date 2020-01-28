@@ -80,3 +80,29 @@ def add_method(cls):
         # Note we are not binding func, but wrapper which accepts self but does exactly the same as func
         return func # returning func means func can still be used normally
     return decorator
+
+#--------------------------------------------------------------------
+# Function to apply a threshold to a graph such that it is a single component.
+def apply_best_threshold(subg,start=0,stop=1,num=10):
+    import numpy as np
+    import igraph
+    from pandas import DataFrame
+    # Also needs myfun...
+    # Remove multiple edges.
+    subg = subg.simplify(multiple=False) # has names.
+    nodes = subg.vs['name']
+    i = 0
+    is_connected = True
+    # Loop to check if graph is single component after thresholding.
+    while is_connected:
+        threshold = np.linspace(start,stop,num)[i]
+        adjm = np.array(subg.get_adjacency(attribute="weight").data)
+        mask = adjm > threshold
+        df = DataFrame(adjm * mask, index=nodes,columns=nodes)
+        subg_filt = myfun.graph_from_adjm(df,weighted=True,signed=True)
+        components = subg_filt.components()
+        is_connected = len(set(components.membership)) == 1
+        i +=1
+    # Ends while loop.
+    return subg_filt
+# Ends function.
