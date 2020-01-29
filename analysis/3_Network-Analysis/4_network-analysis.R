@@ -546,9 +546,7 @@ avg_js
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
-## FIXME: Handle groups with N=1.
 rep_convergent_modules <- getMedoid(adjm_js,h=best_h)
-rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
 
 # Is there protein overlap among these modules?
 # They are very different!
@@ -583,8 +581,8 @@ myfile <- prefix_file({
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 # Manually set modules of interest for striatum.
-rep_convergent_modules <- c("R75.M33","R86.M46","R95.M51","R97.M92",out)
-rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
+#rep_convergent_modules <- c("R75.M33","R86.M46","R95.M51","R97.M92",out)
+#rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
 
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
@@ -597,56 +595,22 @@ moi <- dbd_modules
 contrasts <- expand.grid("M1"=moi,
                          "M2"=moi, stringsAsFactors=FALSE)
 
-# Examine module jaacard similarity for all comparisons between 
-# modules of interest.
-message("Calculating Jaacard similarity between all DBD-associated modules...")
-n <- dim(contrasts)[1]
-modulejs <- vector("numeric",n)
-pbar <- txtProgressBar(min=0,max=n,style=3)
-# Loop:
-for (i in 1:nrow(contrasts)){
-  setTxtProgressBar(pbar,i)
-  x <- contrasts[i,]
-  r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
-  m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
-  p1 <- partitions[[r[1]]]
-  m1 <- names(split(p1,p1)[[m[1]]])
-  p2 <- partitions[[r[2]]]
-  m2 <- names(split(p2,p2)[[m[2]]])
-  modulejs[i] <- js(m1,m2)
-  if (i == n) { close(pbar); message("\n") }
-} # Ends loop.
-
-# Cast modulejs into similarity matrix.
-n <- length(moi)
-adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- moi
+# Use ME instead!
+# Raising to a power can be helpful to draw out structure in the network.
+sft <- 20
+adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
 
 # Convert similarity matrix to distance matrix, and then
 # cluster with hclust.
 method <- "ward.D2" # ward.D2, ward.D, single,complete,average,mcquitty,median,centroid
-hc <- hclust(as.dist(1 - adjm_js), method)
-
-# Examine dendrogram.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
-dendro 
-
-# Try removing two outliers.
-x <- apply((1-adjm_js),2,sum)
-x <- x[order(x,decreasing = TRUE)]
-out <- colnames(adjm_js) %in% names(x)[c(1,2)]
-modules_out <- colnames(adjm_js)[out]
-
-# cluster with hclust.
-hc <- hclust(as.dist(1 - adjm_js[!out,!out]), method = "ward.D2")
+hc <- hclust(as.dist(1 - adjm_me), method)
 
 # Examine dendrogram.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
 dendro 
 
 # Utilize modularity to identify the optimimal number of groups.
-g <- graph_from_adjacency_matrix(adjm_js[!out,!out],
-                                 mode="undirected",weighted=TRUE)
+g <- graph_from_adjacency_matrix(abs(adjm_me),mode="undirected",weighted=TRUE)
 
 # Examine number of groups and modularity given cut height.
 h <- seq(0,max(hc$height),by=0.01)
@@ -667,28 +631,23 @@ hc_partition <- cutree(hc, h=best_h)
 groups <- split(hc_partition,hc_partition)
 
 # Average similarity among the groups.
-avg_js <- sapply(groups,function(x) {
-  subadjm <- adjm_js[names(x),names(x)]
+avg_me <- sapply(groups,function(x) {
+  subadjm <- adjm_me[names(x),names(x)]
   return(mean(subadjm[upper.tri(subadjm)]))
 })
 
 # Replace NA for groups with length == 1. 
-avg_js[is.na(avg_js)] <- 1 # NA for groups with length == 1. 
-avg_js
+avg_me[is.na(avg_me)] <- 1 # NA for groups with length == 1. 
+avg_me
 
 # Get representative module from each group, its medoid.
 # The medoid is the module which is most similar (closest) 
 # to all others in its group.
-rep_dbd_modules <- getMedoid(adjm_js[!out,!out],h=best_h)
-
-# Combine with modules that were removed.
-rep_dbd_modules <- c(modules_out,rep_dbd_modules)
-rep_dbd_modules <- rep_dbd_modules[order(rep_dbd_modules)]
-names(rep_dbd_modules) <- NULL
+rep_dbd_modules <- getMedoid(adjm_me,h=best_h)
 
 # Is there protein overlap among these modules?
 # They are very different!
-adjm_js[rep_dbd_modules,rep_dbd_modules] # R90.M50 shares ~50 overlap with several others.
+adjm_me[rep_dbd_modules,rep_dbd_modules] # R90.M50 shares ~50 overlap with several others.
 
 # Status.
 message("Representative DBD-associated modules:")
@@ -717,9 +676,6 @@ myfile <- prefix_file({
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
-# Manually set rep_DBD modules for striatum.
-rep_dbd_modules <- NULL
-
 #--------------------------------------------------------------------
 ## Save verbose boxplots for representative modules.
 #--------------------------------------------------------------------
@@ -737,7 +693,7 @@ myplots <- all_plots[all_rep_modules]
 for (i in seq_along(myplots)) {
   file_name <- paste0(names(myplots)[i],".tiff")
   myfile <- prefix_file(file.path(figsdir,file_name))
-  ggsave(myfile,myplots[[i]],height = 3.5,width=3.5)
+  ggsave(myfile,myplots[[i]],height = 3.75,width=3.75)
 }
 
 #--------------------------------------------------------------------
@@ -1306,7 +1262,7 @@ ggsave(myfile, plot, height = 4, width = 4)
 
 # Function to create PPI graphs.
 create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
-                             output_file) {
+                             output_file,threshold_method=1) {
   suppressPackageStartupMessages({
     library(RCy3)
     cytoscapePing()
@@ -1335,6 +1291,7 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
   # METHOD 1:
   if (threshold_method == 1) {
   # FIXME: This approach is slow!
+    # remove weak edges, but keep graph a single component.
   nEdges <- length(E(g))
   e_max <- max(E(g)$weight)
   e_min <- min(E(g)$weight)

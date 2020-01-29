@@ -22,13 +22,22 @@ getMedoid <- function(adjm, k=NULL, h=NULL, method = "ward.D2") {
   hc <- hclust(as.dist(1 - adjm), method)
   partition <- cutree(hc, k, h)
   groups <- split(partition,partition)
+  # Remove groups of length 1.
+  out <- which(sapply(groups,length) == 1)
+  if (length(out) > 0) { 
+    removed <- sapply(groups[out],names)
+    groups <- groups[-out] 
+  } else {
+      removed <- NULL
+    }
   # Get Medoid.
-  representative_branch <- sapply(groups,function(x) {
+  rep_branches <- sapply(groups,function(x) {
     col_sums <- apply(adjm[names(x),names(x)],2,sum)
     idy <- col_sums == min(col_sums)
     return(names(col_sums)[idy])
   })
-  return(representative_branch)
+  rep_branches <- c(removed,rep_branches)
+  return(rep_branches[order(names(rep_branches))])
 }
 
 # 	v <- names(hc_groups[[group]])
