@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
-# FIXME: Significance method doesn't seem to be working.
-
 ## User parameters: 
 # adjm_type - string specifying input adjacency matrix.
 # method - string specifying the optimization method. One of: Modularity, 
@@ -15,7 +13,7 @@ method = 'CPM'
 n_iterations = -1
 rmin = 0
 rmax = 1
-nsteps = 2
+nsteps = 3
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -57,6 +55,7 @@ methods = {
             'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
             'n_iterations' : n_iterations},
         # Significance
+        # FIXME: Significance method doesn't seem to be working.
         "Significance": 
         {'partition_type' : 'SignificanceVertexPartition', 
             'weights': None, 'signed' : False,
@@ -109,7 +108,7 @@ myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
 adjm = adjm.set_index(keys=adjm.columns)
 
-# Create igraph graph.
+# Create igraph graph -- this takes several moments.
 if parameters.get('weights') is not None:
     # Create a weighted graph.
     g = myfun.graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
@@ -127,8 +126,8 @@ parameters['graph'] = g
 
 import numpy as np
 from numpy import linspace
-from progressbar import ProgressBar
 from importlib import import_module
+from progressbar import ProgressBar
 from leidenalg import Optimiser, find_partition
 
 # Update partition type parameter.
@@ -147,7 +146,7 @@ if parameters.get('resolution_parameter') is None:
     partition = find_partition(**parameters)
     optimiser = Optimiser()
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
-    partition = myfun.filter_modules(partition)
+    #partition = myfun.filter_modules(partition)
     profile.append(partition)
     m = np.array(partition.membership)
     unclustered = sum(m==0)/len(m)
@@ -163,13 +162,13 @@ else:
         partition = find_partition(**parameters)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        partition = myfun.filter_modules(partition)
+        #partition = myfun.filter_modules(partition)
         profile.append(partition)
         # Ends loop.
 # Ends If/else.
 
 #------------------------------------------------------------------------------
-## Save clustering results.
+## Save Leidenalg clustering results.
 #------------------------------------------------------------------------------
 
 # Collect partition results and save as csv. 
@@ -205,40 +204,48 @@ df.to_csv(myfile)
 #--------------------------------------------------------------------
 ## Decompose large communities with MCL.
 #--------------------------------------------------------------------
-    
+
+## Parameters for MCL clustering.
 max_size = 500 # maximum allowable size of a module.
-inflation = np.linspace(1.2,5,10) # inflation space to explore.
+i_min = 1.2
+i_max = 5
+nsteps = 10
+
+# Insure we have functions.
+sys.path.append(root)
+from Py import myfun
+
+# Collect All leidenalg partitions.
+la_partitions = [dict(zip(profile[res].graph.vs['name'],
+    profile[res].membership)) for res in range(len(profile))]
+
+# Loop to perform MCL clustering of large communities.
+inflation = linspace(i_min,i_max,nsteps) # inflation space to explore.
 mcl_partitions = list() # empty list for results.
-
 for resolution in range(len(profile)):
-
-    ## FIXME: Where are my missing nodes going!?!?
     print("Working on resolution {}...".format(resolution))
+    print("... Initial clustering: " + profile[resolution].summary())
     ## Get modules that are too big.
     partition = profile[resolution]
     graph = partition.graph
     modules = set(partition.membership)
     too_big = [mod for mod in modules if partition.size(mod) > max_size]
-    print("Resolving {} large module(s)...".format(len(too_big)))
-
+    print("... Resolving {} large module(s)...".format(len(too_big)))
     ## Threshold graphs.
     # FIXME: THIS IS SLOW!
     subg = partition.subgraphs()
-    subg = [apply_best_threshold(subg[i]) for i in too_big]
-    ## CHECK: 1
-    sum([len(g.vs) for g in subg])
-
-    ## Perform optimized MCL clustering.
+    subg = [myfun.apply_best_threshold(subg[i]) for i in too_big]
+    ## Perform modularity optimized MCL clustering.
     # FIXME: speed up by adding cluster parameter to MCL function!
     best_clusters = list()
     for g in subg:
-        result = clusterMaxMCL(g, inflation) # result is clusters object.
+        print("...")
+        result = myfun.clusterMaxMCL(g, inflation) # result is clusters object.
         best_clusters.append(result)
-        print("..." + result.summary())
-    ## Combine best_clusters into single partition.
+    ## Combine MCL partitions into single partition.
     nodes = [part.graph.vs['name'] for part in best_clusters]
     parts = [part.membership for part in best_clusters]
-    # Fix membership indices.
+    # Fix MCL membership indices.
     n = 1
     while n < len(parts):
         parts[n] = parts[n] + max(parts[n-1])
@@ -246,19 +253,20 @@ for resolution in range(len(profile)):
     # Combine as list of dicts.
     comb_parts = [dict(zip(nodes[i],parts[i])) for i in range(len(nodes))]
     # Flatten list.
-    partition = {k: v for d in comb_parts for k, v in d.items()} 
-    ## FIXME: need to add missing nodes!
-    
-    #
-    ## Return combined partition.
-    mcl_partitions.append(partition)
-    print("\n")
-# Done.
-
-
-x = profile[0]
-
-len(mcl_partitions)
-
-
-
+    mcl_partition = {k: v for d in comb_parts for k, v in d.items()} 
+    # Combine MCL partition with initial LA parition...
+    # Make sure that membership indices are unique.
+    part0 = la_partitions[resolution]
+    part1 = mcl_partition
+    n = max(set(part0.values()))
+    part2 = dict(zip(part1.keys(),[x + n for x in part1.values()]))
+    # Update LA partition with MCL partition.
+    part0.update(part2)
+    # Set Membership.
+    all_nodes = profile[resolution].graph.vs['name']
+    profile[resolution].set_membership([part0[node] for node in all_nodes])
+    # Remove small modules.
+    profile[resolution] = myfun.filter_modules(profile[resolution])
+    # Summary:
+    print("Final partition: " + profile[resolution].summary())
+# Ends loop.

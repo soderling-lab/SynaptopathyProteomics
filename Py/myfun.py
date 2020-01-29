@@ -84,9 +84,11 @@ def add_method(cls):
 #--------------------------------------------------------------------
 # Function to apply a threshold to a graph such that it is a single component.
 def apply_best_threshold(graph,num=20):
-    import numpy as np
     import igraph
+    import numpy as np
+    from igraph import Graph
     from pandas import DataFrame
+    #FIXME: depends upon myfun!
     # Remove multiple edges.
     graph = graph.simplify(multiple=False) # has names.
     nodes = graph.vs['name']
@@ -103,7 +105,11 @@ def apply_best_threshold(graph,num=20):
         threshold = space[i]
         mask = adjm > threshold
         df = DataFrame(adjm * mask, index=nodes,columns=nodes)
-        subg_filt = myfun.graph_from_adjm(df,weighted=True,signed=True)
+        edges = df.stack().reset_index()
+        edges.columns = ['nodeA','nodeB','weight']
+        edges = edges[edges.weight != 0]
+        edge_tuples = list(zip(edges.nodeA,edges.nodeB,edges.weight))
+        subg_filt = Graph.TupleList(edge_tuples,weights=True)
         components = subg_filt.components()
         n_components = len(set(components.membership))
         is_connected = n_components == 1
@@ -127,20 +133,26 @@ def apply_best_threshold(graph,num=20):
 
 #--------------------------------------------------------------------
 # A function to perform MCL clustering.
-def clusterMCL(graph, inflation=1.2, weight='weight'):
-    # FIXME:: How to return updated graph?
+def clusterMCL(graph, inflation=1.2, ncores=8, weight='weight'):
+    # FIXME: How to return updated graph?
+    # FIXME: Catch if taking too long... if mcl is stuck.
     import os
     import igraph
     import subprocess
     import numpy as np
     from pandas import DataFrame
+    from igraph import VertexClustering
     edges = graph.get_edgelist()
     nodes = [graph.vs[edge]['name'] for edge in edges]
     weights = graph.es[weight]
     edge_list = [node + [edge] for node,edge in zip(nodes,weights)]
     DataFrame(edge_list).to_csv(".tempnet.csv",sep="\t",header=False,index=False)
     # Execute MCL. Send stderr to devnull. Pipe stdout back into python.
-    cmd = ["mcl",".tempnet.csv","--abc","-I",str(inflation),"-o","-"]
+    #cmd = ["mcl",".tempnet.csv","--abc","-I",str(inflation),"-o","-"]
+    cmd = ["mcl", ".tempnet.csv","--abc", # input file.
+            "-I", str(inflation), # inflation parameter.
+            "-te", str(ncores), # number of cores.
+            "-o","-"] # output file.
     process = subprocess.Popen(cmd,stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL)
     # Parse the output.
@@ -158,9 +170,8 @@ def clusterMCL(graph, inflation=1.2, weight='weight'):
     clusters = graph.clusters()
     membership = [partition.get(protein) for protein in graph.vs['name']]
     # Set membership.
-    clusters._membership = membership
-    # How to update graph?
-    return(clusters)
+    # FIXME: How to update graph?
+    return(VertexClustering(graph,membership))
 # Done.
 
 #--------------------------------------------------------------------
