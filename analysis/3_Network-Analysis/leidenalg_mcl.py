@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
-## FIXME: Significance method doesn't seem to be working.
-
 ## User parameters: 
 # adjm_type - string specifying input adjacency matrix.
 # method - string specifying the optimization method. One of: Modularity, 
@@ -77,8 +75,8 @@ print("Performing Leidenalg clustering of the {}".format(adjm_type),
 #------------------------------------------------------------------------------
 
 import os
-from os.path import dirname
 import glob
+from os.path import dirname
 
 # Directories.
 here = os.getcwd()
@@ -99,8 +97,8 @@ jobID = myfun.xstr(envars['SLURM_JOBID'])
 ## Load input adjacency matrix and create an igraph object.
 #------------------------------------------------------------------------------
 
-from pandas import read_csv, DataFrame
 from igraph import Graph
+from pandas import read_csv, DataFrame
 
 # Read bicor adjacency matrix.
 input_adjm = adjms.get(adjm_type)
@@ -124,11 +122,12 @@ parameters['graph'] = g
 ## Community detection with the Leiden algorithm.
 #------------------------------------------------------------------------------
 
+import subprocess
 import numpy as np
 from numpy import linspace
-from leidenalg import Optimiser, find_partition
 from progressbar import ProgressBar
 from importlib import import_module
+from leidenalg import Optimiser, find_partition
 
 # Update partition type parameter.
 # Dynamically load the partition_type class. This is the method to be used for
@@ -139,94 +138,32 @@ parameters['partition_type'] = getattr(import_module('leidenalg'),method)
 out = [key for key in parameters if parameters.get(key) is None]
 for key in out: del parameters[key]
 
-# Perform Leidenalg community detection. 
-if parameters.get('resolution_parameter') is None:
-    # Single resolution methods:
-    profile = list()
-    partition = find_partition(**parameters)
-    optimiser = Optimiser()
-    diff = optimiser.optimise_partition(partition,n_iterations=-1)
-    partition = myfun.filter_modules(partition)
-    profile.append(partition)
-    m = np.array(partition.membership)
-    unclustered = sum(m==0)/len(m)
-    print(partition.summary())
-    print("Percent unclustered: {}".format(unclustered) + " (%).\n")
-else:
-    # Loop to perform multi-resolution clustering methods:
-    pbar = ProgressBar()
-    profile = list()
-    resolution_range = linspace(**parameters.get('resolution_parameter'))
-    for resolution in pbar(resolution_range):
+# Initial clustering with CPM.
+resolution_range = linspace(**parameters.get('resolution_parameter'))
 
-        resolution_range = linspace(**parameters.get('resolution_parameter'))
-        resolution = resolution_range[0]
-        parameters['resolution_parameter'] = resolution
-        partition = find_partition(**parameters)
-        optimiser = Optimiser()
-        diff = optimiser.optimise_partition(partition,n_iterations=-1)
+resolution = resolution_range[0]
+parameters['resolution_parameter'] = resolution
+partition = find_partition(**parameters)
+optimiser = Optimiser()
+diff = optimiser.optimise_partition(partition,n_iterations=-1)
 
-        # Recursively split large modules with MCL.
-        # 1. get big modules.
-        # 2. Threshold.
-        # 3. MCL
+#--------------------------------------------------------------------
+## Cluster detection with MCL.
+#--------------------------------------------------------------------
+        
+# Get modules that are too big.
+partition.summary()
+max_size = 500
+modules = set(partition.membership)
+too_big = [mod for mod in modules if partition.size(mod) > max_size]
 
-        # Get modules that are too big.
-        max_size = 500
-        modules = set(partition.membership)
-        too_big = [mod for mod in modules if partition.size(mod) > max_size]
-        # Threshold graphs.
-        subg = partition.subgraphs()
-        subg = [apply_best_threshold(subg[i]) for i in too_big]
+# Threshold graphs.
+subg = partition.subgraphs()
+subg = [apply_best_threshold(subg[i]) for i in too_big]
 
-        # Write to file.
+# Optimized MCL clustering.
+best_clusters = list()
+inflation = np.linspace(1.2,5,10)
 for graph in subg:
-
-    edges = graph.get_edgelist()
-    nodes = [graph.vs[edge]['name'] for edge in edges]
-    weights = graph.es['weight']
-    edge_list = [node + [edge] for node,edge in zip(nodes,weights)]
-    DataFrame(edge_list).to_csv("network.csv",sep="\t",header=False,index=False)
-
-
-
-# Continue...
-    partition = myfun.filter_modules(partition)
-    profile.append(partition)
-
-        # Ends loop.
-# Ends If/else.
-
-#------------------------------------------------------------------------------
-## Save clustering results.
-#------------------------------------------------------------------------------
-
-# Collect partition results and save as csv. 
-if len(profile) is 1:
-    # Single resolution profile:
-    results = {
-            'Modularity' : [partition.modularity for partition in profile],
-            'Membership' : [partition.membership for partition in profile],
-            'Summary'    : [partition.summary() for partition in profile]}
-else: 
-    # Multi-resolution profile:
-    results = {
-        'Modularity' : [partition.modularity for partition in profile],
-        'Membership' : [partition.membership for partition in profile],
-        'Summary'    : [partition.summary() for partition in profile],
-        'Resolution' : [partition.resolution_parameter for partition in profile]}
-# Ends if/else
-
-# Save cluster membership vectors.
-output_name = input_adjm.split("_")[1]
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_partitions.csv")
-df = DataFrame(results['Membership'])
-df.columns = profile[0].graph.vs['name']
-df.to_csv(myfile)
-
-# Save partition profile summary data.
-df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_profile.csv")
-df.to_csv(myfile)
+    best_clusters.append(clusterMaxMCL(graph,inflation))
+# Done.

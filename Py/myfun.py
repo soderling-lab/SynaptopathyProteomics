@@ -106,3 +106,59 @@ def apply_best_threshold(subg,start=0,stop=1,num=10):
     # Ends while loop.
     return subg_filt
 # Ends function.
+
+#--------------------------------------------------------------------
+# A function to perform MCL clustering.
+def clusterMCL(graph, inflation=1.2, weight='weight'):
+    # FIXME:: How to return updated graph?
+    import os
+    import igraph
+    import numpy as np
+    from pandas import DataFrame
+    edges = graph.get_edgelist()
+    nodes = [graph.vs[edge]['name'] for edge in edges]
+    weights = graph.es[weight]
+    edge_list = [node + [edge] for node,edge in zip(nodes,weights)]
+    DataFrame(edge_list).to_csv(".tempnet.csv",sep="\t",header=False,index=False)
+    # Execute MCL. Send stderr to devnull. Pipe stdout back into python.
+    cmd = ["mcl",".tempnet.csv","--abc","-I",str(inflation),"-o","-"]
+    process = subprocess.Popen(cmd,stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL)
+    os.remove(".tempnet.csv")
+    # Parse the output.
+    out = process.communicate()
+    modules = list(out)[0].decode('utf-8').split("\n") # decode
+    modules = [module.split("\t") for module in modules]
+    modules = [module for module in modules if module != ['']] # remove empty
+    # Create partition.
+    k = len(modules)
+    module_size = [len(module) for module in modules]
+    module_names = list(range(1,k+1))
+    partition = dict(zip(sum(modules, []), 
+        np.repeat(module_names, module_size, axis=0)))
+    clusters = graph.clusters()
+    membership = [partition.get(protein) for protein in graph.vs['name']]
+    # Set membership.
+    clusters._membership = membership
+    # How to update graph?
+    return(clusters)
+# Done.
+
+#--------------------------------------------------------------------
+# Wrapper around clusterMCL to find best inflation parameter.
+def clusterMaxMCL(graph,inflation):
+    mcl_clusters = list()
+    Q = list()
+    for i in inflation:
+        result = clusterMCL(graph,inflation=i)
+        mcl_clusters.append(result)
+        Q.append(result.recalculate_modularity())
+    # Done.
+    idx = Q.index(max(Q))
+    best_Q = Q[idx]
+    best_i = inflation[idx]
+    best_clusters = mcl_clusters[idx]
+    print("Best Inflation : {}".format(best_i) +
+            "\nBest Modularity: {}".format(best_Q))
+    return(best_clusters)
+# Done.
