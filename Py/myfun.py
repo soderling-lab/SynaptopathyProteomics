@@ -83,28 +83,46 @@ def add_method(cls):
 
 #--------------------------------------------------------------------
 # Function to apply a threshold to a graph such that it is a single component.
-def apply_best_threshold(subg,start=0,stop=1,num=10):
+def apply_best_threshold(graph,num=20):
     import numpy as np
     import igraph
     from pandas import DataFrame
-    # Also needs myfun...
     # Remove multiple edges.
-    subg = subg.simplify(multiple=False) # has names.
-    nodes = subg.vs['name']
+    graph = graph.simplify(multiple=False) # has names.
+    nodes = graph.vs['name']
+    # Get adjm and get good start and stop for search space.
+    adjm = np.array(graph.get_adjacency(attribute="weight").data)
+    start = min(adjm.max(axis=1))
+    stop = max(adjm.max(axis=1))
+    # Loop to check if graph is single component after thresholding.
     i = 0
     is_connected = True
-    # Loop to check if graph is single component after thresholding.
+    space = np.linspace(start,stop,num)
+    adjm = np.array(graph.get_adjacency(attribute="weight").data)
     while is_connected:
-        threshold = np.linspace(start,stop,num)[i]
-        adjm = np.array(subg.get_adjacency(attribute="weight").data)
+        threshold = space[i]
         mask = adjm > threshold
         df = DataFrame(adjm * mask, index=nodes,columns=nodes)
         subg_filt = myfun.graph_from_adjm(df,weighted=True,signed=True)
         components = subg_filt.components()
-        is_connected = len(set(components.membership)) == 1
-        i +=1
+        n_components = len(set(components.membership))
+        is_connected = n_components == 1
+        if is_connected: i +=1
     # Ends while loop.
-    return subg_filt
+    # Get best threshold.
+    if i == 0:
+        threshold = space[i]
+    else:
+        threshold = space[i-1]
+    # Apply best threshold.
+    adjm = np.array(graph.get_adjacency(attribute="weight").data)
+    mask = adjm > threshold
+    df = DataFrame(adjm * mask, index=nodes,columns=nodes)
+    edges = df.stack().reset_index()
+    edges.columns = ['nodeA','nodeB','weight']
+    edge_tuples = list(zip(edges.nodeA,edges.nodeB,edges.weight))
+    g_filt = Graph.TupleList(edge_tuples,weights=True)
+    return g_filt
 # Ends function.
 
 #--------------------------------------------------------------------
@@ -113,6 +131,7 @@ def clusterMCL(graph, inflation=1.2, weight='weight'):
     # FIXME:: How to return updated graph?
     import os
     import igraph
+    import subprocess
     import numpy as np
     from pandas import DataFrame
     edges = graph.get_edgelist()
@@ -124,9 +143,9 @@ def clusterMCL(graph, inflation=1.2, weight='weight'):
     cmd = ["mcl",".tempnet.csv","--abc","-I",str(inflation),"-o","-"]
     process = subprocess.Popen(cmd,stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL)
-    os.remove(".tempnet.csv")
     # Parse the output.
     out = process.communicate()
+    os.remove(".tempnet.csv")
     modules = list(out)[0].decode('utf-8').split("\n") # decode
     modules = [module.split("\t") for module in modules]
     modules = [module for module in modules if module != ['']] # remove empty
@@ -158,7 +177,7 @@ def clusterMaxMCL(graph,inflation):
     best_Q = Q[idx]
     best_i = inflation[idx]
     best_clusters = mcl_clusters[idx]
-    print("Best Inflation : {}".format(best_i) +
-            "\nBest Modularity: {}".format(best_Q))
+    #print("Best Inflation : {}".format(best_i) +
+    #        "\nBest Modularity: {}".format(best_Q))
     return(best_clusters)
 # Done.

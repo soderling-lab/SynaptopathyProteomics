@@ -10,11 +10,12 @@
 # rmin - min resolution
 # rmax - max resolution
 # nsteps - number of steps between rmin and rmax.
-adjm_type = 'Striatum' 
+adjm_type = 'Cortex' 
 method = 'CPM' 
+n_iterations = -1
 rmin = 0
 rmax = 1
-nsteps = 100
+nsteps = 2
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -35,27 +36,33 @@ methods = {
         # Modularity
         "Modularity": {'partition_type' : 'ModularityVertexPartition', 
             'weights' : True, 'signed' : False,
-            'resolution_parameter' : None},
+            'resolution_parameter' : None, 'n_iterations' : n_iterations},
         # Surprise
         "Surprise": {'partition_type' : 'SurpriseVertexPartition', 
             'weights' : True, 'signed' : False,
-            'resolution_parameter' : None},
+            'resolution_parameter' : None, 'n_iterations' : n_iterations},
         # RBConfiguration
         "RBConfiguration": {'partition_type' : 'RBConfigurationVertexPartition', 
             'weights' : True, 'signed' : False,
-            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
+            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
+            'n_iterations' : n_iterations},
         # RBER
         "RBER": {'partition_type' : 'RBERVertexPartition', 
             'weights' : True, 'signed' : False,
-            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
+            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
+            'n_iterations' : n_iterations},
         # CPM
         "CPM": {'partition_type' : 'CPMVertexPartition', 
             'weights' : True, 'signed' : True,
-            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps}},
+            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
+            'n_iterations' : n_iterations},
         # Significance
-        "Significance": {'partition_type' : 'SignificanceVertexPartition', 
+        "Significance": 
+        {'partition_type' : 'SignificanceVertexPartition', 
             'weights': None, 'signed' : False,
-            'resolution_parameter' : None}}
+            'resolution_parameter' : None,
+            'n_iterations' : n_iterations}
+        }
 
 # Parameters for clustering.
 parameters = methods.get(method)
@@ -71,8 +78,8 @@ print("Performing Leidenalg clustering of the {}".format(adjm_type),
 #------------------------------------------------------------------------------
 
 import os
-from os.path import dirname
 import glob
+from os.path import dirname
 
 # Directories.
 here = os.getcwd()
@@ -93,8 +100,8 @@ jobID = myfun.xstr(envars['SLURM_JOBID'])
 ## Load input adjacency matrix and create an igraph object.
 #------------------------------------------------------------------------------
 
-from pandas import read_csv, DataFrame
 from igraph import Graph
+from pandas import read_csv, DataFrame
 
 # Read bicor adjacency matrix.
 input_adjm = adjms.get(adjm_type)
@@ -104,13 +111,12 @@ adjm = adjm.set_index(keys=adjm.columns)
 
 # Create igraph graph.
 if parameters.get('weights') is not None:
+    # Create a weighted graph.
     g = myfun.graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
-else:
-    g = myfun.graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
-
-# Update weights parameter for clustering.
-if parameters.get('weights') is not None:
     parameters['weights'] = 'weight'
+else:
+    # Create an unweighted graph.
+    g = myfun.graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
 
 # Add graph to input parameters for clustering.
 parameters['graph'] = g
@@ -121,17 +127,14 @@ parameters['graph'] = g
 
 import numpy as np
 from numpy import linspace
-from leidenalg import Optimiser, find_partition
 from progressbar import ProgressBar
 from importlib import import_module
+from leidenalg import Optimiser, find_partition
 
 # Update partition type parameter.
 # Dynamically load the partition_type class. This is the method to be used for
 # clusering optimization.
 parameters['partition_type'] = getattr(import_module('leidenalg'),method)
-
-# Update n_iterations parameter.
-parameters['n_iterations'] = -1
 
 # Remove any None type parameters.
 out = [key for key in parameters if parameters.get(key) is None]
@@ -198,3 +201,64 @@ df = DataFrame.from_dict(results)
 myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
         method + "_profile.csv")
 df.to_csv(myfile)
+
+#--------------------------------------------------------------------
+## Decompose large communities with MCL.
+#--------------------------------------------------------------------
+    
+max_size = 500 # maximum allowable size of a module.
+inflation = np.linspace(1.2,5,10) # inflation space to explore.
+mcl_partitions = list() # empty list for results.
+
+for resolution in range(len(profile)):
+
+    ## FIXME: Where are my missing nodes going!?!?
+    print("Working on resolution {}...".format(resolution))
+    ## Get modules that are too big.
+    partition = profile[resolution]
+    graph = partition.graph
+    modules = set(partition.membership)
+    too_big = [mod for mod in modules if partition.size(mod) > max_size]
+    print("Resolving {} large module(s)...".format(len(too_big)))
+
+    ## Threshold graphs.
+    # FIXME: THIS IS SLOW!
+    subg = partition.subgraphs()
+    subg = [apply_best_threshold(subg[i]) for i in too_big]
+    ## CHECK: 1
+    sum([len(g.vs) for g in subg])
+
+    ## Perform optimized MCL clustering.
+    # FIXME: speed up by adding cluster parameter to MCL function!
+    best_clusters = list()
+    for g in subg:
+        result = clusterMaxMCL(g, inflation) # result is clusters object.
+        best_clusters.append(result)
+        print("..." + result.summary())
+    ## Combine best_clusters into single partition.
+    nodes = [part.graph.vs['name'] for part in best_clusters]
+    parts = [part.membership for part in best_clusters]
+    # Fix membership indices.
+    n = 1
+    while n < len(parts):
+        parts[n] = parts[n] + max(parts[n-1])
+        n += 1
+    # Combine as list of dicts.
+    comb_parts = [dict(zip(nodes[i],parts[i])) for i in range(len(nodes))]
+    # Flatten list.
+    partition = {k: v for d in comb_parts for k, v in d.items()} 
+    ## FIXME: need to add missing nodes!
+    
+    #
+    ## Return combined partition.
+    mcl_partitions.append(partition)
+    print("\n")
+# Done.
+
+
+x = profile[0]
+
+len(mcl_partitions)
+
+
+
