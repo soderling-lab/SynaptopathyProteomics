@@ -20,6 +20,7 @@ import os
 import sys
 import glob
 import igraph
+import leidenalg
 from igraph import Graph
 from numpy import linspace
 from os.path import dirname
@@ -68,13 +69,13 @@ for resolution in range(len(la_partitions)):
     # Define La partition.
     partition = la_partitions[resolution]
     membership = [partition.get(node) for node in graph.vs['name']]
-    # Not sure why we have to do it this way...
-    #la_clusters = igraph.VertexClustering(graph)
-    #la_clusters._membership=membership
+    la_clusters = leidenalg.VertexPartition.CPMVertexPartition(graph)
+    la_clusters.set_membership(membership)
+    print("Initial partition: " + la_clusters.summary())
     ## Get modules that are too big.
     modules = set(membership)
     too_big = [mod for mod in modules if la_clusters.size(mod) > max_size]
-    print("... Clustering {} large module(s) with MCL...".format(len(too_big)))
+    print("... Breaking down {} large module(s) by MCL clustering ...".format(len(too_big)))
     ## Threshold graphs.
     subg = la_clusters.subgraphs()
     subg = [apply_best_threshold(subg[i]) for i in too_big]
@@ -101,6 +102,12 @@ for resolution in range(len(la_partitions)):
     part1 = mcl_partition
     n = max(set(part0.values()))
     part2 = dict(zip(part1.keys(),[x + n for x in part1.values()]))
+    final_partition = part0.update(part2)
     # Update LA partition with MCL partition.
-    mcl_partitions.append(part0.update(part2))
+    mcl_partitions.append(final_partition)
+    new_membership = [final_partition.get(node) for node in graph.vs['name']]
+    la_clusters.set_membership(new_membership)
+    # Remove small modules.
+    la_clusters = filter_modules(la_clusters)
+    print("Final partition: " + la_clusters.summary())
 # Ends loop.
