@@ -135,8 +135,6 @@ def apply_best_threshold(graph,num=20):
 # A function to perform MCL clustering.
 def clusterMCL(graph, inflation=1.2, weight='weight',
         quality_measure='Modularity', ncores =8, quiet=True):
-    # FIXME: How to return updated graph?
-    # FIXME: Catch if taking too long... if mcl is stuck.
     import os
     import igraph
     import subprocess
@@ -187,6 +185,8 @@ def clusterMCL(graph, inflation=1.2, weight='weight',
         np.repeat(module_names, module_size, axis=0)))
     clusters = graph.clusters()
     membership = [partition.get(protein) for protein in graph.vs['name']]
+    # Replace NoneType with 0.
+    membership = [0 if m is None else m for m in membership]
     # Set membership.
     mcl_clusters = VertexPartition.CPMVertexPartition(graph)
     # Dynamically load partition type.
@@ -195,6 +195,7 @@ def clusterMCL(graph, inflation=1.2, weight='weight',
     mcl_clusters = PartitionType(graph)
     mcl_clusters.set_membership(membership)
     mcl_clusters.recalculate_modularity()
+    mcl_clusters.renumber_communities()
     return(mcl_clusters)
 # Done.
 
@@ -216,3 +217,46 @@ def clusterMaxMCL(graph,inflation):
     #        "\nBest Modularity: {}".format(best_Q))
     return(best_clusters)
 # Done.
+
+#--------------------------------------------------------------------
+# Second attempt at thresholding function. Removes edges until graph
+# splits into multiple components. 
+def thresholdGraph(graph,start=None,step_size=0.05,weight='weight',quiet=True):
+    import numpy as np
+    from pandas import DataFrame
+    # Get graph's adjacency matrix.
+    graph = graph.simplify(multiple=False)
+    A = DataFrame(graph.get_adjacency(attribute='weight').data)
+    # Determine a good starting place.
+    if start is None: 
+        start = max(A.min(axis=1))
+    if not quiet:
+        print("Starting search at edge weight: {}".format(start))
+    cutoff = start
+    not_connected = 0
+    while not_connected < 1:
+        # Apply a threshold.
+        mask = A > cutoff
+        Ax = A * mask
+        # Diagonal of Degree matrix.
+        D = np.diag(Ax.sum(axis=1))
+        # Laplacian.
+        L = D - Ax
+        # EigenValues.
+        evals = np.linalg.eig(L)[0] 
+        # If EigenValue = 0 then unnconnected.
+        not_connected = sum(evals==0)
+        if not_connected < 1: cutoff += step_size
+    # Ends loop.
+    # Apply best cutoff.
+    graph.es.select(weight_lt=cutoff).delete()
+    # Check.
+    L = np.matrix(graph.laplacian('weight'))
+    evals = np.linalg.eig(L)[0] 
+    # Status report.
+    if not quiet:
+        print("Final Edge weight cutoff        : {}".format(cutoff))
+        print("Number of unconnected components: {}".format(sum(evals==0)))
+    # Return thresholded graph.
+    return(graph)
+# Ends function.

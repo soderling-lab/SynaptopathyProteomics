@@ -51,40 +51,6 @@ adjm = adjm.set_index(keys=adjm.columns)
 # Create a weighted graph.
 graph = graph_from_adjm(adjm,weighted=True,signed=True)
 
-#################
-## Faster thresholding.
-
-# WORKS!
-#from random import random, randrange
-#g = igraph.Graph.Erdos_Renyi(n=100,m=100)
-#edge_weights = [random() * randrange(-1,2,2) for x in range(len(g.vs))]
-#g.es.set_attribute_values('weight',edge_weights)
-#L = np.matrix(g.laplacian('weight'))
-#vals = np.linalg.eig(L)[0]
-#not_connected = sum(vals==0)
-#not_connected
-
-# Get graph's adjacency matrix.
-graph = 
-A = DataFrame(graph.get_adjacency(attribute='weight').data)
-# Apply a threshold.
-cutoff = 0.9
-mask = A > cutoff
-Ax = A * mask
-# Diagonal of Degree matrix.
-D = np.diag(Ax.sum(axis=1))
-# Laplacian.
-L = D - Ax
-# eigenvalues and eigenvectors.
-vals = np.linalg.eig(L)[0] # eigenvalue = 0 then unnconnected.
-# Number of unconnected components.
-not_connected = sum(vals==0)
-not_connected
-
-#################
-
-
-
 # Load La partitions.
 partition_files = {"Cortex":"147731383","Striatum":"148436673"}
 myfile = glob.glob(os.path.join(datadir,
@@ -97,39 +63,44 @@ la_partitions = [dict(zip(partitions.iloc[i].keys(), # Node names.
     partitions.iloc[i].values)) for i in range(nrows)] # Int - node membership.
 
 ####################################
+## EXAMPLE MCL.
+####################################
 
 # Add la partitions to graph.
-la_partition = la_partitions[0]
+la_partition = la_partitions[97]
 la_clusters = leidenalg.VertexPartition.CPMVertexPartition(graph)
 membership = [la_partition.get(node) for node in la_clusters.graph.vs['name']]
 la_clusters.set_membership(membership)
 
-# Get a subgraph and apply mcl.
+# Loop to check sizes.
+for la_partition in la_partitions:
+    la_clusters = leidenalg.VertexPartition.CPMVertexPartition(graph)
+    membership = [la_partition.get(node) for node in la_clusters.graph.vs['name']]
+    la_clusters.set_membership(membership)
+    print(sum([x>500 for x in set(la_clusters.sizes())]))
+
+# Get a subgraph.
 subg = la_clusters.subgraph(0)
-subg = apply_best_threshold(subg)
-mcl_clusters = clusterMCL(subg,inflation=1.622,quiet=True)
-
-# Filter small modules.
-mcl_clusters = filterModules(mcl_clusters)
-
-n = len(mcl_clusters.membership)
-s = set(mcl_clusters.sizes())
-k = len(s)
-pc = sum([m!=0 for m in mcl_clusters.membership])/n
-
+cutoff = 0.2
 # Loop to test multiple inflation values.
 inflation = linspace(1.2,5,10)
 for i in range(len(inflation)):
+    # Apply thresholding.
+    #subg = thresholdGraph(subg,quiet=False)
+    subg.es.select(weight_lt=cutoff).delete()
+    # Perform mcl.
     mcl_clusters = clusterMCL(subg,inflation[i],quiet=True)
+    # Filter small modules.
     mcl_clusters = filterModules(mcl_clusters)
-    n = len(mcl_clusters.membership)
+    # Summary.
     pc = sum([m!=0 for m in mcl_clusters.membership])/n
     print("Inflation: {}.".format(round(inflation[i],3)))
     print("MCL partition: {}".format(mcl_clusters.summary()))
-    print("Modularity: {}".format(mcl_clusters.recalculate_modularity()))
-    print("Percent clustered: {}".format(round(pc,3)))
+    print("Percent clustered: {}".format(pc))
+    print("Modularity: {}".format(mcl_clusters.modularity))
     print("\n")
 # Ends loop.
+
 ####################################
 
 # Loop to perform MCL clustering.

@@ -10,7 +10,7 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-net = "Cortex" # Which network are we analyzing? 
+net = "Striatum" # Which network are we analyzing? 
 overwrite_figsdir = TRUE
 do_DBD_enrichment = FALSE
 do_GO_enrichment = FALSE
@@ -460,7 +460,7 @@ message(paste("Number of DBD-associated modules exhibiting",
 moi <- convergent_modules
 
 # ME network.
-sft = 10
+sft = 1
 adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
 
 # Convert similarity matrix to distance matrix, and cluster with hclust.
@@ -493,6 +493,7 @@ rep_convergent_modules <- getMedoid(adjm_me,h=best_h)
 # Update dendro with cutheight and representative modules.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
   geom_hline(yintercept=best_h, color='red', size = 1)
+dendro
 
 # Get dendrogram data.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
@@ -626,6 +627,7 @@ print(rep_dbd_modules)
 names(rep_convergent_modules) <- rep("Convergent",length(rep_convergent_modules))
 names(rep_dbd_modules) <- rep("DBD",length(rep_dbd_modules))
 all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
+all_rep_modules = moi
 
 # Collect plots from representative modules.
 all_plots <- unlist(plots,recursive = FALSE)
