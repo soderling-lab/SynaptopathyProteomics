@@ -75,7 +75,7 @@ for resolution in range(len(la_partitions)):
     ## Get modules that are too big.
     modules = set(membership)
     too_big = [mod for mod in modules if la_clusters.size(mod) > max_size]
-    print("... Breaking down {} large module(s) with MCL:".format(len(too_big)))
+    print("... Breaking down {} large module(s) with MCL clustering ...".format(len(too_big)))
     ## Threshold graphs.
     subg = la_clusters.subgraphs()
     subg = [apply_best_threshold(subg[i]) for i in too_big]
