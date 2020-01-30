@@ -68,10 +68,9 @@ for resolution in range(len(la_partitions)):
     # Define La partition.
     partition = la_partitions[resolution]
     membership = [partition.get(node) for node in graph.vs['name']]
-    la_clusters = igraph.VertexClustering(graph)
-    la_clusters._membership=membership
-    print(la_cluster.membership)
-    exit()
+    # Not sure why we have to do it this way...
+    #la_clusters = igraph.VertexClustering(graph)
+    #la_clusters._membership=membership
     ## Get modules that are too big.
     modules = set(membership)
     too_big = [mod for mod in modules if la_clusters.size(mod) > max_size]
