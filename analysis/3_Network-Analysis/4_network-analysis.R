@@ -456,71 +456,23 @@ message(paste("Number of DBD-associated modules exhibiting",
 # There are too many moi to look at each one, can we summarize them
 # in some way?
 
-# All comparisons between convergent modules (contrasts).
+# Modules of interest.
 moi <- convergent_modules
-contrasts <- expand.grid("M1"=moi,
-                         "M2"=moi,stringsAsFactors=FALSE)
 
-# Examine module jaacard similarity for all comparisons between 
-# modules of interest.
-message("Calculating Jaacard similarity between all convergent modules...")
-n <- dim(contrasts)[1]
-modulejs <- vector("numeric",n)
-pbar <- txtProgressBar(min=0,max=n,style=3)
-# Loop:
-for (i in 1:nrow(contrasts)){
-	setTxtProgressBar(pbar,i)
-	x <- contrasts[i,]
-	r <- as.numeric(gsub("R","",sapply(strsplit(unlist(x),"\\."),"[",1)))
-	m <- as.character(gsub("M","",sapply(strsplit(unlist(x),"\\."),"[",2)))
-	p1 <- partitions[[r[1]]]
-	m1 <- names(split(p1,p1)[[m[1]]])
-	p2 <- partitions[[r[2]]]
-	m2 <- names(split(p2,p2)[[m[2]]])
-	modulejs[i] <- js(m1,m2)
-	if (i == n) { close(pbar); message("\n") }
-} # Ends loop.
-
-# Cast modulejs into similarity matrix.
-n <- length(moi)
-adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- moi
-
-# Use ME instead!
-adjm_js <- cor(do.call(cbind,all_ME[moi]))
+# ME network.
+sft = 10
+adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
 
 # Convert similarity matrix to distance matrix, and cluster with hclust.
-hc <- hclust(as.dist(1 - adjm_js), method = "ward.D2")
-
-# Examine dendrogram.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
-dendro 
-
-# Remove any outliers.
-dm_colSums <- apply((1-adjm_js),2,sum)
-dm_colSums = dm_colSums[order(dm_colSums,decreasing = TRUE)]
-head(dm_colSums)
-out <- names(x)[c(1:4)]
-idx <- idy <- match(out,colnames(adjm_js))
-adjm_js <- adjm_js[-idx,-idy]
-
-# Convert similarity matrix to distance matrix, and cluster with hclust.
-hc <- hclust(as.dist(1 - adjm_js), method = "ward.D2")
-
-# Examine dendrogram.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE)
-dendro 
-
-# Utilize modularity to identify the optimimal number of groups.
-# Convert to igraph object for modularity calculation.
-g <- graph_from_adjacency_matrix(adjm_js,mode="undirected",weighted=TRUE)
-
-# Examine number of groups and modularity given cut height.
+hc <- hclust(as.dist(1 - adjm_me), method = "ward.D2")
+g <- graph_from_adjacency_matrix(adjm_me,mode="undirected",weighted=TRUE)
 h <- seq(0,max(hc$height),by=0.005)
 hc_partitions <- lapply(h,function(x) cutree(hc,h=x))
 k <- sapply(h,function(x) length(unique(cutree(hc,h=x))))
+
 # Modularity cannot handle negative weights!
-q <- sapply(hc_partitions,function(x) modularity(g, x, weights = abs(edge_attr(g, "weight"))))
+q <- sapply(hc_partitions,function(x) {
+  modularity(g, x, weights = abs(edge_attr(g, "weight")))})
 
 # Best cut height that maximizes modularity.
 best_q <- unique(q[seq(h)[q==max(q)]])
@@ -533,28 +485,10 @@ message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),").
 hc_partition <- cutree(hc, h=best_h)
 groups <- split(hc_partition,hc_partition)
 
-# Average similarity among the groups.
-avg_js <- sapply(groups,function(x) {
-			 subadjm <- adjm_js[names(x),names(x)]
-			 return(mean(subadjm[upper.tri(subadjm)]))
-			 })
-
-# Replace NA for groups with length == 1. 
-avg_js[is.na(avg_js)] <- 1 # NA for groups with length == 1. 
-avg_js
-
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
-rep_convergent_modules <- getMedoid(adjm_js,h=best_h)
-
-# Is there protein overlap among these modules?
-# They are very different!
-adjm_js[rep_convergent_modules,rep_convergent_modules] # R90.M50 shares ~50 overlap with several others.
-
-# Status.
-message("Representative divergent modules:")
-print(rep_convergent_modules[order(rep_convergent_modules)])
+rep_convergent_modules <- getMedoid(adjm_me,h=best_h)
 
 # Update dendro with cutheight and representative modules.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
@@ -572,7 +506,6 @@ dendro <- dendro +
             hjust = 1, angle = 90, size = 3) + 
   scale_colour_manual(values=c("black", "red")) +
   theme(legend.position="none")
-dendro 
 
 # Save.
 myfile <- prefix_file({
@@ -580,9 +513,21 @@ myfile <- prefix_file({
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
-# Manually set modules of interest for striatum.
-#rep_convergent_modules <- c("R75.M33","R86.M46","R95.M51","R97.M92",out)
-#rep_convergent_modules <- rep_convergent_modules[order(rep_convergent_modules)]
+# Average similarity among the groups.
+avg_me <- sapply(groups,function(x) {
+			 subadjm <- adjm_me[names(x),names(x)]
+			 return(mean(subadjm[upper.tri(subadjm)]))
+			 })
+
+# Replace NA for groups with length == 1. 
+avg_me[is.na(avg_me)] <- 1 # NA for groups with length == 1. 
+avg_me # Similarity within a group.
+
+# Examine ME between groups.
+#adjm_me[rep_convergent_modules,rep_convergent_modules] # R90.M50 shares ~50 overlap with several others.
+# Status.
+message("Representative divergent modules:")
+print(rep_convergent_modules)
 
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
@@ -592,12 +537,9 @@ ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
 # All comparisons between convergent modules (contrasts).
 moi <- dbd_modules
-contrasts <- expand.grid("M1"=moi,
-                         "M2"=moi, stringsAsFactors=FALSE)
 
-# Use ME instead!
-# Raising to a power can be helpful to draw out structure in the network.
-sft <- 20
+# ME matrix.
+sft=19
 adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
 
 # Convert similarity matrix to distance matrix, and then
@@ -645,14 +587,6 @@ avg_me
 # to all others in its group.
 rep_dbd_modules <- getMedoid(adjm_me,h=best_h)
 
-# Is there protein overlap among these modules?
-# They are very different!
-adjm_me[rep_dbd_modules,rep_dbd_modules] # R90.M50 shares ~50 overlap with several others.
-
-# Status.
-message("Representative DBD-associated modules:")
-print(rep_dbd_modules)
-
 # Update dendro with cutheight and representative modules.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
   geom_hline(yintercept=best_h, color='red', size = 1)
@@ -675,6 +609,14 @@ myfile <- prefix_file({
   file.path(figsdir,paste0(net,"_DBD_Modules_Dendro.tiff"))
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
+
+# Is there protein overlap among these modules?
+# They are very different!
+adjm_me[rep_dbd_modules,rep_dbd_modules] # R90.M50 shares ~50 overlap with several others.
+
+# Status.
+message("Representative DBD-associated modules:")
+print(rep_dbd_modules)
 
 #--------------------------------------------------------------------
 ## Save verbose boxplots for representative modules.
@@ -1233,9 +1175,10 @@ WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
       legend.position = "none"
     )
   
-  # Add Annotation.
-  plot <- plot + annotate("text", x = 1.5, y = 1.0,
-    label = paste("p-value =",WRS_pval), size = 6, color = "black")
+# Add Annotation.
+plot <- plot + 
+  annotate("text", x = 1.5, y = 1.0,
+           label = paste("p-value =",WRS_pval), size = 6, color = "black")
 
 # Save as tiff.
 myfile <- prefix_file(file.path(figsdir,"WRS_PPI_Bicor_Proteins.tiff"))

@@ -1,86 +1,29 @@
 #!/usr/bin/env python3
 ' Breaking down large communities with MCL.'
 
-# Should create igraph. apply partitions and breakdown with mcl.
-
-## User parameters: 
-# adjm_type - string specifying input adjacency matrix.
-# method - string specifying the optimization method. One of: Modularity, 
-#    Surprise, RBConfiguration, RBER, CPM, or Significance.
-# rmin - min resolution
-# rmax - max resolution
-# nsteps - number of steps between rmin and rmax.
+## Parameters for MCL clustering.
 adjm_type = 'Cortex' 
-method = 'CPM' 
-n_iterations = -1
-rmin = 0
-rmax = 1
-nsteps = 100
+max_size = 500 # maximum allowable size of a module.
+i_min = 1.2 # Min inflation parameter.
+i_max = 5 # Max inflation parameter.
+nsteps = 10 # Number of steps between min and max.
 
-#------------------------------------------------------------------------------
-## Parse the user provided parameters.
-#------------------------------------------------------------------------------
-
-import sys
-from sys import stderr
-
-## Input adjacency matrix.
+# Input adjacency matrix.
 adjms = {"Cortex" : "3_Cortex_Adjm.csv",
         "Striatum" : "3_Striatum_Adjm.csv",
         "Combined" : "3_Combined_Adjm.csv",
         "PPI" : "3_PPI_Adjm.csv",
         "GO" : "3_GO_Semantic_Similarity_RMS_Adjm.csv"}
 
-## Leidenalg supports the following optimization methods:
-methods = {
-        # Modularity
-        "Modularity": {'partition_type' : 'ModularityVertexPartition', 
-            'weights' : True, 'signed' : False,
-            'resolution_parameter' : None, 'n_iterations' : n_iterations},
-        # Surprise
-        "Surprise": {'partition_type' : 'SurpriseVertexPartition', 
-            'weights' : True, 'signed' : False,
-            'resolution_parameter' : None, 'n_iterations' : n_iterations},
-        # RBConfiguration
-        "RBConfiguration": {'partition_type' : 'RBConfigurationVertexPartition', 
-            'weights' : True, 'signed' : False,
-            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
-            'n_iterations' : n_iterations},
-        # RBER
-        "RBER": {'partition_type' : 'RBERVertexPartition', 
-            'weights' : True, 'signed' : False,
-            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
-            'n_iterations' : n_iterations},
-        # CPM
-        "CPM": {'partition_type' : 'CPMVertexPartition', 
-            'weights' : True, 'signed' : True,
-            'resolution_parameter' : {'start':rmin,'stop':rmax,'num':nsteps},
-            'n_iterations' : n_iterations},
-        # Significance
-        # FIXME: Significance method doesn't seem to be working.
-        "Significance": 
-        {'partition_type' : 'SignificanceVertexPartition', 
-            'weights': None, 'signed' : False,
-            'resolution_parameter' : None,
-            'n_iterations' : n_iterations}
-        }
-
-# Parameters for clustering.
-parameters = methods.get(method)
-method = parameters.get('partition_type')
-
-# Status report.
-print("Performing Leidenalg clustering of the {}".format(adjm_type),
-        "graph utilizing the {}".format(method),
-        "method to find optimal partition(s)...", file=stderr)
-
-#------------------------------------------------------------------------------
-## Prepare the workspace.
-#------------------------------------------------------------------------------
-
+# Imports.
 import os
+import sys
 import glob
+import igraph
+from igraph import Graph
+from numpy import linspace
 from os.path import dirname
+from pandas import read_csv, DataFrame
 
 # Directories.
 here = os.getcwd()
@@ -97,66 +40,45 @@ myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
 envars = {var:os.environ.get(var) for var in myvars}
 jobID = xstr(envars['SLURM_JOBID'])
 
-#------------------------------------------------------------------------------
-## Load input adjacency matrix and create an igraph object.
-#------------------------------------------------------------------------------
-
-from igraph import Graph
-from pandas import read_csv, DataFrame
-
 # Read bicor adjacency matrix.
 input_adjm = adjms.get(adjm_type)
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
 adjm = adjm.set_index(keys=adjm.columns)
 
-# Create igraph graph -- this takes several moments.
-if parameters.get('weights') is not None:
-    # Create a weighted graph.
-    g = graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
-    parameters['weights'] = 'weight'
-else:
-    # Create an unweighted graph.
-    g = graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
+# Create a weighted graph.
+graph = graph_from_adjm(adjm,weighted=True,signed=True)
 
-# Add graph to input parameters for clustering.
-parameters['graph'] = g
+# Load La partitions.
+partition_files = {"Cortex":"147731383","Striatum":"148436673"}
+myfile = glob.glob(os.path.join(datadir,
+    partition_files.get("Cortex") + "*"))[0]
+partitions = read_csv(myfile,index_col=0)
 
-#--------------------------------------------------------------------
-## Decompose large communities with MCL.
-#--------------------------------------------------------------------
-
-## Parameters for MCL clustering.
-max_size = 500 # maximum allowable size of a module.
-i_min = 1.2 # Min inflation parameter.
-i_max = 5 # Max inflation parameter.
-nsteps = 10 # Number of steps between min and max.
-
-# Collect all leidenalg partitions as list of dicts.
-la_partitions = [dict(zip(profile[res].graph.vs['name'],
-    profile[res].membership)) for res in range(len(profile))]
+# Collect all La partitions as list of dicts.
+nrows = partitions.shape[0]
+la_partitions = [dict(zip(partitions.iloc[i].keys(), # Node names.
+    partitions.iloc[i].values)) for i in range(nrows)] # Int - node membership.
 
 # Loop to perform MCL clustering.
 inflation = linspace(i_min,i_max,nsteps) # inflation space to explore.
-mcl_profile = profile.copy()
-for resolution in range(len(mcl_profile)):
+mcl_partitions = list()
+for resolution in range(len(la_partitions)):
     print("Working on resolution {} ...".format(resolution))
-    print("... Initial clustering result: " + profile[resolution].summary() + ".")
+    # Define La partition.
+    partition = la_partitions[resolution]
+    membership = [partition.get(node) for node in graph.vs['name']]
+    la_clusters = igraph.VertexClustering(graph,membership)
     ## Get modules that are too big.
-    partition = mcl_profile[resolution]
-    graph = partition.graph
-    modules = set(partition.membership)
-    too_big = [mod for mod in modules if partition.size(mod) > max_size]
-    print("... Resolving {} large module(s) ...".format(len(too_big)))
+    modules = set(la_clusters.membership)
+    too_big = [mod for mod in modules if la_clusters.size(mod) > max_size]
+    print("... Clustering {} large module(s) with MCL...".format(len(too_big)))
     ## Threshold graphs.
-    # FIXME: THIS IS SLOW!
-    subg = partition.subgraphs()
+    subg = la_clusters.subgraphs()
     subg = [apply_best_threshold(subg[i]) for i in too_big]
     ## Perform modularity optimized MCL clustering.
-    # FIXME: speed up by adding cluster parameter to MCL function!
     best_clusters = list()
     for g in subg:
-        print("...")
         result = clusterMaxMCL(g, inflation) # result is clusters object.
         best_clusters.append(result)
     ## Combine MCL partitions into single partition.
@@ -178,45 +100,5 @@ for resolution in range(len(mcl_profile)):
     n = max(set(part0.values()))
     part2 = dict(zip(part1.keys(),[x + n for x in part1.values()]))
     # Update LA partition with MCL partition.
-    part0.update(part2)
-    ## Set graph membership.
-    all_nodes = profile[resolution].graph.vs['name']
-    mcl_profile[resolution].set_membership([part0[node] for node in all_nodes])
-    # Remove small modules.
-    mcl_profile[resolution] = filter_modules(mcl_profile[resolution])
-    # Summary:
-    nc = sum([x==0 for x in mcl_profile[resolution].membership])/len(all_nodes) 
-    k = sum([x != 0 for x in set(mcl_profile[resolution].membership)])
-    print("Final partition, number of cluster: {}".format(k))
-    print("Percent not-clustered: {}".format(round(nc,3)))
+    mcl_partitions.append(part0.update(part2))
 # Ends loop.
-
-# Collect partition results and save as csv. 
-if len(mcl_profile) is 1:
-    # Single resolution profile:
-    results = {
-            'Modularity' : [partition.modularity for partition in mcl_profile],
-            'Membership' : [partition.membership for partition in mcl_profile],
-            'Summary'    : [partition.summary() for partition in mcl_profile]}
-else: 
-    # Multi-resolution profile:
-    results = {
-        'Modularity' : [partition.modularity for partition in mcl_profile],
-        'Membership' : [partition.membership for partition in mcl_profile],
-        'Summary'    : [partition.summary() for partition in mcl_profile],
-        'Resolution' : [partition.resolution_parameter for partition in mcl_profile]}
-# Ends if/else
-
-# Save cluster membership vectors.
-output_name = input_adjm.split("_")[1]
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "MCL_partitions.csv")
-df = DataFrame(results['Membership'])
-df.columns = mcl_profile[0].graph.vs['name']
-df.to_csv(myfile)
-
-# Save partition profile summary data.
-df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_MCL_profile.csv")
-df.to_csv(myfile)
