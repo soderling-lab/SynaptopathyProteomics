@@ -1276,6 +1276,18 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
   cys_net <- importNetworkFromFile(myfile)
   Sys.sleep(5)
   unlink(myfile)
+  # Check if network view was successfully created.
+  if (length(cys_net))
+    result = tryCatch({
+      getNetworkViews()
+    }, warning = function(w) {
+      print(w)
+    }, error = function(e) {
+      commandsPOST("view create")
+    }, finally = {
+      print("done")
+    }
+    )
 	# Create a visual style.
 	style.name <- paste(module_name,"style",sep="-")
 	# DEFAULTS:
@@ -1334,12 +1346,15 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
 	  visual.property = "NODE_TRANSPARENCY",
 	  bypass = TRUE,
 	)
-	#commandsGET(cmd.string, base.url = .defaultBaseUrl)
 	# Add PPI edges.
-	nodes <- nodes[-which(nodes %notin% names(V(g1)))] # If any nodes not in ppi graph then problems.
+	if (length(which(nodes %notin% names(V(g1))))) {
+	  nodes <- nodes[-which]
+	}
+	# If any nodes not in ppi graph then problems, remove them.
 	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
 	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
 	if (length(edge_list) > 0) {
+	  message("Adding PPIs to graph!")
 	  ppi_edges <- addCyEdges(edge_list)
 	  # Add PPIs and set to black.
 	  selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
@@ -1377,7 +1392,7 @@ for (i in 1:length(rep_convergent_modules)){
 deleteAllNetworks()
 
 # Generate networks for representative DBD-associated modules.
-for (i in 1){
+for (i in 1:length(rep_dbd_modules)){
   network_layout <- 'force-directed edgeAttribute=weight'
   message(paste("Working on module",rep_dbd_modules[i], "..."))
   myfile <- file.path(netsdir,paste0(net,"_Top_DBD_Modules"))

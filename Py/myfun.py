@@ -26,8 +26,8 @@ def contains(mylist,value,return_index=False):
 # EOF
 
 #--------------------------------------------------------------------
-# filter_modules
-def filter_modules(partition,min_size=5,unassigned=0):
+# filterModules
+def filterModules(partition,min_size=5,unassigned=0):
     """ Set modules with size less than minimum size to 0. """
     import numpy as np
     membership = np.array(partition.membership)
@@ -133,7 +133,8 @@ def apply_best_threshold(graph,num=20):
 
 #--------------------------------------------------------------------
 # A function to perform MCL clustering.
-def clusterMCL(graph, inflation=1.2, ncores=8, weight='weight'):
+def clusterMCL(graph, inflation=1.2, weight='weight',
+        quality_measure='Modularity', ncores =8, quiet=True):
     # FIXME: How to return updated graph?
     # FIXME: Catch if taking too long... if mcl is stuck.
     import os
@@ -141,20 +142,37 @@ def clusterMCL(graph, inflation=1.2, ncores=8, weight='weight'):
     import subprocess
     import numpy as np
     from pandas import DataFrame
-    from igraph import VertexClustering
+    from importlib import import_module
+    from leidenalg import VertexPartition
+    quality_measures = {
+            # Modularity
+            "Modularity": 'ModularityVertexPartition', 
+            # Surprise
+            "Surprise": 'SurpriseVertexPartition', 
+            # RBConfiguration
+            "RBConfiguration": 'RBConfigurationVertexPartition', 
+            # RBER
+            "RBER": 'RBERVertexPartition', 
+            # CPM
+            "CPM": 'CPMVertexPartition', 
+            # Significance
+            "Significance": 'SignificanceVertexPartition'}
     edges = graph.get_edgelist()
     nodes = [graph.vs[edge]['name'] for edge in edges]
     weights = graph.es[weight]
     edge_list = [node + [edge] for node,edge in zip(nodes,weights)]
     DataFrame(edge_list).to_csv(".tempnet.csv",sep="\t",header=False,index=False)
-    # Execute MCL. Send stderr to devnull. Pipe stdout back into python.
-    #cmd = ["mcl",".tempnet.csv","--abc","-I",str(inflation),"-o","-"]
+    # Execute MCL. Pipe stdout back into python.
     cmd = ["mcl", ".tempnet.csv","--abc", # input file.
             "-I", str(inflation), # inflation parameter.
             "-te", str(ncores), # number of cores.
             "-o","-"] # output file.
-    process = subprocess.Popen(cmd,stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL)
+    if quiet:
+        # Suppress stderr by piping to devnull.
+        process = subprocess.Popen(cmd,stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL)
+    else :
+        process = subprocess.Popen(cmd,stdout=subprocess.PIPE)
     # Parse the output.
     out = process.communicate()
     os.remove(".tempnet.csv")
@@ -170,8 +188,14 @@ def clusterMCL(graph, inflation=1.2, ncores=8, weight='weight'):
     clusters = graph.clusters()
     membership = [partition.get(protein) for protein in graph.vs['name']]
     # Set membership.
-    # FIXME: How to update graph?
-    return(VertexClustering(graph,membership))
+    mcl_clusters = VertexPartition.CPMVertexPartition(graph)
+    # Dynamically load partition type.
+    PartitionType = getattr(import_module('leidenalg'),
+        quality_measures.get(quality_measure))
+    mcl_clusters = PartitionType(graph)
+    mcl_clusters.set_membership(membership)
+    mcl_clusters.recalculate_modularity()
+    return(mcl_clusters)
 # Done.
 
 #--------------------------------------------------------------------
