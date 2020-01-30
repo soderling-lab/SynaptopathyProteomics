@@ -65,12 +65,15 @@ la_partitions = [dict(zip(partitions.iloc[i].keys(), # Node names.
 inflation = linspace(i_min,i_max,nsteps) # inflation space to explore.
 mcl_partitions = list()
 for resolution in range(len(la_partitions)):
+
     print("Working on resolution {} ...".format(resolution))
     # Define La partition.
     partition = la_partitions[resolution]
     membership = [partition.get(node) for node in graph.vs['name']]
+    membership = [m+1 for m in membership] # Cannot be 0 index?
     la_clusters = leidenalg.VertexPartition.CPMVertexPartition(graph)
     la_clusters.set_membership(membership)
+
     print("Initial partition: " + la_clusters.summary())
     ## Get modules that are too big.
     modules = set(membership)
