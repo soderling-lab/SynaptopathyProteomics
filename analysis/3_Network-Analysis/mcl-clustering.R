@@ -5,7 +5,7 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-net = "Striatum" # Which network are we analyzing? 
+net = "Cortex" # Which network are we analyzing? 
 overwrite_figsdir = TRUE
 do_DBD_enrichment = FALSE
 do_GO_enrichment = FALSE
@@ -40,7 +40,7 @@ tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
 # Create directory for figure output.
-script_name <- "4_network-analysis"
+script_name <- "mcl-clustering"
 figsdir <- file.path(root,"figs",Sys.Date(),script_name)
 if(overwrite_figsdir) {
   message(paste("Warning, overwriting files in:\n",figsdir))
@@ -68,14 +68,6 @@ glm_stats <- readRDS(myfile)
 sigProts <- apply(glm_stats$FDR,1,function(x) any(x<0.05))
 sigProts <- names(sigProts)[sigProts]
 
-# SigProts by genotype.
-fdr_df <- glm_stats$FDR
-fdr_df$Protein <- rownames(fdr_df)
-sig_df <- melt(fdr_df,id="Protein") %>% 
-	group_by(variable) %>% filter(value < 0.05) %>% group_split()
-sigProts_geno <- sapply(sig_df,function(x) x$Protein)
-names(sigProts_geno) <- gsub(" ","_", gsub(" FDR", "", colnames(fdr_df)[1:8]))
-
 # Load expression data.
 myfiles <- c(
   Cortex = file.path(rdatdir, "3_Cortex_cleanDat.RData"),
@@ -93,10 +85,6 @@ myfiles <- c(
 )
 adjm <- as.matrix(readRDS(myfiles[net]))
 rownames(adjm) <- colnames(adjm)
-
-# Load GO semantic similarity graph.
-myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
-adjm_go <- fread(myfile,drop=1)
 
 # Load network partitions-- self-preservation enforced.
 ids <- c("Cortex"="14942508","Striatum"="14940918")
@@ -128,7 +116,16 @@ all_modules <- unlist(modules_list,recursive=FALSE)
 all_modules <- sapply(all_modules,names)
 
 #--------------------------------------------------------------------
-## Create Synaptosome PPI graph.
+# Get a large module.
+#--------------------------------------------------------------------
+
+max_size <- 500
+moi <- all_modules[which(sapply(all_modules,length)>max_size)]
+moi <- names(moi[-grep("M0",names(moi))])
+module = moi[1]
+
+#--------------------------------------------------------------------
+## Check the PPI topology of large module.
 #--------------------------------------------------------------------
 
 # Load all ppis mapped to mouse genes.
@@ -143,61 +140,63 @@ prots <- colnames(data)
 entrez <- protmap$entrez[match(prots, protmap$ids)]
 
 # Build a ppi graph with all proteins.
-g1 <- buildNetwork(ppis, entrez, taxid = 10090)
+graph <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Remove self-connections and redundant edges.
-g1 <- simplify(g1)
+graph <- simplify(graph)
 
 # Set vertex attribute as protein identifiers.
-ids <- protmap$ids[match(names(V(g1)),protmap$entrez)]
-g1 <- set_vertex_attr(g1,"name",value = ids)
+ids <- protmap$ids[match(names(V(graph)),protmap$entrez)]
+graph <- set_vertex_attr(graph,"name",value = ids)
 
 # Add ppi edge attribute.
-g1 <- set_edge_attr(g1,"ppi",value=TRUE)
+graph <- set_edge_attr(graph,"ppi",value=TRUE)
 
-#--------------------------------------------------------------------
-## Plot topology of ppi graph.
-#--------------------------------------------------------------------
-
-# Check topology of PPI graph.
-adjm_ppi <- as_adjacency_matrix(g1)
-
-# node degree is column sum.
-connectivity <- apply(adjm_ppi,2,sum) 
-
-# Scatter plot.
-p1 <- ggplotScaleFreeFit(connectivity)
-myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_ScaleFreeFit.tiff"))
-  })
-ggsave(myfile,p1,width=3,height=3)
-
-# Histogram.
-p2 <- ggplotHistConnectivity(connectivity)
-myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_ScaleFreeHist.tiff"))
-  })
-ggsave(myfile,p2,width=3,height=3)
-
-
-
-# Break down a large module with MCL.
-module = rep_dbd_modules[1]
 prots=all_modules[[module]]
-
-subg <- induced_subgraph(g0,vids=V(g0)[match(prots,names(V(g0)))])
+prots <- prots[-which(prots %notin% names(V(graph)))]
+subg <- induced_subgraph(graph,vids=V(graph)[match(prots,names(V(graph)))])
 
 # Scatter plot.
-connectivity <- apply(adjm_ppi,2,sum) 
+connectivity <- apply(as.matrix(as_adjacency_matrix(subg)),2,sum)
 p1 <- ggplotScaleFreeFit(connectivity)
 
-# Threshold the graph.
-subg <- set_edge_attr(subg,'weight',value = edge_attr(subg,'weight')^11)
+#--------------------------------------------------------------------
+## Create Synaptsome co-expression graph.
+#--------------------------------------------------------------------
+
+# Create co-expression graph.
+graph <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
+graph <- simplify(graph)
+
+# Subset
+prots=all_modules[[module]]
+subg <- induced_subgraph(graph,vids=V(graph)[match(prots,names(V(graph)))])
+
+# Get best soft-threshold.
+idy <- colnames(data) %in% prots
+subdat <- data[,idy]
+sft <- pickSoftThreshold(subdat,corFnc="bicor",
+			 networkType="signed",
+			 RsquaredCut=0.8)
+sft_power <- sft$powerEstimate
+stats <- subset(sft$fitIndices,sft$fitIndices$Power==sft$powerEstimate)
+
+# Threshold the co-expresion graph.
+subg <- set_edge_attr(subg,'weight',value = edge_attr(subg,'weight')^sft_power)
 
 # Run MCL.
-partition <- clusterMCL(subg,weight="weight",inflation=2.5)
-
-# By thresholding the graph we are able to resolve its structure.
-table(partition)
-
+partitions <- list()
+inflation <- seq(1.2,5,by=0.1)
+Q <- vector("numeric",length(inflation))
+for (i in seq_along(inflation)){
+	partition <- clusterMCL(subg,weight="weight",inflation[i])
+	q <- modularity(subg,membership=partition[names(V(subg))],
+			weights=abs(edge_attr(subg,'weight')))
+	# Return modularity and partition.
+	Q[i] <- q
+	partitions[[i]] <- partition
+	# Status.
+	message(paste0("Inflation: ", inflation[i],
+		       "; Modularity: ",round(q,3)))
+}
 
