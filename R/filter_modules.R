@@ -15,11 +15,11 @@
 #' @keywords none
 #'
 #' @export
-#' 
+#'
 #' @examples
-#' filter_modules(partition,min_size=5)
-filter_modules <- function(partition,min_size=3) {
-	# Remove modules smaller than minimum size from a partition.
-	partition[partition %in% as.numeric(names(table(partition))[table(partition) < min_size])] <- 0
-	return(partition)
+#' filter_modules(partition, min_size = 5)
+filter_modules <- function(partition, min_size = 3) {
+  # Remove modules smaller than minimum size from a partition.
+  partition[partition %in% as.numeric(names(table(partition))[table(partition) < min_size])] <- 0
+  return(partition)
 }

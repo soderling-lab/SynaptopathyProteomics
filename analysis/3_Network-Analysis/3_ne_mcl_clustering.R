@@ -38,9 +38,6 @@ suppressPackageStartupMessages({
 })
 
 # Directories.
-if (rstudioapi::isAvailable()) {
-  setwd("D:/projects/SynaptopathyProteomics/analysis/3_Network-Analysis")
-}
 here <- getwd()
 root <- dirname(dirname(here))
 rdatdir <- file.path(root, "rdata")
@@ -62,17 +59,6 @@ myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_p
 	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
 partitions <- data.table::fread(myfiles[net], header=TRUE,drop = 1)
 
-
-# Enforce consistent order between data, adjm, and partitions.
-idx <- idy <- match(colnames(data),colnames(adjm))
-adjm <- adjm[idx,idy]
-check <- all(colnames(data) == colnames(adjm))
-if (!check) { message("Problem: adjm and data columns dont match!") }
-idy <- match(colnames(data),colnames(partitions))
-partitions <- as.data.frame(partitions)[,idy]
-check <- all(colnames(data) == colnames(partitions))
-if (!check) { message("Problem: data and partition names dont match!") }
-
 # Collect all partitions in a list.
 all_partitions <- lapply(seq(nrow(partitions)),function(x) {
   partition <- as.numeric(partitions[x,]) + 1
@@ -87,10 +73,10 @@ all_partitions <- lapply(seq(nrow(partitions)),function(x) {
 # Create a Co-expression graph.
 g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 
-# Loop through resolutions, for each module get best mcl partition.
+## Loop through resolutions, for each module get best mcl partition.
 results <- list()
-for (resolution in seq(1,100)) {
-	part <- all_partitions[[resoltuion]]
+for (resolution in seq_along(c(1:100))) {
+	part <- all_partitions[[resolution]]
 	modules <- split(part,part)
 	module_sizes <- table(part)
 	too_big <- names(module_sizes)[module_sizes > max_size]
@@ -110,7 +96,8 @@ for (resolution in seq(1,100)) {
 			# MCL clustering.
 			mcl_part <- clusterMCL(g_ne,weight="weight",inflation[i])
 			# Modularity of re-weighted (NE) graph.
-			q <- modularity(g_ne,membership=mcl_part[names(V(g_ne))],weights=abs(edge_attr(g_ne,'weight')))
+			q <- modularity(g_ne,membership=mcl_part[names(V(g_ne))],
+					weights=abs(edge_attr(g_ne,'weight')))
 			# Summary stats.
 			k <- sum(names(table(mcl_part)) != "0")
 			# Status.

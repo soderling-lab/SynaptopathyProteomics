@@ -17,8 +17,8 @@
 #' @export
 #'
 #' @examples
-#' js(x,y)
-js <- function(x,y){
-	s <- length(intersect(x,y))/length(union(x,y))
-	return(s)
+#' js(x, y)
+js <- function(x, y) {
+  s <- length(intersect(x, y)) / length(union(x, y))
+  return(s)
 }

@@ -1,4 +1,4 @@
-save_network_images <- function(cys_file,file_format,...) {
+save_network_images <- function(cys_file, file_format, ...) {
   # cys_file - path to cytoscape file.
   # file_format - output image format.
   SLEEP_TIME <- 1
@@ -13,7 +13,7 @@ save_network_images <- function(cys_file,file_format,...) {
   networks <- getCollectionNetworks()
   # Save each network.
   message("Saving network images to file...")
-  sapply(networks,function(network) {
+  sapply(networks, function(network) {
     setCurrentNetwork(network)
     fitContent()
     Sys.sleep(SLEEP_TIME)

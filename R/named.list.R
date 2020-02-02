@@ -1,8 +1,8 @@
 #' named.list
 #'
-#' Create a named list. 
+#' Create a named list.
 #'
-#' @param 
+#' @param
 #'
 #' @return None
 #'
@@ -12,8 +12,8 @@
 #'
 #' @examples
 #' named.list()
-named.list <- function(...) { 
+named.list <- function(...) {
   l <- list(...)
   names(l) <- sapply(substitute(list(...)), deparse)[-1]
-  return(l) 
+  return(l)
 }

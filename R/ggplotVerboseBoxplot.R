@@ -24,7 +24,7 @@ ggplotVerboseBoxplot <- function(x, groups) {
     require(ggplot2)
   })
   # Bind data together as a data.frame.
-  df <- data.frame(x=as.numeric(x), g = groups[names(x)])
+  df <- data.frame(x = as.numeric(x), g = groups[names(x)])
   # Define tissue type grouping for faceted plot.
   df$tissue <- ""
   df$tissue[grep("Cortex", df$g)] <- "Cortex"

@@ -19,7 +19,7 @@
 #' @examples
 #' ggplotScaleFreePlot(connectivity)
 ggplotScaleFreeFit <- function(connectivity, nBreaks = 10, truncated = FALSE,
-                                removeFirst = FALSE, main = "", ...) {
+                               removeFirst = FALSE, main = "", ...) {
   suppressPackageStartupMessages({
     require(WGCNA)
     require(normalp)

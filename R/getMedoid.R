@@ -15,37 +15,39 @@
 #' @export
 #'
 #' @examples
-#' getMedoid(adjm,h)
-getMedoid <- function(adjm, k=NULL, h=NULL, method = "ward.D2") {
-  # The medoid of the group is the branch that is closest to 
+#' getMedoid(adjm, h)
+getMedoid <- function(adjm, k = NULL, h = NULL, method = "ward.D2") {
+  # The medoid of the group is the branch that is closest to
   # all branches in its group.
   hc <- hclust(as.dist(1 - adjm), method)
   partition <- cutree(hc, k, h)
-  groups <- split(partition,partition)
+  groups <- split(partition, partition)
   # Remove groups of length 1.
-  out <- which(sapply(groups,length) == 1)
-  if (length(out) > 0) { 
-    removed <- sapply(groups[out],function(x) names(x)[1])
-    groups <- groups[-out] 
+  out <- which(sapply(groups, length) == 1)
+  if (length(out) > 0) {
+    removed <- sapply(groups[out], function(x) names(x)[1])
+    groups <- groups[-out]
   } else {
-      removed <- NULL
+    removed <- NULL
   }
   # Get groups of length 1.
-  out2 <- which(sapply(groups,length) ==2)
-  if (length(out2) > 0) { 
-    removed2 <- sapply(groups[out2],function(x) names(x)[2])
-    groups <- groups[-out2] 
+  out2 <- which(sapply(groups, length) == 2)
+  if (length(out2) > 0) {
+    removed2 <- sapply(groups[out2], function(x) names(x)[2])
+    groups <- groups[-out2]
   } else {
     removed2 <- NULL
   }
   # Get Medoid.
-  rep_branches <- sapply(groups,function(x) {
-    col_sums <- apply(adjm[names(x),names(x)],2,sum)
+  rep_branches <- sapply(groups, function(x) {
+    col_sums <- apply(adjm[names(x), names(x)], 2, sum)
     idy <- which(col_sums == min(col_sums))
-    if (length(idy) > 1) { idy <- idy[length(idy)] }
+    if (length(idy) > 1) {
+      idy <- idy[length(idy)]
+    }
     return(names(col_sums)[idy])
   })
-  rep_branches <- c(removed,removed2,rep_branches)
+  rep_branches <- c(removed, removed2, rep_branches)
   return(rep_branches[order(names(rep_branches))])
 }
 
