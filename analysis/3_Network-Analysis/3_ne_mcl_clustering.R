@@ -115,9 +115,9 @@ for (resolution in seq_along(c(1:100))) {
 		best_i <- inflation[idx]
 		best_k <- K[idx]
 		# Status.
-		message(paste("... ... Best Inflation:",best_i))
-		message(paste("... Number of Clusters:",best_k))
-		message(paste("... .. Best Modularity:",best_q))
+		message(paste("... ... Inflation:", best_i))
+		message(paste("... ... Clusters :", best_k))
+		message(paste("... ... Modularity:",round(best_q,3)))
 		# return best mcl partition.
 		mcl_partitions[[m]] <- parts[[idx]]
 	} # ends loop through modules.
