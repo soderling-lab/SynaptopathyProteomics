@@ -12,8 +12,7 @@
 
 ## User parameters to change:
 net = "Cortex" # Which network are we analyzing? 
-max_size = 500
-min_size = 5
+max_size = 500 # max size of allowable modules before apply mcl.
 inflation = seq(1.2,5,0.2) # Inflation space to explore
 
 # Is this a slurm job?
@@ -75,8 +74,7 @@ g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 
 ## Loop through resolutions, for each module get best mcl partition.
 results <- list()
-#for (resolution in seq_along(c(1:100))) {
-for (resolution in seq_along(c(1:2))) {
+for (resolution in seq_along(c(1:100))) {
 	message(paste("Working on resolution",resolution,"..."))
 	part <- all_partitions[[resolution]]
 	modules <- split(part,part)
