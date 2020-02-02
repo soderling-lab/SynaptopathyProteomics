@@ -75,7 +75,8 @@ g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 
 ## Loop through resolutions, for each module get best mcl partition.
 results <- list()
-for (resolution in seq_along(c(1:100))) {
+#for (resolution in seq_along(c(1:100))) {
+for (resolution in seq_along(c(1:2))) {
 	message(paste("Working on resolution",resolution,"..."))
 	part <- all_partitions[[resolution]]
 	modules <- split(part,part)
@@ -124,3 +125,21 @@ for (resolution in seq_along(c(1:100))) {
 	# Collect best mcl partitions.
 	results[[resolution]] <- mcl_partitions
 } # Ends loop through resolutions.
+
+# Loop to combine mcl partitions at every resolution.
+mcl_partitions <- lapply(results,combine_partitions)
+
+# Loop to merge mcl partition into original partition at every resolution.
+final_partitions <- list()
+for (i in seq_along(mcl_partitions)) {
+	p1 <- all_partitions[[i]]
+	p2 <- mcl_partitions[[i]]
+	p3 <- merge_partitions(p1,p2)
+	final_partitions[i] <- p3
+}
+
+# Write to file.
+# Keep row indices to match output from La clustering script.
+myfile <- file.path(rdatdir,paste0("3_",net,"_MCL_partitions.csv"))
+df <- as.data.frame(do.call(rbind,final_partitions))
+data.table::fwrite(df,myfile,row.names=TRUE)
