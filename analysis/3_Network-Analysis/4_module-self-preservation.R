@@ -13,7 +13,8 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","Cortex","Striatum","Sombined", "PPI", "GO")
+self <- "Cortex" # Which networks to test self preservation in?
+partitions <- "Cortex_MCL" # Which partition file to use?
 nres <- 100 # Total number of resolutions to be anlyzed.
 verbose <- FALSE
 
@@ -96,8 +97,10 @@ rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
 myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
-	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
-partitions <- data.table::fread(myfiles[self], header=TRUE,drop = 1)
+	     "Cortex_MCL" = file.path(rdatdir,"3_Cortex_MCL_partitions.csv"),
+	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"),
+	    "Striatum_MCL" = file.path(rdatdir,"3_Striatum_MCL_partitioncs.csv"))
+partitions <- data.table::fread(myfiles[partitions], header=TRUE,drop = 1)
 
 # Enforce consistent dimensions between data and adjm.
 # Remove duplicate column from data.
@@ -145,9 +148,11 @@ message(paste0(
 results <- list()
 for (i in 1:nres) {
   message(paste("Working on partition", i, "of", nres, "..."))
-  # Get partition--adding 1 so that all module assignments >0.
-  partition <- as.integer(partitions[i, ]) + 2
-  names(partition) <- colnames(adjm)
+  # Get partition.
+  partition <- as.integer(partitions[i, ]) 
+  # Add 1 so that all module assignments >0.
+  if (min(partition)==0) { partition <- partition + 1 }
+  names(partition) <- colnames(partitions)
   module_list <- list(self = partition)
   # Perform permutation test for module self-preservation.
   suppressWarnings({

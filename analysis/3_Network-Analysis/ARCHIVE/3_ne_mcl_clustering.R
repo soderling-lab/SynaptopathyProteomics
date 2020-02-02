@@ -12,8 +12,8 @@
 
 ## User parameters to change:
 net = "Cortex" # Which network are we analyzing? 
-max_size = 500 # maximum allowable size of modules before apply MCL.
-inflation = seq(1.2,5,0.2) # Inflation space to explore.
+max_size = 500 # max size of allowable modules before apply mcl.
+inflation = seq(1.2,5,0.2) # Inflation space to explore
 resolutions = 1
 
 # Is this a slurm job?
@@ -120,7 +120,7 @@ for (resolution in resolutions) {
 		message(paste("... ... Modularity:",round(best_q,3)))
 		# return best mcl partition.
 		mcl_partitions[[m]] <- parts[[idx]]
-	} # Ends loop through modules.
+	} # ends loop through modules.
 	# Collect best mcl partitions.
 	results[[resolution]] <- mcl_partitions
 } # Ends loop through resolutions.
@@ -134,11 +134,11 @@ for (i in seq_along(mcl_partitions)) {
 	p1 <- all_partitions[[i]]
 	p2 <- mcl_partitions[[i]]
 	p3 <- merge_partitions(p1,p2)
-	final_partitions[[i]] <- p3
+	final_partitions[i] <- p3
 }
 
 # Write to file.
-# Keep row indices so that output matches that from La clustering script.
+# Keep row indices to match output from La clustering script.
 myfile <- file.path(rdatdir,paste0("3_",net,"_MCL_partitions.csv"))
 df <- as.data.frame(do.call(rbind,final_partitions))
 data.table::fwrite(df,myfile,row.names=TRUE)
