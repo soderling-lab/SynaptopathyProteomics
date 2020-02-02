@@ -14,22 +14,7 @@
 net = "Cortex" # Which network are we analyzing? 
 max_size = 500 # maximum allowable size of modules before apply MCL.
 inflation = seq(1.2,5,0.2) # Inflation space to explore.
-resolutions = 1
-
-# Is this a slurm job?
-slurm <- any(grepl("SLURM", names(Sys.getenv())))
-if (slurm) {
-  # SLURM job notes - sent to job_*.info
-  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK"))
-  jobID <- as.integer(Sys.getenv("SLURM_JOBID"))
-  info <- as.matrix(Sys.getenv())
-  idx <- grepl("SLURM", rownames(info))
-  myfile <- file.path("./out", paste0("job_", jobID, ".info"))
-  write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
-} else {
-  nThreads <- 8
-  jobID <- ""
-}
+resolutions = seq(1,100) # Resolutions to analyze.
 
 # Global options and imports.
 suppressPackageStartupMessages({
