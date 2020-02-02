@@ -1,10 +1,10 @@
 clusterMCL <- function(graph, weight = NULL, inflation = 2.5) {
   # Cluster an igraph object with the MCL algorithm.
   # Returns partition of the graph.
-	suppressPackageStartupMessages({
-	  require(data.table)
-	  require(igraph)
-	})
+  suppressPackageStartupMessages({
+    require(data.table)
+    require(igraph)
+  })
   df <- data.table(as_edgelist(graph, names = TRUE))
   if (!is.null(weight)) {
     df$weight <- edge_attr(graph, weight, index = E(graph))
