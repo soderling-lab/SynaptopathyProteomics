@@ -133,6 +133,75 @@ all_modules <- unlist(modules_list,recursive=FALSE)
 all_modules <- sapply(all_modules,names)
 
 #------------------------------------------------------------------------------
+## Evaluate protein overlap between all modules.
+#------------------------------------------------------------------------------
+
+# Examine module jaacard similarity for all pairwise comparisons between 
+# modules. We will use this to assign modules a color based on their protein 
+# composition and similarity to three founding modules.
+
+# All comparisons (contrasts).
+contrasts <- expand.grid("M1"=names(all_modules), "M2"=names(all_modules),
+                         stringsAsFactors=FALSE)
+
+# Loop:
+myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
+if (!file.exists(myfile)) {
+  message("Calculating Module Jaacard Similarity...")
+  n <- nrow(contrasts)
+  modulejs <- vector("numeric",n)
+  for (i in 1:n) {
+    if (i==1) { pbar <- txtProgressBar(min=1,max=n,style=3) }
+    setTxtProgressBar(pbar,i)
+    x <- contrasts[i,]
+    idm1 <- x[["M1"]]
+    idm2 <- x[["M2"]]
+    m1 <- all_modules[[idm1]]
+    m2 <- all_modules[[idm2]]
+    if (idm1 == idm2) {
+      modulejs[i] <- 1
+    } else {
+      modulejs[i] <- js(m1,m2)
+    }
+    if (i == n) { close(pbar); message("\n") }
+  } # Ends loop.
+  # Save.
+  myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
+  saveRDS(modulejs,myfile)
+} else {
+  message("Loading saved module JS!")
+  modulejs <- readRDS(myfile)
+}
+
+# Cast modulejs into similarity matrix.
+n <- length(all_modules)
+adjm_js <- matrix(modulejs,nrow=n,ncol=n)
+colnames(adjm_js) <- rownames(adjm_js) <- names(all_modules)
+
+# Assign modules a color based on similarity with three founding nodes.
+df <- data.table(
+  M1js = adjm_js[names(all_modules),"R1.M1"],
+  M2js = adjm_js[names(all_modules),"R1.M2"],
+  M3js = adjm_js[names(all_modules),"R1.M3"]
+)
+rownames(df) <- names(all_modules)
+
+# Row-wise normalization.
+dm <- matrix(t(apply(df,1,function(x) x/max(x))), nrow=length(all_modules),
+             dimnames = list(x=names(all_modules),y=c("R","G","B")))
+df <- cbind(df,dm)
+
+# Convert RGB to hexadecimal color.
+df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
+
+# Collect color assignments.
+module_colors <- df$color
+names(module_colors) <- names(all_modules)
+
+# Assign M0 to grey.
+module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
+
+#------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
 
@@ -448,7 +517,7 @@ message(paste("Number of DBD-associated modules exhibiting",
 
 ## Summary:
 # Cortex:   Convergent (n==4): 76; DBD 97: 
-# Striatum: Convergent (n>=3): 33 (2); DBD: 0
+# Striatum: Convergent (n>=4): 2; DBD: 0
 
 #--------------------------------------------------------------------
 ## How are convergent modules related?
@@ -530,6 +599,8 @@ avg_me # Similarity within a group.
 message("Representative divergent modules:")
 print(rep_convergent_modules)
 
+rep_convergent_modules <- unlist(rep_convergent_modules)[1]
+
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
 #--------------------------------------------------------------------
@@ -539,6 +610,7 @@ print(rep_convergent_modules)
 # All comparisons between convergent modules (contrasts).
 moi <- dbd_modules
 
+if (!is.null(moi)) {
 # ME matrix.
 sft=19
 adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
@@ -618,6 +690,9 @@ adjm_me[rep_dbd_modules,rep_dbd_modules] # R90.M50 shares ~50 overlap with sever
 # Status.
 message("Representative DBD-associated modules:")
 print(rep_dbd_modules)
+} else {
+  rep_dbd_modules <- NULL
+}
 
 #--------------------------------------------------------------------
 ## Save verbose boxplots for representative modules.
@@ -627,7 +702,6 @@ print(rep_dbd_modules)
 names(rep_convergent_modules) <- rep("Convergent",length(rep_convergent_modules))
 names(rep_dbd_modules) <- rep("DBD",length(rep_dbd_modules))
 all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
-all_rep_modules = moi
 
 # Collect plots from representative modules.
 all_plots <- unlist(plots,recursive = FALSE)
@@ -869,76 +943,6 @@ myfile <- prefix_file({
   file.path(figsdir,paste0(net,"_Resolution_vs_Mod_PVE.tiff"))
 })
 ggsave(myfile,plot,width=3.0,height=1.75)
-
-#------------------------------------------------------------------------------
-## Evaluate protein overlap between all modules.
-#------------------------------------------------------------------------------
-
-# Examine module jaacard similarity for all pairwise comparisons between 
-# modules. We will use this to assign modules a color based on their protein 
-# composition and similarity to three founding modules.
-
-# All comparisons (contrasts).
-all_module_names <- names(all_modules)
-contrasts <- expand.grid("M1"=all_module_names, "M2"=all_module_names,
-                         stringsAsFactors=FALSE)
-
-# Loop:
-myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
-if (!file.exists(myfile)) {
-  message("Calculating Module Jaacard Similarity...")
-  n <- nrow(contrasts)
-  modulejs <- vector("numeric",n)
-  for (i in 1:n) {
-    if (i==1) { pbar <- txtProgressBar(min=1,max=n,style=3) }
-    setTxtProgressBar(pbar,i)
-    x <- contrasts[i,]
-    idm1 <- x[["M1"]]
-    idm2 <- x[["M2"]]
-    m1 <- names(all_modules[[idm1]])
-    m2 <- names(all_modules[[idm2]])
-    if (idm1 == idm2) {
-      modulejs[i] <- 1
-      } else {
-        modulejs[i] <- js(m1,m2)
-      }
-    if (i == n) { close(pbar); message("\n") }
-    } # Ends loop.
-  # Save.
-  myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
-  saveRDS(modulejs,myfile)
-} else {
-  message("Loading saved module JS!")
-  modulejs <- readRDS(myfile)
-}
-
-# Cast modulejs into similarity matrix.
-n <- length(all_modules)
-adjm_js <- matrix(modulejs,nrow=n,ncol=n)
-colnames(adjm_js) <- rownames(adjm_js) <- all_module_names
-
-# Assign modules a color based on similarity with three founding nodes.
-df <- data.table(
-  M1js = adjm_js[all_module_names,"R1.M1"],
-  M2js = adjm_js[all_module_names,"R1.M2"],
-  M3js = adjm_js[all_module_names,"R1.M3"]
-)
-rownames(df) <- all_module_names
-
-# Row-wise normalization.
-dm <- matrix(t(apply(df,1,function(x) x/max(x))), nrow=length(all_modules),
-               dimnames = list(x=all_module_names,y=c("R","G","B")))
-df <- cbind(df,dm)
-
-# Convert RGB to hexadecimal color.
-df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
-
-# Collect color assignments.
-module_colors <- df$color
-names(module_colors) <- all_module_names
-
-# Assign M0 to grey.
-module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
 #--------------------------------------------------------------------
 ## GO Scatter Plots of founder modules and modules of interest.

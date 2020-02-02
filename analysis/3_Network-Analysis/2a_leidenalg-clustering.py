@@ -8,7 +8,7 @@
 # rmin - min resolution
 # rmax - max resolution
 # nsteps - number of steps between rmin and rmax.
-adjm_type = 'Cortex' 
+adjm_type = 'Cortex_NE' 
 method = 'CPM' 
 n_iterations = -1
 rmin = 0
@@ -24,6 +24,7 @@ from sys import stderr
 
 ## Input adjacency matrix.
 adjms = {"Cortex" : "3_Cortex_Adjm.csv",
+        "Cortex_NE" : "3_Cortex_NEAdjm.csv",
         "Striatum" : "3_Striatum_Adjm.csv",
         "Combined" : "3_Combined_Adjm.csv",
         "PPI" : "3_PPI_Adjm.csv",
@@ -157,13 +158,16 @@ else:
     pbar = ProgressBar()
     profile = list()
     resolution_range = linspace(**parameters.get('resolution_parameter'))
+
     for resolution in pbar(resolution_range):
+
         parameters['resolution_parameter'] = resolution
         partition = find_partition(**parameters)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
         #partition = filter_modules(partition)
         profile.append(partition)
+
         # Ends loop.
 # Ends If/else.
 
