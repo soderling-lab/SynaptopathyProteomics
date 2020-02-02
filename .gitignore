@@ -6,6 +6,7 @@
 *.Rproj
 *.swp
 __pycache__/
+temp* # files staring with temp
 
 # Other files to ignore.
 downloads/
