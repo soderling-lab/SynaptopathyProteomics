@@ -76,21 +76,22 @@ g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 ## Loop through resolutions, for each module get best mcl partition.
 results <- list()
 for (resolution in seq_along(c(1:100))) {
+	message(paste("Working on resolution",resolution,"..."))
 	part <- all_partitions[[resolution]]
 	modules <- split(part,part)
 	module_sizes <- table(part)
 	too_big <- names(module_sizes)[module_sizes > max_size]
+	message(paste0("Breaking down (",length(too_big),") large communities."))
 	mcl_partitions <- list()
 	## Loop through big modules, bet best MCL partition.
 	for (m in too_big){
-		message(paste("Working on module",m,"..."))
+		message(paste("... Working on module",m,"..."))
 		# Get subgraph.
 		prots <- names(modules[[m]])
 		g1 <- induced_subgraph(g0,vids=V(g0)[match(prots,names(V(g0)))])
 		# Network Enhancement.
 		g_ne <- neten(g1)
 		## Loop to sample inflation space.
-		message("Exploring MCL inflation space...")
 		output <- list()
 		for (i in seq_along(inflation)){
 			# MCL clustering.
@@ -100,9 +101,6 @@ for (resolution in seq_along(c(1:100))) {
 					weights=abs(edge_attr(g_ne,'weight')))
 			# Summary stats.
 			k <- sum(names(table(mcl_part)) != "0")
-			# Status.
-			message(paste("... Inflation:",inflation[i],";",
-				      "Modularity:", round(q,3)))
 			output[[i]] <- list("Partition"=mcl_part,
 					    "Inflation"=inflation[i],
 					    "Clusters"=k,
@@ -117,10 +115,9 @@ for (resolution in seq_along(c(1:100))) {
 		best_i <- inflation[idx]
 		best_k <- K[idx]
 		# Status.
-		message(paste("Module:",m))
-		message(paste("Best Inflation:",best_i))
-		message(paste("Number of Clusters:",best_k))
-		message(paste("Modularity:",best_q))
+		message(paste("... ... Best Inflation:",best_i))
+		message(paste("... Number of Clusters:",best_k))
+		message(paste("... .. Best Modularity:",best_q))
 		# return best mcl partition.
 		mcl_partitions[[m]] <- parts[[idx]]
 	} # ends loop through modules.
