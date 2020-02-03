@@ -13,8 +13,9 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-self <- "Cortex" # Which networks to test self preservation in? #self = c("wt","ko","Cortex","Striatum","Sombined", "PPI", "GO")
-nres <- 100 # Total number of resolutions to be anlyzed.
+self <- "Cortex" # Which networks to test self preservation in?
+partition_file <- "Cortex_MCL" # Which partition file to use?
+resolutions <- seq(1:100) # Resolutions to be anlyzed.
 verbose <- FALSE
 
 # NetRep input:
@@ -61,7 +62,7 @@ if (slurm) {
   write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
 } else {
   nThreads <- 8
-  jobID <- ""
+  jobID <- Sys.Date()
 }
 
 # Global options and imports.
@@ -96,8 +97,10 @@ rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
 myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
-	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
-partitions <- data.table::fread(myfiles[self], header=TRUE,drop = 1)
+	     "Cortex_MCL" = file.path(rdatdir,"3_Cortex_MCL_partitions.csv"),
+	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"),
+	    "Striatum_MCL" = file.path(rdatdir,"3_Striatum_MCL_partitioncs.csv"))
+partitions <- data.table::fread(myfiles[partition_file], header=TRUE,drop = 1)
 
 # Enforce consistent dimensions between data and adjm.
 # Remove duplicate column from data.
@@ -119,7 +122,7 @@ check <- all(colnames(data) == colnames(partitions))
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
-# Networks (edges) should be positive -> AbsoluteValue()
+# Networks (edges) should be positive -> abs()
 data_list <- list(self = data)
 correlation_list <- list(self = adjm)
 network_list <- list(self = abs(adjm))
@@ -143,11 +146,15 @@ message(paste0(
 
 # Loop through partitions, evaluating self-preservation.
 results <- list()
-for (i in 1:nres) {
-  message(paste("Working on partition", i, "of", nres, "..."))
-  # Get partition--adding 1 so that all module assignments >0.
-  partition <- as.integer(partitions[i, ]) + 2
-  names(partition) <- colnames(adjm)
+for (resolution in resolutions) {
+  message(paste("Working on partition", resolution, 
+		"of", length(resolutions), "..."))
+  # Get partition.
+  partition <- as.integer(partitions[resolution, ]) 
+  # Add 1 so that all module assignments >0.
+  if (min(partition)==0) { partition <- partition + 1 }
+  partition <- reset_index(partition)
+  names(partition) <- colnames(partitions)
   module_list <- list(self = partition)
   # Perform permutation test for module self-preservation.
   suppressWarnings({
@@ -166,7 +173,7 @@ for (i in 1:nres) {
       null = "overlap",
       alternative = "greater", # Greater for self-preservation.
       simplify = TRUE,
-      verbose
+      verbose = verbose
     )
   })
   # Remove NS modules--set NS modules to 0.
@@ -177,10 +184,11 @@ for (i in 1:nres) {
   nPreserved <- nModules - length(out)
   message(paste("...", nPreserved, "of", nModules, "modules are preserved."))
   # Return results.
-  results[[i]] <- partition
+  results[[resolution]] <- partition
   # Save to Rdata.
-  if (i == nres) {
-    output_name <- paste0(jobID, "_", self, "_Module_Self_Preservation.RData")
+  if (resolution == length(resolutions)) {
+    output_name <- paste0(jobID, "_", partition_file, 
+			  "_Module_Self_Preservation.RData")
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }
