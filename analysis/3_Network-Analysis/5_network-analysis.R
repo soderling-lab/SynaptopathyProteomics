@@ -104,7 +104,8 @@ myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
 adjm_go <- fread(myfile,drop=1)
 
 # Load network partitions-- self-preservation enforced.
-ids <- c("Cortex"="14942508","Striatum"="14940918")
+ids <- c("Cortex"=14942508,"Striatum"=14940918,
+	 "Cortex_MCL" = 17925470, "Striatum_MCL = "")
 myfile <- list.files(rdatdir, pattern = ids[net], full.names = TRUE)
 partitions <- readRDS(myfile) 
 
