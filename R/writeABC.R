@@ -1,5 +1,23 @@
+#' writeABC
+#'
+#' description
+#'
+#' @param
+#'
+#' @return
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#'
+#' @references none
+#'
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' writeABC()()
+writeABC <- function() {
 # Function to write graph edge list to file in a-b-c format.
-write_abc <- function(graph, filename, weights = NULL) {
   # Writes igraph object edge list to file.
   # graph - igraph object.
   # filename - output filename, passed to data.table::fwrite.

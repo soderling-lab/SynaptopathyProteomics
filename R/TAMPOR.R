@@ -1,3 +1,22 @@
+#' TAMP
+#'
+#' description
+#'
+#' @param
+#'
+#' @return
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#'
+#' @references none
+#'
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' TAMP()()
+TAMP <- function() {
 #' TAMPOR
 #'
 #' performs TAMPOR normalization.
@@ -14,7 +33,6 @@
 #'
 #' @examples
 #' TAMPOR(dat, traits)
-TAMPOR <- function(dat,
                    traits,
                    noGIS = FALSE,
                    useAllNonGIS = FALSE,
@@ -136,8 +154,6 @@ TAMPOR <- function(dat,
 
   # Check sample names, channels in all batches to confirm at least one of GISchannels exists in each batch
   minimumBatchSize <- as.integer(minimumBatchSize)
-  batchwiseSampleCounts <- sapply(as.character(batchIndex), function(batch) length(which(sampleIndex$batch == batch)))
-  batchwiseGIScandidateCounts <- sapply(as.character(batchIndex), function(batch) length(which(any(c(GISchannels, "GIS") %in% sampleIndex$channel[sampleIndex$batch == batch]))) + length(which(any(c(GISchannels, "GIS") %in% rownames(traits)[sampleIndex$batch == batch]))) + length(which(traits$GIS[sampleIndex$batch == batch] == "GIS")))
   names(batchwiseGIScandidateCounts) <- names(batchwiseSampleCounts) <- as.character(batchIndex)
   if (!any(batchwiseGIScandidateCounts == 0) & !any(batchwiseSampleCounts < minimumBatchSize)) {
     if (!noGIS) cat("NOTE: Successfully checked that each batch has at least one sample designated as GIS control replicate.\n")
@@ -180,7 +196,6 @@ TAMPOR <- function(dat,
   ## Finalize traits$GIS column and throw error message if one or more batch has no GIS
   if (!sum(table(unlist(lapply(GISindices, length)))) == length(batchIndex)) stop("ERROR: ONE OR MORE BATCH IS MISSING DENOMINATOR SAMPLE DESIGNATIONS.")
 
-  globalExperimentGISsamples <- as.vector(unlist(sapply(names(GISindices), function(x) rownames(traits)[which(traits$Batch == x)[ GISindices[[x]] ]])))
   traits$GIS <- rep(NA, nrow(traits))
   traits$GIS[match(globalExperimentGISsamples, rownames(traits))] <- "GIS"
 
@@ -189,7 +204,6 @@ TAMPOR <- function(dat,
 
   # Check for 0 and negative values, and tell the user to address this in their data themselves, or choose to replace with NA
   badValues <- as.vector(na.omit(cleanDat[cleanDat <= 0]))
-  badRows <- rownames(cleanDat[which(apply(cleanDat, 1, function(x) min(c(x, 1), na.rm = TRUE)) <= 0), ]) # c(x,1) suppresses warnings for data with rows all NA
   if (length(badValues) > 0) {
     it <- 0
     cat("ABUNDANCES FORMAT WARNING/CHOICE:  you have ", length(badValues), " values <=0 in your input Abundances across ", length(badRows), " rows.\n\nNOTE: First bad rows (up to 10):\n")
@@ -201,7 +215,6 @@ TAMPOR <- function(dat,
     fix <- readline(prompt = paste0("What do you want to do? [ENTER]=Exit function to fix; OR type any value to set these to NA: "))
     if (!fix == "") stop("\n")
     # replace with <=0 values with NA; otherwise +/- Inf values propagate later!
-    cleanDat <- apply(cleanDat, 2, function(x) {
       x[x <= 0] <- NA
       x
     })
@@ -235,35 +248,28 @@ TAMPOR <- function(dat,
     ratioCleanDatUnnorm <- data.frame(row.names = rownames(cleanDat))
     withinBatchGISgeomeans <- withinBatchRowGeomeans <- data.frame(row.names = rownames(cleanDat))
 
-    #  comb <- function(x, ...) lapply(x, function(i) do.call(list,lapply(x, function(y) x[[y]])))
     #  step1a <- foreach(batch=batchIndex, .combine='comb', .multicombine=TRUE, .init=list(list(), list(), list())) %dopar% {
     step1a <- foreach(batch = as.character(batchIndex)) %dopar% {
       tempForAvg <- matrix()
       tempForAvg <- as.data.frame(as.matrix(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]] ], nrow = nrow(cleanDat), ncol = dim(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]] ])[2]))
-      batchGISavgs <- apply(tempForAvg, 1, function(x) eval(parse(text = paste0(meanOrMedian, "(x,na.rm=TRUE)")))) # ADDED na.rm v04 ##MEAN/MEDIAN FUNCTION CHOICE***
       ratioedBatches <- cleanDat[, which(sampleIndex$batch == batch)] / batchGISavgs
 
       ## Below unnormed ratio data are only assembled for graphing purposes, for comparison to step 1b and final step 2 output
       ## If batches are randomized channels distributing cases and controls evenly across all batches, useAllNonGIS==TRUE
       if (useAllNonGIS) {
-        df3 <- as.data.frame(as.matrix(apply(ratioedBatches[, -GISindices[[batch]] ], 1, function(x) eval(parse(text = paste0("2^", meanOrMedian, "(log2(na.omit(x)))")))), ncol = dim(ratioedBatches)[2], nrow = dim(ratioedBatches)[1])) ## MEAN/MEDIAN FUNCTION CHOICE***
         # as.matrix(), NOT matrix()
       } else {
         ## If we cannot rely on the robust assumption of batch-to-batch biological equivalence (with randomized sample order across all avalable channels in all batches), then use robust mean of GIS samples only
-        df3 <- as.data.frame(as.matrix(apply(ratioedBatches, 1, function(x) eval(parse(text = paste0("2^", meanOrMedian, "(log2(na.omit(x[GISindices[[batch]] ])))")))), ncol = dim(ratioedBatches)[2], nrow = dim(ratioedBatches)[1]))
         # as.matrix(), NOT matrix()
       } ## MEAN/MEDIAN FUNCTION CHOICE***
       return(list(batchGISavgs, ratioedBatches, df3))
     }
 
     # re-combine list elements from three outputs, over all batches
-    batchGISavgs <- do.call(list, lapply(step1a, function(x) {
       x[[1]]
     }))
-    ratioedBatches <- do.call(list, lapply(step1a, function(x) {
       x[[2]]
     }))
-    withinBatchRowGeomeans <- as.data.frame(do.call(cbind, lapply(step1a, function(x) {
       x[[3]]
     }))) # was also set to "withinBatchGISgeomeans" (not used below)
     names(batchGISavgs) <- names(ratioedBatches) <- colnames(withinBatchRowGeomeans) <- batchIndex
@@ -273,14 +279,11 @@ TAMPOR <- function(dat,
 
     ###################################################################################################################################
     ## Step 1b. Complete row-normalization. This step normalizes rows within batch by batchCorrFactors; ratioCleanDatUnnorm does not go through this step
-    meanBatchGeomeans <- apply(withinBatchRowGeomeans, 1, function(x) eval(parse(text = paste0(meanOrMedian, "(na.omit(x))")))) ## MEAN/MEDIAN FUNCTION CHOICE***
 
     ## Rowwise (RW) relative abundances from GIS (or representative samples),
     # if we want to take the whole protein row (across batches) back to abundance after normalization step2 is complete**
     RW.relAbunFactors <- RW.GISavgs <- data.frame(row.names = rownames(cleanDat))
-    RW.GISavgs <- cbind(apply(data.frame(column = as.character(batchIndex)), 1, function(x) batchGISavgs[[x]]))
     colnames(RW.GISavgs) <- as.character(batchIndex)
-    RW.relAbunFactors <- apply(RW.GISavgs, 1, function(x) eval(parse(text = paste0("2^", meanOrMedian, "(log2(na.omit(x)))")))) #** relative abundance multipliers for recovery of relative abundance (all rows from input cleanDat) ##MEAN/MEDIAN FUNCTION CHOICE***
     rownames(RW.GISavgs) <- names(RW.relAbunFactors) <- rownames(cleanDat)
 
     ## Calculate Step 1b multipliers to complete RW normalization
@@ -364,7 +367,6 @@ TAMPOR <- function(dat,
     #  colMeans(cleanDatNorm, na.rm = TRUE)
 
     ## alternative columnwise normalization operation using mean or median [equivalent to scale() function above, if colAvg=mean(x,na.rm=TRUE) ]
-    cleanDatNorm2 <- apply(cleanDatNormNoColScaling, 2, function(x) {
       colAvg <- eval(parse(text = paste0(meanOrMedian, "(x,na.rm=TRUE)"))) ## MEAN/MEDIAN FUNCTION CHOICE***
       outputCol <- x - colAvg # rep(colAvg,length(x));
       outputCol
@@ -388,8 +390,6 @@ TAMPOR <- function(dat,
     cleanDat <- relAbundanceNorm2
     DFforFrobCurrent <- apply(cleanDatNorm2, 2, as.numeric)
     DFforFrobPrev <- apply(prevIterCleanDatNorm2, 2, as.numeric)
-    removeColumnsCurrent <- which(apply(DFforFrobCurrent, 2, function(x) sum(is.na(x))) == nrow(DFforFrobCurrent))
-    removeColumnsPrev <- which(apply(DFforFrobPrev, 2, function(x) sum(is.na(x))) == nrow(DFforFrobPrev))
 
     if (length(removeColumnsCurrent) > 0) {
       frobeniusNormCurrent <- norm(na.omit(DFforFrobCurrent[, -removeColumnsCurrent]), type = "F")
@@ -458,7 +458,6 @@ TAMPOR <- function(dat,
 
 
   # remove any ignored columns (all NA)
-  removeColumns.cleanDat <- samplesToIgnore[as.vector(na.omit(match(colnames(cleanDat), samplesToIgnore)))] # which(apply(cleanDat, 2, function(x) sum(is.na(x))) == nrow(cleanDat))
   if (length(removeColumns.cleanDat) > 0) {
     cleanDat <- cleanDat[, -match(removeColumns.cleanDat, colnames(cleanDat))]
     numericMeta <- traits <- traits[match(colnames(cleanDat), rownames(traits)), ]

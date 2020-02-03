@@ -1,3 +1,22 @@
+#' fill_down
+#'
+#' description
+#'
+#' @param
+#'
+#' @return
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#'
+#' @references none
+#'
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' fill_down()()
+fill_down <- function() {
 #' fill down
 #'
 #' Fill a data frame with missing values.
@@ -16,9 +35,7 @@
 #' fill_down()
 #' @export
 
-fill_down <- function(x, blank = is.na) {
   # Find the values
-  if (is.function(blank)) {
     isnotblank <- !blank(x)
   } else {
     isnotblank <- x != blank
