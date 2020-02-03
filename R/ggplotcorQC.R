@@ -1,22 +1,3 @@
-#' ggplotcorQC
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' ggplotcorQC()()
-ggplotcorQC <- function() {
 #' ggplotCorQC
 #'
 #' Scatter plot showing correlation of QC samples. All comparisons.
@@ -38,6 +19,7 @@ ggplotcorQC <- function() {
 #'
 #' @examples
 #' ggplotCorQC(data_in, groups, colID, nbins, annotate = TRUE)
+ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
   plot_list <- list()
   for (i in 1:length(groups)) {
     cols <- grep(groups[i], colnames(data_in))
