@@ -1,3 +1,22 @@
+#' normalize_S
+#'
+#' description
+#'
+#' @param
+#'
+#' @return
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#'
+#' @references none
+#'
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' normalize_S()()
+normalize_S <- function() {
 #' normalize_IRS
 #'
 #' Performs IRS normalization
@@ -17,7 +36,6 @@
 #'
 #' @examples
 #' normalize_IRS(data_in, IRS_ID = "QC", groups)
-normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
   # Subset the data.
   cols_qc <- grep(IRS_ID, colnames(data_in))
   data_qc <- data_in[, cols_qc]
@@ -35,10 +53,8 @@ normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
   # Calculate mean of QC means (supports Robust, geometric mean).
   if (robust == TRUE) {
     # Calculate geometric rowMeans, ignore missing values.
-    df_IRS$Avg <- apply(df_IRS, 1, function(x) exp(mean(log(x), na.rm = TRUE)))
     message("Used robust (geometric) mean.")
   } else {
-    df_IRS$Avg <- apply(df_IRS, 1, function(x) mean(x, na.rm = TRUE))
     message("Used arithmetic mean.")
   }
   # Compute scaling factors for each experiment.

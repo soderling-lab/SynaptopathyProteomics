@@ -1,5 +1,23 @@
+#' cluster_mcl
+#'
+#' description
+#'
+#' @param
+#'
+#' @return
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#'
+#' @references none
+#'
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' cluster_mcl()()
+cluster_mcl <- function() {
 # Function to do mcl clustering for a given resolution.
-cluster_mcl <- function(resolution) {
 suppressPackageStartupMessages({
 	library(neten)
 	library(igraph)
@@ -37,9 +55,6 @@ suppressPackageStartupMessages({
 					    "Modularity"=q)
 		} # Ends loop through inflation space.
 		# Get ~best partition.
-		Q <- sapply(output,function(x) x$Modularity)
-		K <- sapply(output,function(x) x$Clusters)
-		parts <- lapply(output,function(x) x$Partition)
 		idx <- which(Q==max(Q))
 		best_q <- Q[idx]
 		best_i <- inflation[idx]

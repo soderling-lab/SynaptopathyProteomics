@@ -1,5 +1,23 @@
+#' module_self_preservation
+#'
+#' description
+#'
+#' @param
+#'
+#' @return
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#'
+#' @references none
+#'
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' module_self_preservation()()
+module_self_preservation <- function() {
 # Function to perform module self preservation:
-module_self_preservation <- function(partitions,resolution){
   # Get partition.
   partition <- as.integer(partitions[resolution, ]) 
   # Add 1 so that all module assignments >0.
