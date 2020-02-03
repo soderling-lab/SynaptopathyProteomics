@@ -13,8 +13,8 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-self <- "Cortex" # Which networks to test self preservation in?
-partition_file <- "Cortex_MCL" # Which partition file to use?
+self <- "Striatum" # Which networks to test self preservation in?
+partition_file <- "Striatum_MCL" # Which partition file to use?
 resolutions <- seq(1:100) # Resolutions to be anlyzed.
 verbose <- FALSE
 
