@@ -11,7 +11,7 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-net = "Cortex" # Which network are we analyzing? 
+net = "Striatum" # Which network are we analyzing? 
 max_size = 500 # maximum allowable size of modules before apply MCL.
 inflation = seq(1.2,5,0.2) # Inflation space to explore.
 resolutions = seq(1,100) # Resolutions to analyze.
