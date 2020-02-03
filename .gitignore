@@ -6,7 +6,7 @@
 *.Rproj
 *.swp
 __pycache__/
-tempnet.csv # files staring with temp
+*tempnet.csv # files staring with temp
 
 # Other files to ignore.
 downloads/
