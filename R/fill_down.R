@@ -14,8 +14,6 @@
 #'
 #' @examples
 #' fill_down()
-#' @export
-
 fill_down <- function(x, blank = is.na) {
   # Find the values
   if (is.function(blank)) {
