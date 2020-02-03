@@ -67,6 +67,12 @@ results <- list()
 
 # Function to do mcl clustering for a given resolution.
 cluster_mcl <- function(resolution) {
+suppressPackageStartupMessages({
+	library(neten)
+	library(igraph)
+	library(parallel)
+	library(doParallel)
+})
 	#message(paste("\nWorking on resolution",resolution,"..."))
 	part <- all_partitions[[resolution]]
 	modules <- split(part,part)
@@ -117,13 +123,13 @@ cluster_mcl <- function(resolution) {
 } # Ends function.
 
 # Serial execution:
-t0 <- Sys.time()
-results <- foreach(resolution=seq(1,2)) %do% {
-	cluster_mcl(resolution)
-}
-t1 <- Sys.time()
-dt <- t1-t0
-message(paste("Time to execute in series:",dt))
+#t0 <- Sys.time()
+#results <- foreach(resolution=seq(1,2)) %do% {
+#	cluster_mcl(resolution)
+#}
+#t1 <- Sys.time()
+#dt <- t1-t0
+#message(paste("Time to execute in series:",dt))
 
 # Register parallel clusters.
 workers <- makeCluster(c(rep("localhost",nThreads)),type="SOCK")
