@@ -99,7 +99,7 @@ rownames(adjm) <- colnames(adjm)
 myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
 	     "Cortex_MCL" = file.path(rdatdir,"3_Cortex_MCL_partitions.csv"),
 	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"),
-	    "Striatum_MCL" = file.path(rdatdir,"3_Striatum_MCL_partitioncs.csv"))
+	    "Striatum_MCL" = file.path(rdatdir,"3_Striatum_MCL_partitions.csv"))
 partitions <- data.table::fread(myfiles[partition_file], header=TRUE,drop = 1)
 
 # Enforce consistent dimensions between data and adjm.
