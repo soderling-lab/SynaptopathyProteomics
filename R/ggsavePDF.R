@@ -18,8 +18,8 @@
 #'
 #' @examples
 #' ggsavePDF(plots, file)
-ggsavePDF <- function(plots, file, onefile=TRUE) {
-  pdf(file, onefile = onefile)
+ggsavePDF <- function(plots, file) {
+  pdf(file, onefile = TRUE)
   # If not a list, coerce to list.
   if (!inherits(plots, "list")) {
     plot_list <- list(plots)

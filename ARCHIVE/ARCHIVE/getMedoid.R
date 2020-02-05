@@ -38,31 +38,25 @@ getMedoid <- function(adjm, k = NULL, h = NULL, method = "ward.D2") {
   } else {
     removed2 <- NULL
   }
-  # Get Medoid.
-  rep_branches <- sapply(groups, function(x) {
-    col_sums <- apply(adjm[names(x), names(x)], 2, sum)
-    idy <- which(col_sums == min(col_sums))
-    if (length(idy) > 1) {
-      idy <- idy[length(idy)]
-    }
-    return(names(col_sums)[idy])
-  })
-  rep_branches <- c(removed, removed2, rep_branches)
-  return(rep_branches[order(names(rep_branches))])
+  # Get Medoid of any remaining groups.
+  if (length(groups) > 0) {
+	  # Loop through groups, get representative branch (medoid).
+	  representative_branches <- list()
+	  for (i in seq_along(groups)) {
+		  g <- groups[[i]]
+		  col_sums <- apply(adjm[names(g), names(g)], 2, sum)
+		  idy <- which(col_sums == min(col_sums))
+		  if (length(idy) > 1) {
+			  idy <- idy[length(idy)]
+		  }
+		  representative_branches[[i]] <- names(col_sums)[idy] 
+	  } # Ends loop.
+  } else { 
+	  representative_branches <- NULL 
+  } # Ends if/else.
+  # Return best branches.
+  best_branches <- unlist(c(removed, removed2, representative_branches))
+  best_branches <- best_branches[order(best_branches)]
+  names(best_branches) <- c(1:length(best_branches))
+  return(best_branches)
 }
-
-# 	v <- names(hc_groups[[group]])
-# 	if (length(v) == 1) {
-# 		if (warn) { warning("Cannot find the medoid if group size == 1!") }
-# 		return(v)
-# 	} else {
-# 		dm <- 1 - adjm[v,v]
-# 		diag(dm) <- NA
-# 		col_sums <- apply(dm, 2, function(x) sum(x, na.rm = TRUE))
-# 		med <- names(col_sums[col_sums == min(col_sums)])
-# 		if (length(med) > 1) {
-# 			if (warn) { warning("Ties found. Picking first branch as representative branch.") }
-# 		}
-# 		return(med[1])
-# 	}
-# }

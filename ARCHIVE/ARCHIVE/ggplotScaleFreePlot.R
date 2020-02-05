@@ -1,6 +1,6 @@
 #' ggplotScaleFreeFit
 #'
-#' evaluate the scale free fit of a graph
+#' evaluate the scale free fit of a graph given its connectivity
 #'
 #' @param
 #'

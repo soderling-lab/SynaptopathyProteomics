@@ -1,22 +1,3 @@
-#' ggplotScaleFreePlot
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' ggplotScaleFreePlot()()
-ggplotScaleFreePlot <- function() {
 #' ggplotScaleFreeFit
 #'
 #' evaluate the scale free fit of a graph
@@ -37,6 +18,7 @@ ggplotScaleFreePlot <- function() {
 #'
 #' @examples
 #' ggplotScaleFreePlot(connectivity)
+ggplotScaleFreeFit <- function(connectivity, nBreaks = 10, truncated = FALSE,
                                removeFirst = FALSE, main = "", ...) {
   suppressPackageStartupMessages({
     require(WGCNA)

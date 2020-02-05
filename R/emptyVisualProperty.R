@@ -1,23 +1,5 @@
-#' emptyVisualProperty
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' emptyVisualProperty()()
-emptyVisualProperty <- function() {
 # Empty visual property.
+emptyVisualProperty <- function(...) {
   visual.property <- list(
     visual.prop = NULL,
     table.column = NULL,

@@ -1,23 +1,5 @@
-#' combine_partitions
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' combine_partitions()()
-combine_partitions <- function() {
 # Combine MCL partitions into a single vector.
+combine_partitions <- function(partitions) {
   n <- 2
   while (n < length(partitions) + 1) {
     partitions[[n]] <- partitions[[n]] + max(partitions[[n - 1]])

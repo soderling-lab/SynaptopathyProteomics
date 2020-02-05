@@ -1,22 +1,4 @@
-#' clusterMCL
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' clusterMCL()()
-clusterMCL <- function() {
+clusterMCL <- function(graph, weight = NULL, inflation = 2.5) {
   # Cluster an igraph object with the MCL algorithm.
   # Returns partition of the graph.
   suppressPackageStartupMessages({

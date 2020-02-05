@@ -1,22 +1,4 @@
-#' save_network_images
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' save_network_images()()
-save_network_images <- function() {
+save_network_images <- function(cys_file, file_format, ...) {
   # cys_file - path to cytoscape file.
   # file_format - output image format.
   SLEEP_TIME <- 1
@@ -31,6 +13,7 @@ save_network_images <- function() {
   networks <- getCollectionNetworks()
   # Save each network.
   message("Saving network images to file...")
+  sapply(networks, function(network) {
     setCurrentNetwork(network)
     fitContent()
     Sys.sleep(SLEEP_TIME)

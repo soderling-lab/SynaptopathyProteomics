@@ -1,4 +1,4 @@
-#' named.list
+#' named_list
 #'
 #' Create a named list.
 #'

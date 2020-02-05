@@ -1,22 +1,4 @@
-#' getVisualProperties
-#'
-#' description
-#'
-#' @param
-#'
-#' @return
-#'
-#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
-#'
-#' @references none
-#'
-#' @keywords
-#'
-#' @export
-#'
-#' @examples
-#' getVisualProperties()()
-getVisualProperties <- function() {
+getVisualProperties <- function(property = NULL) {
   visual.properties <- getVisualPropertyNames()
   graph.properties <- lapply(visual.properties, getVisualPropertyDefault)
   names(graph.properties) <- visual.properties

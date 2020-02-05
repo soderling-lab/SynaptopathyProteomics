@@ -10,8 +10,7 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-net = "Striatum" # Which network are we analyzing? 
-partition_file = "Striatum_MCL"
+net = "Cortex" # Which network are we analyzing? 
 overwrite_figsdir = TRUE
 do_DBD_enrichment = FALSE
 do_GO_enrichment = FALSE
@@ -90,7 +89,7 @@ myfiles <- c(
 data <- t(readRDS(myfiles[net])) # Data should be transposed: rows, proteins.
 
 # Load Sample info.
-sample_sample_traits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
+sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Load co-expression (adjacency) matrices.
 myfiles <- c(
@@ -105,13 +104,16 @@ myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
 adjm_go <- fread(myfile,drop=1)
 
 # Load network partitions-- self-preservation enforced.
-ids <- list(Cortex="14942508",Striatum="14940918",
-	 Cortex_MCL = "17925470", Striatum_MCL = "18125728")
-myfile <- list.files(rdatdir, pattern = ids[[partition_file]], full.names = TRUE)
-partitions <- readRDS(myfile) 
+ids <- list(Cortex=c(LA="14942508",MCL="17925470"),
+            Striatum=c(LA="14940918",MCL="18125728"))
+myfiles <- sapply(ids[[net]], function(x) { 
+  list.files(rdatdir, pattern = x, full.names = TRUE) })
+partitions <- list(LA = readRDS(myfiles[1]),
+                   MCL = readRDS(myfiles[2]))
 
-# Reset partition index.
-partitions <- lapply(partitions, reset_index)
+# Reset index.
+partitions$LA <- lapply(partitions$LA,reset_index)
+partitions$MCL <- lapply(partitions$MCL,reset_index)
 
 # Load theme for plots.
 ggtheme()
@@ -120,9 +122,10 @@ ggtheme()
 ## Collect all modules in a named list.
 #------------------------------------------------------------------------------
 
-# Name partitions.
-named_parts <- partitions
-names(named_parts) <- paste0("R",c(1:length(partitions)))
+# Name LA partitions.
+parts <- partitions$LA
+named_parts <- parts
+names(named_parts) <- paste0("R",c(1:length(parts)))
 
 # Name modules.
 modules_list <- lapply(named_parts,function(x) split(x,x))
@@ -138,6 +141,8 @@ all_modules <- sapply(all_modules,names)
 ## Evaluate protein overlap between all modules.
 #------------------------------------------------------------------------------
 
+## FIXME:: Need to use LA partition for this!
+
 # Examine module jaacard similarity for all pairwise comparisons between 
 # modules. We will use this to assign modules a color based on their protein 
 # composition and similarity to three founding modules.
@@ -147,7 +152,7 @@ contrasts <- expand.grid("M1"=names(all_modules), "M2"=names(all_modules),
                          stringsAsFactors=FALSE)
 
 # Loop:
-myfile <- file.path(rdatdir,paste0("3_",partition_file,"_All_Module_JS.RData"))
+myfile <- file.path(rdatdir,paste0("3_",net,"_All_Module_JS.RData"))
 if (!file.exists(myfile)) {
   message("Calculating Module Jaacard Similarity...")
   n <- nrow(contrasts)
@@ -203,6 +208,30 @@ names(module_colors) <- names(all_modules)
 # Assign M0 to grey.
 module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
+# FIXME: Assing MCL modules a color.
+all_MCL_modules <- lapply(MCL_partitions,function(x) {
+  m <- split(x,x)
+  names(m) <- paste0("M",names(m))
+  return(m)
+})
+names(all_MCL_modules) <- paste0("R",c(1:length(all_MCL_modules)))
+all_MCL_modules <- unlist(all_MCL_modules,recursive = FALSE)
+
+protein_colors
+
+name_partitions <- function(partitions,ctype="M") {
+  parts <- lapply(partitions,function(x) split(x,x))
+  parts <- lapply(parts,function(x) { names(x) <- paste0(ctype,names(x)); return(x) })
+  return(parts)
+}
+
+LA_parts <- name_partitions(partitions$LA,ctype="LA")
+MCL_parts <- name_partitions(partitions$MCL,ctype="MCL")
+
+foo = mapply(function(mcl,la) { split(mcl,la) }, MCL_parts, LA_parts)
+
+foo = mapply(function(mcl,la) {split(mcl,la) }, partitions$MCL,partitions$LA)
+
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
 #------------------------------------------------------------------------------
@@ -212,16 +241,16 @@ geneSet <- "mouse_Combined_DBD_geneSets.RData"
 myfile <- file.path(rdatdir,geneSet)
 DBDcollection <- readRDS(myfile)
 
-# Perform disease enrichment analysis.
-myfile <- file.path(rdatdir,paste0("3_",partition_file,
-				   "_Module_DBD_Enrichment.RData"))
 if (do_DBD_enrichment) {
+  # Perform disease enrichment analysis.
+  myfile <- file.path(rdatdir,paste0("3_",net,"_MCL",
+                                     "_Module_DBD_Enrichment.RData"))
 	message("Performing module enrichment analysis for DBD-associated genes...")
 	DBDresults <- list()
 	for (i in 1:100) {
 		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
 		setTxtProgressBar(pbar,i)
-		DBDresults[[i]] <- moduleGOenrichment(partitions,i,
+		DBDresults[[i]] <- moduleGOenrichment(partitions$MCL,i,
 						      protmap, DBDcollection)
 		if (i==100) { message("\n"); close(pbar) }
 	}
@@ -274,7 +303,7 @@ all_dbd_prots <- lapply(dbd_list,function(x) x$Annotation)
 
 if (do_GO_enrichment) {
 	# Loop to perform GO enrichment analysis.
-	myfile <- file.path(rdatdir,paste0("3_All_",partition_file
+	myfile <- file.path(rdatdir,paste0("3_All_",net,"_MCL",
 					   ,"_Module_GO_enrichment.RData"))
 	# Build a GO collection.
 	gofile <- file.path(rdatdir,"3_musGOcollection.RData")
@@ -289,7 +318,7 @@ if (do_GO_enrichment) {
 	pbar <- txtProgressBar(min=1,max=100,style=3)
 	for (i in 1:length(partitions)){
 		setTxtProgressBar(pbar,i)
-		GOresults[[i]] <- moduleGOenrichment(partitions,i, 
+		GOresults[[i]] <- moduleGOenrichment(partitions$MCL,i, 
 						     protmap, GOcollection)
 		if (i==length(partitions)) { close(pbar) ; message("\n") }
 	} # Ends loop.
@@ -319,17 +348,17 @@ all_topGO <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
 if (do_module_analysis) {
 	# Empty lists for output of loop:
 	results <- list(module_results = list(),
-	ME_results = list(),
-	PVE_results = list(),
-	KME_results = list(),
-	KW_results = list(),
-	plots = list(),
-	DT_results = list(),
-	nSigDT_results = list(),
-	modules_of_interest = list())
+	                ME_results = list(),
+	                PVE_results = list(),
+                	KME_results = list(),
+                	KW_results = list(),
+                	plots = list(),
+                	DT_results = list(),
+                	nSigDT_results = list(),
+                	modules_of_interest = list())
 	for (r in 1:100) {
 		message(paste("Working on resolution",r,"..."))
-		partition <- partitions[[r]]
+		partition <- partitions$MCL[[r]]
 		# Get Modules.
 		modules <- split(partition, partition)
 		names(modules) <- paste0("M", names(modules))
@@ -348,7 +377,7 @@ if (do_module_analysis) {
 		# Calculate Module Eigengenes.
 		# Note: Soft power does not influence MEs.
 		MEdata <- moduleEigengenes(data,
-		  colors = partition,
+		  colors = partition, # Do not need to sort in same order!
 		  softPower = 1, impute = FALSE
 		)
 		MEs <- as.matrix(MEdata$eigengenes)
@@ -370,30 +399,33 @@ if (do_module_analysis) {
 		message(paste("Median module coherence (PVE):", 
 			      round(100 * medianPVE, 2), "(%)."))
 		# Create list of MEs.
-		ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
-		ME_list <- lapply(ME_list, function(x) { names(x) <- rownames(MEs); return(x) })
-		names(ME_list) <- names(modules)
+		#ME_list <- split(MEs, rep(1:ncol(MEs), each = nrow(MEs)))
+		ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) # Do it this way to preserve names.
+		names(ME_list) <- names(modules) # Same as colnames MEs.
 		# Remove M0. Do this before p-value adjustment.
-		ME_list <- ME_list[names(ME_list)!="M0"]
+		ME_list <- ME_list[which(names(ME_list)!="M0")]
 		# Sample to group mapping.
-		sample_traits$Sample.Model.Tissue <- paste(sample_traits$Sample.Model, sample_traits$Tissue, sep = ".")
-		groups <- sample_traits$Sample.Model.Tissue[match(rownames(MEs), sample_traits$SampleID)]
+		sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, sampleTraits$Tissue, sep = ".")
+		groups <- sampleTraits$Sample.Model.Tissue[match(rownames(MEs), sampleTraits$SampleID)]
 		names(groups) <- rownames(MEs)
 		# Group all WT samples from a tissue type together.
 		groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
 		groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 		# Fix levels (order).
-		g <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
-		groups <- as.factor(groups)
-		levels(groups) <- paste(g,net,sep=".")
+		group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
+		group_levels <- paste(group_order,net,sep=".")
 		# Perform Kruskal Wallis tests to identify modules whose summary
 		# expression profile is changing.
-		KWdata <- t(sapply(ME_list, function(x) {
-					   kruskal.test(x ~ groups[names(x)])}))
-		KWdata <- as.data.frame(KWdata)[, c(1, 2, 3)] # Remove unnecessary cols.
+		KWdata_list <- lapply(ME_list, function(x) { kruskal.test(x ~ groups[names(x)]) })
+		## TEST
+		#x = ME_list[[1]]
+		#g = groups[names(x)]
+		#kruskal.test(x ~ groups[names(x)]) 
+		#kw =kruskal.test(x ~ g) # ^same result, good.
+		KWdata <- as.data.frame(do.call(rbind,KWdata_list))[-c(4,5)]
 		# Correct p-values for n comparisons.
 		method <- "bonferroni"
-		KWdata$p.adj <- p.adjust(KWdata$p.value, method)
+		KWdata$p.adj <- p.adjust(as.numeric(KWdata$p.value), method)
 		# Significant modules.
 		alpha <- 0.05
 		sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
@@ -405,33 +437,36 @@ if (do_module_analysis) {
 		# Dunnetts test for post-hoc comparisons.
 		# Note: P-values returned by DunnettTest have already been adjusted for 
 		# multiple comparisons!
-		cont <- paste("WT", net, sep = ".") # Control group.
-		DT_list <- lapply(ME_list, function(x) {
-					  DunnettTest(x,as.factor(groups[names(x)]), 
-						      control = cont)
+		control_group <- paste("WT", net, sep = ".")
+		DTdata_list <- lapply(ME_list, function(x) {
+		  x <- ME_list[[1]]
+		  g <- factor(groups[names(x)],levels=group_levels)
+			df <- as.data.frame({
+					    DunnettTest(x ~ g,control = control_group)[[control_group]] 
+					  })
+			return(df)
 		})
-		DT_list <- lapply(sapply(DT_list,"[",cont), as.data.frame)
-		names(DT_list) <- sapply(strsplit(names(DT_list),"\\."),"[",1)
 		# Number of significant changes.
 		alpha <- 0.05
-		nSigDT <- sapply(DT_list, function(x) sum(x$pval < alpha))
-		message("Summary of Dunnett's test changes for significant modules:")
-		print(nSigDT[sigModules])
-		nSigDisease <- sum(disease_sig[[r]] %in% sigModules)
-		message(paste("Number of significant modules with",
-			      "significant enrichment of DBD-associated genes:",
-			      nSigDisease))
+		nSigDT <- sapply(DTdata_list, function(x) sum(x$pval < alpha))
+		if (length(nSigDT[sigModules]) > 0) {
+		  message("Summary of Dunnett's test changes for significant modules:")
+		  print(nSigDT[sigModules])
+		}
 		# Numer of significant modules with disease association.
-		moi <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
-		if (length(moi) > 0) {
-		  message("Summary of Dunnett's test changes for DBD-associated modules:")
-		  print(moi)
+		diseaseSig <- as.character(na.omit(sigModules[disease_sig[[r]]]))
+		nSigDisease <- length(diseaseSig)
+		if (nSigDisease > 0) {
+		  message(paste("Number of significant modules with",
+		                "significant enrichment of DBD-associated genes:", nSigDisease))
+		  message("Summary of Dunnett's test changes for significant, DBD-associated modules:")
+		  print(nSigDT[diseaseSig])
 		}
 		message("\n")
 		# Generate boxplots.
 		bplots <- lapply(ME_list,function(x) {
-				 ggplotVerboseBoxplot(x,groups)
-				     })
+				 ggplotVerboseBoxplot(x,groups,group_levels)
+		  })
 		names(bplots) <- names(ME_list)
 		# Add R#.M# + PVE + pvalue to plot titles. Simplify x-axis labels.
 		x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
@@ -450,7 +485,7 @@ if (do_module_analysis) {
 			# Add significance stars!
 			df <- data.table(xpos=c(2:5),
 					 ypos = 1.01 * max(plot$data$x),
-					 p=DT_list[[m]]$pval,
+					 p=DTdata_list[[m]]$pval,
 					 symbol="")
 			df$symbol[df$p<0.05] <- "*"
 			df$symbol[df$p<0.005] <- "**"
@@ -467,9 +502,9 @@ if (do_module_analysis) {
 		results$KME_results[[r]] <- KME_list
 		results$KW_results[[r]] <- KWdata
 		results$plots[[r]] <- bplots 
-		results$DT_results[[r]] <- DT_list
+		results$DT_results[[r]] <- DTdata_list
 		results$nSigDT_results[[r]] <- nSigDT[sigModules]
-		results$modules_of_interest[[r]] <- moi
+		results$modules_of_interest[[r]] <- diseaseSig
 	} # Ends loop.
 	# Name results lists and save.
 	message("Saving results, this will take several minutes...")
@@ -482,18 +517,18 @@ if (do_module_analysis) {
 	names(results$DT_results) <- paste0("R",c(1:100))
 	names(results$nSigDT_results) <- paste0("R",c(1:100))
 	names(results$modules_of_interest) <- paste0("R",c(1:100))
-	myfile <- file.path(rdatdir,paste0("3_",partition_file
+	myfile <- file.path(rdatdir,paste0("3_",net,"_MCL"
 					   ,"_Module_Expression_Results.RData"))
 	saveRDS(results,myfile)
 } else {
 	# Load and extract from list.
 	message("Loading saved module expression analysis results!")
-	myfile <- file.path(rdatdir,paste0("3_",partition_file
-					   ,"_Module_Expression_Results.RData"))
+	myfile <- file.path(rdatdir,paste0("3_",net,"_MCL",
+					   "_Module_Expression_Results.RData"))
 	results <- readRDS(myfile) 
-}
+} # ENDS LOOP.
 
-quit()
+
 # Extract results from list.
 module_results <- results$module_results
 ME_results <- results$ME_results
@@ -528,7 +563,6 @@ message(paste("Number of DBD-associated modules exhibiting",
 	      "convergent dysregulation:",length(dbd_modules)))
 
 ## Summary:
-
 # Cortex:   Convergent (n==4): 76; DBD 97: 
 # Cortex_MCL:   Convergent (n==4): 156; DBD 46: 
 
@@ -730,19 +764,20 @@ for (i in seq_along(myplots)) {
 # similarity index (fmi).
 
 # Generate contrasts matrix--all possible combinations of partitions.
-contrasts <- expand.grid("P1"=seq_along(partitions), "P2"=seq_along(partitions))
+contrasts <- expand.grid("P1"=seq_along(partitions$MCL), 
+                         "P2"=seq_along(partitions$MCL))
 contrasts <- split(contrasts,seq(nrow(contrasts)))
 
 # Load or loop through all contrasts, calculate fmi.
-myfile <- file.path(rdatdir,paste0("3_",net,"_Partitions_FMI.RData"))
+myfile <- file.path(rdatdir,paste0("3_",net,"_MCL_Partitions_FMI.RData"))
 if (!file.exists(myfile)){
   message("Calculating FMI, this will take several minutes...")
   pbar <- txtProgressBar(min=1,max=length(contrasts),style=3)
   fmi <- vector("numeric",length(contrasts))
   for (i in seq_along(fmi)){
     setTxtProgressBar(pbar,i)
-    p1 <- partitions[[contrasts[[i]]$P1]]
-    p2 <- partitions[[contrasts[[i]]$P2]]
+    p1 <- partitions$MCL[[contrasts[[i]]$P1]]
+    p2 <- partitions$MCL[[contrasts[[i]]$P2]]
     if (p1 == p2) {
       fmi[i] <- 1
     } else {
@@ -757,7 +792,7 @@ if (!file.exists(myfile)){
 }
 
 # Extract similarity statistic and convert this into a matrix.
-n <- length(partitions)
+n <- length(partitions$MCL)
 adjm_fmi <- matrix(fmi, nrow = n, ncol = n)
 colnames(adjm_fmi) <- rownames(adjm_fmi) <- paste0("R",seq(ncol(adjm_fmi)))
 
@@ -796,7 +831,7 @@ groups <- split(hc_partition,hc_partition)
 # The medoid is the partition which is most similar (closest) 
 # to all others in its group.
 # Loop to get the medoid of each group:
-rep_partitions <- getMedoid(adjm_fmi,k=best_k,method="ward.D2")
+rep_partitions <- getMedoid(adjm_fmi,k=best_k)
 
 # Which partitions are most representative?
 message(paste("Representative partitions:"))
@@ -806,8 +841,10 @@ print(rep_partitions)
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE) +
   geom_hline(yintercept = best_h,color="red",size=1)
 dendro
+
+#Save.
 myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_All_Partitions_Dendro.tiff"))
+  file.path(figsdir,paste0(net,"_MCL_All_Partitions_Dendro.tiff"))
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
@@ -816,8 +853,8 @@ ggsave(myfile,plot=dendro, height=2.5, width = 3)
 #--------------------------------------------------------------------
 
 # Calculate number of clusters at each resolution.
-k <- sapply(partitions,function(x) sum(names(split(x,x))!="0"))
-r <- c(1:length(partitions))
+k <- sapply(partitions$MCL,function(x) sum(names(split(x,x))!="0"))
+r <- c(1:length(partitions$MCL))
 df <- data.table(r = r, k = k)
 
 # Generate plot.
@@ -827,7 +864,7 @@ plot <- ggplot(df, aes(x=r,y=k)) + geom_point() + geom_line(size=1) +
 
 # Save.
 myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_Resolution_vs_k.tiff"))
+  file.path(figsdir,paste0(net,"_MCL_Resolution_vs_k.tiff"))
 })
 ggsave(myfile,plot,width=3,height=1.75)
 
@@ -861,14 +898,14 @@ g <- buildNetwork(ppis, entrez, taxid = 10090)
 g <- simplify(g)
 
 # Split by partitions.
-check <- all(names(partitions[[1]]) == names(partitions[[75]]))
-ids <- names(partitions[[1]])
+check <- all(names(partitions$MCL[[1]]) == names(partitions$MCL[[75]]))
+if (check) { ids <- names(partitions$MCL[[1]]) } else { stop() }
 entrez <- protmap$entrez[match(ids,protmap$ids)]
 
 # Loop to calculate modularity of ppi graph given co-expression graph partition.
-q <- vector("numeric",length=length(partitions))
-for (i in seq_along(partitions)) {
-  p = partitions[[i]] + 1 # Add one to account for "M0"
+q <- vector("numeric",length=length(partitions$MCL))
+for (i in seq_along(partitions$MCL)) {
+  p <- partitions$MCL[[i]] + 1 # Add one to account for "M0"
   p <- p[match(names(V(g)),entrez)] # Insure they are in the same order.
   #check <- all(head(names(V(g))) == head(protmap$entrez[match(names(p),protmap$ids)]))
   q[i] <- modularity(g, p)
@@ -882,11 +919,11 @@ df <- data.table(q,r)
 # Generate plot.
 plot <- ggplot(df, aes(x=r,y=q)) + geom_point() + geom_line(size=1) + 
   xlab("Resolution") +
-  ylab("Modularity") + ggtitle("PPI Partition Quality")
+  ylab("Normalized Quality") + ggtitle("PPI Partition Quality")
 
 # Save.
 myfile <- prefix_file({
-  file.path(figsdir, paste0(net,"_Resolution_vs_PPI_Q.tiff"))
+  file.path(figsdir, paste0(net,"_MCL_Resolution_vs_PPI_Q.tiff"))
 })
 ggsave(myfile,plot,width=3.0,height=1.75)
 
@@ -903,9 +940,9 @@ rownames(dm) <- colnames(dm)
 g <- graph_from_adjacency_matrix(dm,mode="undirected",weighted=TRUE,diag=FALSE)
 
 # Loop to calculate modularity of ppi graph given co-expression graph partition.
-q <- vector("numeric",length=length(partitions))
-for (i in seq_along(partitions)) {
-  p <- partitions[[i]] + 1 # Add one to account for "M0"
+q <- vector("numeric",length=length(partitions$MCL))
+for (i in seq_along(partitions$MCL)) {
+  p <- partitions$MCL[[i]] + 1 # Add one to account for "M0"
   p <- p[match(names(V(g)),names(p))] # Insure they are in the same order.
   #check <- all(head(names(V(g))) == head(names(p)))
   q[i] <- modularity(g, p)
@@ -919,11 +956,11 @@ df <- data.table(q,r)
 # Generate plot.
 plot <- ggplot(df, aes(x=r,y=q)) + geom_point() + geom_line(size=1) + 
   xlab("Resolution") +
-  ylab("Modularity") + ggtitle("GO Partition Quality")
+  ylab("Normalized Modularity") + ggtitle("GO Partition Quality")
 
 # Save.
 myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_Resolution_vs_GO_Q.tiff"))
+  file.path(figsdir,paste0(net,"_MCL_Resolution_vs_GO_Q.tiff"))
 })
 ggsave(myfile,plot,width=3.0,height=1.75)
 
@@ -956,7 +993,7 @@ plot <- ggplot(df2, aes(x=r, y=pvarexp)) + geom_point() + geom_line(size=1) +
 
 # Save.
 myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_Resolution_vs_Mod_PVE.tiff"))
+  file.path(figsdir,paste0(net,"_MCL_Resolution_vs_Mod_PVE.tiff"))
 })
 ggsave(myfile,plot,width=3.0,height=1.75)
 
@@ -964,8 +1001,10 @@ ggsave(myfile,plot,width=3.0,height=1.75)
 ## GO Scatter Plots of founder modules and modules of interest.
 #--------------------------------------------------------------------
 
+# FIXME: Need to add mcl module colors.
+
 # Collect modules of interest.
-moi <- c("R1.M1","R1.M2","R1.M3", all_rep_modules)
+moi <- all_rep_modules
 names(moi) <- NULL
 moi <- moi[order(moi)]
 
@@ -974,6 +1013,7 @@ for (module in moi) {
   plot <- ggplotGOscatter(all_go[[module]], color=module_colors[module])
   plot <- plot + ggtitle(module) + 
     theme(plot.title = element_text(size=12))
+  plot
   myfile <- prefix_file({
     file.path(figsdir,paste0(net,"_",module,"_ModuleGO",".tiff"))
   })
@@ -981,7 +1021,7 @@ for (module in moi) {
 }
 
 #--------------------------------------------------------------------
-## Get DBD results for modules of interst.
+## Get DBD results for modules of interest.
 #--------------------------------------------------------------------
 
 # Collect results.
@@ -993,7 +1033,7 @@ myresults <- all_DBD_results[rep_dbd_modules]
 for (i in 1:length(myresults)) {
   module <- names(myresults)[i]
   myfile <- prefix_file({
-    file.path(tabsdir,paste0(module,"_DBD_enrichment.xlsx"))
+    file.path(tabsdir,paste0(module,"_MCL_DBD_enrichment.xlsx"))
   })
   write_excel(myresults[[i]],myfile)
 }
@@ -1233,7 +1273,7 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
     cytoscapePing()
   })
   # Subset graph.
-  nodes <- all_modules[[module_name]]
+  nodes <- names(all_modules[[module_name]])
   g <- induced_subgraph(g0,vids = V(g0)[match(nodes,names(V(g0)))])
   # Add node color attribute.
   g <- set_vertex_attr(g,"color", value = module_colors[module_name])
@@ -1408,7 +1448,7 @@ for (i in 1:length(rep_convergent_modules)){
   network_layout <- 'force-directed edgeAttribute=weight'
   message(paste("Working on module",rep_convergent_modules[i],"..."))
   myfile <- file.path(netsdir,paste0(net,"_Top_Convergent_Modules"))
-  create_PPI_graph(g0,g1,all_modules,
+  create_PPI_graph(g0,g1,all_MCL_modules,
                    rep_convergent_modules[i],network_layout,output_file=myfile)
 }
 deleteAllNetworks()
