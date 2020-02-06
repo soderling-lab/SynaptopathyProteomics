@@ -13,9 +13,12 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-self <- "Striatum" # Which networks to test self preservation in?
-partition_file <- "Striatum_MCL" # Which partition file to use?
-resolutions <- seq(1:100) # Resolutions to be anlyzed.
+self <- "Cortex" # Which networks to test self preservation in?
+partition_file <- "Cortex_Surprise" # Which partition file to use?
+#resolutions <- seq(1:100) # Resolutions to be anlyzed.
+resolutions <- 1 # Resolutions to be anlyzed.
+replace_negative <- "zero" # How should negative weights be handled?
+min_size <- 5 # minimum allowable size for a module.
 verbose <- FALSE
 
 # NetRep input:
@@ -96,11 +99,13 @@ adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
-	     "Cortex_MCL" = file.path(rdatdir,"3_Cortex_MCL_partitions.csv"),
-	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"),
-	    "Striatum_MCL" = file.path(rdatdir,"3_Striatum_MCL_partitions.csv"))
-partitions <- data.table::fread(myfiles[partition_file], header=TRUE,drop = 1)
+myfiles <- c("Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
+	     "Cortex_MCL" = "3_Cortex_MCL_partitions.csv",
+	     "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
+	     "Striatum_MCL" = "3_Striatum_MCL_partitions.csv",
+	     "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv")
+partitions <- fread(file.path(rdatdir,myfiles[partition_file]), 
+		    header=TRUE,drop = 1)
 
 # Enforce consistent dimensions between data and adjm.
 # Remove duplicate column from data.
@@ -122,10 +127,16 @@ check <- all(colnames(data) == colnames(partitions))
 #-------------------------------------------------------------------------------
 
 # Input for NetRep:
-# Networks (edges) should be positive -> abs()
 data_list <- list(self = data)
 correlation_list <- list(self = adjm)
-network_list <- list(self = abs(adjm))
+# Networks (edges) should be positive.
+if (replace_negative == "absolute value") {
+	# Replace negative edges as absolute value.
+	network_list <- list(self = abs(adjm))
+} else if (replace_negative == "zero") {
+	adjm[adjm<0] <- 0
+	network_list <- list(self = adjm)
+}
 
 # Module preservation stats.
 module_stats <- paste(c(
@@ -155,6 +166,9 @@ for (resolution in resolutions) {
   if (min(partition)==0) { partition <- partition + 1 }
   partition <- reset_index(partition)
   names(partition) <- colnames(partitions)
+  # Remove modules less than min size.
+  too_small <- which(table(partition) < min_size)
+  partition[partition %in% too_small] <- 0 
   module_list <- list(self = partition)
   # Perform permutation test for module self-preservation.
   suppressWarnings({

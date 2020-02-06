@@ -14,7 +14,7 @@ net = "Cortex" # Which network are we analyzing?
 overwrite_figsdir = TRUE
 do_DBD_enrichment = FALSE
 do_GO_enrichment = FALSE
-do_module_analysis = TRUE
+do_module_analysis = FALSE
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -45,7 +45,7 @@ tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
 # Create directory for figure output.
-script_name <- "4_network-analysis"
+script_name <- "5_network-analysis"
 figsdir <- file.path(root,"figs",Sys.Date(),script_name)
 if(overwrite_figsdir) {
   message(paste("Warning, overwriting files in:\n",figsdir))
@@ -208,29 +208,44 @@ names(module_colors) <- names(all_modules)
 # Assign M0 to grey.
 module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
-# FIXME: Assing MCL modules a color.
-all_MCL_modules <- lapply(MCL_partitions,function(x) {
-  m <- split(x,x)
-  names(m) <- paste0("M",names(m))
-  return(m)
-})
-names(all_MCL_modules) <- paste0("R",c(1:length(all_MCL_modules)))
-all_MCL_modules <- unlist(all_MCL_modules,recursive = FALSE)
-
-protein_colors
-
-name_partitions <- function(partitions,ctype="M") {
+# Make protein colors.
+name_partitions <- function(partitions,rprefix="R",mprefix="M",output="modules") {
+  names(partitions) <- paste0(rprefix,c(1:length(partitions)))
   parts <- lapply(partitions,function(x) split(x,x))
-  parts <- lapply(parts,function(x) { names(x) <- paste0(ctype,names(x)); return(x) })
-  return(parts)
+  parts <- lapply(parts,function(x) { names(x) <- paste0(mprefix,names(x)); return(x) })
+  if (output == "modules") {
+    return(unlist(parts,recursive=FALSE))
+  } else if (output == "partition") {
+    return(parts)
+  }
 }
 
-LA_parts <- name_partitions(partitions$LA,ctype="LA")
-MCL_parts <- name_partitions(partitions$MCL,ctype="MCL")
+LA_modules <- name_partitions(partitions$LA,rprefix="R",mprefix="M",output="partition")
+MCL_modules <- name_partitions(partitions$MCL,rprefix="R",mprefix="M",output="partition")
 
-foo = mapply(function(mcl,la) { split(mcl,la) }, MCL_parts, LA_parts)
-
-foo = mapply(function(mcl,la) {split(mcl,la) }, partitions$MCL,partitions$LA)
+# How to map LA colors to MCL partition????
+out1 <- list()
+out2 <- list()
+for (i in c(1:100)){
+  x <- LA_modules[[i]]
+  LA_prots <- paste0("R",i,".",sapply(strsplit(names(unlist(x)),"\\."),"[",1))
+  names(LA_prots) <- sapply(strsplit(names(unlist(x)),"\\."),"[",2)
+  y <- MCL_modules[[i]]
+  MCL_prots <- sapply(strsplit(names(unlist(y)),"\\."),"[",2)
+  m <- module_colors[LA_prots[MCL_prots]]
+  p <- partitions$MCL[[i]][names(LA_prots[MCL_prots])]
+  MCL_2_LA <- split(LA_prots[MCL_prots],p)
+  names(MCL_2_LA) <- paste0("R",names(MCL_2_LA))
+  MCL_colors <- split(m,p)
+  names(MCL_colors) <- paste0("M",names(MCL_colors))
+  MCL_colors <- sapply(MCL_colors,unique)
+  out1[[i]] <- MCL_colors
+  out2[[i]] <- MCL_2_LA
+}
+names(out1) <- paste0("R",c(1:100))
+names(out2) <- paste0("R",c(1:100))
+MCL_module_colors <- unlist(out1)
+MCL_2_LA <- out2
 
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
@@ -241,21 +256,26 @@ geneSet <- "mouse_Combined_DBD_geneSets.RData"
 myfile <- file.path(rdatdir,geneSet)
 DBDcollection <- readRDS(myfile)
 
+# Which partition type.
+ptype <- "MCL"
+
 if (do_DBD_enrichment) {
   # Perform disease enrichment analysis.
-  myfile <- file.path(rdatdir,paste0("3_",net,"_MCL",
+  myfile <- file.path(rdatdir,paste0("3_",net, "_", ptype,
                                      "_Module_DBD_Enrichment.RData"))
 	message("Performing module enrichment analysis for DBD-associated genes...")
 	DBDresults <- list()
 	for (i in 1:100) {
 		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
 		setTxtProgressBar(pbar,i)
-		DBDresults[[i]] <- moduleGOenrichment(partitions$MCL,i,
+		DBDresults[[i]] <- moduleGOenrichment(partitions[[ptype]],i,
 						      protmap, DBDcollection)
 		if (i==100) { message("\n"); close(pbar) }
 	}
 	saveRDS(DBDresults,myfile)
 } else {
+  myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,
+                                     "_Module_DBD_Enrichment.RData"))
 	message("Loading saved module DBD enrichment results!")
 	DBDresults <- readRDS(myfile)
 }
@@ -301,10 +321,13 @@ all_dbd_prots <- lapply(dbd_list,function(x) x$Annotation)
 ## Module GO enrichment.
 #--------------------------------------------------------------------
 
+# Which partition type.
+ptype <- "MCL"
+
 if (do_GO_enrichment) {
 	# Loop to perform GO enrichment analysis.
-	myfile <- file.path(rdatdir,paste0("3_All_",net,"_MCL",
-					   ,"_Module_GO_enrichment.RData"))
+	myfile <- file.path(rdatdir,paste0("3_All_",net, "_", ptype,
+	                                   "_Module_GO_enrichment.RData"))
 	# Build a GO collection.
 	gofile <- file.path(rdatdir,"3_musGOcollection.RData")
 	if (!file.exists(gofile)) {
@@ -318,12 +341,14 @@ if (do_GO_enrichment) {
 	pbar <- txtProgressBar(min=1,max=100,style=3)
 	for (i in 1:length(partitions)){
 		setTxtProgressBar(pbar,i)
-		GOresults[[i]] <- moduleGOenrichment(partitions$MCL,i, 
+		GOresults[[i]] <- moduleGOenrichment(partitions[[ptype]],i, 
 						     protmap, GOcollection)
 		if (i==length(partitions)) { close(pbar) ; message("\n") }
 	} # Ends loop.
 	saveRDS(GOresults,myfile)
 } else {
+  myfile <- file.path(rdatdir,paste0("3_All_",net,"_",ptype,
+                                     "_Module_GO_enrichment.RData"))
 	message("Loading saved module GO enrichment results!")
 	GOresults <- readRDS(myfile)
 } # Ends if/else.
@@ -345,6 +370,8 @@ all_topGO <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
 #------------------------------------------------------------------------------
 
 # Loop:
+ptype = "MCL"
+
 if (do_module_analysis) {
 	# Empty lists for output of loop:
 	results <- list(module_results = list(),
@@ -358,7 +385,7 @@ if (do_module_analysis) {
                 	modules_of_interest = list())
 	for (r in 1:100) {
 		message(paste("Working on resolution",r,"..."))
-		partition <- partitions$MCL[[r]]
+		partition <- partitions[[ptype]][[r]]
 		# Get Modules.
 		modules <- split(partition, partition)
 		names(modules) <- paste0("M", names(modules))
@@ -417,11 +444,6 @@ if (do_module_analysis) {
 		# Perform Kruskal Wallis tests to identify modules whose summary
 		# expression profile is changing.
 		KWdata_list <- lapply(ME_list, function(x) { kruskal.test(x ~ groups[names(x)]) })
-		## TEST
-		#x = ME_list[[1]]
-		#g = groups[names(x)]
-		#kruskal.test(x ~ groups[names(x)]) 
-		#kw =kruskal.test(x ~ g) # ^same result, good.
 		KWdata <- as.data.frame(do.call(rbind,KWdata_list))[-c(4,5)]
 		# Correct p-values for n comparisons.
 		method <- "bonferroni"
@@ -454,7 +476,7 @@ if (do_module_analysis) {
 		  print(nSigDT[sigModules])
 		}
 		# Numer of significant modules with disease association.
-		diseaseSig <- as.character(na.omit(sigModules[disease_sig[[r]]]))
+		diseaseSig <- nSigDT[sigModules][names(nSigDT[sigModules]) %in% disease_sig[[r]]]
 		nSigDisease <- length(diseaseSig)
 		if (nSigDisease > 0) {
 		  message(paste("Number of significant modules with",
@@ -523,11 +545,10 @@ if (do_module_analysis) {
 } else {
 	# Load and extract from list.
 	message("Loading saved module expression analysis results!")
-	myfile <- file.path(rdatdir,paste0("3_",net,"_MCL",
+	myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,
 					   "_Module_Expression_Results.RData"))
 	results <- readRDS(myfile) 
 } # ENDS LOOP.
-
 
 # Extract results from list.
 module_results <- results$module_results
@@ -551,7 +572,7 @@ n <- c("Cortex" = 4, "Striatum" = 4)[net]
 convergent_modules <- names(all_nSigDT)[which(all_nSigDT >= n)]
 
 # Collect modules of interest: DBD-associated modules.
-n <- c("Cortex" = 4, "Striatum" = 4)[net]
+n <- c("Cortex" >= 1, "Striatum" >= 1)[net]
 dbd_modules <- unlist(modules_of_interest)
 dbd_modules <- names(dbd_modules)[which(dbd_modules >= n)]
 
@@ -561,13 +582,6 @@ message(paste("Number of modules exhibiting convergent dysregulation",
 
 message(paste("Number of DBD-associated modules exhibiting",
 	      "convergent dysregulation:",length(dbd_modules)))
-
-## Summary:
-# Cortex:   Convergent (n==4): 76; DBD 97: 
-# Cortex_MCL:   Convergent (n==4): 156; DBD 46: 
-
-# Striatum: Convergent (n>=4): 2; DBD: 0
-# Striatum_MCL: Convergent: ; DBD:
 
 #--------------------------------------------------------------------
 ## How are convergent modules related?
@@ -599,12 +613,12 @@ best_k <- unique(k[seq(k)[q==max(q)]])
 message(paste0("Cut height that produces the best partition: ",best_h,"."))
 message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
 # Generate groups of similar partitions.
-hc_partition <- cutree(hc, h=best_h)
+hc_partition <- cutree(hc, k=best_k)
 groups <- split(hc_partition,hc_partition)
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
-rep_convergent_modules <- getMedoid(adjm_me,h=best_h)
+rep_convergent_modules <- getMedoid(adjm_me,h=best_h) #FIXME UNLIST
 # Update dendro with cutheight and representative modules.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
   geom_hline(yintercept=best_h, color='red', size = 1)
@@ -619,6 +633,8 @@ dendro <- dendro +
             hjust = 1, angle = 90, size = 3) + 
   scale_colour_manual(values=c("black", "red")) +
   theme(legend.position="none")
+dendro
+
 # Save.
 myfile <- prefix_file({
   file.path(figsdir,paste0(net,"_Convergent_Modules_Dendro.tiff"))
@@ -641,6 +657,9 @@ adjm_me[rep_convergent_modules,rep_convergent_modules]
 # Status.
 message("Representative divergent modules:")
 print(rep_convergent_modules)
+
+all_mcl_modules <- unlist(MCL_modules,recursive = FALSE)
+x = all_mcl_modules[rep_convergent_modules]
 
 #--------------------------------------------------------------------
 ## How are DBD-associated modules related?
@@ -1275,6 +1294,13 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
   # Subset graph.
   nodes <- names(all_modules[[module_name]])
   g <- induced_subgraph(g0,vids = V(g0)[match(nodes,names(V(g0)))])
+  
+  if (threshold_method == 3) {
+    # Network enhancement.
+    g <- neten(g)
+  }
+  # Add Gene symbols.
+  g <- set_vertex_attr(g,"symbol",value = protmap$gene[match(names(V(g)),protmap$ids)])
   # Add node color attribute.
   g <- set_vertex_attr(g,"color", value = module_colors[module_name])
   # Add node module attribute.
@@ -1290,9 +1316,6 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
   # Add hubiness (KME) attributes.
   kme <- all_KME[[module_name]]
   g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
-  # Determine the maximal threshhold in order to have connected component.
-  message(paste("Determining best hard threshold for the network.\n",
-  "    For large graphs, this may take several minutes..."))
   # METHOD 1:
   if (threshold_method == 1) {
   # FIXME: This approach is slow!
@@ -1317,10 +1340,12 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
     q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
     cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
   }
-  # Prune edges.
-  g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
-  message(paste0("... Edges remaining after thresholding: ",
+  if (threshold_method == 1 | threshold_method == 2) {
+    # Prune edges.
+    g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
+    message(paste0("... Edges remaining after thresholding: ",
                  length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
+  }
   # Fix missing values. 
   E(g)$weight[which(is.na(E(g)$weight))] <- 0 # Set NA to 0.
   # Add DBD annotations.
@@ -1339,7 +1364,7 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
   Sys.sleep(5)
   unlink(myfile)
   # Check if network view was successfully created.
-  if (length(cys_net))
+  if (length(cys_net)) {
     result = tryCatch({
       getNetworkViews()
     }, warning = function(w) {
@@ -1347,9 +1372,10 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
     }, error = function(e) {
       commandsPOST("view create")
     }, finally = {
-      print("done")
+      print("Created Network View!")
     }
     )
+  }
 	# Create a visual style.
 	style.name <- paste(module_name,"style",sep="-")
 	# DEFAULTS:
@@ -1409,8 +1435,8 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
 	  bypass = TRUE,
 	)
 	# Add PPI edges.
-	if (length(which(nodes %notin% names(V(g1))))) {
-	  nodes <- nodes[-which]
+	if (sum(nodes %notin% names(V(g1)))>0) {
+	  nodes <- nodes[-which(nodes %notin% names(V(g1)))]
 	}
 	# If any nodes not in ppi graph then problems, remove them.
 	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
@@ -1444,14 +1470,14 @@ create_PPI_graph <- function(g0, g1, all_modules, module_name, network_layout,
 }
 
 # Generate networks for representative convergent modules.
-for (i in 1:length(rep_convergent_modules)){
+for (i in 2:length(rep_convergent_modules)){
   network_layout <- 'force-directed edgeAttribute=weight'
   message(paste("Working on module",rep_convergent_modules[i],"..."))
   myfile <- file.path(netsdir,paste0(net,"_Top_Convergent_Modules"))
-  create_PPI_graph(g0,g1,all_MCL_modules,
+  create_PPI_graph(g0,g1,all_modules,
                    rep_convergent_modules[i],network_layout,output_file=myfile)
 }
-deleteAllNetworks()
+all_pdeleteAllNetworks()
 
 # Generate networks for representative DBD-associated modules.
 for (i in 1:length(rep_dbd_modules)){

@@ -7,7 +7,7 @@
 # the analysis.
 
 # Update existing packages.
-#update.packages(ask = FALSE, repos = "http://cran.rstudio.org")
+update.packages(ask = FALSE, repos='http://cran.us.r-project.org')
 
 # R install package (rip) - a function for installing packages.
 rip <- function(package, method = "utils", ...) {
@@ -28,7 +28,7 @@ rip <- function(package, method = "utils", ...) {
 	} else if (method == "BiocManager") {
 		BiocManager::install(package, ...)
 	} else if (method == "utils") {
-		utils::install.packages(package, ...)
+		utils::install.packages(package,repos='http://cran.us.r-project.org',...)
 	} else if (method == "devtools") {
 		devtools::install_github(package, ...)
 	} else if (method == "source") {
@@ -41,9 +41,9 @@ rip <- function(package, method = "utils", ...) {
 rip("BiocManager")
 
 # Devtools depends upon ps, xml2, and roxygen2.
-#rip("https://cran.r-project.org/src/contrib/ps_1.3.0.tar.gz", method = "source")
-#rip("https://cran.r-project.org/src/contrib/xml2_1.2.2.tar.gz", method = "source") 
-#rip("https://cran.r-project.org/src/contrib/roxygen2_6.1.1.tar.gz", method = "source")
+rip("https://cran.r-project.org/src/contrib/ps_1.3.0.tar.gz", method = "source")
+rip("https://cran.r-project.org/src/contrib/xml2_1.2.2.tar.gz", method = "source") 
+rip("https://cran.r-project.org/src/contrib/roxygen2_6.1.1.tar.gz", method = "source")
 
 # Install other R dependencies:
 rip("devtools")
@@ -83,6 +83,3 @@ rip("WGCNA", method = "BiocManager")
 rip("vsn", method = "BiocManager")
 rip("org.Mm.eg.db", method = "BiocManager")
 rip("DescTools", method = "BiocManager")
-
-# ENDOFILE
-#------------------------------------------------------------------------------
