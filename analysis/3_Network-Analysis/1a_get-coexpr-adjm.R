@@ -15,6 +15,7 @@ suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
   library(WGCNA)
+  library(neten)
 })
 
 # Directories.
@@ -75,6 +76,13 @@ adjm <- lapply(subDat, function(x) {
     WGCNA::bicor(t(x))
   })
 })
+
+# Perform network enhancement.
+adjm_ne <- lapply(adjm,neten)
+names(adjm_ne) <- paste(names(adjm_ne),"NE",sep="_")
+
+# Combine with other networks.
+adjm <- c(adjm,adjm_ne)
 
 # Coerce adjm to data.tables.
 adjm <- lapply(adjm, as.data.table)

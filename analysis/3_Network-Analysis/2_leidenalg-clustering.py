@@ -8,7 +8,7 @@
 # rmin - min resolution
 # rmax - max resolution
 # nsteps - number of steps between rmin and rmax.
-adjm_type = 'Enhanced Cortex' 
+adjm_type = 'Enhanced Striatum' 
 method = 'Surprise' 
 n_iterations = -1
 rmin = 0
@@ -24,8 +24,9 @@ from sys import stderr
 
 ## Input adjacency matrix.
 adjms = {"Cortex" : "3_Cortex_Adjm.csv",
-        "Enhanced Cortex" : "3_Cortex_NEAdjm.csv",
+        "Enhanced Cortex" : "3_Cortex_NE_Adjm.csv",
         "Striatum" : "3_Striatum_Adjm.csv",
+        "Enhanced Striatum" : "3_Striatum_NE_Adjm.csv",
         "Combined" : "3_Combined_Adjm.csv",
         "PPI" : "3_PPI_Adjm.csv",
         "GO" : "3_GO_Semantic_Similarity_RMS_Adjm.csv"}
