@@ -40,7 +40,7 @@ getMedoid <- function(adjm, k = NULL, h = NULL, method = "ward.D2") {
   }
   # Get Medoid.
   if (length(groups) > 0) {
-    rep_branches <- sapply(groups, function(x) {
+    rep_modules <- sapply(groups, function(x) {
       col_sums <- apply(adjm[names(x), names(x)], 2, sum)
       idy <- which(col_sums == min(col_sums))
       if (length(idy) > 1) {
