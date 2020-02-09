@@ -55,7 +55,7 @@ samples <- list(
 )
 
 # Subset WT and KO data.
-subDat <- lapply(samples, function(x) as.matrix(data %>% select(x)))
+subDat <- lapply(samples, function(x) as.matrix(data %>% select(all_of(x))))
 
 # Fix rownames.
 subDat <- lapply(subDat, function(x) {
@@ -78,6 +78,7 @@ adjm <- lapply(subDat, function(x) {
 })
 
 # Perform network enhancement.
+message("Performing network enhancement, this will take several minutes...")
 adjm_ne <- lapply(adjm,neten)
 names(adjm_ne) <- paste(names(adjm_ne),"NE",sep="_")
 

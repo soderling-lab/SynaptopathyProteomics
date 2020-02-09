@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# View a list of your environments.
-#conda env list
-
-# Create a R virtual environment with conda.
-conda create -p ../renv --prefix ../renv r-essentials r-base --yes

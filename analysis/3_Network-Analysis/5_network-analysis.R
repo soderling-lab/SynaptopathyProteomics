@@ -10,6 +10,7 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
+ptype = "LA"
 net = "Cortex" # Which network are we analyzing? 
 overwrite_figsdir = TRUE
 do_DBD_enrichment = TRUE
@@ -20,12 +21,11 @@ do_module_analysis = TRUE
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
-  library(getPPIs)
   library(purrr)
   library(WGCNA)
   library(org.Mm.eg.db)
-  library(anRichment)
-  library(getPPIs)
+ # library(anRichment)
+ # library(getPPIs)
   library(DescTools)
   library(igraph)
   #library(vegan)
@@ -115,6 +115,12 @@ partitions <- list(LA = readRDS(myfiles[1]),
 partitions$LA <- lapply(partitions$LA,reset_index)
 partitions$MCL <- lapply(partitions$MCL,reset_index)
 
+# Name partitions.
+LA_modules <- name_partitions(partitions$LA,rprefix="R",mprefix="M",output="partition")
+MCL_modules <- name_partitions(partitions$MCL,rprefix="R",mprefix="M",output="partition")
+all_MCL_modules <- unlist(MCL_modules,recursive = FALSE)
+all_LA_modules <- unlist(LA_modules,recursive = FALSE)
+
 # Load theme for plots.
 ggtheme()
 
@@ -127,6 +133,8 @@ ggtheme()
 # Examine module jaacard similarity for all pairwise comparisons between 
 # modules. We will use this to assign modules a color based on their protein 
 # composition and similarity to three founding modules.
+all_modules <- unlist(name_partitions(partitions$LA,rprefix="R",
+			       mprefix="M",output="partition"), recursive=FALSE)
 
 # All comparisons (contrasts).
 contrasts <- expand.grid("M1"=names(all_modules), "M2"=names(all_modules),
@@ -189,22 +197,6 @@ names(module_colors) <- names(all_modules)
 # Assign M0 to grey.
 module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
-# Make protein colors.
-name_partitions <- function(partitions,rprefix="R",mprefix="M",output="modules") {
-  names(partitions) <- paste0(rprefix,c(1:length(partitions)))
-  parts <- lapply(partitions,function(x) split(x,x))
-  parts <- lapply(parts,function(x) { names(x) <- paste0(mprefix,names(x)); return(x) })
-  if (output == "modules") {
-    return(unlist(parts,recursive=FALSE))
-  } else if (output == "partition") {
-    return(parts)
-  }
-}
-
-LA_modules <- name_partitions(partitions$LA,rprefix="R",mprefix="M",output="partition")
-MCL_modules <- name_partitions(partitions$MCL,rprefix="R",mprefix="M",output="partition")
-all_MCL_modules <- unlist(MCL_modules,recursive = FALSE)
-
 # How to map LA colors to MCL partition????
 out1 <- list()
 out2 <- list()
@@ -237,9 +229,6 @@ MCL_2_LA <- out2
 geneSet <- "mouse_Combined_DBD_geneSets.RData"
 myfile <- file.path(rdatdir,geneSet)
 DBDcollection <- readRDS(myfile)
-
-# Which partition type.
-ptype <- "MCL"
 
 if (do_DBD_enrichment) {
   # Perform disease enrichment analysis.
@@ -280,8 +269,6 @@ message(paste("Total number of disease associated modules:",nDBDsig))
 #--------------------------------------------------------------------
 
 # Which partition type.
-ptype <- "MCL"
-
 if (do_GO_enrichment) {
 	# Loop to perform GO enrichment analysis.
 	myfile <- file.path(rdatdir,paste0("3_All_",net, "_", ptype,
@@ -328,8 +315,6 @@ all_topGO <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
 #------------------------------------------------------------------------------
 
 # Loop:
-ptype = "MCL"
-
 if (do_module_analysis) {
 	# Empty lists for output of loop:
 	results <- list(module_results = list(),
@@ -497,14 +482,12 @@ if (do_module_analysis) {
 	names(results$DT_results) <- paste0("R",c(1:100))
 	names(results$nSigDT_results) <- paste0("R",c(1:100))
 	names(results$modules_of_interest) <- paste0("R",c(1:100))
-	myfile <- file.path(rdatdir,paste0("3_",net,"_MCL"
-					   ,"_Module_Expression_Results.RData"))
+	myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,"_Module_Expression_Results.RData"))
 	saveRDS(results,myfile)
 } else {
 	# Load and extract from list.
 	message("Loading saved module expression analysis results!")
-	myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,
-					   "_Module_Expression_Results.RData"))
+	myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,"_Module_Expression_Results.RData"))
 	results <- readRDS(myfile) 
 } # ENDS LOOP.
 
