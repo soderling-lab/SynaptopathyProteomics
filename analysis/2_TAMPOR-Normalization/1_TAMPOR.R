@@ -6,11 +6,12 @@
 #' authors: Tyler W Bradshaw, Eric B Dammer.
 #' ---
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Prepare the workspace.
-#-------------------------------------------------------------------------------
-# Prepare the R workspace for the analysis. Load custom functions and prepare
-# the project directory for saving output files.
+#---------------------------------------------------------------------
+# Prepare the R workspace for the analysis. 
+# Load custom functions and prepare the project directory for saving 
+# output files.
 
 rm(list = ls())
 if (!is.null(dev.list())) {
@@ -33,8 +34,7 @@ suppressPackageStartupMessages({
   library(anRichment)
   library(openxlsx)
   library(org.Mm.eg.db)
-  library(fgsea)
-  library(getPPIs)
+  library(AnnotationDbi)
 })
 
 # Define tisue type:
@@ -48,7 +48,8 @@ rootdir <- dirname(dirname(here))
 functiondir <- paste(rootdir, "R", sep = "/")
 datadir <- paste(rootdir, "data", sep = "/")
 Rdatadir <- paste(rootdir, "rdata", sep = "/")
-outputfigs <- paste(rootdir, "figs", tissue, sep = "/")
+outputfigs <- paste(rootdir,"figs",
+		    "2_TAMPOR-Normalization",Sys.Date(),sep="/")
 outputtabs <- paste(rootdir, "tables", sep = "/")
 
 # Load required custom functions.
@@ -56,9 +57,9 @@ myfun <- list.files(functiondir, pattern = ".R", full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Create a directory for figure output.
-script_name <- "1_TAMPOR"
-outputfigs <- file.path(rootdir,"figs",Sys.Date(),script_name)
-dir.create(outputfigs,recursive=FALSE)
+outputfigs <- paste(rootdir,"figs",
+		    "2_TAMPOR-Normalization",Sys.Date(),sep="/")
+dir.create(outputfigs,recursive=TRUE)
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("2_", tissue)
@@ -66,11 +67,11 @@ outputMatName <- paste0("2_", tissue)
 # Globally set ggplots theme.
 ggtheme()
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Merge cortex and striatum data.
-#-------------------------------------------------------------------------------
-# We will utilize TAMPOR to combine the Cortex and Striatum datasets. Merge the
-# preprocessed data and traits files.
+#---------------------------------------------------------------------
+# We will utilize TAMPOR to combine the Cortex and Striatum datasets.
+# Merge the preprocessed data and traits files.
 
 # Merge traits data.
 # Load the cortex and striatum traits files.
@@ -151,12 +152,12 @@ colnames(allDat) <- c(group1, group2)
 controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 
 # Save merged traits file.
-myfile <- paste0(Rdatadir, "/", outputMatName, "_traits.RData")
+myfile <- file.path(Rdatadir, "2_Combined_traits.RData")
 saveRDS(alltraits, file = myfile)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Insure than any samples that were removed from cleanDat are removed from
 # traits (any outliers identified in previous scripts).
@@ -175,9 +176,9 @@ results <- TAMPOR(
 # Collect normalize relative abundance data.
 cleanDat <- results$cleanRelAbun
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Identify and remove any sample outliers.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Remove QC samples.
 out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
@@ -214,9 +215,9 @@ cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
 myfile <- file.path(Rdatadir, "2_Combined_cleanDat.RData")
 saveRDS(cleanDat, myfile)
 
-#-------------------------------------------------------------------------------
-## Examine sample clustering with MDS and PCA post-TAMPOR Normalization.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
+## Examine sample clustering post-TAMPOR Normalization.
+#---------------------------------------------------------------------
 
 # Insure that any outlier samples have been removed.
 traits <- alltraits[rownames(alltraits) %in% colnames(cleanDat), ]
@@ -251,9 +252,9 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
   title = "Combined"
 )
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Create protein identifier map.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Get uniprot ids from rownames.
 ids <- rownames(cleanDat)
@@ -306,9 +307,9 @@ protmap <- data.frame(ids, uniprot, entrez, gene)
 myfile <- file.path(Rdatadir, "2_Protein_ID_Map.RData")
 saveRDS(protmap, myfile)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Statistical comparisons are KO/HET versus all WT of a tissue type.
 
@@ -476,9 +477,9 @@ saveRDS(glm_results, myfile)
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Collect GLM statistics in a list.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Names of relevant columns.
 colNames <- colnames(glm_results[[1]])[c(2, 5:9)]
@@ -513,9 +514,9 @@ glm_stats <- lapply(glm_stats, function(x) {
 myfile <- file.path(Rdatadir, "2_GLM_Stats.RData")
 saveRDS(glm_stats, myfile)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Volcano plots for each genotype.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Add column for genotype and unique ID to results in list.
 output <- list()
@@ -586,143 +587,9 @@ vp2 <- plots$Shank3
 vp3 <- plots$Syngap1
 vp4 <- plots$Ube3a
 
-#-------------------------------------------------------------------------------
-## GSE analaysis for each genotype.
-#-------------------------------------------------------------------------------
-
-gse <- FALSE
-
-if (gse) {
-  # Load SynGO.
-  myfile <- file.path(Rdatadir, "SynGO_Pathways.RData")
-  synGO <- readRDS(myfile)
-  # Combine CC and BP.
-  msPathways <- do.call(c, synGO)
-
-  # Other pathways.
-  # data(examplePathways)
-  # pathways <- examplePathways
-
-  # Load GO dataset from BROAD Instititute. We will map human genes to mouse.
-  # From: http://software.broadinstitute.org/gsea/downloads.jsp
-  # Ge lab data from: http://ge-lab.org/#/data
-  # Baderlab data: http://download.baderlab.org/EM_Genesets/current_release/
-  datasets <- c(
-    All_curated = "c2.all.v7.0.entrez.gmt", # 1
-    Hallmark = "h.all.v7.0.entrez.gmt", # 2
-    All_canonical = "c2.cp.v7.0.entrez.gmt", # 3
-    ALL_GO = "c5.all.v7.0.entrez.gmt", # 4
-    GO_MF = "c5.mf.v7.0.entrez.gmt", # 5
-    GO_BP = "c5.bp.v7.0.entrez.gmt", # 6
-    GO_CC = "c5.cc.v7.0.entrez.gmt", # 7
-    MSigDB = "msigdb.v7.0.entrez.gmt", # 8. This is all lists!
-    Reactome = "c2.cp.reactome.v7.0.entrez.gmt", # 9
-    TF_motif = "c3.tft.v7.0.entrez.gmt", # 10
-    microRNA_motif = "c3.mir.v7.0.entrez.gmt", # 11
-    All_motif = "c3.all.v7.0.entrez.gmt", # 12
-    Ge_mus_curated = "mGSKB_Entrez.gmt", # 13
-    Ge_mus_compiled = "Ge_Mus_GO_KEGG.gmt", # 14. Compiled GO/KEGG
-    Bader = "Mouse_AllPathways_December_01_2019_entrezgene.gmt"
-  )
-
-
-  # Choose a dataset.
-  paths <- datasets[15]
-  myfile <- file.path(Rdatadir, paths)
-  pathways <- gmtPathways(myfile)
-  filter <- FALSE # Should genes that are not in synaptic proteome be removed?
-  map2mouse <- FALSE # Map human genes to mouse?
-
-  # Clean up pathways...
-  keep <- c(1:length(pathways))[!is.na(names(pathways))]
-  pathways <- pathways[keep]
-
-  # Get mouse homologs of human genes in pathways list.
-  if (map2mouse) {
-    hsEntrez <- unique(unlist(pathways))
-    msHomologs <- getHomologs(hsEntrez, taxid = "10090") # mouse taxid
-    names(msHomologs) <- hsEntrez
-    # Map to mouse, discard unmapped (NA) genes.
-    msPathways <- lapply(pathways, function(x) purrr::discard(msHomologs[x], is.na))
-  } else {
-    msPathways <- pathways
-  }
-
-  # Filter pathways; keep genes in data; remove empty pathways;
-  # remove duplicate genes from pathways.
-  genes <- protmap$entrez[match(rownames(allDat), protmap$ids)]
-  filter_pathways <- function(pathways, genes) {
-    pathways <- lapply(pathways, function(x) purrr::discard(x, x %notin% genes))
-    keep <- names(pathways)[!sapply(pathways, function(x) length(x) == 0)]
-    pathways <- pathways[keep]
-    return(pathways)
-  }
-  if (filter) {
-    msPathways <- filter_pathways(msPathways, genes)
-  }
-  # Check: What percentage of genes are in pathways list?
-  percentMapped <- sum(genes %in% unique(unlist(msPathways))) / length(genes)
-  message(paste("Percent genes in pathways:", round(100 * percentMapped, 2)))
-  # Total number of pathways.
-  message(paste("Number of pathways:", length(msPathways)))
-
-  # Parameters for loop.
-  # Stats: c("logFC","%WT","F","PValue","FDR")
-  alpha <- 0.05 # P-value cut-off for GS enrichment.
-  stat <- "logFC" # Which statistic to use for ranks in GSEA.
-  minSize <- 5 # Minimum pathway size.
-  maxSize <- 500 # Maximum pathway size.
-  sigOnly <- TRUE # Analyze all genes or just significantly DA?
-
-  # Loop to perform GSEA.
-  result <- list()
-  for (i in 1:8) {
-    # Which Geno.Tissue...
-    df <- glm_stats[[stat]]
-    geno <- paste(strsplit(colnames(df)[i], "\\ ")[[1]][-3], collapse = " ")
-    message(paste("Performing GSEA for:", geno, "..."))
-    idy <- grep(geno, colnames(df))
-    # Ranks based on GLM stats.
-    # ranks <- -log10(df[,idy]) # For pvalue ranks.
-    ranks <- df[, idy]
-    names(ranks) <- rownames(df)
-    # Map proteins to entrez.
-    entrez <- protmap$entrez[match(names(ranks), protmap$ids)]
-    names(ranks) <- entrez
-    # Analyze just significant genes?
-    idy <- grep(geno, colnames(glm_stats$FDR))
-    sig <- glm_stats$FDR[, idy] < alpha
-    names(sig) <- rownames(glm_stats$FDR)
-    names(sig) <- protmap$entrez[match(names(sig), protmap$ids)]
-    sig <- names(sig[sig])
-    if (sigOnly) {
-      ranks <- ranks[names(ranks) %in% sig]
-    }
-    # Ranks must be sorted in increasing order.
-    ranks <- ranks[order(ranks)]
-    # Perform GSEA.
-    gseDat <- fgsea(msPathways, ranks, minSize, maxSize, nperm = 1e+05)
-    # Sort by p-value.
-    gseDat <- gseDat[order(gseDat$pval), ]
-    # Add column for gene symbols to results.
-    genes <- lapply(gseDat$leadingEdge, function(x) {
-      protmap$gene[match(x, protmap$entrez)]
-    })
-    gseDat$GeneSymbols <- genes
-    # Status.
-    message(paste("Number of significant pathways:", sum(gseDat$padj < alpha)))
-    result[[geno]] <- gseDat
-  } # Ends loop.
-
-  # Save as excel.
-  # Note: padj method is BH.
-  myfile <- file.path(outputtabs, "2_Combined_GSEA.xlsx")
-  write_excel(result, myfile)
-}
-
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## GO Enrichment of DA proteins using anRichment package
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Build a df with the combined statistical results.
 df <- glm_stats$PValue
@@ -796,9 +663,9 @@ myfile <- file.path(outputtabs, "2_Combined_GO_Analysis.xlsx")
 write_excel(results_GOenrichment, myfile)
 }
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Condition overlap plot.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Load statistical results..
 results <- glm_results
@@ -887,9 +754,9 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 myfile <- prefix_file(file.path(outputfigs,"Condition_Overlap_Plot.tiff"))
 ggsave(myfile,plot)
 
-#--------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Generate protein boxplots.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
@@ -929,13 +796,13 @@ plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors
 # Facet plots, add significance stars, and reformat x.axis labels.
 plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Write data to excel spreadsheet.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Load data.
 files <- list(
-  traits = paste(Rdatadir, "2_Combined_traits.Rdata", sep = "/"),
+  traits = paste(Rdatadir, "2_Combined_traits.RData", sep = "/"),
   raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.RData", sep = "/"),
   raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.RData", sep = "/"),
   cleanDat = paste(Rdatadir, "2_Combined_cleanDat.RData", sep = "/")

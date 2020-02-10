@@ -13,10 +13,8 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-self <- "Striatum" # Which networks to test self preservation in?
-partition_file <- "Striatum_Surprise" # Which partition file to use?
-#resolutions <- seq(1:100) # Resolutions to be anlyzed.
-resolutions <- 1 # Resolutions to be anlyzed.
+self <- "Cortex" # Which networks to test self preservation in?
+partition_file <- "Cortex_Surprise" # Which partition file to use?
 replace_negative <- "zero" # How should negative weights be handled?
 min_size <- 5 # minimum allowable size for a module.
 verbose <- FALSE
@@ -107,6 +105,7 @@ myfiles <- c("Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
 	     "Striatum_Surprise" = "3_Striatum_SurpriseVertexPartition_partitions.csv")
 partitions <- fread(file.path(rdatdir,myfiles[partition_file]), 
 		    header=TRUE,drop = 1)
+resolutions <- nrow(partitions)
 
 # Enforce consistent dimensions between data and adjm.
 # Remove duplicate column from data.
@@ -130,7 +129,8 @@ check <- all(colnames(data) == colnames(partitions))
 # Input for NetRep:
 data_list <- list(self = data)
 correlation_list <- list(self = adjm)
-# Networks (edges) should be positive.
+
+# Networks (edges) should be positive...
 if (replace_negative == "absolute value") {
 	# Replace negative edges as absolute value.
 	network_list <- list(self = abs(adjm))

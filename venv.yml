@@ -1,9 +1,9 @@
 name: SynaptopathyProteomics
 channels:
   - r
+  - conda-forge
   - bioconda
   - anaconda
-  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -19,9 +19,9 @@ dependencies:
   - bleach=3.1.0=py37_0
   - bwidget=1.9.11=1
   - bzip2=1.0.8=h7b6447c_0
-  - ca-certificates=2019.9.11=hecc5488_0
+  - ca-certificates=2020.1.1=0
   - cairo=1.14.12=h8948797_3
-  - certifi=2019.9.11=py37_0
+  - certifi=2019.11.28=py37_0
   - curl=7.65.3=hbc83047_0
   - decorator=4.4.0=py37_1
   - defusedxml=0.6.0=py_0
@@ -83,7 +83,7 @@ dependencies:
   - notebook=6.0.1=py37_0
   - numpy=1.17.2=py37haad9e8e_0
   - numpy-base=1.17.2=py37hde5b4d6_0
-  - openssl=1.1.1=h7b6447c_0
+  - openssl=1.1.1d=h7b6447c_4
   - packaging=19.2=py_0
   - pandas=0.25.2=py37he6710b0_0
   - pandoc=2.2.3.2=0
@@ -119,6 +119,7 @@ dependencies:
   - r-base=3.6.1=h9bb98a2_1
   - r-base64enc=0.1_3=r36h96ca727_4
   - r-bh=1.69.0_1=r36h6115d3f_0
+  - r-biocmanager=1.30.10=r36h6115d3f_0
   - r-boot=1.3_20=r36h6115d3f_0
   - r-broom=0.5.2=r36h6115d3f_0
   - r-callr=3.2.0=r36h6115d3f_0

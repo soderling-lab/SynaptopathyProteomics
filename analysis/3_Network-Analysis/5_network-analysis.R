@@ -1,9 +1,10 @@
 #!/usr/bin/env Rscript
 
-# Find representative partitions of the graph.
-# Find representative modules of interest:
-#     1. DBD-associated modules.
-#     2. Convergent modules.
+#' ---
+#' title: Network Analysis
+#' description: Protein co-expression analysis
+#' authors: Tyler W Bradshaw
+#' ---
 
 #-------------------------------------------------------------------------------
 ## Set-up the workspace.
@@ -69,6 +70,7 @@ sigProts <- apply(glm_stats$FDR,1,function(x) any(x<0.05))
 sigProts <- names(sigProts)[sigProts]
 
 # SigProts by genotype.
+# FIXME: how to avoid error message?
 fdr_df <- glm_stats$FDR
 fdr_df$Protein <- rownames(fdr_df)
 sig_df <- melt(fdr_df,id="Protein") %>% 

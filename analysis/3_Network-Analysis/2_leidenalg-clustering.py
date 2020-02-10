@@ -2,22 +2,25 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-# Resolution space to profile for multiresolution methods:
+# rmin - minimum resolution for multi-resolution methods.
+# rmax - maximum resolution for multi-resolution methods.
+# adjm_type - string specifying input adjacency matrix.
+# max_size - number of steps to take between rmin and rmax.
+# recursive - boolean indicating whehter or not large modules will be
+#    recursively split.
+# n_iterations - number indicating the number of iterations to run Leidenalg
+#    optimizer. If -1, then it will be run until there is no further 
+#    improvement in the partition of the graph.
+# method - string specifying the optimization method to be used.
+# adjm_type - string specifying the input adjacency matrix, see below.
 rmin = 0
 rmax = 1
 nsteps = 100
-# For single resolution methods, recursively split large modules?
 max_size = 100
 recursive = True
-# For all methods, run optimizer until no improvement is observed.
 n_iterations = -1
-# Optimization method - One of: Modularity, Surprise, 
-#     RBConfiguration, RBER, CPM, or Significance.
-# NOTE: All other clustering parameters will be appropriately chosen 
-#     based on the optimization method.
 method = 'Surprise' 
-# adjm_type - string specifying input adjacency matrix.
-adjm_type = 'Enhanced Striatum' 
+adjm_type = 'Enhanced Cortex' 
 
 #--------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -160,6 +163,7 @@ if parameters.get('resolution_parameter') is None:
         n_big = sum(too_big)
         print("Recursively spliting {} large module(s)...".format(n_big),
                 file=stderr)
+        print("... Initial partition: " + partition.summary() + ".",file=stderr)
         while any(too_big):
             # Perform clustering for any subgraphs that are too big.
             idx = [i for i, too_big in enumerate(too_big) if too_big] 
@@ -178,7 +182,8 @@ if parameters.get('resolution_parameter') is None:
         new_membership = [new_partition.get(node) for node in partition.graph.vs['name']]
         partition.set_membership(new_membership)
         # Replace partition in profile list.
-        profile.insert(0,partition)
+        profile[0] = partition
+        print("... Final partition: " + partition.summary() + ".",file=stderr)
 else:
     # Loop to perform multi-resolution clustering methods.
     pbar = ProgressBar()
