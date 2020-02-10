@@ -1,19 +1,23 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python4
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-# adjm_type - string specifying input adjacency matrix.
-# method - string specifying the optimization method. One of: Modularity, 
-#    Surprise, RBConfiguration, RBER, CPM, or Significance.
-# rmin - min resolution
-# rmax - max resolution
-# nsteps - number of steps between rmin and rmax.
+
+## Resolution space to profile for multiresolution methods:
 rmin = 0
 rmax = 1
 nsteps = 100
+## For single resolution methods, recursively split large modules?
+max_size = 100
 recursive = True
+## For all methods, run optimizer until no improvement is observed.
 n_iterations = -1
+## Optimization method - One of: Modularity, Surprise, 
+#     RBConfiguration, RBER, CPM, or Significance.
+# NOTE: All other clustering parameters will be appropriately chosen 
+#     based on the optimization method.
 method = 'Surprise' 
+## adjm_type - string specifying input adjacency matrix.
 adjm_type = 'Enhanced Striatum' 
 
 #------------------------------------------------------------------------------
@@ -151,6 +155,7 @@ if parameters.get('resolution_parameter') is None:
     optimiser = Optimiser()
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
 
+# Recursively split modules that are too big.
     partition.membership
 
     dir(partition)
