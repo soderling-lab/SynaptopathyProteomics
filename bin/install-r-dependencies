@@ -70,8 +70,10 @@ rip("igraph")
 rip("NetRep") 
 rip("dendextend")
 rip("FSA")
+rip("locfit")
 
 # Additional packages from Bioconductor.
+
 rip("Biobase", method = "BiocManager")
 rip("impute", method = "BiocManager")
 rip("edgeR", method = "BiocManager")

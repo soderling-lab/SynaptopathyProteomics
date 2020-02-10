@@ -1,28 +1,27 @@
-#!/usr/bin/env python4
+#!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-
-## Resolution space to profile for multiresolution methods:
+# Resolution space to profile for multiresolution methods:
 rmin = 0
 rmax = 1
 nsteps = 100
-## For single resolution methods, recursively split large modules?
+# For single resolution methods, recursively split large modules?
 max_size = 100
 recursive = True
-## For all methods, run optimizer until no improvement is observed.
+# For all methods, run optimizer until no improvement is observed.
 n_iterations = -1
-## Optimization method - One of: Modularity, Surprise, 
+# Optimization method - One of: Modularity, Surprise, 
 #     RBConfiguration, RBER, CPM, or Significance.
 # NOTE: All other clustering parameters will be appropriately chosen 
 #     based on the optimization method.
 method = 'Surprise' 
-## adjm_type - string specifying input adjacency matrix.
+# adjm_type - string specifying input adjacency matrix.
 adjm_type = 'Enhanced Striatum' 
 
-#------------------------------------------------------------------------------
+#--------------------------------------------------------------------
 ## Parse the user provided parameters.
-#------------------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 import sys
 from sys import stderr
@@ -102,9 +101,9 @@ myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
 envars = {var:os.environ.get(var) for var in myvars}
 jobID = xstr(envars['SLURM_JOBID'])
 
-#------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Load input adjacency matrix and create an igraph object.
-#------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 from igraph import Graph
 from pandas import read_csv, DataFrame
@@ -127,9 +126,9 @@ else:
 # Add graph to input parameters for clustering.
 parameters['graph'] = g
 
-#------------------------------------------------------------------------------
+#--------------------------------------------------------------------
 ## Community detection with the Leiden algorithm.
-#------------------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 import numpy as np
 from numpy import linspace
@@ -148,38 +147,49 @@ for key in out: del parameters[key]
 
 # Perform Leidenalg community detection. 
 if parameters.get('resolution_parameter') is None:
-
     # Single resolution methods.
     profile = list()
     partition = find_partition(**parameters)
     optimiser = Optimiser()
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
-
-# Recursively split modules that are too big.
-    partition.membership
-
-    dir(partition)
-
-    [module > 100 for module in partition.sizes()]
-
     profile.append(partition)
-    m = np.array(partition.membership)
-
-    #unclustered = sum(m==0)/len(m)
-    print(partition.summary())
-    #print("Percent unclustered: {}".format(unclustered) + " (%).\n")
-
+    if recursive:
+        # Recursively split modules that are too big.
+        subgraphs = partition.subgraphs()
+        too_big = [subg.vcount() > max_size for subg in subgraphs]
+        n_big = sum(too_big)
+        print("Recursively spliting {} large module(s)...".format(n_big),
+                file=stderr)
+        while any(too_big):
+            # Perform clustering for any subgraphs that are too big.
+            idx = [i for i, too_big in enumerate(too_big) if too_big] 
+            parameters['graph'] = subgraphs.pop(idx[0])
+            part = find_partition(**parameters)
+            optimiser = Optimiser()
+            diff = optimiser.optimise_partition(part,n_iterations=-1)
+            # Add to list.
+            subgraphs.extend(part.subgraphs())
+            too_big = [subg.vcount() > max_size for subg in subgraphs]
+        # Collect subgraph membership as a single partition.
+        nodes = [subg.vs['name'] for subg in subgraphs]
+        parts = [dict(zip(n,[i]*len(n))) for i, n in enumerate(nodes)]
+        new_partition = {k: v for d in parts for k, v in d.items()}
+        # Set membership of initial graph.
+        new_membership = [new_partition.get(node) for node in partition.graph.vs['name']]
+        partition.set_membership(new_membership)
+        # Replace partition in profile list.
+        profile.insert(0,partition)
 else:
     # Loop to perform multi-resolution clustering methods.
     pbar = ProgressBar()
     profile = list()
     resolution_range = linspace(**parameters.get('resolution_parameter'))
     for resolution in pbar(resolution_range):
+        # Update resolution parameter.
         parameters['resolution_parameter'] = resolution
         partition = find_partition(**parameters)
         optimiser = Optimiser()
         diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        #partition = filter_modules(partition)
         profile.append(partition)
         # Ends loop.
 # Ends If/else.
