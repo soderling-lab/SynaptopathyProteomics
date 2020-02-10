@@ -10,8 +10,8 @@
 #-------------------------------------------------------------------------------
 
 ## User parameters to change:
-ptype = "LA"
-net = "Striatum" # Which network are we analyzing? 
+ptype = "Surprise"
+net = "Cortex" # Which network are we analyzing? 
 do_DBD_enrichment = TRUE
 do_GO_enrichment = FALSE
 do_module_analysis = FALSE
@@ -120,6 +120,9 @@ SVP_modules <- name_partitions(partitions$SVP,rprefix="R",mprefix="M",output="pa
 all_MCL_modules <- unlist(MCL_modules,recursive = FALSE)
 all_LA_modules <- unlist(LA_modules,recursive = FALSE)
 all_SVP_modules <- unlist(SVP_modules,recursive = FALSE)
+
+sapply(all_SVP_modules,length)
+
 
 # Load theme for plots.
 ggtheme()

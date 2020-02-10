@@ -8,12 +8,13 @@
 # rmin - min resolution
 # rmax - max resolution
 # nsteps - number of steps between rmin and rmax.
-adjm_type = 'Enhanced Striatum' 
-method = 'Surprise' 
-n_iterations = -1
 rmin = 0
 rmax = 1
 nsteps = 100
+recursive = True
+n_iterations = -1
+method = 'Surprise' 
+adjm_type = 'Enhanced Striatum' 
 
 #------------------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -104,7 +105,7 @@ jobID = xstr(envars['SLURM_JOBID'])
 from igraph import Graph
 from pandas import read_csv, DataFrame
 
-# Read bicor adjacency matrix.
+# Load adjacency matrix.
 input_adjm = adjms.get(adjm_type)
 myfile = os.path.join(datadir,input_adjm)
 adjm = read_csv(myfile, header = 0, index_col = 0)
@@ -143,17 +144,26 @@ for key in out: del parameters[key]
 
 # Perform Leidenalg community detection. 
 if parameters.get('resolution_parameter') is None:
+
     # Single resolution methods.
     profile = list()
     partition = find_partition(**parameters)
     optimiser = Optimiser()
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
-    #partition = filter_modules(partition)
+
+    partition.membership
+
+    dir(partition)
+
+    [module > 100 for module in partition.sizes()]
+
     profile.append(partition)
     m = np.array(partition.membership)
+
     #unclustered = sum(m==0)/len(m)
     print(partition.summary())
     #print("Percent unclustered: {}".format(unclustered) + " (%).\n")
+
 else:
     # Loop to perform multi-resolution clustering methods.
     pbar = ProgressBar()
