@@ -13,8 +13,8 @@
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-self <- "Cortex" # Which networks to test self preservation in?
-partition_file <- "Cortex_Surprise" # Which partition file to use?
+self <- "Striatum" # Which networks to test self preservation in?
+partition_file <- "Striatum_Surprise" # Which partition file to use?
 #resolutions <- seq(1:100) # Resolutions to be anlyzed.
 resolutions <- 1 # Resolutions to be anlyzed.
 replace_negative <- "zero" # How should negative weights be handled?
@@ -103,7 +103,8 @@ myfiles <- c("Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
 	     "Cortex_MCL" = "3_Cortex_MCL_partitions.csv",
 	     "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
 	     "Striatum_MCL" = "3_Striatum_MCL_partitions.csv",
-	     "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv")
+	     "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv",
+	     "Striatum_Surprise" = "3_Striatum_SurpriseVertexPartition_partitions.csv")
 partitions <- fread(file.path(rdatdir,myfiles[partition_file]), 
 		    header=TRUE,drop = 1)
 

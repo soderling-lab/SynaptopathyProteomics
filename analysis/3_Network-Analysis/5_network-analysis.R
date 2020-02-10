@@ -11,11 +11,10 @@
 
 ## User parameters to change:
 ptype = "LA"
-net = "Cortex" # Which network are we analyzing? 
-overwrite_figsdir = TRUE
+net = "Striatum" # Which network are we analyzing? 
 do_DBD_enrichment = TRUE
 do_GO_enrichment = FALSE
-do_module_analysis = TRUE
+do_module_analysis = FALSE
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -24,11 +23,10 @@ suppressPackageStartupMessages({
   library(purrr)
   library(WGCNA)
   library(org.Mm.eg.db)
- # library(anRichment)
- # library(getPPIs)
+  library(anRichment)
+  library(getPPIs)
   library(DescTools)
   library(igraph)
-  #library(vegan)
   library(ggplot2)
 })
 
@@ -43,16 +41,13 @@ datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
+figsdir <- file.path(root,"figs", Sys.Date())
 
 # Create directory for figure output.
-script_name <- "5_network-analysis"
-figsdir <- file.path(root,"figs",Sys.Date(),script_name)
-if(overwrite_figsdir) {
-  message(paste("Warning, overwriting files in:\n",figsdir))
-  unlink(figsdir,recursive = TRUE)
-  dir.create(figsdir,recursive = TRUE)
-} else if (!dir.exists(figsdir)) {
-  dir.create(figsdir,recursive = TRUE)
+if (dir.exists(figsdir)) { 
+	message(paste("Warning, overwriting files in:\n",figsdir))
+} else { 
+	dir.create(figsdir,recursive = TRUE) 
 }
 
 # Functions.
@@ -104,22 +99,27 @@ myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
 adjm_go <- fread(myfile,drop=1)
 
 # Load network partitions-- self-preservation enforced.
-ids <- list(Cortex=c(LA="14942508",MCL="17925470"),
-            Striatum=c(LA="14940918",MCL="18125728"))
+ids <- list(Cortex=c(LA="14942508",MCL="17925470",Surprise="2020-02-06"),
+            Striatum=c(LA="14940918",MCL="18125728",Surprise="2020-02-09"))
 myfiles <- sapply(ids[[net]], function(x) { 
   list.files(rdatdir, pattern = x, full.names = TRUE) })
-partitions <- list(LA = readRDS(myfiles[1]),
-                   MCL = readRDS(myfiles[2]))
+partitions <- list(LA = readRDS(myfiles["LA"]),
+                   MCL = readRDS(myfiles["MCL"]),
+                   Surprise = readRDS(myfiles["Surprise"]))
 
 # Reset index.
 partitions$LA <- lapply(partitions$LA,reset_index)
 partitions$MCL <- lapply(partitions$MCL,reset_index)
+partitions$SVP <- lapply(partitions$Surprise,reset_index)
 
 # Name partitions.
 LA_modules <- name_partitions(partitions$LA,rprefix="R",mprefix="M",output="partition")
 MCL_modules <- name_partitions(partitions$MCL,rprefix="R",mprefix="M",output="partition")
+SVP_modules <- name_partitions(partitions$SVP,rprefix="R",mprefix="M",output="partition")
+
 all_MCL_modules <- unlist(MCL_modules,recursive = FALSE)
 all_LA_modules <- unlist(LA_modules,recursive = FALSE)
+all_SVP_modules <- unlist(SVP_modules,recursive = FALSE)
 
 # Load theme for plots.
 ggtheme()
@@ -198,28 +198,23 @@ names(module_colors) <- names(all_modules)
 module_colors[grep("R[1-9]{1,3}\\.M0",names(module_colors))] <- "#808080"
 
 # How to map LA colors to MCL partition????
-out1 <- list()
-out2 <- list()
+out1 <- out2 <- out3 <- list()
 for (i in c(1:100)){
-  x <- LA_modules[[i]]
-  LA_prots <- paste0("R",i,".",sapply(strsplit(names(unlist(x)),"\\."),"[",1))
-  names(LA_prots) <- sapply(strsplit(names(unlist(x)),"\\."),"[",2)
-  y <- MCL_modules[[i]]
-  MCL_prots <- sapply(strsplit(names(unlist(y)),"\\."),"[",2)
-  m <- module_colors[LA_prots[MCL_prots]]
-  p <- partitions$MCL[[i]][names(LA_prots[MCL_prots])]
-  MCL_2_LA <- split(LA_prots[MCL_prots],p)
-  names(MCL_2_LA) <- paste0("R",names(MCL_2_LA))
-  MCL_colors <- split(m,p)
-  names(MCL_colors) <- paste0("M",names(MCL_colors))
-  MCL_colors <- sapply(MCL_colors,unique)
-  out1[[i]] <- MCL_colors
-  out2[[i]] <- MCL_2_LA
+	p1 <- partitions$LA[[i]]
+	p2 <- partitions$MCL[[i]]
+	LA_2_MCL <- lapply(split(p2[names(p1)],p1),unique)
+	LA_2_MCL <- lapply(LA_2_MCL,function(x) paste0("MCL.M",x))
+	names(LA_2_MCL) <- paste0("LA.M",names(LA_2_MCL))
+	MCL_2_LA <- lapply(split(p1[names(p2)],p2),unique)
+	MCL_2_LA <- lapply(MCL_2_LA,function(x) paste0("LA.M",x))
+	names(MCL_2_LA) <- paste0("MCL.M",names(MCL_2_LA))
+	out2[[i]] <- MCL_2_LA
+	out3[[i]] <- LA_2_MCL
 }
-names(out1) <- paste0("R",c(1:100))
 names(out2) <- paste0("R",c(1:100))
-MCL_module_colors <- unlist(out1)
+names(out3) <- paste0("R",c(1:100))
 MCL_2_LA <- out2
+LA_2_MCL <- out3
 
 #------------------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
@@ -232,22 +227,23 @@ DBDcollection <- readRDS(myfile)
 
 if (do_DBD_enrichment) {
   # Perform disease enrichment analysis.
-  myfile <- file.path(rdatdir,paste0("3_",net, "_", ptype,
-                                     "_Module_DBD_Enrichment.RData"))
 	message("Performing module enrichment analysis for DBD-associated genes...")
+      	myfile <- file.path(rdatdir,paste0("3_",net, "_", ptype, "_Module_DBD_Enrichment.RData"))
 	DBDresults <- list()
-	for (i in 1:100) {
-		if (i == 1) { pbar <- txtProgressBar(min=1,max=100,style=3) }
+	# Initialize progress bar.
+	pbar <- txtProgressBar(min=0,max=length(partitions[[ptype]]),style=3) 
+	for (i in 1:length(partitions[[ptype]])) {
 		setTxtProgressBar(pbar,i)
-		DBDresults[[i]] <- moduleGOenrichment(partitions[[ptype]],i,
-						      protmap, DBDcollection)
-		if (i==100) { message("\n"); close(pbar) }
-	}
+		DBDresults[[i]] <- moduleGOenrichment(partitions[[ptype]],i, protmap, DBDcollection)
+	     } # Ends loop.
+	# Save.
+	close(pbar); message("\n")
+      	myfile <- file.path(rdatdir,paste0("3_",net, "_", ptype, "_Module_DBD_Enrichment.RData"))
 	saveRDS(DBDresults,myfile)
 } else {
-  myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,
-                                     "_Module_DBD_Enrichment.RData"))
+	# Load saved results.
 	message("Loading saved module DBD enrichment results!")
+	myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,"_Module_DBD_Enrichment.RData"))
 	DBDresults <- readRDS(myfile)
 }
 
@@ -317,6 +313,7 @@ all_topGO <- split(topGO,sapply(strsplit(names(topGO),"\\."),"[",1))
 # Loop:
 if (do_module_analysis) {
 	# Empty lists for output of loop:
+	rmax <- length(partitions[[ptype]])
 	results <- list(module_results = list(),
 	                ME_results = list(),
 	                PVE_results = list(),
@@ -326,7 +323,7 @@ if (do_module_analysis) {
                 	DT_results = list(),
                 	nSigDT_results = list(),
                 	modules_of_interest = list())
-	for (r in 1:100) {
+	for (r in 1:rmax) {
 		message(paste("Working on resolution",r,"..."))
 		partition <- partitions[[ptype]][[r]]
 		# Get Modules.
@@ -473,15 +470,15 @@ if (do_module_analysis) {
 	} # Ends loop.
 	# Name results lists and save.
 	message("Saving results, this will take several minutes...")
-	names(results$module_results) <- paste0("R",c(1:100))
-	names(results$ME_results) <- paste0("R",c(1:100))
-	names(results$PVE_results) <- paste0("R",c(1:100))
-	names(results$KME_results) <- paste0("R",c(1:100))
-	names(results$KW_results) <- paste0("R",c(1:100))
-	names(results$plots) <- paste0("R",c(1:100)) 
-	names(results$DT_results) <- paste0("R",c(1:100))
-	names(results$nSigDT_results) <- paste0("R",c(1:100))
-	names(results$modules_of_interest) <- paste0("R",c(1:100))
+	names(results$module_results) <- paste0("R",c(1:rmax))
+	names(results$ME_results) <- paste0("R",c(1:rmax))
+	names(results$PVE_results) <- paste0("R",c(1:rmax))
+	names(results$KME_results) <- paste0("R",c(1:rmax))
+	names(results$KW_results) <- paste0("R",c(1:rmax))
+	names(results$plots) <- paste0("R",c(1:rmax)) 
+	names(results$DT_results) <- paste0("R",c(1:rmax))
+	names(results$nSigDT_results) <- paste0("R",c(1:rmax))
+	names(results$modules_of_interest) <- paste0("R",c(1:rmax))
 	myfile <- file.path(rdatdir,paste0("3_",net,"_",ptype,"_Module_Expression_Results.RData"))
 	saveRDS(results,myfile)
 } else {
@@ -502,8 +499,8 @@ DT_results <- results$DT_results
 nSigDT_results <- results$nSigDT_results
 modules_of_interest <- results$modules_of_interest
 
-# Ugly...
-modules_of_interest <- modules_of_interest[which(sapply(modules_of_interest,length) != 0)]
+# Ugly... get modules of interest.
+modules_of_interest <- modules_of_interest[which(sapply(modules_of_interest,length) != 1)]
 y = rep(names(modules_of_interest),times=sapply(modules_of_interest,length))
 x = unlist(modules_of_interest,use.names=FALSE)
 modules_of_interest <- paste(y,x,sep=".")
@@ -519,14 +516,13 @@ n <- c("Cortex" = 4, "Striatum" = 4)[net]
 convergent_modules <- names(all_nSigDT)[which(all_nSigDT >= n)]
 
 # Collect modules of interest: DBD-associated modules.
-n <- c("Cortex" = 4, "Striatum" = 4)[net]
+n <- c("Cortex" = 1, "Striatum" = 1)[net]
 dbd_modules <- all_nSigDT[modules_of_interest]
 dbd_modules <- names(dbd_modules)[which(dbd_modules >= n)]
 
 # Status.
 message(paste("Number of modules exhibiting convergent dysregulation",
               "across all partitions:",length(convergent_modules)))
-
 message(paste("Number of DBD-associated modules exhibiting",
 	      "convergent dysregulation:",length(dbd_modules)))
 
@@ -565,7 +561,7 @@ groups <- split(hc_partition,hc_partition)
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
-rep_convergent_modules <- getMedoid(adjm_me,k=3)
+rep_convergent_modules <- getMedoid(adjm_me,best_k)
 # Update dendro with cutheight and representative modules.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
   geom_hline(yintercept=best_h, color='red', size = 1)
@@ -587,11 +583,13 @@ myfile <- prefix_file({
   file.path(figsdir,paste0(net,"_Convergent_Modules_Dendro.tiff"))
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
+
 # Average similarity among the groups.
 avg_me <- sapply(groups,function(x) {
 			 subadjm <- adjm_me[names(x),names(x)]
 			 return(mean(subadjm[upper.tri(subadjm)]))
 			 })
+
 # Replace NA for groups with length == 1. 
 # We want medoid to be highly similar to its other members.
 avg_me[is.na(avg_me)] <- 1 # NA for groups with length == 1. 
@@ -615,7 +613,7 @@ print(rep_convergent_modules)
 moi <- dbd_modules
 
 # ME matrix.
-sft=1
+sft=11
 adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
 # Convert similarity matrix to distance matrix, and then
 # cluster with hclust.
@@ -645,7 +643,7 @@ message(paste0("Cut height that produces the best partition: ",best_h,"."))
 message(paste0("Number of groups: ",best_k," (Modularity = ",round(best_q,3),")."))
 
 # Generate groups of similar partitions.
-hc_partition <- cutree(hc, k = 3)
+hc_partition <- cutree(hc, k = best_k)
 groups <- split(hc_partition,hc_partition)
 
 # Average similarity among the groups.
@@ -653,7 +651,6 @@ avg_me <- sapply(groups,function(x) {
   subadjm <- adjm_me[names(x),names(x)]
   return(mean(subadjm[upper.tri(subadjm)]))
 })
-
 # Replace NA for groups with length == 1. 
 avg_me[is.na(avg_me)] <- 1 # NA for groups with length == 1. 
 avg_me
@@ -661,18 +658,16 @@ avg_me
 # Get representative module from each group, its medoid.
 # The medoid is the module which is most similar (closest) 
 # to all others in its group.
-rep_dbd_modules <- getMedoid(adjm_me,k=3)
+rep_dbd_modules <- getMedoid(adjm_me,k=best_k)
 
 # Update dendro with cutheight and representative modules.
 dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
   geom_hline(yintercept=best_h, color='red', size = 1)
-
 # Get dendrogram data.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
 dend_data <- dend_data$labels
 dend_data$group <- as.factor(hc_partition[dend_data$label])
 dend_data$rep_module <- dend_data$label %in% rep_dbd_modules
-
 # Highlight representative modules with red text.
 dendro <- dendro + 
   geom_text(data = dend_data, aes(x, y, label = label, color = rep_module),
@@ -686,27 +681,29 @@ myfile <- prefix_file({
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
-# Is there any overlap among these modules?
-dm <- adjm_me[rep_dbd_modules,rep_dbd_modules]
-dm[upper.tri(dm,diag=TRUE)] <- NA
-df <- na.omit(melt(dm))
-df <- df[order(df$value,decreasing=TRUE),]
-head(df)
-
 # Status.
 message("Representative DBD-associated modules:")
 print(rep_dbd_modules)
 
-sapply(all_MCL_modules[rep_dbd_modules],length)
-
 #--------------------------------------------------------------------
-## Save verbose boxplots for representative modules.
+## For modules that are too big, get MCL clusters.
 #--------------------------------------------------------------------
 
 # Collect all representative modules.
 names(rep_convergent_modules) <- rep("Convergent",length(rep_convergent_modules))
 names(rep_dbd_modules) <- rep("DBD",length(rep_dbd_modules))
 all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
+
+module_sizes <- sapply(all_modules[all_rep_modules],length)
+too_big <- names(which(module_sizes > 100))
+
+# For all modules that are too big, explore inflation space to find best
+# MCL partition.
+cluster_list <- lapply(all_modules[too_big], function(x) recursiveMCL(x,adjm))
+
+#--------------------------------------------------------------------
+## Save verbose boxplots for representative modules.
+#--------------------------------------------------------------------
 
 # Collect plots from representative modules.
 all_plots <- unlist(plots,recursive = FALSE)
