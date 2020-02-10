@@ -536,7 +536,7 @@ message(paste("Number of DBD-associated modules exhibiting",
 moi <- convergent_modules
 length(moi)
 # ME network.
-sft = 1
+sft = 11
 adjm_me <- cor(do.call(cbind,all_ME[moi]))^sft
 # Convert similarity matrix to distance matrix, and cluster with hclust.
 hc <- hclust(as.dist(1 - adjm_me), method = "ward.D2")
@@ -693,13 +693,14 @@ print(rep_dbd_modules)
 names(rep_convergent_modules) <- rep("Convergent",length(rep_convergent_modules))
 names(rep_dbd_modules) <- rep("DBD",length(rep_dbd_modules))
 all_rep_modules <- c(rep_convergent_modules,rep_dbd_modules)
-
 module_sizes <- sapply(all_modules[all_rep_modules],length)
 too_big <- names(which(module_sizes > 100))
 
 # For all modules that are too big, explore inflation space to find best
 # MCL partition.
 cluster_list <- lapply(all_modules[too_big], function(x) recursiveMCL(x,adjm))
+# Why is modularity the same each time?
+# how to check function...
 
 #--------------------------------------------------------------------
 ## Save verbose boxplots for representative modules.
