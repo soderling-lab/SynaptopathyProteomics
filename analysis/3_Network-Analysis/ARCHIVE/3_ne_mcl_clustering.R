@@ -12,15 +12,20 @@
 
 ## User parameters to change:
 net = "Cortex" # Which network are we analyzing? 
+partition_file = "Cortex_Surprise"
 max_size = 500 # maximum allowable size of modules before apply MCL.
 inflation = seq(1.2,5,0.2) # Inflation space to explore.
-resolutions = seq(1,100) # Resolutions to analyze.
 
 # Global options and imports.
 suppressPackageStartupMessages({
 	library(neten)
 	library(igraph)
+	library(parallel)
+	library(doParallel)
 })
+
+# Number of threads for parallel processing.
+nThreads <- detectCores() - 1
 
 # Directories.
 here <- getwd()
@@ -39,10 +44,15 @@ myfiles <- c(
 adjm <- as.matrix(readRDS(myfiles[net]))
 rownames(adjm) <- colnames(adjm)
 
+# Perform network enhancement.
+adjm <- neten(adjm)
+
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = file.path(rdatdir,"147731383_Cortex_CPMVertexPartition_partitions.csv"),
-	    "Striatum" = file.path(rdatdir,"148436673_Striatum_CPMVertexPartition_partitions.csv"))
-partitions <- data.table::fread(myfiles[net], header=TRUE,drop = 1)
+myfiles <- c("Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
+	    "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
+	    "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv")
+partitions <- data.table::fread(file.path(rdatdir,myfiles[partition_file]), 
+				header=TRUE,drop = 1)
 
 # Collect all partitions in a list.
 all_partitions <- lapply(seq(nrow(partitions)),function(x) {
@@ -58,72 +68,9 @@ all_partitions <- lapply(seq(nrow(partitions)),function(x) {
 # Create a Co-expression graph.
 g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",weighted=TRUE)
 
-## Loop through resolutions, for each module get best mcl partition.
-results <- list()
-for (resolution in resolutions) {
-	message(paste("\nWorking on resolution",resolution,"..."))
-	part <- all_partitions[[resolution]]
-	modules <- split(part,part)
-	module_sizes <- table(part)
-	too_big <- names(module_sizes)[module_sizes > max_size]
-	message(paste0("Breaking down (",length(too_big),") large communities."))
-	mcl_partitions <- list()
-	## Loop through big modules, bet best MCL partition.
-	for (m in too_big){
-		message(paste("... Working on module",m,"..."))
-		# Get subgraph.
-		prots <- names(modules[[m]])
-		g1 <- induced_subgraph(g0,vids=V(g0)[match(prots,names(V(g0)))])
-		# Network Enhancement.
-		g_ne <- neten(g1)
-		## Loop to sample inflation space.
-		output <- list()
-		for (i in seq_along(inflation)){
-			# MCL clustering.
-			mcl_part <- clusterMCL(g_ne,weight="weight",inflation[i])
-			# Modularity of re-weighted (NE) graph.
-			q <- modularity(g_ne,membership=mcl_part[names(V(g_ne))],
-					weights=abs(edge_attr(g_ne,'weight')))
-			# Summary stats.
-			k <- sum(names(table(mcl_part)) != "0")
-			output[[i]] <- list("Partition"=mcl_part,
-					    "Inflation"=inflation[i],
-					    "Clusters"=k,
-					    "Modularity"=q)
-		} # Ends loop through inflation space.
-		# Get ~best partition.
-		Q <- sapply(output,function(x) x$Modularity)
-		K <- sapply(output,function(x) x$Clusters)
-		parts <- lapply(output,function(x) x$Partition)
-		idx <- which(Q==max(Q))
-		best_q <- Q[idx]
-		best_i <- inflation[idx]
-		best_k <- K[idx]
-		# Status.
-		message(paste("... ... Inflation:", best_i))
-		message(paste("... ... Clusters :", best_k))
-		message(paste("... ... Modularity:",round(best_q,3)))
-		# return best mcl partition.
-		mcl_partitions[[m]] <- parts[[idx]]
-	} # Ends loop through modules.
-	# Collect best mcl partitions.
-	results[[resolution]] <- mcl_partitions
-} # Ends loop through resolutions.
+# Find modules that are too big.
+partition <- all_partitions[[1]]
+too_big <- names(table(partition))[which(table(partition) > max_size)]
+m <- split(partition,partition)
+modules <- m[too_big]
 
-# Loop to combine mcl partitions at every resolution.
-mcl_partitions <- lapply(results,combine_partitions)
-
-# Loop to merge mcl partition into original partition at every resolution.
-final_partitions <- list()
-for (i in seq_along(mcl_partitions)) {
-	p1 <- all_partitions[[i]]
-	p2 <- mcl_partitions[[i]]
-	p3 <- merge_partitions(p1,p2)
-	final_partitions[[i]] <- p3
-}
-
-# Write to file.
-# Keep row indices so that output matches that from La clustering script.
-myfile <- file.path(rdatdir,paste0("3_",net,"_MCL_partitions.csv"))
-df <- as.data.frame(do.call(rbind,final_partitions))
-data.table::fwrite(df,myfile,row.names=TRUE)
