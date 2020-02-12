@@ -44,7 +44,6 @@ rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
-
 # Functions.
 devtools::load_all()
 
@@ -118,17 +117,20 @@ module_list <- lapply(module_list,function(x) {
 			  return(x)
 })
 
+# Drop M0.
+module_list <- lapply(module_list,function(x) x[-which(names(x)=="M0")])
+
 #---------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
 #---------------------------------------------------------------------
 
 # Load Disease ontology.
 DBDset <- "mouse_Combined_DBD_collection.RData"
-myfile <- file.path(rdatdir,DBDSet)
+myfile <- file.path(rdatdir,DBDset)
 DBDcollection <- readRDS(myfile)
 
 # Perform disease enrichment analysis.
-gene_list <- modules$Entrez[-which(names(modules$Entrez)=="M0")]
+gene_list <- module_list$Entrez
 DBDenrichment <- gse(gene_list, DBDcollection)
 
 # Collect modules with significant enrichment of DBD-genes.
@@ -142,22 +144,27 @@ message(paste("Total number of disease associated modules:",
 	      length(DBDsig)))
 
 # Write to file.
-write_excel(DBDenrichment[DBDsig],file.path(tabsdir,"DBD_Enrichment.xlsx"))
+myfile <- file.path(tabsdir,"DBD_Enrichment.xlsx")
+write_excel(DBDenrichment[DBDsig],myfile)
 
 # Collect all DBD genes.
-DBDgenes <- lapply(DBDcollection$dataSets,function(x) as.character(x$data$Entrez))
+DBDgenes <- lapply(DBDcollection$dataSets,function(x) {
+			   as.character(x$data$Entrez) 
+})
 names(DBDgenes) <- sapply(DBDcollection$dataSets,function(x) x$name)
 
 # DBDprots.
-DBDprots <- lapply(DBDgenes,function(x) prot_map$ids[which(x %in% prot_map$entrez)])
-#sapply(DBDprots,length)
+DBDprots <- lapply(DBDgenes,function(x) {
+			  protmap$ids[which(x %in% protmap$entrez)]
+})
+sapply(DBDprots,length)
 
 # Create a df of protein-DBD annotations.
-DBDcols <- do.call(cbind,lapply(DBDprots,function(x) prot_map$ids %in% x))
+DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
 colnames(DBDcols) <- names(DBDprots)
 DBDdf <- as.data.table(DBDcols)
 DBDdf$anyDBD <- apply(DBDcols,1,any)
-rownames(DBDdf) <- prot_map$ids
+rownames(DBDdf) <- protmap$ids
 
 #---------------------------------------------------------------------
 ## Module enrichment for cell types.
@@ -169,9 +176,10 @@ myfile <- file.path(rdatdir,cellSet)
 Cellcollection <- readRDS(myfile)
 
 # Collect list of module genes.
-gene_list <- modules$Entrez[-which(names(modules$Entrez)=="M0")]
+gene_list <- module_list$Entrez
 
 # Perform enrichment analysis.
+# gse is just a wrapper around anRichment's enrichment function.
 cellEnrichment <- gse(gene_list, Cellcollection)
 
 # Collect modules with significant enrichment of DBD-genes.
@@ -184,10 +192,12 @@ Cellsig <- names(cellEnrichment)[any_sig]
 message(paste("Total number of disease associated modules:",
 	      length(Cellsig)))
 
-modules$IDs[Cellsig]
+# These are the modules with cell type enrichment.
+module_list$IDs[Cellsig]
 
 # Write to file.
-write_excel(cellEnrichment[Cellsig],file.path(tabsdir,"Velmeshev_Cell_Type_Enrichment.xlsx"))
+myfile <- file.path(tabsdir,"Velmeshev_Cell_Type_Enrichment.xlsx")
+write_excel(cellEnrichment[Cellsig],myfile)
 
 #--------------------------------------------------------------------
 ## Module GO enrichment -- anRichment.
@@ -207,10 +217,11 @@ topGO <- lapply(GOresults,function(x) {
 			return(p)
 	    })
 
+# Number of modules with any significant GO term enrichment.
 sum(unlist(topGO)<0.05)
 
 #--------------------------------------------------------------------
-## Module enrichment -- enrichR.
+## Module enrichment -- use enrichR.
 #--------------------------------------------------------------------
 
 # Collect list of module genes--input is gene symbols.
@@ -221,13 +232,14 @@ dbs <- listEnrichrDbs()
 dbs <- dbs$libraryName[order(dbs$libraryName)]
 
 # Enrichment analysis.
-test <- enrichr(gene_list[[1]], databases = "GO_Molecular_Function_2018")
+db <- "GO_Molecular_Function_2018"
+enrichRenrichment <- lapply(gene_list, function(x) enrichr(x,db))
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
 
-# Get Modules.
+# Get modules.
 modules <- module_list$IDs
 
 # Number of modules.
@@ -235,7 +247,7 @@ nModules <- sum(names(modules) != "M0")
 message(paste("Number of modules:", nModules))
 
 # Module size statistics.
-mod_stats <- summary(sapply(modules, length)[!names(modules) == "M0"])[-c(2, 5)]
+mod_stats <- summary(sapply(modules, length))[-c(2, 5)]
 message(paste("Minumum module size:",mod_stats["Min."]))
 message(paste("Median module size:",mod_stats["Median"]))
 message(paste("Maximum module size:",mod_stats["Max."]))
@@ -247,18 +259,19 @@ message(paste("Percent of proteins not clustered:",
 
 # Calculate Module Eigengenes.
 # Note: Soft power does not influence MEs.
+# Note: Do not need to sort partition to be in the same order!
 MEdata <- moduleEigengenes(data,
-  colors = partition, # Do not need to sort in same order!
-  softPower = 1, impute = FALSE
+  colors = partition, 
+  excludeGrey = TRUE, # Ignore M0!
+  softPower = 1, 
+  impute = FALSE
 )
 MEs <- as.matrix(MEdata$eigengenes)
 
 # Create list of MEs.
-ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) # Do it this way to preserve names.
-names(ME_list) <- names(modules) # Same as colnames MEs.
-
-# Remove M0.
-ME_list <- ME_list[which(names(ME_list)!="M0")]
+# Do it this way to preserve names.
+ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) 
+names(ME_list) <- names(modules)
 
 # Module membership (KME).
 KMEdata <- signedKME(data,MEdata$eigengenes,corFnc="bicor",
@@ -275,13 +288,15 @@ names(KME_list) <- colnames(KMEdata)
 # Get Percent Variance explained (PVE).
 PVE <- as.numeric(MEdata$varExplained)
 names(PVE) <- names(modules)
-medianPVE <- median(PVE[names(PVE) != "M0"])
+medianPVE <- median(PVE)
 message(paste("Median module coherence (PVE):", 
 	      round(100 * medianPVE, 2), "(%)."))
 
 # Sample to group mapping.
-sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, sampleTraits$Tissue, sep = ".")
-groups <- sampleTraits$Sample.Model.Tissue[match(rownames(MEs), sampleTraits$SampleID)]
+sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, 
+					  sampleTraits$Tissue, sep = ".")
+idx <- match(rownames(MEs), sampleTraits$SampleID)
+groups <- sampleTraits$Sample.Model.Tissue[idx]
 names(groups) <- rownames(MEs)
 
 # Group all WT samples from a tissue type together.
@@ -294,7 +309,9 @@ group_levels <- paste(group_order,net,sep=".")
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
-KWdata_list <- lapply(ME_list, function(x) { kruskal.test(x ~ groups[names(x)]) })
+KWdata_list <- lapply(ME_list, function(x) { 
+			      kruskal.test(x ~ groups[names(x)]) 
+					  })
 KWdata <- as.data.frame(do.call(rbind,KWdata_list))[-c(4,5)]
 
 # Correct p-values for n comparisons.
@@ -316,10 +333,8 @@ message(paste0(
 control_group <- paste("WT", net, sep = ".")
 DTdata_list <- lapply(ME_list, function(x) {
   g <- factor(groups[names(x)],levels=group_levels)
-	df <- as.data.frame({
-			    DunnettTest(x ~ g,control = control_group)[[control_group]] 
-			  })
-	return(df)
+  result <- DunnettTest(x ~ g,control = control_group)[[control_group]] 
+  return(as.data.frame(result))
 })
 
 # Number of significant changes.
@@ -461,7 +476,7 @@ rownames(df) <- colnames(adjm_me)
 df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 
 # Collect color assignments.
-module_colors <- c("#808080", df$color)
+module_colors <- df$color
 names(module_colors) <- names(modules)
 
 #---------------------------------------------------------------------
@@ -486,6 +501,8 @@ g2 <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
 # Merge graphs.
 graph <- igraph::union(g0,g1,g2)
 
+## Add attributes.
+
 # Add Gene symbols.
 symbols <- protmap$gene[match(names(V(graph)),protmap$ids)]
 graph <- set_vertex_attr(graph,"symbol",value = symbols)
@@ -502,7 +519,6 @@ for (DBD in names(DBDnodes)){
 				 value = as.numeric(DBDnodes[[DBD]]))
 }
 
-
 #---------------------------------------------------------------------
 ## Generate cytoscape graphs.
 #---------------------------------------------------------------------
@@ -515,53 +531,50 @@ create_PPI_graph <- function(graph,nodes,module_KME,module_name,
     library(RCy3)
     cytoscapePing()
   })
-
 module_name <- "M1"
 module_KME <- KME_list[[module_name]]
 nodes = names(modules[[module_name]])
-
-  # Subset graph.
-  g <- induced_subgraph(graph,vids = V(graph)[match(nodes,names(V(graph)))])
-  # Add node color attribute.
-  g <- set_vertex_attr(g,"color", value = module_colors[module_name])
-  # Add node module attribute.
-  g <- set_vertex_attr(g,"module",value = module_name)
-  # Add hubiness (KME) attributes.
-  g <- set_vertex_attr(g, "kme" ,value=module_KME[names(V(g))])
-  # Prune weak edges.
-  nEdges <- length(E(g))
-  e_max <- max(E(g)$weight_1)
-  e_min <- min(E(g)$weight_1)
-  cut_off <- seq(e_min,e_max,by=0.01)
-  check <- vector("logical",length = length(cut_off))
-  # Loop to find threshold.
-  for (i in seq_along(cut_off)) {
-    threshold <- cut_off[i]
-    g_temp <- g
-    g_temp <- delete.edges(g_temp, which(E(g_temp)$weight_1 <= threshold))
-    check[i] <- is.connected(g_temp)
+# Subset graph.
+idx <- match(nodes,names(V(graph)))
+g <- induced_subgraph(graph,vids = V(graph)[idx])
+# Add node color attribute.
+g <- set_vertex_attr(g,"color", value = module_colors[module_name])
+# Add node module attribute.
+g <- set_vertex_attr(g,"module",value = module_name)
+# Add hubiness (KME) attributes.
+g <- set_vertex_attr(g, "kme" ,value=module_KME[names(V(g))])
+# Prune weak edges.
+nEdges <- length(E(g))
+e_max <- max(E(g)$weight_1)
+e_min <- min(E(g)$weight_1)
+cut_off <- seq(e_min,e_max,by=0.01)
+check <- vector("logical",length = length(cut_off))
+# Loop to find threshold.
+for (i in seq_along(cut_off)) {
+	threshold <- cut_off[i]
+	g_temp <- g
+	g_temp <- delete.edges(g_temp, which(E(g_temp)$weight_1 <= threshold))
+	check[i] <- is.connected(g_temp)
   }
   cutoff_limit <- cut_off[max(which(check))]
-  # Prune edges -- this removes all edge types...
-  g <- delete.edges(g, which(E(g)$weight_1 <= cutoff_limit))
-  message(paste0("... Edges remaining after thresholding: ",
-		 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
+# Prune edges -- this removes all edge types...
+g <- delete.edges(g, which(E(g)$weight_1 <= cutoff_limit))
+message(paste0("... Edges remaining after thresholding: ",
+	 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
+
 
   # Write graph to file.
   message("Writing graph to file ...")
-
-
-myfile <- paste0(module_name,".gml")
-write_graph(g,file.path(netsdir,myfile),format="gml")
+  myfile <- file.path(netsdir,paste0(module_name,".gml"))
+  write_graph(g,myfile,format="gml")
 
   # FIXME: warnings about boolean attributes.
   message("Loading grapmodule_nah into cytoscape...")
-  Sys.sleep(2)
 
-  winpath <- file.path("D:/projects/SynaptopathyProteomics/networks",myfile)
+  winfile <- file.path("D:/projects/SynaptopathyProteomics/networks",
+		       paste0(module_name,".gml"))
 
-  foo = "Network/wsl$/Ubuntu/home/twesleyb/projects/SynaptopathyProteomics/networks/M1.gml"
-  cys_net <- importNetworkFromFile(foo)
+  cys_net <- importNetworkFromFile(myfile)
 
 
   Sys.sleep(2)

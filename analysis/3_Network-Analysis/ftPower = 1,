@@ -1,0 +1,217 @@
+moduleEigengenes             package:WGCNA             R Documentation
+
+_C_a_l_c_u_l_a_t_e _m_o_d_u_l_e _e_i_g_e_n_g_e_n_e_s.
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     Calculates module eigengenes (1st principal component) of modules
+     in a given single dataset.
+
+_U_s_a_g_e:
+
+     moduleEigengenes(expr, 
+                      colors, 
+                      impute = TRUE, 
+                      nPC = 1, 
+                      align = "along average", 
+                      excludeGrey = FALSE, 
+                      grey = if (is.numeric(colors)) 0 else "grey",
+                      subHubs = TRUE,
+                      trapErrors = FALSE, 
+                      returnValidOnly = trapErrors, 
+                      softPower = 6,
+                      scale = TRUE,
+                      verbose = 0, indent = 0)
+     
+_A_r_g_u_m_e_n_t_s:
+
+    expr: Expression data for a single set in the form of a data frame
+          where rows are samples and columns are genes (probes).
+
+  colors: A vector of the same length as the number of probes in
+          ‘expr’, giving module color for all probes (genes). Color
+          ‘"grey"’ is reserved for unassigned genes.
+
+  impute: If ‘TRUE’, expression data will be checked for the presence
+          of ‘NA’ entries and if the latter are present, numerical data
+          will be imputed, using function ‘impute.knn’ and probes from
+          the same module as the missing datum. The function
+          ‘impute.knn’ uses a fixed random seed giving repeatable
+          results.
+
+     nPC: Number of principal components and variance explained entries
+          to be calculated. Note that only the first principal
+          component is returned; the rest are used only for the
+          calculation of proportion of variance explained. The number
+          of returned variance explained entries is currently ‘min(nPC,
+          10)’. If given ‘nPC’ is greater than 10, a warning is issued.
+
+   align: Controls whether eigengenes, whose orientation is
+          undetermined, should be aligned with average expression
+          (‘align = "along average"’, the default) or left as they are
+          (‘align = ""’). Any other value will trigger an error.
+
+excludeGrey: Should the improper module consisting of 'grey' genes be
+          excluded from the eigengenes?
+
+    grey: Value of ‘colors’ designating the improper module. Note that
+          if ‘colors’ is a factor of numbers, the default value will be
+          incorrect.
+
+ subHubs: Controls whether hub genes should be substituted for missing
+          eigengenes. If ‘TRUE’, each missing eigengene (i.e.,
+          eigengene whose calculation failed and the error was trapped)
+          will be replaced by a weighted average of the most connected
+          hub genes in the corresponding module. If this calculation
+          fails, or if ‘subHubs==FALSE’, the value of ‘trapErrors’ will
+          determine whether the offending module will be removed or
+          whether the function will issue an error and stop.
+
+trapErrors: Controls handling of errors from that may arise when there
+          are too many ‘NA’ entries in expression data. If ‘TRUE’,
+          errors from calling these functions will be trapped without
+          abnormal exit.  If ‘FALSE’, errors will cause the function to
+          stop. Note, however, that ‘subHubs’ takes precedence in the
+          sense that if ‘subHubs==TRUE’ and ‘trapErrors==FALSE’, an
+          error will be issued only if both the principal component and
+          the hubgene calculations have failed.
+
+returnValidOnly: logical; controls whether the returned data frame of
+          module eigengenes contains columns corresponding only to
+          modules whose eigengenes or hub genes could be calculated
+          correctly (‘TRUE’), or whether the data frame should have
+          columns for each of the input color labels (‘FALSE’).
+
+softPower: The power used in soft-thresholding the adjacency matrix.
+          Only used when the hubgene approximation is necessary because
+          the principal component calculation failed. It must be
+          non-negative. The default value should only be changed if
+          there is a clear indication that it leads to incorrect
+          results.
+
+   scale: logical; can be used to turn off scaling of the expression
+          data before calculating the singular value decomposition. The
+          scaling should only be turned off if the data has been scaled
+          previously, in which case the function can run a bit faster.
+          Note however that the function first imputes, then scales the
+          expression data in each module. If the expression contain
+          missing data, scaling outside of the function and letting the
+          function impute missing data may lead to slightly different
+          results than if the data is scaled within the function.
+
+ verbose: Controls verbosity of printed progress messages. 0 means
+          silent, up to (about) 5 the verbosity gradually increases.
+
+  indent: A single non-negative integer controlling indentation of
+          printed messages. 0 means no indentation, each unit above
+          that adds two spaces.
+
+_D_e_t_a_i_l_s:
+
+     Module eigengene is defined as the first principal component of
+     the expression matrix of the corresponding module. The calculation
+     may fail if the expression data has too many missing entries.
+     Handling of such errors is controlled by the arguments ‘subHubs’
+     and ‘trapErrors’.  If ‘subHubs==TRUE’, errors in principal
+     component calculation will be trapped and a substitute calculation
+     of hubgenes will be attempted. If this fails as well, behaviour
+     depends on ‘trapErrors’: if ‘TRUE’, the offending module will be
+     ignored and the return value will allow the user to remove the
+     module from further analysis; if ‘FALSE’, the function will stop.
+
+     From the user's point of view, setting ‘trapErrors=FALSE’ ensures
+     that if the function returns normally, there will be a valid
+     eigengene (principal component or hubgene) for each of the input
+     colors. If the user sets ‘trapErrors=TRUE’, all calculational (but
+     not input) errors will be trapped, but the user should check the
+     output (see below) to make sure all modules have a valid returned
+     eigengene.
+
+     While the principal component calculation can fail even on
+     relatively sound data (it does not take all that many
+     "well-placed" ‘NA’ to torpedo the calculation), it takes many more
+     irregularities in the data for the hubgene calculation to fail. In
+     fact such a failure signals there likely is something seriously
+     wrong with the data.
+
+_V_a_l_u_e:
+
+     A list with the following components:
+
+eigengenes: Module eigengenes in a dataframe, with each column
+          corresponding to one eigengene. The columns are named by the
+          corresponding color with an ‘"ME"’ prepended, e.g.,
+          ‘MEturquoise’ etc. If ‘returnValidOnly==FALSE’, module
+          eigengenes whose calculation failed have all components set
+          to ‘NA’.
+
+averageExpr: If ‘align == "along average"’, a dataframe containing
+          average normalized expression in each module. The columns are
+          named by the corresponding color with an ‘"AE"’ prepended,
+          e.g., ‘AEturquoise’ etc.
+
+varExplained: A dataframe in which each column corresponds to a module,
+          with the component ‘varExplained[PC, module]’ giving the
+          variance of module ‘module’ explained by the principal
+          component no. ‘PC’. The calculation is exact irrespective of
+          the number of computed principal components. At most 10
+          variance explained values are recorded in this dataframe.
+
+     nPC: A copy of the input ‘nPC’.
+
+validMEs: A boolean vector. Each component (corresponding to the
+          columns in ‘data’) is ‘TRUE’ if the corresponding eigengene
+          is valid, and ‘FALSE’ if it is invalid. Valid eigengenes
+          include both principal components and their hubgene
+          approximations. When ‘returnValidOnly==FALSE’, by definition
+          all returned eigengenes are valid and the entries of
+          ‘validMEs’ are all ‘TRUE’.
+
+validColors: A copy of the input colors with entries corresponding to
+          invalid modules set to ‘grey’ if given, otherwise 0 if
+          ‘colors’ is numeric and "grey" otherwise.
+
+   allOK: Boolean flag signalling whether all eigengenes have been
+          calculated correctly, either as principal components or as
+          the hubgene average approximation.
+
+   allPC: Boolean flag signalling whether all returned eigengenes are
+          principal components.
+
+    isPC: Boolean vector. Each component (corresponding to the columns
+          in ‘eigengenes’) is ‘TRUE’ if the corresponding eigengene is
+          the first principal component and ‘FALSE’ if it is the
+          hubgene approximation or is invalid.
+
+   isHub: Boolean vector. Each component (corresponding to the columns
+          in ‘eigengenes’) is ‘TRUE’ if the corresponding eigengene is
+          the hubgene approximation and ‘FALSE’ if it is the first
+          principal component or is invalid.
+
+validAEs: Boolean vector. Each component (corresponding to the columns
+          in ‘eigengenes’) is ‘TRUE’ if the corresponding module
+          average expression is valid.
+
+ allAEOK: Boolean flag signalling whether all returned module average
+          expressions contain valid data. Note that
+          ‘returnValidOnly==TRUE’ does not imply ‘allAEOK==TRUE’: some
+          invalid average expressions may be returned if their
+          corresponding eigengenes have been calculated correctly.
+
+_A_u_t_h_o_r(_s):
+
+     Steve Horvath <email: SHorvath@mednet.ucla.edu>, Peter Langfelder
+     <email: Peter.Langfelder@gmail.com>
+
+_R_e_f_e_r_e_n_c_e_s:
+
+     Zhang, B. and Horvath, S. (2005), "A General Framework for
+     Weighted Gene Co-Expression Network Analysis", Statistical
+     Applications in Genetics and Molecular Biology: Vol. 4: No. 1,
+     Article 17
+
+_S_e_e _A_l_s_o:
+
+     ‘svd’, ‘impute.knn’
+
+
