@@ -44,6 +44,7 @@ rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
+
 # Functions.
 devtools::load_all()
 
@@ -142,6 +143,21 @@ message(paste("Total number of disease associated modules:",
 
 # Write to file.
 write_excel(DBDenrichment[DBDsig],file.path(tabsdir,"DBD_Enrichment.xlsx"))
+
+# Collect all DBD genes.
+DBDgenes <- lapply(DBDcollection$dataSets,function(x) as.character(x$data$Entrez))
+names(DBDgenes) <- sapply(DBDcollection$dataSets,function(x) x$name)
+
+# DBDprots.
+DBDprots <- lapply(DBDgenes,function(x) prot_map$ids[which(x %in% prot_map$entrez)])
+#sapply(DBDprots,length)
+
+# Create a df of protein-DBD annotations.
+DBDcols <- do.call(cbind,lapply(DBDprots,function(x) prot_map$ids %in% x))
+colnames(DBDcols) <- names(DBDprots)
+DBDdf <- as.data.table(DBDcols)
+DBDdf$anyDBD <- apply(DBDcols,1,any)
+rownames(DBDdf) <- prot_map$ids
 
 #---------------------------------------------------------------------
 ## Module enrichment for cell types.
@@ -452,6 +468,9 @@ names(module_colors) <- names(modules)
 ## Generate ppi graphs and co-expression graphs.
 #---------------------------------------------------------------------
 
+## NOTE: Coerce boolean attributes to integer to avoid warnings when
+# loading into cytoscape.
+
 # Coexpression graph.
 g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
@@ -462,99 +481,92 @@ g1 <- graph_from_adjacency_matrix(adjm_ne,mode="undirected",
 
 # PPI graph.
 g2 <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
-				  weighted=NULL, diag=FALSE)
+				  weighted=TRUE, diag=FALSE)
+
+# Merge graphs.
+graph <- igraph::union(g0,g1,g2)
+
+# Add Gene symbols.
+symbols <- protmap$gene[match(names(V(graph)),protmap$ids)]
+graph <- set_vertex_attr(graph,"symbol",value = symbols)
+
+# Add sigProt vertex attribute.
+anySig <- names(V(graph)) %in% sigProts
+graph <- set_vertex_attr(graph, "sigProt", 
+			 value = as.numeric(anySig))
+
+# Add DBDprot vertex attribute.
+DBDnodes <- lapply(DBDprots,function(x) names(V(graph)) %in% x)
+for (DBD in names(DBDnodes)){
+	graph <- set_vertex_attr(graph, name=DBD, 
+				 value = as.numeric(DBDnodes[[DBD]]))
+}
+
 
 #---------------------------------------------------------------------
-## Generate ppi graphs.
+## Generate cytoscape graphs.
 #---------------------------------------------------------------------
-
-# We cannot plot all the edges.
-# Two approaches for hard threshholding:
-# Apply a hard cut-off such that:
-#     1) Top N% of edges are preserved.
-#     2) Maximum cut-off that preserves a completely connected graph.
 
 # Function to create PPI graphs.
-create_PPI_graph <- function(g0, g1, g2, modules, module_name, 
-			     network_layout, output_file,threshold_method=1) {
+create_PPI_graph <- function(graph,nodes,module_KME,module_name, 
+			     network_layout, output_file) {
 
   suppressPackageStartupMessages({
     library(RCy3)
     cytoscapePing()
   })
 
+module_name <- "M1"
+module_KME <- KME_list[[module_name]]
+nodes = names(modules[[module_name]])
+
   # Subset graph.
-  nodes <- names(all_modules[[module_name]])
-  g <- induced_subgraph(g0,vids = V(g0)[match(nodes,names(V(g0)))])
-  
-  if (threshold_method == 3) {
-    # Network enhancement.
-    g <- neten(g)
-  }
-  # Add Gene symbols.
-  g <- set_vertex_attr(g,"symbol",value = protmap$gene[match(names(V(g)),protmap$ids)])
+  g <- induced_subgraph(graph,vids = V(graph)[match(nodes,names(V(graph)))])
   # Add node color attribute.
   g <- set_vertex_attr(g,"color", value = module_colors[module_name])
   # Add node module attribute.
   g <- set_vertex_attr(g,"module",value = module_name)
-  # Add sigprot vertex attribute.
-  anySig <- names(V(g)) %in% sigProts
-  g <- set_vertex_attr(g, "sigProt", value = anySig)
-  # Add genotype specific sigprot attributes.
-  list_names <- names(sigProts_geno)
-  for (namen in list_names) {
-    g <- set_vertex_attr(g,namen,value=names(V(g)) %in% sigProts_geno[[namen]])
-  }
   # Add hubiness (KME) attributes.
-  kme <- all_KME[[module_name]]
-  g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
-  # METHOD 1:
-  if (threshold_method == 1) {
-  # FIXME: This approach is slow!
-    # remove weak edges, but keep graph a single component.
+  g <- set_vertex_attr(g, "kme" ,value=module_KME[names(V(g))])
+  # Prune weak edges.
   nEdges <- length(E(g))
-  e_max <- max(E(g)$weight)
-  e_min <- min(E(g)$weight)
+  e_max <- max(E(g)$weight_1)
+  e_min <- min(E(g)$weight_1)
   cut_off <- seq(e_min,e_max,by=0.01)
   check <- vector("logical",length = length(cut_off))
+  # Loop to find threshold.
   for (i in seq_along(cut_off)) {
     threshold <- cut_off[i]
     g_temp <- g
-    g_temp <- delete.edges(g_temp, which(E(g_temp)$weight <= threshold))
+    g_temp <- delete.edges(g_temp, which(E(g_temp)$weight_1 <= threshold))
     check[i] <- is.connected(g_temp)
   }
   cutoff_limit <- cut_off[max(which(check))]
-  }
-  # METHOD 2.
-  if (threshold_method == 2) {
-    # Keep only top N% of edges.
-    frac_to_keep = 0.05
-    q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
-    cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
-  }
-  if (threshold_method == 1 | threshold_method == 2) {
-    # Prune edges.
-    g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
-    message(paste0("... Edges remaining after thresholding: ",
-                 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
-  }
-  # Fix missing values. 
-  E(g)$weight[which(is.na(E(g)$weight))] <- 0 # Set NA to 0.
-  # Add DBD annotations.
-  dbd_annotations <- all_dbd_prots[names(V(g))]
-  g <- set_vertex_attr(g,"dbdProt", value = sapply(dbd_annotations,function(x) length(x) > 0))
-  # Change SigProt and dbdProt F,T annotations to 0,1.
-  V(g)$sigProt <- as.numeric(V(g)$sigProt)
-  V(g)$dbdProt <- as.numeric(V(g)$dbdProt)
+  # Prune edges -- this removes all edge types...
+  g <- delete.edges(g, which(E(g)$weight_1 <= cutoff_limit))
+  message(paste0("... Edges remaining after thresholding: ",
+		 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
+
   # Write graph to file.
   message("Writing graph to file ...")
-  myfile <- paste0(module_name,".gml")
-  write_graph(g,file=myfile,format="gml")
+
+
+myfile <- paste0(module_name,".gml")
+write_graph(g,file.path(netsdir,myfile),format="gml")
+
   # FIXME: warnings about boolean attributes.
-  message("Loading graph into cytoscape...")
-  cys_net <- importNetworkFromFile(myfile)
-  Sys.sleep(5)
+  message("Loading grapmodule_nah into cytoscape...")
+  Sys.sleep(2)
+
+  winpath <- file.path("D:/projects/SynaptopathyProteomics/networks",myfile)
+
+  foo = "Network/wsl$/Ubuntu/home/twesleyb/projects/SynaptopathyProteomics/networks/M1.gml"
+  cys_net <- importNetworkFromFile(foo)
+
+
+  Sys.sleep(2)
   unlink(myfile)
+
   # Check if network view was successfully created.
   if (length(cys_net)) {
     result = tryCatch({
@@ -731,8 +743,6 @@ results = c(results,dfs[sigModules])
 write_excel(results,"Modules.xlsx")
 
 # Need to combine with expression data.
-
-
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
