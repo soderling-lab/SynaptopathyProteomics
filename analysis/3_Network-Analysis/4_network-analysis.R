@@ -6,13 +6,15 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-#-------------------------------------------------------------------------------
+#--------------------------------------------------------------------
 ## Set-up the workspace.
-#-------------------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 ## User parameters to change:
-ptype = "Surprise"
-net = "Cortex" # Which network are we analyzing? 
+net <- "Cortex"
+adjm_file <- "3_Cortex_Adjm.RData"
+data_file <- "3_Cortex_cleanDat.RData"
+partition_file <- "2020-02-10_Cortex"
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -26,6 +28,7 @@ suppressPackageStartupMessages({
   library(DescTools)
   library(igraph)
   library(ggplot2)
+  library(enrichR)
 })
 
 # Directories.
@@ -35,18 +38,11 @@ if (rstudioapi::isAvailable()) {
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
+figsdir <- file.path(root, "figs")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
-figsdir <- file.path(root,"figs", Sys.Date())
-
-# Create directory for figure output.
-if (dir.exists(figsdir)) { 
-	message(paste("Warning, overwriting files in:\n",figsdir))
-} else { 
-	dir.create(figsdir,recursive = TRUE) 
-}
 
 # Functions.
 devtools::load_all()
@@ -62,41 +58,34 @@ glm_stats <- readRDS(myfile)
 sigProts <- apply(glm_stats$FDR,1,function(x) any(x<0.05))
 sigProts <- names(sigProts)[sigProts]
 
-# SigProts by genotype.
-# FIXME: how to avoid error message?
-fdr_df <- glm_stats$FDR
-fdr_df$Protein <- rownames(fdr_df)
-sig_df <- melt(fdr_df,id="Protein") %>% 
-	group_by(variable) %>% filter(value < 0.05) %>% group_split()
-sigProts_geno <- sapply(sig_df,function(x) x$Protein)
-names(sigProts_geno) <- gsub(" ","_", gsub(" FDR", "", colnames(fdr_df)[1:8]))
-
 # Load expression data.
-myfiles <- c(
-  Cortex = file.path(rdatdir, "3_Cortex_cleanDat.RData"),
-  Striatum = file.path(rdatdir, "3_Striatum_cleanDat.RData")
-)
-data <- t(readRDS(myfiles[net])) # Data should be transposed: rows, proteins.
+myfile <- file.path(rdatdir, data_file)
+data <- t(readRDS(myfile)) # Data should be transposed: rows, proteins.
 
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Load co-expression (adjacency) matrices.
-myfiles <- c(
-  Cortex = file.path(rdatdir, "3_Cortex_Adjm.RData"),
-  Striatum = file.path(rdatdir, "3_Striatum_Adjm.RData")
-)
-adjm <- as.matrix(readRDS(myfiles[net]))
+myfile <- file.path(rdatdir, adjm_file)
+adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
+
+# Load PPI graph.
+adjm_ppi <- fread(file.path(rdatdir,"3_PPI_Adjm.csv"),drop=1)
+adjm_ppi <- as.matrix(adjm_ppi)
+rownames(adjm_ppi) <- colnames(adjm_ppi)
+
+# Load enhanced adjm.
+adjm_ne <- fread(file.path(rdatdir,"3_Cortex_NE_Adjm.csv"),drop=1)
+adjm_ne <- as.matrix(adjm_ne)
+rownames(adjm_ne) <- colnames(adjm_ne)
 
 # Load GO semantic similarity graph.
 #myfile <- file.path(rdatdir,"3_GO_Semantic_Similarity_RMS_Adjm.csv")
 #adjm_go <- fread(myfile,drop=1)
 
 # Load network partitions-- self-preservation enforced.
-ids <- list(Cortex=c(LA="14942508",MCL="17925470",Surprise="2020-02-10_Cortex"),
-            Striatum=c(LA="14940918",MCL="18125728",Surprise="2020-02-10_Striatum"))
-myfile <- list.files(rdatdir, pattern = ids[[net]][ptype], full.names = TRUE)
+myfile <- list.files(rdatdir,pattern=partition_file,full.names=TRUE)
 partition <- unlist(readRDS(myfile))
 
 # Reset index.
@@ -106,36 +95,86 @@ partition <- reset_index(partition)
 ggtheme()
 
 #---------------------------------------------------------------------
+## Collect all modules in a list.
+#---------------------------------------------------------------------
+
+# Create list of modules.
+module_list <- list()
+
+# Entrez ids.
+idx <- match(names(partition),protmap$ids)
+module_list[["Entrez"]] <- split(protmap$entrez[idx],partition)
+
+# Gene Symbols.
+module_list[["Symbols"]] <- split(protmap$gene[idx],partition)
+
+# Protein ids.
+module_list[["IDs"]] <- split(partition,partition)
+
+# Name modules.
+module_list <- lapply(module_list,function(x) {
+			  names(x) <- paste0("M",names(x))
+			  return(x)
+})
+
+#---------------------------------------------------------------------
 ## Module enrichment for DBD-associated genes.
 #---------------------------------------------------------------------
 
 # Load Disease ontology.
-#geneSet <- "mouse_Combined_DBD_geneSets.RData"
-geneSet <- "mouse_Combined_DBD_collection.RData"
-myfile <- file.path(rdatdir,geneSet)
+DBDset <- "mouse_Combined_DBD_collection.RData"
+myfile <- file.path(rdatdir,DBDSet)
 DBDcollection <- readRDS(myfile)
 
 # Perform disease enrichment analysis.
-idx <- match(names(partition),protmap$id)
-gene_list <- split(protmap$entrez[idx],partition)
-names(gene_list) <- paste0("M",names(gene_list))
-gene_list <- gene_list[-which(names(gene_list)=="M0")]
-DBDresults <- gse(gene_list, DBDcollection)
+gene_list <- modules$Entrez[-which(names(modules$Entrez)=="M0")]
+DBDenrichment <- gse(gene_list, DBDcollection)
 
 # Collect modules with significant enrichment of DBD-genes.
 method <- "Bonferroni"
 alpha <- 0.1
-any_sig <- which(sapply(DBDresults,function(x) any(x[method] < alpha)))
-DBDsig <- names(DBDresults)[any_sig]
+any_sig <- which(sapply(DBDenrichment,function(x) any(x[method] < alpha)))
+DBDsig <- names(DBDenrichment)[any_sig]
 
 # Status.
 message(paste("Total number of disease associated modules:",
 	      length(DBDsig)))
 
-write_excel(DBDresults,file.path(tabsdir,"DBD_Enrichment.xlsx"))
+# Write to file.
+write_excel(DBDenrichment[DBDsig],file.path(tabsdir,"DBD_Enrichment.xlsx"))
+
+#---------------------------------------------------------------------
+## Module enrichment for cell types.
+#---------------------------------------------------------------------
+
+# Load cell collection.
+cellSet <- "Velmeshev_ASD_Cellcollection.RData"
+myfile <- file.path(rdatdir,cellSet)
+Cellcollection <- readRDS(myfile)
+
+# Collect list of module genes.
+gene_list <- modules$Entrez[-which(names(modules$Entrez)=="M0")]
+
+# Perform enrichment analysis.
+cellEnrichment <- gse(gene_list, Cellcollection)
+
+# Collect modules with significant enrichment of DBD-genes.
+method <- "Bonferroni"
+alpha <- 0.1
+any_sig <- which(sapply(cellEnrichment,function(x) any(x[method] < alpha)))
+Cellsig <- names(cellEnrichment)[any_sig]
+
+# Status.
+message(paste("Total number of disease associated modules:",
+	      length(Cellsig)))
+
+modules$IDs[Cellsig]
+
+# Write to file.
+write_excel(cellEnrichment[Cellsig],file.path(tabsdir,"Velmeshev_Cell_Type_Enrichment.xlsx"))
 
 #--------------------------------------------------------------------
-## Module GO enrichment.
+## Module GO enrichment -- anRichment.
 #--------------------------------------------------------------------
 
 # Build a GO collection.
@@ -143,7 +182,6 @@ GOcollection <- buildGOcollection(organism="mouse")
 
 # Perform gene set enrichment analysis.
 GOresults <- gse(gene_list,GOcollection)
-
 
 # Top (1) go term for every module.
 method <- "Bonferroni"
@@ -155,13 +193,26 @@ topGO <- lapply(GOresults,function(x) {
 
 sum(unlist(topGO)<0.05)
 
+#--------------------------------------------------------------------
+## Module enrichment -- enrichR.
+#--------------------------------------------------------------------
+
+# Collect list of module genes--input is gene symbols.
+gene_list <- modules$Symbols[-which(names(modules$Symbols)=="M0")]
+
+# All available databases.
+dbs <- listEnrichrDbs()
+dbs <- dbs$libraryName[order(dbs$libraryName)]
+
+# Enrichment analysis.
+test <- enrichr(gene_list[[1]], databases = "GO_Molecular_Function_2018")
+
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
 
 # Get Modules.
-modules <- split(partition, partition)
-names(modules) <- paste0("M", names(modules))
+modules <- module_list$IDs
 
 # Number of modules.
 nModules <- sum(names(modules) != "M0")
@@ -309,6 +360,7 @@ for (k in seq_along(plots)) {
 } # Ends loop to fix plots.
 
 #---------------------------------------------------------------------
+## Save plots.
 #---------------------------------------------------------------------
 
 # Save sig plots.
@@ -371,7 +423,7 @@ dendro <- dendro +
 
 # Save.
 myfile <- prefix_file({
-  file.path(figsdir,paste0(net,"_Convergent_Modules_Dendro.tiff"))
+  file.path(figsdir,paste0(net,"_Modules_Dendro.tiff"))
 })
 ggsave(myfile,plot=dendro, height=2.5, width = 3)
 
@@ -380,16 +432,13 @@ ggsave(myfile,plot=dendro, height=2.5, width = 3)
 #---------------------------------------------------------------------
 
 # Assign modules a color based on similarity with three rep modules.
-df <- data.table(
-  M13cor = adjm_me[colnames(adjm_me),"M13"],
-  M20cor = adjm_me[colnames(adjm_me),"M20"],
-  M21cor = adjm_me[colnames(adjm_me),"M21"]
-)
+df <- do.call(cbind,lapply(rep_modules,function(x) adjm_me[,x]))
+colnames(df) <- paste0(rep_modules,"cor")
 
 # Rescale the data to [0,1].
 dm <- (df - min(df))/(max(df) - min(df))
 colnames(dm) <- c("R","G","B")
-df <- cbind(df,dm)
+df <- data.table(cbind(df,dm))
 rownames(df) <- colnames(adjm_me)
 
 # Convert RGB to hexadecimal color.
@@ -398,6 +447,238 @@ df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 # Collect color assignments.
 module_colors <- c("#808080", df$color)
 names(module_colors) <- names(modules)
+
+#---------------------------------------------------------------------
+## Generate ppi graphs and co-expression graphs.
+#---------------------------------------------------------------------
+
+# Coexpression graph.
+g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",
+				  weighted=TRUE, diag=FALSE)
+
+# Enhanced Coexpression graph.
+g1 <- graph_from_adjacency_matrix(adjm_ne,mode="undirected",
+				  weighted=TRUE, diag=FALSE)
+
+# PPI graph.
+g2 <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
+				  weighted=NULL, diag=FALSE)
+
+#---------------------------------------------------------------------
+## Generate ppi graphs.
+#---------------------------------------------------------------------
+
+# We cannot plot all the edges.
+# Two approaches for hard threshholding:
+# Apply a hard cut-off such that:
+#     1) Top N% of edges are preserved.
+#     2) Maximum cut-off that preserves a completely connected graph.
+
+# Function to create PPI graphs.
+create_PPI_graph <- function(g0, g1, g2, modules, module_name, 
+			     network_layout, output_file,threshold_method=1) {
+
+  suppressPackageStartupMessages({
+    library(RCy3)
+    cytoscapePing()
+  })
+
+  # Subset graph.
+  nodes <- names(all_modules[[module_name]])
+  g <- induced_subgraph(g0,vids = V(g0)[match(nodes,names(V(g0)))])
+  
+  if (threshold_method == 3) {
+    # Network enhancement.
+    g <- neten(g)
+  }
+  # Add Gene symbols.
+  g <- set_vertex_attr(g,"symbol",value = protmap$gene[match(names(V(g)),protmap$ids)])
+  # Add node color attribute.
+  g <- set_vertex_attr(g,"color", value = module_colors[module_name])
+  # Add node module attribute.
+  g <- set_vertex_attr(g,"module",value = module_name)
+  # Add sigprot vertex attribute.
+  anySig <- names(V(g)) %in% sigProts
+  g <- set_vertex_attr(g, "sigProt", value = anySig)
+  # Add genotype specific sigprot attributes.
+  list_names <- names(sigProts_geno)
+  for (namen in list_names) {
+    g <- set_vertex_attr(g,namen,value=names(V(g)) %in% sigProts_geno[[namen]])
+  }
+  # Add hubiness (KME) attributes.
+  kme <- all_KME[[module_name]]
+  g <- set_vertex_attr(g, "kme" ,value=kme[names(V(g))])
+  # METHOD 1:
+  if (threshold_method == 1) {
+  # FIXME: This approach is slow!
+    # remove weak edges, but keep graph a single component.
+  nEdges <- length(E(g))
+  e_max <- max(E(g)$weight)
+  e_min <- min(E(g)$weight)
+  cut_off <- seq(e_min,e_max,by=0.01)
+  check <- vector("logical",length = length(cut_off))
+  for (i in seq_along(cut_off)) {
+    threshold <- cut_off[i]
+    g_temp <- g
+    g_temp <- delete.edges(g_temp, which(E(g_temp)$weight <= threshold))
+    check[i] <- is.connected(g_temp)
+  }
+  cutoff_limit <- cut_off[max(which(check))]
+  }
+  # METHOD 2.
+  if (threshold_method == 2) {
+    # Keep only top N% of edges.
+    frac_to_keep = 0.05
+    q <- quantile(get.edge.attribute(g,"weight"), probs = seq(0, 1, by=0.05))
+    cutoff_limit <- q[paste0(100*(1-frac_to_keep),"%")]
+  }
+  if (threshold_method == 1 | threshold_method == 2) {
+    # Prune edges.
+    g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
+    message(paste0("... Edges remaining after thresholding: ",
+                 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
+  }
+  # Fix missing values. 
+  E(g)$weight[which(is.na(E(g)$weight))] <- 0 # Set NA to 0.
+  # Add DBD annotations.
+  dbd_annotations <- all_dbd_prots[names(V(g))]
+  g <- set_vertex_attr(g,"dbdProt", value = sapply(dbd_annotations,function(x) length(x) > 0))
+  # Change SigProt and dbdProt F,T annotations to 0,1.
+  V(g)$sigProt <- as.numeric(V(g)$sigProt)
+  V(g)$dbdProt <- as.numeric(V(g)$dbdProt)
+  # Write graph to file.
+  message("Writing graph to file ...")
+  myfile <- paste0(module_name,".gml")
+  write_graph(g,file=myfile,format="gml")
+  # FIXME: warnings about boolean attributes.
+  message("Loading graph into cytoscape...")
+  cys_net <- importNetworkFromFile(myfile)
+  Sys.sleep(5)
+  unlink(myfile)
+  # Check if network view was successfully created.
+  if (length(cys_net)) {
+    result = tryCatch({
+      getNetworkViews()
+    }, warning = function(w) {
+      print(w)
+    }, error = function(e) {
+      commandsPOST("view create")
+    }, finally = {
+      print("Created Network View!")
+    }
+    )
+  }
+	# Create a visual style.
+	style.name <- paste(module_name,"style",sep="-")
+	# DEFAULTS:
+	defaults = list(
+	  NODE_FILL_COLOR = col2hex("gray"),
+	  NODE_TRANSPARENCY = 200,
+	  NODE_SIZE = 35,
+	  NODE_SHAPE = "ellipse",
+	  NODE_LABEL_TRANSPARENCY = 255,
+	  NODE_LABEL_FONT_SIZE = 12,
+	  NODE_LABEL_COLOR = col2hex("black"),
+	  NODE_BORDER_TRANSPARENCY = 200,
+	  NODE_BORDER_WIDTH = 4,
+	  NODE_BORDER_PAINT = col2hex("black"),
+	  NODE_TRANSPARENCY = 200,
+	  EDGE_STROKE_UNSELECTED_PAINT = col2hex("black"),
+	  EDGE_WIDTH = 2,
+	  NETWORK_BACKGROUND_PAINT = col2hex("white")
+	)
+	# MAPPED PROPERTIES:
+	mappings <- list(
+	  NODE_LABEL = mapVisualProperty('node label', 'symbol', 'p'),
+	  NODE_FILL_COLOR = mapVisualProperty('node fill color',
+	                                      'color',
+	                                      'p'),
+	  NODE_SIZE = mapVisualProperty('node size',
+	                                'kme',
+	                                'c', 
+	                                c(min(V(g)$kme),max(V(g)$kme)), 
+	                                c(25,75)),
+	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency',
+	                                        'weight', 
+	                                        'c', 
+	                                        c(min(E(g)$weight),max(E(g)$weight)), 
+	                                        c(155,255)),
+	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 
+	                                                   'weight','c',
+	                                                   c(min(E(g)$weight),max(E(g)$weight)),
+	                                                   c(col2hex("gray"),col2hex("dark grey")))
+	)
+	# Create a visual style.
+	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
+	# Apply to graph.
+	setVisualStyle(style.name)
+	Sys.sleep(2)
+	# Set NS nodes to gray.
+	setNodePropertyBypass(
+	  node.names = names(V(g))[which(V(g)$sigProt==0)],
+	  new.values = col2hex("gray"),
+	  visual.property = "NODE_FILL_COLOR",
+	  bypass = TRUE,
+	)
+	setNodePropertyBypass(
+	  node.names = names(V(g))[which(V(g)$sigProt==0)],
+	  new.values = 200,
+	  visual.property = "NODE_TRANSPARENCY",
+	  bypass = TRUE,
+	)
+	# Add PPI edges.
+	if (sum(nodes %notin% names(V(g1)))>0) {
+	  nodes <- nodes[-which(nodes %notin% names(V(g1)))]
+	}
+	# If any nodes not in ppi graph then problems, remove them.
+	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
+	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
+	if (length(edge_list) > 0) {
+	  message("Adding PPIs to graph!")
+	  ppi_edges <- addCyEdges(edge_list)
+	  # Add PPIs and set to black.
+	  selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
+	  setEdgePropertyBypass(edge.names = selected_edges$edges,
+	                        new.values = col2hex("black"),
+	                        visual.property = "EDGE_STROKE_UNSELECTED_PAINT",
+	                        bypass = TRUE)
+	  setEdgePropertyBypass(edge.names = selected_edges$edges,
+	                     new.values = TRUE,
+	                     visual.property = "EDGE_BEND",
+	                     bypass = TRUE)
+	# Removes any nodes/edges from selection.
+	clearSelection()
+	}
+	# Wait a couple of seconds...
+	Sys.sleep(2)
+	# Apply layout.
+	layoutNetwork(network_layout)
+	Sys.sleep(4)
+	fitContent()
+	# Save.
+	if (!is.null(output_file)) { saveSession(output_file) }
+	# Free up some memory.
+	cytoscapeFreeMemory()
+}
+
+# Generate networks for representative convergent modules.
+for (i in 2:length(rep_convergent_modules)){
+  network_layout <- 'force-directed edgeAttribute=weight'
+  message(paste("Working on module",rep_convergent_modules[i],"..."))
+  myfile <- file.path(netsdir,paste0(net,"_Top_Convergent_Modules"))
+  create_PPI_graph(g0,g1,all_modules,
+                   rep_convergent_modules[i],network_layout,output_file=myfile)
+}
+all_pdeleteAllNetworks()
+
+# Generate networks for representative DBD-associated modules.
+for (i in 1:length(rep_dbd_modules)){
+  network_layout <- 'force-directed edgeAttribute=weight'
+  message(paste("Working on module",rep_dbd_modules[i], "..."))
+  myfile <- file.path(netsdir,paste0(net,"_Top_DBD_Modules"))
+  create_PPI_graph(g0,g1,all_modules,
+                   rep_dbd_modules[i],network_layout,output_file=myfile)
+}
 
 #---------------------------------------------------------------------
 ## Save key results.
