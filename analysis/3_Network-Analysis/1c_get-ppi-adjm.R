@@ -87,4 +87,8 @@ message(paste("Scale free fit of PPI graph:",round(r,3)))
 myfile <- file.path(rdatdir,"3_PPI_Adjm.csv")
 fwrite(as.data.table(PPIadjm),myfile,row.names=TRUE)
 
+# Save as Rdata.
+myfile <- file.path(rdatdir,"3_PPI_Adjm.RData")
+saveRDS(PPIadjm,myfile)
+
 message("Done!\n")
