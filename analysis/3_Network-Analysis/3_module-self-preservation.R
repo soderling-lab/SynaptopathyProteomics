@@ -12,13 +12,13 @@
 
 # User parameters to change:
 stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
-self <- "Cortex"
+self <- "Striatum"
 test <- "PPI"
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-data_file <- "Cortex" # Which data to use?
+data_file <- "Striatum" # Which data to use?
 net_file <- "PPI" # Which networks to test self preservation in?
-adjm_file <- "Cortex" # Which correlation (adjm) network to use?
-partition_file <- "Cortex_Surprise" # Which partition file to use?
+adjm_file <- "Striatum" # Which correlation (adjm) network to use?
+partition_file <- "Striatum_Surprise" # Which partition file to use?
 replace_negative <- "zero" # How should negative weights be handled?
 min_size <- 5 # minimum allowable size for a module.
 verbose <- FALSE
@@ -72,7 +72,9 @@ suppressPackageStartupMessages({
 })
 
 # Additional functions.
-devtools::load_all()
+suppressWarnings({
+	devtools::load_all()
+})
 
 # Directories.
 here <- getwd()
