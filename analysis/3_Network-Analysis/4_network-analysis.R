@@ -337,7 +337,7 @@ DTdata_list <- lapply(ME_list, function(x) {
   return(as.data.frame(result))
 })
 
-# Number of significant changes.
+# Number of significant KW + DT changes.
 alpha <- 0.05
 nSigDT <- sapply(DTdata_list, function(x) sum(x$pval < alpha))
 if (length(nSigDT[sigModules]) > 0) {
@@ -348,7 +348,6 @@ if (length(nSigDT[sigModules]) > 0) {
 # Numer of significant modules with disease association.
 sigDBDmodules <- nSigDT[sigModules[which(sigModules %in% DBDsig)]]
 nSigDisease <- length(sigDBDmodules)
-
 if (nSigDisease > 0) {
   message(paste("Number of significant modules with",
 		"significant enrichment of DBD-associated genes:", nSigDisease))
@@ -362,10 +361,10 @@ plots <- lapply(ME_list,function(x) {
   })
 names(plots) <- names(ME_list)
 
+## Clean up plots.
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 		  "Syngap1 HET","Ube3a KO"),2)
-
 # Loop to clean-up plots.
 for (k in seq_along(plots)) {
 	# Add title and fix xlabels.
@@ -501,8 +500,10 @@ g2 <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
 # Merge graphs.
 graph <- igraph::union(g0,g1,g2)
 
-## Add attributes.
+# Remove NAs from PPI edges.
+E(graph)$weight_3[which(is.na(E(graph)$weight_3))] <- 0
 
+## Add attributes to igraph object.
 # Add Gene symbols.
 symbols <- protmap$gene[match(names(V(graph)),protmap$ids)]
 graph <- set_vertex_attr(graph,"symbol",value = symbols)
@@ -523,76 +524,68 @@ for (DBD in names(DBDnodes)){
 ## Generate cytoscape graphs.
 #---------------------------------------------------------------------
 
+# Create graphs.
+for (i in c(21:117)) {
+	message(paste("Working on module",i,"..."))
+	module_name = names(modules)[i]
+	nodes = names(modules[[module_name]])
+	ppi_graph = g2
+	module_kme = KME_list[[module_name]]
+	output_file = file.path(netsdir,module_name)
+	network_layout = 'force-directed edgeAttribute=weight1'
+	createCytoscapeGraph(graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
+}
+
 # Function to create PPI graphs.
-create_PPI_graph <- function(graph,nodes,module_KME,module_name, 
-			     network_layout, output_file) {
-
-  suppressPackageStartupMessages({
-    library(RCy3)
-    cytoscapePing()
-  })
-module_name <- "M1"
-module_KME <- KME_list[[module_name]]
-nodes = names(modules[[module_name]])
-# Subset graph.
-idx <- match(nodes,names(V(graph)))
-g <- induced_subgraph(graph,vids = V(graph)[idx])
-# Add node color attribute.
-g <- set_vertex_attr(g,"color", value = module_colors[module_name])
-# Add node module attribute.
-g <- set_vertex_attr(g,"module",value = module_name)
-# Add hubiness (KME) attributes.
-g <- set_vertex_attr(g, "kme" ,value=module_KME[names(V(g))])
-# Prune weak edges.
-nEdges <- length(E(g))
-e_max <- max(E(g)$weight_1)
-e_min <- min(E(g)$weight_1)
-cut_off <- seq(e_min,e_max,by=0.01)
-check <- vector("logical",length = length(cut_off))
-# Loop to find threshold.
-for (i in seq_along(cut_off)) {
-	threshold <- cut_off[i]
-	g_temp <- g
-	g_temp <- delete.edges(g_temp, which(E(g_temp)$weight_1 <= threshold))
-	check[i] <- is.connected(g_temp)
-  }
-  cutoff_limit <- cut_off[max(which(check))]
-# Prune edges -- this removes all edge types...
-g <- delete.edges(g, which(E(g)$weight_1 <= cutoff_limit))
-message(paste0("... Edges remaining after thresholding: ",
-	 length(E(g))," (",round(100*length(E(g))/nEdges,2)," %)."))
-
-
-  # Write graph to file.
-  message("Writing graph to file ...")
-  myfile <- file.path(netsdir,paste0(module_name,".gml"))
-  write_graph(g,myfile,format="gml")
-
-  # FIXME: warnings about boolean attributes.
-  message("Loading grapmodule_nah into cytoscape...")
-
-  winfile <- file.path("D:/projects/SynaptopathyProteomics/networks",
-		       paste0(module_name,".gml"))
-
-  cys_net <- importNetworkFromFile(myfile)
-
-
-  Sys.sleep(2)
-  unlink(myfile)
-
-  # Check if network view was successfully created.
-  if (length(cys_net)) {
-    result = tryCatch({
-      getNetworkViews()
-    }, warning = function(w) {
-      print(w)
-    }, error = function(e) {
-      commandsPOST("view create")
-    }, finally = {
-      print("Created Network View!")
-    }
-    )
-  }
+# Cy3::addCyEdges, more than one node found for a given source or target node
+# name. No edges added.
+createCytoscapeGraph <- function(graph,
+				 ppi_graph,
+				 nodes,
+				 module_kme,
+				 module_name, 
+				 module_colors, 
+				 network_layout, 
+				 output_file=NULL) {
+	## NOTE: Sys.sleep()'s are important!
+	suppressPackageStartupMessages({
+		library(RCy3)
+		cytoscapePing()
+	})
+	# Subset graph.
+	idx <- match(nodes,names(V(graph)))
+	g <- induced_subgraph(graph,vids = V(graph)[idx])
+	# Add node color attribute.
+	g <- set_vertex_attr(g,"color", value = module_colors[module_name])
+	# Add node module attribute.
+	g <- set_vertex_attr(g,"module",value = module_name)
+	# Add hubiness (KME) attributes.
+	g <- set_vertex_attr(g, "kme" ,value=module_kme[names(V(g))])
+	# Prune weak edges.
+	nEdges <- length(E(g))
+	e_max <- max(E(g)$weight_1)
+	e_min <- min(E(g)$weight_1)
+	cut_off <- seq(e_min,e_max,by=0.01)
+	check <- vector("logical",length = length(cut_off))
+	# Loop to find threshold.
+	for (i in seq_along(cut_off)) {
+		threshold <- cut_off[i]
+		g_temp <- g
+		g_temp <- delete.edges(g_temp, which(E(g_temp)$weight_1 <= threshold))
+		check[i] <- is.connected(g_temp)
+	}
+	cutoff_limit <- cut_off[max(which(check))]
+	# Prune edges -- this removes all edge types...
+	g <- delete.edges(g, which(E(g)$weight_1 <= cutoff_limit))
+	# Write graph to file this is faster than sending to cytoscape.
+	myfile <- file.path(netsdir,paste0(module_name,".gml"))
+	write_graph(g,myfile,format="gml")
+	# Send to Cytoscape.
+	## FIXME: underscores from edge weight attributes are removed!
+	winfile <- gsub("/mnt/d/","D:/",myfile)
+	cys_net <- importNetworkFromFile(winfile)
+	Sys.sleep(5)
+	unlink(winfile)
 	# Create a visual style.
 	style.name <- paste(module_name,"style",sep="-")
 	# DEFAULTS:
@@ -615,29 +608,27 @@ message(paste0("... Edges remaining after thresholding: ",
 	# MAPPED PROPERTIES:
 	mappings <- list(
 	  NODE_LABEL = mapVisualProperty('node label', 'symbol', 'p'),
-	  NODE_FILL_COLOR = mapVisualProperty('node fill color',
-	                                      'color',
-	                                      'p'),
+	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
 	  NODE_SIZE = mapVisualProperty('node size',
 	                                'kme',
 	                                'c', 
 	                                c(min(V(g)$kme),max(V(g)$kme)), 
 	                                c(25,75)),
 	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency',
-	                                        'weight', 
+	                                        'weight1', 
 	                                        'c', 
-	                                        c(min(E(g)$weight),max(E(g)$weight)), 
+	                                        c(min(E(g)$weight_1),max(E(g)$weight_1)), 
 	                                        c(155,255)),
 	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 
-	                                                   'weight','c',
-	                                                   c(min(E(g)$weight),max(E(g)$weight)),
+	                                                   'weight1','c',
+	                                                   c(min(E(g)$weight_1),max(E(g)$weight_1)),
 	                                                   c(col2hex("gray"),col2hex("dark grey")))
 	)
 	# Create a visual style.
 	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
 	# Apply to graph.
 	setVisualStyle(style.name)
-	Sys.sleep(2)
+	Sys.sleep(3)
 	# Set NS nodes to gray.
 	setNodePropertyBypass(
 	  node.names = names(V(g))[which(V(g)$sigProt==0)],
@@ -652,14 +643,10 @@ message(paste0("... Edges remaining after thresholding: ",
 	  bypass = TRUE,
 	)
 	# Add PPI edges.
-	if (sum(nodes %notin% names(V(g1)))>0) {
-	  nodes <- nodes[-which(nodes %notin% names(V(g1)))]
-	}
-	# If any nodes not in ppi graph then problems, remove them.
-	subg <- induced_subgraph(g1,vids = V(g1)[match(nodes,names(V(g1)))])
+	subg <- induced_subgraph(g2,vids = V(g2)[match(nodes,names(V(g2)))])
 	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
+	## FIXME:: problem with M20
 	if (length(edge_list) > 0) {
-	  message("Adding PPIs to graph!")
 	  ppi_edges <- addCyEdges(edge_list)
 	  # Add PPIs and set to black.
 	  selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
@@ -671,38 +658,18 @@ message(paste0("... Edges remaining after thresholding: ",
 	                     new.values = TRUE,
 	                     visual.property = "EDGE_BEND",
 	                     bypass = TRUE)
-	# Removes any nodes/edges from selection.
+	} # Ends IF statement.
 	clearSelection()
-	}
-	# Wait a couple of seconds...
-	Sys.sleep(2)
+	Sys.sleep(3)
 	# Apply layout.
 	layoutNetwork(network_layout)
-	Sys.sleep(4)
+	Sys.sleep(3)
 	fitContent()
 	# Save.
-	if (!is.null(output_file)) { saveSession(output_file) }
+	## FIXME: needs to be windows path.
+	#if (!is.null(output_file)) { saveSession(output_file) }
 	# Free up some memory.
 	cytoscapeFreeMemory()
-}
-
-# Generate networks for representative convergent modules.
-for (i in 2:length(rep_convergent_modules)){
-  network_layout <- 'force-directed edgeAttribute=weight'
-  message(paste("Working on module",rep_convergent_modules[i],"..."))
-  myfile <- file.path(netsdir,paste0(net,"_Top_Convergent_Modules"))
-  create_PPI_graph(g0,g1,all_modules,
-                   rep_convergent_modules[i],network_layout,output_file=myfile)
-}
-all_pdeleteAllNetworks()
-
-# Generate networks for representative DBD-associated modules.
-for (i in 1:length(rep_dbd_modules)){
-  network_layout <- 'force-directed edgeAttribute=weight'
-  message(paste("Working on module",rep_dbd_modules[i], "..."))
-  myfile <- file.path(netsdir,paste0(net,"_Top_DBD_Modules"))
-  create_PPI_graph(g0,g1,all_modules,
-                   rep_dbd_modules[i],network_layout,output_file=myfile)
 }
 
 #---------------------------------------------------------------------
@@ -754,15 +721,3 @@ results <- list()
 results[["Summary"]] <- df
 results = c(results,dfs[sigModules])
 write_excel(results,"Modules.xlsx")
-
-# Need to combine with expression data.
-
-#--------------------------------------------------------------------
-#--------------------------------------------------------------------
-# Generate cytoscape graphs.
-
-
-
-
-
-
