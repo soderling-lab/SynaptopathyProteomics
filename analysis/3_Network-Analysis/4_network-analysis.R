@@ -32,9 +32,6 @@ suppressPackageStartupMessages({
 })
 
 # Directories.
-if (rstudioapi::isAvailable()) {
-	setwd("D:/projects/SynaptopathyProteomics/analysis/3_Network-Analysis")
-}
 here <- getwd()
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
@@ -45,7 +42,9 @@ tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
 # Functions.
-devtools::load_all()
+suppressWarnings({
+	devtools::load_all()
+})
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -65,7 +64,7 @@ data <- t(readRDS(myfile)) # Data should be transposed: rows, proteins.
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
-# Load co-expression (adjacency) matrices.
+# Load co-expression (adjacency) matrix.
 myfile <- file.path(rdatdir, adjm_file)
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
@@ -75,7 +74,7 @@ adjm_ppi <- fread(file.path(rdatdir,"3_PPI_Adjm.csv"),drop=1)
 adjm_ppi <- as.matrix(adjm_ppi)
 rownames(adjm_ppi) <- colnames(adjm_ppi)
 
-# Load enhanced adjm.
+# Load enhanced adjacency matrix.
 adjm_ne <- fread(file.path(rdatdir,"3_Cortex_NE_Adjm.csv"),drop=1)
 adjm_ne <- as.matrix(adjm_ne)
 rownames(adjm_ne) <- colnames(adjm_ne)
@@ -101,17 +100,17 @@ ggtheme()
 # Create list of modules.
 module_list <- list()
 
-# Entrez ids.
+# Module list with entrez ids.
 idx <- match(names(partition),protmap$ids)
 module_list[["Entrez"]] <- split(protmap$entrez[idx],partition)
 
-# Gene Symbols.
+# Module list with gene symbols.
 module_list[["Symbols"]] <- split(protmap$gene[idx],partition)
 
-# Protein ids.
+# Module list with protein ids.
 module_list[["IDs"]] <- split(partition,partition)
 
-# Name modules.
+# Name modules with M prefix.
 module_list <- lapply(module_list,function(x) {
 			  names(x) <- paste0("M",names(x))
 			  return(x)
@@ -144,7 +143,7 @@ message(paste("Total number of disease associated modules:",
 	      length(DBDsig)))
 
 # Write to file.
-myfile <- file.path(tabsdir,"DBD_Enrichment.xlsx")
+myfile <- file.path(tabsdir,paste0(Sys.Date(),"_DBD_Enrichment.xlsx"))
 write_excel(DBDenrichment[DBDsig],myfile)
 
 # Collect all DBD genes.
@@ -157,7 +156,6 @@ names(DBDgenes) <- sapply(DBDcollection$dataSets,function(x) x$name)
 DBDprots <- lapply(DBDgenes,function(x) {
 			  protmap$ids[which(x %in% protmap$entrez)]
 })
-sapply(DBDprots,length)
 
 # Create a df of protein-DBD annotations.
 DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
@@ -165,6 +163,39 @@ colnames(DBDcols) <- names(DBDprots)
 DBDdf <- as.data.table(DBDcols)
 DBDdf$anyDBD <- apply(DBDcols,1,any)
 rownames(DBDdf) <- protmap$ids
+
+#---------------------------------------------------------------------
+## Create a table summarizing disease genes.
+#---------------------------------------------------------------------
+
+# Summary of disease genes.
+df <- t(as.data.frame(sapply(DBDprots,length)))
+rownames(df) <- NULL
+
+# Modify default table theme to change font size.
+# Cex is a scaling factor relative to the defaults.
+mytheme <- gridExtra::ttheme_default(
+  core = list(fg_params = list(cex = 0.75)),
+  colhead = list(fg_params = list(cex = 0.75)),
+  rowhead = list(fg_params = list(cex = 0.75))
+)
+
+library(gtable)
+
+# Create table and add borders.
+# Border around data rows.
+mytable <- tableGrob(df, rows = NULL, theme = mytheme)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
+)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 2, l = 1, r = ncol(mytable)
+)
+
+# Check the table.
+cowplot::plot_grid(mytable)
 
 #---------------------------------------------------------------------
 ## Module enrichment for cell types.
@@ -198,6 +229,36 @@ module_list$IDs[Cellsig]
 # Write to file.
 myfile <- file.path(tabsdir,"Velmeshev_Cell_Type_Enrichment.xlsx")
 write_excel(cellEnrichment[Cellsig],myfile)
+
+# Table summary.
+df <- as.data.frame({
+	sapply(cellEnrichment[Cellsig],function(x) {
+		       paste(x$shortDataSetName[x$Bonferroni < alpha],collapse="; ")
+	      })
+})
+colnames(df) <- "Enriched Cell Type Specific Genes"
+df <- tibble::add_column(df,Module=rownames(df),.before=1)
+
+# Create table and add borders.
+# Border around data rows.
+mytable <- tableGrob(df, rows=NULL, theme = mytheme)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
+)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 2, l = 1, r = ncol(mytable)
+)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 3, l = 1, r = ncol(mytable)
+)
+
+# Check the table.
+cowplot::plot_grid(mytable)
+
+# Save the table.
 
 #--------------------------------------------------------------------
 ## Module GO enrichment -- anRichment.
