@@ -1,34 +1,51 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: Module Self-Preservation
+#' title: Module Preservation
 #' description: Evaluate module preservation by permutation testing.
+#'              This is a more general form of the module-self-preservation
+#'              script. Should be able to handle different permutation
+#'              test setups.
 #' authors: Tyler W Bradshaw
 #' ---
 
 ## User parameters to change:
 stats <- c(1,2,6,7) 
-strength <- "strong" # Criterion for preservation.
-replace_negative <- "zero" # How to handle negative edge weights.
-
-## Input data:
-netw_files <- c(self="3_Cortex_Adjm.RData",
-	        test="3_Striatum_Adjm.RData") 
-data_files <- c(self="3_Cortex_cleanDat.RData",
-		test="3_Striatum_cleanDat.RData") 
-corr_files <- c(self="3_Cortex_Adjm.RData",
-	        test="3_Striatum_Adjm.RData")
-part_files <- c(self="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
-		test="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData")
+#stats = 1
+strength = "strong" # Criterion for preservation.
+replace_negative = "zero" # How to handle negative edge weights.
 
 ## Other NetRep parameters:
-self <- "Cortex"
-test <- "Striatum"
-backgroundLabel <- 0
-self_preservation <- FALSE
-null <- "overlap"
-alternative <- "greater"
-verbose <- FALSE
+nPerm = NULL
+verbose = FALSE
+null = "overlap"
+backgroundLabel = 0
+alternative = "greater"
+
+# Organization of the permutation test.
+# The data in data_list will be used, see below.
+# Define the appropriate self and test for all inputs.
+perm_test <- list(discovery = "Striatum", 
+		  test = "Cortex",
+		  self_preservation = FALSE,
+		  network =     c(self="Striatum",test="Cortex"),
+		  data =        c(self="Striatum",test="Cortex"),
+		  correlation = c(self="Striatum",test="Cortex"),
+		  module =      c(self="Striatum",test="Cortex"))
+
+## Input data.
+# Data should be in rdata/.
+data_files <- list(
+		   network = list(Cortex = "3_Cortex_Adjm.RData",
+			       Striatum = "3_Striatum_Adjm.RData",
+		               PPI = "3_PPI_Adjm.RData"),
+		   data = list(Cortex = "3_Cortex_cleanDat.RData",
+			       Striatum = "3_Striatum_cleanDat.RData"),
+		   correlation = list(Cortex = "3_Cortex_Adjm.RData",
+		               Striatum = "3_Striatum_Adjm.RData"),
+		   module = list(Cortex = "2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
+			       Striatum ="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData")
+		   )
 
 ## NetRep Permutation Statistics:
 # 1. avg.weight (average edge weight) - Calculated from network. Assumes edge
@@ -64,7 +81,7 @@ if (slurm) {
   write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
 } else {
 	nThreads <- parallel::detectCores() - 1
-  jobID <- Sys.Date()
+	jobID <- Sys.Date()
 }
 
 # Global options and imports.
@@ -75,7 +92,7 @@ suppressPackageStartupMessages({
 
 # Additional functions.
 suppressWarnings({
-devtools::load_all()
+	devtools::load_all()
 })
 
 # Directories.
@@ -88,40 +105,61 @@ funcdir <- file.path(root, "R")
 ## Collect input for permutation testing.
 #---------------------------------------------------------------------
 
+# Check if performing self-preservation test.
+if (perm_test$self_preservation == TRUE) {
+	self_preservation <- TRUE
+	self <- perm_test$discovery
+	test <- perm_test$discovery
+} else {
+	self_preservation <- FALSE
+	self <- perm_test$discovery
+	test <- perm_test$test
+}
+
 # Input for NetRep:
 # 1. Expression data.
-data <- lapply(data_files,function(x) readRDS(file.path(rdatdir,x)))
-data <- lapply(data,t)
-data_list <- data
-names(data_list) <- c(self,test)
+myfiles <- data_files$data[perm_test$data]
+data <- lapply(myfiles,function(x) readRDS(file.path(rdatdir,x)))
+data_list <- lapply(data,t)
+if (self_preservation) { names(data_list) <- self }
 
 # 2. Correlation matrix or interaction network (co-expr, GO, or PPI).
-adjm <- lapply(corr_files,function(x) readRDS(file.path(rdatdir,x)))
+myfiles <- data_files$correlation[perm_test$correlation]
+adjm <- lapply(myfiles,function(x) readRDS(file.path(rdatdir,x)))
 adjm <- lapply(adjm,as.matrix)
 adjm <- lapply(adjm,function(x) { rownames(x) <- colnames(x) ; return(x) })
 correlation_list <- adjm
-names(correlation_list) <- c(self,test)
+if (self_preservation) { names(correlation_list) <- self }
 
 # 3. Interaction network - Edges must be positive! Should network be weighted?
-net <- lapply(netw_files,function(x) readRDS(file.path(rdatdir,x)))
+myfiles <- data_files$network[perm_test$network]
+net <- lapply(myfiles,function(x) readRDS(file.path(rdatdir,x)))
 net <- lapply(net,as.matrix)
 net <- lapply(net,function(x) { rownames(x) <- colnames(x) ; return(x) })
 # Network (edges) should be positive.
 # Replace negative edges.
 if (replace_negative == "absolute value") {
 	# Replace negative edges as absolute value.
-	net <- lapply(net,abs)
+	network_list <- lapply(net,abs)
 } else if (replace_negative == "zero") {
 	network_list <- lapply(net,function(x) { x[x<0] <- 0; return(x) })
 }
-names(network_list) <- c(self,test)
+if (self_preservation) { names(network_list) <- self }
 
 # 4. Network partitions.
-parts <- lapply(part_files,function(x) readRDS(file.path(rdatdir,x)))
+myfiles <- data_files$module[perm_test$module]
+parts <- lapply(myfiles,function(x) readRDS(file.path(rdatdir,x)))
 parts <- lapply(parts,"[[",1)
 parts <- lapply(parts,reset_index)
 module_list <- lapply(parts,reset_index)
-names(module_list) <- c(self,test)
+if (self_preservation) { names(module_list) <- self }
+
+# Insure matching order of input data.
+colNames <- colnames(data_list[[1]])
+data_list <- lapply(data_list,function(x) sortInput(x,colNames))
+network_list <- lapply(network_list,function(x) sortInput(x,colNames))
+correlation_list <- lapply(correlation_list,function(x) sortInput(x,colNames))
+module_list <- lapply(module_list,function(x) sortInput(x,colNames))
 
 #---------------------------------------------------------------------
 ## Permutation testing.
@@ -134,8 +172,6 @@ module_stats <- paste(c(
 )[stats], collapse = ", ")
 
 # Status report:
-message(paste("Evaluating self-preservation of",
-		self, "modules in the",test,"network."))
 message(paste0(
   "Module statistic(s) used to evaluate module preservation: ",
   module_stats), ".")
@@ -143,6 +179,8 @@ message(paste0(
   "Criterion for module preservation/divergence: ",
   strength, ".", "\n"
 ))
+message(paste("Evaluating preservation of",perm_test$discovery, 
+	      "modules in the", perm_test$test, "network..."))
 
 # Perform permutation test for module self-preservation.
 # Suppress warnings about missing values.
@@ -154,11 +192,11 @@ selfPreservation <- NetRep::modulePreservation(
       moduleAssignments = module_list,
       modules = NULL,
       backgroundLabel = backgroundLabel,
-      discovery = c(self,test),
-      test = c(test,self),
+      discovery = self,
+      test = test,
       selfPreservation = self_preservation,
       nThreads = nThreads,
-      nPerm = NULL, # Determined automatically by the function.
+      nPerm = nPerm, # If null then determined automatically by the function.
       null = null,
       alternative = alternative, # Greater for self-preservation.
       simplify = TRUE,
@@ -167,25 +205,24 @@ selfPreservation <- NetRep::modulePreservation(
 })
 
 # Remove NS modules--set NS modules to 0.
-check_preservation <- function(selfPreservation,self,test){
+check_preservation <- function(selfPreservation,module_list,self,test,stats){
+	# Wrapper around check_modules()
 	partition <- module_list[[self]]
-	results <- selfPreservation[[self]]
-	preservedParts <- check_modules(results, strength, stats)
+	preservedParts <- check_modules(selfPreservation, strength, stats)
 	nModules <- length(unique(partition[which(partition != 0)]))
 	out <- names(preservedParts)[preservedParts == "ns"]
 	partition[partition %in% out] <- 0
 	nPreserved <- nModules - length(out)
 	message(paste("...", nPreserved, "of", nModules, self,
-		      "modules are preserved in the",test,"network."))
+		      "modules are preserved in the",test,"network.\n"))
+	# Return partition with NS modules set to 0.
 	return(partition)
 }
 
 # Check how many modules are preserved.
-results <- list(self = check_preservation(selfPreservation,self="Cortex",test="Striatum"),
-		test = check_preservation(selfPreservation,self="Striatum",test="Cortex"))
+results <- check_preservation(selfPreservation,module_list,self,test,stats)
 
 # Save to Rdata.
-output_name <- paste0(jobID, "_", self, "_", test,
-		      "_Module_Self_Preservation.RData")
+output_name <- paste0(jobID, "_", perm_test$discovery, "_", 
+		      perm_test$test, "_Module_Self_Preservation.RData")
 saveRDS(results, file.path(rdatdir, output_name))
-message("Done!")
