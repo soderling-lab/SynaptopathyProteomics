@@ -5,9 +5,11 @@ createCytoscapeGraph <- function(exp_graph,
 				 module_name, 
 				 module_colors, 
 				 network_layout, 
-				 output_file=NULL) {
-	## NOTE: Sys.sleep()'s are important to prevent R from getting ahead of
-	## Cytoscape!
+				 output_file=NULL,
+				 image_file=NULL,
+				 image_format=NULL)
+	## NOTE: Sys.sleep()'s are important to prevent R from getting
+        # ahead of Cytoscape!
 	suppressPackageStartupMessages({
 		library(RCy3)
 		cytoscapePing()
@@ -90,6 +92,8 @@ createCytoscapeGraph <- function(exp_graph,
 	setVisualStyle(style.name)
 	Sys.sleep(3)
 	# Set NS nodes to gray.
+	anyNS <- length(names(V(g))[which(V(g)$sigProt==0)]) > 0
+	if (anyNS) {
 	setNodePropertyBypass(
 	  node.names = names(V(g))[which(V(g)$sigProt==0)],
 	  new.values = col2hex("gray"),
@@ -102,12 +106,15 @@ createCytoscapeGraph <- function(exp_graph,
 	  visual.property = "NODE_TRANSPARENCY",
 	  bypass = TRUE,
 	)
-	# Add PPI edges.
+	}
+	# Collect PPI edges.
 	subg <- induced_subgraph(ppi_graph,vids = V(ppi_graph)[match(nodes,names(V(ppi_graph)))])
 	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
+	# If edge list is only of length 1, unnest it to avoid problems.
 	if (length(edge_list) == 1) { 
 		edge_list = unlist(edge_list,recursive=FALSE)
 	}
+	# Add PPI edges to Cytoscape graph.
 	if (length(edge_list) > 0) {
 	  ppi_edges <- addCyEdges(edge_list)
 	  # Add PPIs and set to black.
@@ -128,10 +135,10 @@ createCytoscapeGraph <- function(exp_graph,
 	layoutNetwork(network_layout)
 	Sys.sleep(2)
 	fitContent()
-	# Save.
-	if (!is.null(output_file)) { 
-		winfile <- gsub("/mnt/d/","D:/",output_file)
-		saveSession(winfile) 
+	# Save Image..
+	if (!is.null(image_file)) { 
+		winfile <- gsub("/mnt/d/","D:/",image_file)
+		exportImage(image_file,image_format)
 	}
 	# Free up some memory.
 	cytoscapeFreeMemory()

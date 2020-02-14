@@ -43,6 +43,11 @@ rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
+# FIXME: figs go in analysis specific directory.
+# Should prefix with number and date.
+basename(dirname(here))
+figsdir
+
 # Functions.
 suppressWarnings({
 	devtools::load_all()
@@ -668,6 +673,8 @@ for (i in c(1:length(modules))) {
 	module_kme = KME_list[[module_name]]
 	output_file = file.path(netsdir,module_name)
 	network_layout = 'force-directed edgeAttribute=weight'
+	image_file = file.path(figsdir,module_name)
+	image_format = "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
 }
 
