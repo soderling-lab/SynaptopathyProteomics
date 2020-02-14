@@ -29,6 +29,8 @@ suppressPackageStartupMessages({
   library(igraph)
   library(ggplot2)
   library(enrichR)
+  library(gtable)
+  library(cowplot)
 })
 
 # Directories.
@@ -69,7 +71,7 @@ myfile <- file.path(rdatdir, adjm_file)
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
-# Load PPI graph.
+# Load PPI adjacency matrix.
 adjm_ppi <- fread(file.path(rdatdir,"3_PPI_Adjm.csv"),drop=1)
 adjm_ppi <- as.matrix(adjm_ppi)
 rownames(adjm_ppi) <- colnames(adjm_ppi)
@@ -180,8 +182,6 @@ mytheme <- gridExtra::ttheme_default(
   rowhead = list(fg_params = list(cex = 0.75))
 )
 
-library(gtable)
-
 # Create table and add borders.
 # Border around data rows.
 mytable <- tableGrob(df, rows = NULL, theme = mytheme)
@@ -195,7 +195,12 @@ mytable <- gtable_add_grob(mytable,
 )
 
 # Check the table.
-cowplot::plot_grid(mytable)
+fig <- plot_grid(mytable)
+
+# Save.
+## FIXME: scale the plot!
+myfile <- file.path(figsdir,paste0(Sys.Date(),"DBD_Gene_Summary.tiff"))
+ggsave(myfile,fig)
 
 #---------------------------------------------------------------------
 ## Module enrichment for cell types.
@@ -213,15 +218,15 @@ gene_list <- module_list$Entrez
 # gse is just a wrapper around anRichment's enrichment function.
 cellEnrichment <- gse(gene_list, Cellcollection)
 
-# Collect modules with significant enrichment of DBD-genes.
+# Collect modules with significant enrichment for cell-type specific genes.
 method <- "Bonferroni"
 alpha <- 0.1
 any_sig <- which(sapply(cellEnrichment,function(x) any(x[method] < alpha)))
 Cellsig <- names(cellEnrichment)[any_sig]
 
 # Status.
-message(paste("Total number of disease associated modules:",
-	      length(Cellsig)))
+message(paste("Total number of modules with cell-type specific",
+	      "gene enrichment:", length(Cellsig)))
 
 # These are the modules with cell type enrichment.
 module_list$IDs[Cellsig]
@@ -256,9 +261,12 @@ mytable <- gtable_add_grob(mytable,
 )
 
 # Check the table.
-cowplot::plot_grid(mytable)
+fig <- plot_grid(mytable)
 
 # Save the table.
+## FIXME: scale the plot!
+myfile <- file.path(figsdir,paste0(Sys.Date(),"Cell_Type_Modules_Summary.tiff"))
+ggsave(myfile,fig)
 
 #--------------------------------------------------------------------
 ## Module GO enrichment -- anRichment.
@@ -279,14 +287,33 @@ topGO <- lapply(GOresults,function(x) {
 	    })
 
 # Number of modules with any significant GO term enrichment.
-sum(unlist(topGO)<0.05)
+message(paste("Total number of modules with any significant GO",
+	      "enrichment:", sum(unlist(topGO)<0.05)))
+
+# Table summary.
+df <- data.table("Module" = sapply(strsplit(names(unlist(topGO[which(topGO<0.05)])),"\\."),"[",1),
+		 "GO Term" = sapply(strsplit(names(unlist(topGO[which(topGO<0.05)])),"\\."),"[",2))
+
+# Split into two dfs.
+dfs <- split(df,rep(c(1,2),times=c(22,23)))
+
+# Create table and add borders.
+# Border around data rows.
+mytables <- lapply(dfs,function(x) tableGrob(x, rows=NULL, theme = mytheme))
+figs <- lapply(mytables,plot_grid)
+
+# Save the tables.
+## FIXME: scale the plot!
+myfiles <- file.path(figsdir,paste0(Sys.Date(),"_SigGO_Module_Summary_",
+				    c(1,2),".tiff"))
+lapply(seq_along(myfiles),function(x) ggsave(myfiles[x],figs[[x]]))
 
 #--------------------------------------------------------------------
 ## Module enrichment -- use enrichR.
 #--------------------------------------------------------------------
 
 # Collect list of module genes--input is gene symbols.
-gene_list <- modules$Symbols[-which(names(modules$Symbols)=="M0")]
+gene_list <- module_list$Symbols
 
 # All available databases.
 dbs <- listEnrichrDbs()
@@ -294,11 +321,30 @@ dbs <- dbs$libraryName[order(dbs$libraryName)]
 
 # Enrichment analysis.
 db <- "GO_Molecular_Function_2018"
-enrichRenrichment <- lapply(gene_list, function(x) enrichr(x,db))
+results <- lapply(gene_list, function(x) enrichr(x,db))
+
+# OMIM disease...
+## FIXME: suppress status output!
+db <- "OMIM_Disease"
+results <- suppressMessages({
+	lapply(gene_list, function(x) enrichr(x,db))
+})
+
+# Unnest list.
+results <- lapply(results,function(x) x[[1]])
+
+# Collect significant results.
+alpha = 0.05
+anySig <- sapply(results,function(x) any(x$Adjusted.P.value<alpha))
+sigResults <- results[names(anySig)[anySig]]
+
+sapply(sigResults,function(x) x$Term[x$Adjusted.P.value<alpha])
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
+
+## FIXME: Add table summarize modules.
 
 # Get modules.
 modules <- module_list$IDs
@@ -398,7 +444,7 @@ DTdata_list <- lapply(ME_list, function(x) {
   return(as.data.frame(result))
 })
 
-# Number of significant KW + DT changes.
+# Number of modules with significant KW + DT changes.
 alpha <- 0.05
 nSigDT <- sapply(DTdata_list, function(x) sum(x$pval < alpha))
 if (length(nSigDT[sigModules]) > 0) {
@@ -421,7 +467,6 @@ plots <- lapply(ME_list,function(x) {
 		 ggplotVerboseBoxplot(x,groups,group_levels)
   })
 names(plots) <- names(ME_list)
-
 ## Clean up plots.
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
@@ -450,12 +495,39 @@ for (k in seq_along(plots)) {
 	plots[[k]] <- plot
 } # Ends loop to fix plots.
 
+
+# Create table summarizing modules.
+df <- data.table("N Modules"=nModules,
+	   "Percent Un-clustered"=round(percentNC,3),
+	   "Median PVE" = round(medianPVE,3),
+	   "N Sig. Modules"=nSigModules,
+	   "Min Size" = mod_stats[[1]],
+	   "Median Size" = mod_stats[[2]],
+	   "Max Size" = mod_stats[[4]])
+# Border around data rows.
+mytable <- tableGrob(df, rows=NULL, theme = mytheme)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
+)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 2, l = 1, r = ncol(mytable)
+)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 3, l = 1, r = ncol(mytable)
+)
+
+# Check the table.
+fig <- plot_grid(mytable)
+
 #---------------------------------------------------------------------
-## Save plots.
+## Save verbose box plots.
 #---------------------------------------------------------------------
 
 # Save sig plots.
-myfile <- file.path(figsdir,"VerboseBoxplots.pdf")
+myfile <- file.path(figsdir,paste0(Sys.Date(),"_VerboseBoxplots.pdf"))
 ggsavePDF(plots[sigModules],myfile)
 
 #---------------------------------------------------------------------
@@ -539,6 +611,8 @@ df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 module_colors <- df$color
 names(module_colors) <- names(modules)
 
+## FIXME: add colored bars to dendrogram.
+
 #---------------------------------------------------------------------
 ## Generate ppi graphs and co-expression graphs.
 #---------------------------------------------------------------------
@@ -547,37 +621,38 @@ names(module_colors) <- names(modules)
 # loading into cytoscape.
 
 # Coexpression graph.
-g0 <- graph_from_adjacency_matrix(adjm,mode="undirected",
+exp_graph <- graph_from_adjacency_matrix(adjm,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
 
 # Enhanced Coexpression graph.
-g1 <- graph_from_adjacency_matrix(adjm_ne,mode="undirected",
+ne_graph <- graph_from_adjacency_matrix(adjm_ne,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
 
 # PPI graph.
-g2 <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
+ppi_graph <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
 
-# Merge graphs.
-graph <- igraph::union(g0,g1,g2)
-
 # Remove NAs from PPI edges.
-E(graph)$weight_3[which(is.na(E(graph)$weight_3))] <- 0
+E(ppi_graph)$weight[which(is.na(E(ppi_graph)$weight))] <- 0
+
+# Merge graphs.
+#graph <- igraph::union(g0,g1)
+
 
 ## Add attributes to igraph object.
 # Add Gene symbols.
-symbols <- protmap$gene[match(names(V(graph)),protmap$ids)]
-graph <- set_vertex_attr(graph,"symbol",value = symbols)
+symbols <- protmap$gene[match(names(V(exp_graph)),protmap$ids)]
+exp_graph <- set_vertex_attr(exp_graph,"symbol",value = symbols)
 
 # Add sigProt vertex attribute.
-anySig <- names(V(graph)) %in% sigProts
-graph <- set_vertex_attr(graph, "sigProt", 
+anySig <- names(V(exp_graph)) %in% sigProts
+exp_graph <- set_vertex_attr(exp_graph, "sigProt", 
 			 value = as.numeric(anySig))
 
 # Add DBDprot vertex attribute.
-DBDnodes <- lapply(DBDprots,function(x) names(V(graph)) %in% x)
+DBDnodes <- lapply(DBDprots,function(x) names(V(exp_graph)) %in% x)
 for (DBD in names(DBDnodes)){
-	graph <- set_vertex_attr(graph, name=DBD, 
+	exp_graph <- set_vertex_attr(exp_graph, name=DBD, 
 				 value = as.numeric(DBDnodes[[DBD]]))
 }
 
@@ -586,21 +661,20 @@ for (DBD in names(DBDnodes)){
 #---------------------------------------------------------------------
 
 # Create graphs.
-for (i in c(21:117)) {
+for (i in c(1:length(modules))) {
 	message(paste("Working on module",i,"..."))
 	module_name = names(modules)[i]
 	nodes = names(modules[[module_name]])
-	ppi_graph = g2
 	module_kme = KME_list[[module_name]]
 	output_file = file.path(netsdir,module_name)
-	network_layout = 'force-directed edgeAttribute=weight1'
-	createCytoscapeGraph(graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
+	network_layout = 'force-directed edgeAttribute=weight'
+	createCytoscapeGraph(exp_graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
 }
 
 # Function to create PPI graphs.
 # Cy3::addCyEdges, more than one node found for a given source or target node
 # name. No edges added.
-createCytoscapeGraph <- function(graph,
+createCytoscapeGraph <- function(exp_graph,
 				 ppi_graph,
 				 nodes,
 				 module_kme,
@@ -608,14 +682,15 @@ createCytoscapeGraph <- function(graph,
 				 module_colors, 
 				 network_layout, 
 				 output_file=NULL) {
-	## NOTE: Sys.sleep()'s are important!
+	## NOTE: Sys.sleep()'s are important to prevent R from getting ahead of
+	## Cytoscape!
 	suppressPackageStartupMessages({
 		library(RCy3)
 		cytoscapePing()
 	})
 	# Subset graph.
-	idx <- match(nodes,names(V(graph)))
-	g <- induced_subgraph(graph,vids = V(graph)[idx])
+	idx <- match(nodes,names(V(exp_graph)))
+	g <- induced_subgraph(exp_graph,vids = V(exp_graph)[idx])
 	# Add node color attribute.
 	g <- set_vertex_attr(g,"color", value = module_colors[module_name])
 	# Add node module attribute.
@@ -624,20 +699,20 @@ createCytoscapeGraph <- function(graph,
 	g <- set_vertex_attr(g, "kme" ,value=module_kme[names(V(g))])
 	# Prune weak edges.
 	nEdges <- length(E(g))
-	e_max <- max(E(g)$weight_1)
-	e_min <- min(E(g)$weight_1)
+	e_max <- max(E(g)$weight)
+	e_min <- min(E(g)$weight)
 	cut_off <- seq(e_min,e_max,by=0.01)
 	check <- vector("logical",length = length(cut_off))
 	# Loop to find threshold.
 	for (i in seq_along(cut_off)) {
 		threshold <- cut_off[i]
 		g_temp <- g
-		g_temp <- delete.edges(g_temp, which(E(g_temp)$weight_1 <= threshold))
+		g_temp <- delete.edges(g_temp, which(E(g_temp)$weight <= threshold))
 		check[i] <- is.connected(g_temp)
 	}
 	cutoff_limit <- cut_off[max(which(check))]
 	# Prune edges -- this removes all edge types...
-	g <- delete.edges(g, which(E(g)$weight_1 <= cutoff_limit))
+	g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
 	# Write graph to file this is faster than sending to cytoscape.
 	myfile <- file.path(netsdir,paste0(module_name,".gml"))
 	write_graph(g,myfile,format="gml")
@@ -645,7 +720,7 @@ createCytoscapeGraph <- function(graph,
 	## FIXME: underscores from edge weight attributes are removed!
 	winfile <- gsub("/mnt/d/","D:/",myfile)
 	cys_net <- importNetworkFromFile(winfile)
-	Sys.sleep(5)
+	Sys.sleep(2)
 	unlink(winfile)
 	# Create a visual style.
 	style.name <- paste(module_name,"style",sep="-")
@@ -676,14 +751,14 @@ createCytoscapeGraph <- function(graph,
 	                                c(min(V(g)$kme),max(V(g)$kme)), 
 	                                c(25,75)),
 	  EDGE_TRANSPARENCY = mapVisualProperty('edge transparency',
-	                                        'weight1', 
+	                                        'weight', 
 	                                        'c', 
-	                                        c(min(E(g)$weight_1),max(E(g)$weight_1)), 
+	                                        c(min(E(g)$weight),max(E(g)$weight)), 
 	                                        c(155,255)),
 	  EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty('edge stroke unselected paint', 
-	                                                   'weight1','c',
-	                                                   c(min(E(g)$weight_1),max(E(g)$weight_1)),
-	                                                   c(col2hex("gray"),col2hex("dark grey")))
+	                                                   'weight','c',
+	                                                   c(min(E(g)$weight),max(E(g)$weight)),
+	                                                   c(col2hex("gray"),col2hex("dark red")))
 	)
 	# Create a visual style.
 	createVisualStyle(style.name, defaults = defaults, mappings = mappings)
@@ -704,13 +779,13 @@ createCytoscapeGraph <- function(graph,
 	  bypass = TRUE,
 	)
 	# Add PPI edges.
-	subg <- induced_subgraph(g2,vids = V(g2)[match(nodes,names(V(g2)))])
+	subg <- induced_subgraph(ppi_graph,vids = V(ppi_graph)[match(nodes,names(V(ppi_graph)))])
 	edge_list <- apply(as_edgelist(subg, names = TRUE),1,as.list)
-	## FIXME:: problem with M20
 	if (length(edge_list) > 0) {
 	  ppi_edges <- addCyEdges(edge_list)
 	  # Add PPIs and set to black.
 	  selected_edges <- selectEdges(ppi_edges,by.col = "SUID")
+	  # Set to black with edge bend.
 	  setEdgePropertyBypass(edge.names = selected_edges$edges,
 	                        new.values = col2hex("black"),
 	                        visual.property = "EDGE_STROKE_UNSELECTED_PAINT",
@@ -721,20 +796,22 @@ createCytoscapeGraph <- function(graph,
 	                     bypass = TRUE)
 	} # Ends IF statement.
 	clearSelection()
-	Sys.sleep(3)
+	Sys.sleep(2)
 	# Apply layout.
 	layoutNetwork(network_layout)
-	Sys.sleep(3)
+	Sys.sleep(2)
 	fitContent()
 	# Save.
-	## FIXME: needs to be windows path.
-	#if (!is.null(output_file)) { saveSession(output_file) }
+	if (!is.null(output_file)) { 
+		winfile <- gsub("/mnt/d/","D:/",output_file)
+		saveSession(winfile) 
+	}
 	# Free up some memory.
 	cytoscapeFreeMemory()
 }
 
 #---------------------------------------------------------------------
-## Save key results.
+## Save key results summarizing modules.
 #---------------------------------------------------------------------
 
 # Summarize modules: Name, Nodes, PVE, Color, Prots.
