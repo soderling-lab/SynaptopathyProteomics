@@ -824,7 +824,6 @@ plot_list <- plot_list[all_sigProts]
 message("Saving plots, this will take several minutes...")
 myfile <- file.path(Rdatadir,"All_SigProt_Boxplots.RData")
 saveRDS(plot_list,myfile)
-message("Done!\n")
 
 #---------------------------------------------------------------------
 ## Write data to excel spreadsheet.
