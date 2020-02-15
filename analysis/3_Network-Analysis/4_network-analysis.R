@@ -15,6 +15,8 @@ net <- "Cortex"
 adjm_file <- "3_Cortex_Adjm.RData"
 data_file <- "3_Cortex_cleanDat.RData"
 partition_file <- "2020-02-10_Cortex"
+create_cytoscape_graphs <- FALSE
+image_format <- "tiff"
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -33,24 +35,26 @@ suppressPackageStartupMessages({
   library(cowplot)
 })
 
+
 # Directories.
 here <- getwd()
+subdir <- basename(here)
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
-figsdir <- file.path(root, "figs")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
+figsdir <- file.path(root, "figs",subdir)
+tabsdir <- file.path(root, "tables", subdir)
 
 # Create directory for figure output.
-figsdir <- file.path(figsdir,basename(here),Sys.Date())
-dir.create(figsdir,recursive=TRUE)
+# Overwrite any existing figures.
+figsdir <- file.path(figsdir,Sys.Date())
+if (dir.exists(figsdir)) { unlink(figsdir) }
+dir.create(figsdir, recursive=TRUE, showWarnings=FALSE)
 
 # Functions.
-suppressWarnings({
-	devtools::load_all()
-})
+suppressWarnings({ devtools::load_all() })
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -93,7 +97,7 @@ rownames(adjm_ne) <- colnames(adjm_ne)
 myfile <- list.files(rdatdir,pattern=partition_file,full.names=TRUE)
 partition <- unlist(readRDS(myfile))
 
-# Reset index.
+# Reset partition index.
 partition <- reset_index(partition)
 
 # Load theme for plots.
@@ -163,7 +167,7 @@ message(paste("Total number of disease associated modules:",
 	      length(DBDsig)))
 
 # Write to file.
-myfile <- file.path(tabsdir,paste0(Sys.Date(),"_DBD_Enrichment.xlsx"))
+myfile <- file.path(tabsdir,"Module_DBD_Enrichment.xlsx")
 write_excel(DBDenrichment[DBDsig],myfile)
 
 # Collect all DBD genes.
@@ -177,16 +181,15 @@ DBDprots <- lapply(DBDgenes,function(x) {
 			  protmap$ids[which(x %in% protmap$entrez)]
 })
 
-# Create a df of protein-DBD annotations.
+# Create a vector of protein-DBD annotations.
 DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
 colnames(DBDcols) <- names(DBDprots)
 DBDdf <- as.data.frame(DBDcols)
 #DBDdf <- tibble::add_column(DBDdf,"Protein"=protmap$ids,.before=1)
 #DBDdf$anyDBD <- apply(DBDcols,1,any)
 rownames(DBDdf) <- protmap$ids
-
-DBDannotations <- apply(DBDdf,1,function(x) paste(colnames(DBDdf)[x],collapse="; "))
-DBDannotations[DBDannotations == ""] <- NA
+DBDanno <- apply(DBDdf,1,function(x) paste(colnames(DBDdf)[x],collapse="; "))
+DBDanno[DBDanno == ""] <- NA
 
 #---------------------------------------------------------------------
 ## Create a table summarizing disease genes.
@@ -207,6 +210,7 @@ mytheme <- gridExtra::ttheme_default(
 # Create table and add borders.
 # Border around data rows.
 mytable <- tableGrob(df, rows = NULL, theme = mytheme)
+
 mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
   t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
@@ -220,9 +224,8 @@ mytable <- gtable_add_grob(mytable,
 fig <- plot_grid(mytable)
 
 # Save.
-## FIXME: scale the plot!
 myfile <- prefix_file(file.path(figsdir,"DBD_Gene_Summary.tiff"))
-ggsave(myfile,fig)
+ggsaveTable(mytable,myfile)
 
 #---------------------------------------------------------------------
 ## Module enrichment for cell types.
@@ -240,7 +243,7 @@ gene_list <- module_list$Entrez
 # gse is just a wrapper around anRichment's enrichment function.
 cellEnrichment <- gse(gene_list, Cellcollection)
 
-# Collect modules with significant enrichment for cell-type specific genes.
+# Collect modules with sig. enrichment for cell-type specific genes.
 method <- "Bonferroni"
 alpha <- 0.1
 any_sig <- which(sapply(cellEnrichment,function(x) any(x[method] < alpha)))
@@ -249,9 +252,6 @@ Cellsig <- names(cellEnrichment)[any_sig]
 # Status.
 message(paste("Total number of modules with cell-type specific",
 	      "gene enrichment:", length(Cellsig)))
-
-# These are the modules with cell type enrichment.
-module_list$IDs[Cellsig]
 
 # Write to file.
 myfile <- file.path(tabsdir,"Velmeshev_Cell_Type_Enrichment.xlsx")
@@ -286,9 +286,8 @@ mytable <- gtable_add_grob(mytable,
 fig <- plot_grid(mytable)
 
 # Save the table.
-## FIXME: scale the plot!
 myfile <- prefix_file(file.path(figsdir,paste0("Cell_Type_Modules_Summary.tiff")))
-ggsave(myfile,fig)
+ggsaveTable(mytable,myfile)
 
 #--------------------------------------------------------------------
 ## Module GO enrichment -- anRichment.
@@ -326,9 +325,11 @@ figs <- lapply(mytables,plot_grid)
 
 # Save the tables.
 ## FIXME: scale the plot!
-myfiles <- file.path(figsdir,paste0("SigGO_Module_Summary_",c(1,2),".tiff"))
-myfiles <- sapply(myfiles,prefix_file)
-lapply(seq_along(myfiles),function(x) ggsave(myfiles[x],figs[[x]]))
+for (i in seq_along(figs)) {
+	myfile <- prefix_file(file.path(figsdir,
+				paste0("SigGO_Module_Summary_",i,".tiff")))
+	ggsaveTable(mytables[[i]],myfile)
+}
 
 #--------------------------------------------------------------------
 ## Module enrichment -- use enrichR.
@@ -526,8 +527,38 @@ ggsave(myfile,fig)
 #---------------------------------------------------------------------
 
 # Save sig plots as single pdf.
-myfile <- prefix_file(file.path(figsdir,"Verbose_Boxplots.pdf"))
+myfile <- prefix_file(file.path(figsdir,"All_Sig_Module_Boxplots.pdf"))
 ggsavePDF(plots[sigModules],myfile)
+
+# Save sig plots as single pdf.
+myfile <- prefix_file(file.path(figsdir,"All_Module_Boxplots.pdf"))
+ggsavePDF(plots,myfile)
+
+#---------------------------------------------------------------------
+## Save protein boxplots of sig prots for sig modules.
+#---------------------------------------------------------------------
+
+# Load plots.
+myfile <- file.path(rdatdir,"All_SigProt_Boxplots.RData")
+all_plots <- readRDS(myfile)
+# Group by module.
+plot_list <- split(all_plots,partition[names(all_plots)])
+names(plot_list) <- paste0("M",names(plot_list))
+
+# Save a single pdf containing all the sign proteins within a
+# module for each module.
+for (i in 1:length(sigModules)){
+	module_name <- sigModules[i]
+	plots <- plot_list[[module_name]]
+	groups <- rep(c(1:ceiling(length(plots)/4)),each=4)[c(1:length(plots))]
+	plot_groups <- split(plots,groups)
+	figs <- lapply(plot_groups,function(x) {
+			       gridExtra::grid.arrange(grobs=x,ncol=2,nrow=2)
+		 })
+	myfile <- prefix_file(file.path(figsdir,
+				paste0(module_name,"_Module_SigProts.pdf")))
+	ggsavePDF(figs,myfile)
+}
 
 #---------------------------------------------------------------------
 ## Examine overall structure of network, ME network.
@@ -606,17 +637,14 @@ names(module_colors) <- names(modules)
 
 # Add colored bars to dendro.
 # FIXME: need to improve this.
-gp1<-ggplotGrob(p1)
-gp2<-ggplotGrob(p2)  
+#dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
+#dend_data <- dend_data$labels
+#df <- data.frame("Color" = module_colors[as.character(dend_data$label)],
+#		 "Module" = as.character(dend_data$label))
 
-dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
-dend_data <- dend_data$labels
-df <- data.frame("Color" = module_colors[as.character(dend_data$label)],
-		 "Module" = as.character(dend_data$label))
-
-p2<-ggplot(df,aes(x=Module,y=1,fill=Color)) + geom_tile() +
-	scale_fill_manual(values=as.character(df$Color)) + 
-	theme(legend.position="none")
+#p2<-ggplot(df,aes(x=Module,y=1,fill=Color)) + geom_tile() +
+#	scale_fill_manual(values=as.character(df$Color)) + 
+#	theme(legend.position="none")
 
 #maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5])
 #gp1$widths[2:5] <- as.list(maxWidth)
@@ -671,6 +699,7 @@ for (DBD in names(DBDnodes)){
 #---------------------------------------------------------------------
 
 # Create graphs.
+if (create_cytoscape_graphs){
 for (i in c(1:length(modules))) {
 	message(paste("Working on module",i,"..."))
 	module_name = names(modules)[i]
@@ -681,6 +710,7 @@ for (i in c(1:length(modules))) {
 	image_file = file.path(figsdir,module_name)
 	image_format = "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
+}
 }
 
 #---------------------------------------------------------------------
@@ -699,7 +729,7 @@ colnames(tempKW) <- paste("KW",colnames(tempKW))
 module_summary <- cbind(module_summary,tempKW)
 
 # Remove parameter column.
-df$"KW parameter" <- NULL
+module_summary$"KW parameter" <- NULL
 
 # Add column for KW sig.
 module_summary$"KW sig" <- module_summary$"KW p.adj" < 0.05
@@ -729,7 +759,7 @@ dfs <- lapply(seq_along(KME_list), function(x) {
 	       df$sigProt <- df$Protein %in% sigProts
 	       df$"Genotypes" <- sigProtAnno[df$Protein]
 	       df$DBDProt <- df$Protein %in% DBDprots
-	       df$"DBD Association(s)" <- DBDannotations[df$Protein]
+	       df$"DBD Association(s)" <- DBDanno[df$Protein]
 	       df <- df %>% filter(Module == x)
 	       df <- df[order(df$KME,decreasing=TRUE),]
 		 })
@@ -750,5 +780,5 @@ for (i in seq_along(dfs)){
 results <- list()
 results[["Summary"]] <- module_summary
 results = c(results,dfs[sigModules])
-myfile <- tabsdir(
-write_excel(results,"Module_Summary.xlsx")
+myfile <- file.path(tabsdir,"Module_Summary.xlsx")
+write_excel(results,myfile)

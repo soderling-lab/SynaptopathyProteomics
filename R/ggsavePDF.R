@@ -19,6 +19,7 @@
 #' @examples
 #' ggsavePDF(plots, file)
 ggsavePDF <- function(plots, file) {
+  library(ggplotify)
   pdf(file, onefile = TRUE)
   # If not a list, coerce to list.
   if (!inherits(plots, "list")) {
