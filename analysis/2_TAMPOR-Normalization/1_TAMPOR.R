@@ -53,13 +53,12 @@ outputfigs <- paste(rootdir,"figs",
 outputtabs <- paste(rootdir, "tables", sep = "/")
 
 # Load required custom functions.
-myfun <- list.files(functiondir, pattern = ".R", full.names = TRUE)
-invisible(sapply(myfun, source))
+devtools::load_all()
 
 # Create a directory for figure output.
 outputfigs <- paste(rootdir,"figs",
 		    "2_TAMPOR-Normalization",Sys.Date(),sep="/")
-dir.create(outputfigs,recursive=TRUE)
+dir.create(outputfigs,recursive=TRUE,showWarnings=FALSE)
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("2_", tissue)
@@ -185,9 +184,14 @@ out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
 data_in <- log2(cleanDat[, !out])
 
 # Illustrate Oldham's sample connectivity.
-sample_connectivity <- ggplotSampleConnectivity(data_in, log = TRUE, colID = "b.")
+sample_connectivity <- ggplotSampleConnectivity(data_in, 
+						log = TRUE, colID = "b.")
 plot <- sample_connectivity$connectivityplot +
   ggtitle("Sample Connectivity post-TAMPOR")
+
+# Save.
+myfile <- prefix_file(file.path(outputfigs,"Sample_Outlier.tiff"))
+ggsave(myfile,plot)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
@@ -251,6 +255,12 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
   colID = "b.",
   title = "Combined"
 )
+
+# Save.
+myfile <- prefix_file(file.path(outputfigs,"Cortex_PCA.tiff"))
+ggsave(myfile,plot1)
+myfile <- prefix_file(file.path(outputfigs,"Striatum_PCA.tiff"))
+ggsave(myfile,plot2)
 
 #---------------------------------------------------------------------
 ## Create protein identifier map.
@@ -410,6 +420,9 @@ mytable <- gtable_add_grob(mytable,
   t = 1, l = 1, r = ncol(mytable)
 )
 
+
+ggsave(myfile,plot)
+
 # Call topTags to add FDR. Gather tabularized results.
 glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
 
@@ -474,7 +487,7 @@ myfile <- file.path(Rdatadir, paste0(outputMatName, "_All_GLM_Results.RData"))
 saveRDS(glm_results, myfile)
 
 # Save results to file.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_GLM_Results.xlsx"))
+myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
 
 #---------------------------------------------------------------------
@@ -688,6 +701,7 @@ for (i in 1:ncol(df)) {
   sigProts[[i]] <- rownames(df)[idx]
 }
 names(sigProts) <- names(stats)
+all_sigProts <- unlist(sigProts)
 
 # Build a matrix showing overlap.
 col_names <- names(stats)
@@ -795,6 +809,12 @@ plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors
 
 # Facet plots, add significance stars, and reformat x.axis labels.
 plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats))
+
+# Save sig plots.
+message("Saving plots...")
+plot_list <- plot_list[all_sigProts]
+myfile <- file.path(Rdatadir,"all_boxplots.RData")
+saveRDS(plot_list,myfile)
 
 #---------------------------------------------------------------------
 ## Write data to excel spreadsheet.

@@ -7,7 +7,7 @@ createCytoscapeGraph <- function(exp_graph,
 				 network_layout, 
 				 output_file=NULL,
 				 image_file=NULL,
-				 image_format=NULL)
+				 image_format=NULL){
 	## NOTE: Sys.sleep()'s are important to prevent R from getting
         # ahead of Cytoscape!
 	suppressPackageStartupMessages({
