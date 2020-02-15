@@ -420,7 +420,9 @@ mytable <- gtable_add_grob(mytable,
   t = 1, l = 1, r = ncol(mytable)
 )
 
-
+# Save.
+myfile <- prefix_file(file.path(outputfigs,"Sig_Prots_Summary.tiff"))
+plot <- cowplot::plot_grid(mytable)
 ggsave(myfile,plot)
 
 # Call topTags to add FDR. Gather tabularized results.
@@ -594,11 +596,15 @@ for (i in 1:length(plots)) {
   plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
 }
 
-# Store plots in list...
-vp1 <- plots$Shank2
-vp2 <- plots$Shank3
-vp3 <- plots$Syngap1
-vp4 <- plots$Ube3a
+# Save.
+myfile <- prefix_file(file.path(outputfigs,"Shank2_Volcano.tiff"))
+ggsave(myfile,plots$Shank2)
+myfile <- prefix_file(file.path(outputfigs,"Shank3_Volcano.tiff"))
+ggsave(myfile,plots$Shank3)
+myfile <- prefix_file(file.path(outputfigs,"Syngap1_Volcano.tiff"))
+ggsave(myfile,plots$Syngap1)
+myfile <- prefix_file(file.path(outputfigs,"Ube3a_Volcano.tiff"))
+ggsave(myfile,plots$Ube3a)
 
 #---------------------------------------------------------------------
 ## GO Enrichment of DA proteins using anRichment package
@@ -637,21 +643,19 @@ labels <- as.matrix(labels)
 # Build a GO annotation collection:
 skip = TRUE
 if (!skip) {
-myfile <- file.path(Rdatadir, "musGOcollection.RData")
-if (file.exists(myfile)) {
-  musGOcollection <- readRDS(myfile)
-} else {
-  musGOcollection <- buildGOcollection(organism = "mouse")
-  saveRDS(musGOcollection, file.path(Rdatadir, "musGOcollection.RData"))
-}
-
+	myfile <- file.path(Rdatadir, "musGOcollection.RData")
+	if (file.exists(myfile)) {
+		musGOcollection <- readRDS(myfile)
+	} else {
+		musGOcollection <- buildGOcollection(organism = "mouse")
+		saveRDS(musGOcollection, file.path(Rdatadir, "musGOcollection.RData"))
+	}
 # Perform GO analysis for each genotype using hypergeometric (Fisher.test) test
 # as implmented by the WGCNA function enrichmentAnalysis().
 # The FDR is the BH adjusted p-value.
 # Insure that the correct background (used as reference for enrichment)
 # has been selected!
 # useBackgroud = "given" will use all given genes as reference background.
-
 GOenrichment <- enrichmentAnalysis(
   classLabels = labels,
   identifiers = entrez,
@@ -663,18 +667,16 @@ GOenrichment <- enrichmentAnalysis(
   getOverlapSymbols = TRUE,
   ignoreLabels = "FALSE"
 )
-
 # Collect the results.
 results_GOenrichment <- list()
 for (i in 1:length(GOenrichment$setResults)) {
   results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
 }
 names(results_GOenrichment) <- colnames(labels)
-
 # Save.
 myfile <- file.path(outputtabs, "2_Combined_GO_Analysis.xlsx")
 write_excel(results_GOenrichment, myfile)
-}
+} # Ends GO analysis chunk.
 
 #---------------------------------------------------------------------
 ## Condition overlap plot.
@@ -685,23 +687,25 @@ results <- glm_results
 
 # Combine by FDR.
 stats <- lapply(results, function(x) {
-  data.frame(Uniprot = x$Uniprot, Gene = x$Gene, FDR = x$FDR)
+  data.frame(Protein = x$Gene, FDR = x$FDR)
 })
 names(stats) <- names(results)
-df <- stats %>% purrr::reduce(left_join, by = c("Uniprot", "Gene"))
-colnames(df)[c(3:ncol(df))] <- paste("FDR", names(stats), sep = ".")
-rownames(df) <- paste(df$Gene, df$Uniprot, sep = "|")
-df$Uniprot <- NULL
-df$Gene <- NULL
+df <- stats %>% purrr::reduce(left_join, by = c("Protein"))
+colnames(df)[c(2:ncol(df))] <- paste("FDR", names(stats), sep = ".")
+
+# Data frame of stats to be used to annotate plots.
+stats_df <- df
+rownames(stats_df) <- stats_df$Protein
+stats_df$Protein <- NULL
 
 # Gather sigProts.
 sigProts <- list()
-for (i in 1:ncol(df)) {
+for (i in c(2:ncol(df))) {
   idx <- df[, i] < 0.05
-  sigProts[[i]] <- rownames(df)[idx]
+  sigProts[[i]] <- df$Protein[idx]
 }
 names(sigProts) <- names(stats)
-all_sigProts <- unlist(sigProts)
+all_sigProts <- unique(unlist(sigProts))
 
 # Build a matrix showing overlap.
 col_names <- names(stats)
@@ -735,8 +739,10 @@ dm[lower.tri(dm)] <- NA
 dm2 <- sweep(dm, 1, apply(dm, 1, function(x) max(x, na.rm = TRUE)), FUN = "/")
 
 # Melt
-df <- melt(dm, na.rm = TRUE)
-df$percent <- round(melt(dm2, na.rm = TRUE)$value, 2)
+df <- melt(dm, na.rm = FALSE)
+df$percent <- round(melt(dm2)$value, 2)
+df <- df[!is.na(df$value) | !is.na(df$percent),]
+df$percent[is.na(df$percent)] <- 0
 
 # Generate plot
 plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
@@ -805,16 +811,20 @@ plot_list <- ggplotProteinBoxPlot(
 
 # Add custom colors.
 colors <- rep(c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4"), 2)
-plot_list <- lapply(plot_list, function(x) x + scale_fill_manual(values = colors))
+plot_list <- lapply(plot_list, function(x) x + 
+		    scale_fill_manual(values = colors))
 
 # Facet plots, add significance stars, and reformat x.axis labels.
-plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats))
+plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
+
+# Collect significant plots.
+plot_list <- plot_list[all_sigProts]
 
 # Save sig plots.
-message("Saving plots...")
-plot_list <- plot_list[all_sigProts]
-myfile <- file.path(Rdatadir,"all_boxplots.RData")
+message("Saving plots, this will take several minutes...")
+myfile <- file.path(Rdatadir,"All_SigProt_Boxplots.RData")
 saveRDS(plot_list,myfile)
+message("Done!\n")
 
 #---------------------------------------------------------------------
 ## Write data to excel spreadsheet.

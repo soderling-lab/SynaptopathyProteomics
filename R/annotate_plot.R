@@ -26,11 +26,15 @@ annotate_plot <- function(plot, stats) {
   df <- data %>%
     group_by(Group) %>%
     summarize("Intensity" = mean(Intensity))
+  df$Tissue <- sapply(strsplit(as.character(df$Group),"\\."),"[",1)      
+  df$Genotype <- sapply(strsplit(as.character(df$Group),"\\."),"[",3)      
+  df$Genotype[is.na(df$Genotype)] <- "WT"
+  # Get FDR.
   fdr <- as.numeric(subset(stats, rownames(stats) == plot$labels$title))
-  names(fdr) <- colnames(stats)
-  df$ypos <- 1.01 * max(df$Intensity)
-  df$fdr <- fdr[levels(df$Group)]
+  names(fdr) <- gsub("FDR\\.","",colnames(stats))
+  df$fdr <- fdr[match(paste(df$Genotype,df$Tissue),names(fdr))]
   df$fdr[is.na(df$fdr)] <- 1
+  df$ypos <- 1.01 * max(df$Intensity)
   df$symbol <- ""
   df$symbol[df$fdr < 0.05] <- "*"
   df$symbol[df$fdr < 0.005] <- "**"
