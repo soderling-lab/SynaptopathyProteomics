@@ -43,10 +43,9 @@ rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 netsdir <- file.path(root, "networks")
 
-# FIXME: figs go in analysis specific directory.
-# Should prefix with number and date.
-basename(dirname(here))
-figsdir
+# Create directory for figure output.
+figsdir <- file.path(figsdir,basename(here),Sys.Date())
+dir.create(figsdir,recursive=TRUE)
 
 # Functions.
 suppressWarnings({
