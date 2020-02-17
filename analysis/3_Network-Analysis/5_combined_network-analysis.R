@@ -25,7 +25,9 @@ input_files <- list(Cortex=list(adjm_file = "3_Cortex_Adjm.RData",
 			          data_file = "3_Striatum_cleanDat.RData",
 			          part_file = c("2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
 					      "2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData",
-					      "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData"))
+					      "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData")),
+		    Combined=list(adjm_file = "3_Combined_Adjm.RData",
+				  data_file = "3_Combined_cleanDat.RData")
 		    )
 
 # Global options and imports.
@@ -132,16 +134,17 @@ names(sigProtAnno) <- rownames(df)
 ## Collect all modules in a list.
 #---------------------------------------------------------------------
 
-all_modules <- lapply(partitions,function(x) split(x,x))
-x = partitions[[1]]
-y = partitions[[2]]
-preserved <- paste("M",unique(x[names(x) %in% names(y[!y==0])]))
+partition <- partitions[[paste(net,"Surprise",sep="_")]]
 
-df = as.data.table(cbind(x,y))
-fwrite(df,"temp.csv")
+# Check with modules are preserved in the opposite tissue.
+# FIXME: not general for either comparison!
+preserved_modules <- function(x,y) {
+	preserved <- paste0("M",unique(x[names(x) %in% names(y[!y==0])]))
+	return(preserved)
+}
 
-y0 = y[[2]]
-
+preserved_tissue <- preserved_modules(partition,partitions[[2]])
+preserved_ppi <- preserved_modules(partition,partitions[[3]])
 
 # Create list of modules.
 module_list <- list()
@@ -232,7 +235,6 @@ mytheme <- gridExtra::ttheme_default(
 # Create table and add borders.
 # Border around data rows.
 mytable <- tableGrob(df, rows = NULL, theme = mytheme)
-
 mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
   t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
@@ -328,6 +330,9 @@ topGO <- lapply(GOresults,function(x) {
 			names(p) <- x$shortDataSetName[1]
 			return(p)
 	    })
+
+# Modules with significant GO enrichment.
+sigGO <- names(topGO)[sapply(topGO,function(x) x<0.05)]
 
 # Number of modules with any significant GO term enrichment.
 message(paste("Total number of modules with any significant GO",
@@ -678,6 +683,13 @@ myfile <- prefix_file(file.path(figsdir,paste0("Modules_Dendro.tiff")))
 ggsave(myfile,plot=dendro, height=3, width = 3)
 
 #---------------------------------------------------------------------
+## Generate GO scatter plots for modules with sig GO enrichment.
+#---------------------------------------------------------------------
+
+# Use color!
+ggplotGOscatter(GO_results,color,topN=10) # GO results is single df.
+
+#---------------------------------------------------------------------
 ## Generate ppi graphs and co-expression graphs.
 #---------------------------------------------------------------------
 
@@ -729,7 +741,7 @@ for (i in c(1:length(modules))) {
 	module_kme = KME_list[[module_name]]
 	output_file = file.path(netsdir,module_name)
 	network_layout = 'force-directed edgeAttribute=weight'
-	image_file = file.path(figsdir,module_name)
+	image_file = file.path(netsdir,module_name)
 	image_format = "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
 }

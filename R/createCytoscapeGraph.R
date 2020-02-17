@@ -138,7 +138,7 @@ createCytoscapeGraph <- function(exp_graph,
 	# Save Image..
 	if (!is.null(image_file)) { 
 		winfile <- gsub("/mnt/d/","D:/",image_file)
-		exportImage(image_file,image_format)
+		exportImage(winfile,image_format)
 	}
 	# Free up some memory.
 	cytoscapeFreeMemory()

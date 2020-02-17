@@ -39,4 +39,5 @@ ggsavePDF <- function(plots, file) {
     }
   }
   quiet(dev.off())
+  rm("Rplots.pdf")
 }
