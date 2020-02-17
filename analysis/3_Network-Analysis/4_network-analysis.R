@@ -816,5 +816,5 @@ for (i in seq_along(dfs)){
 results <- list()
 results[["Summary"]] <- module_summary
 results = c(results,dfs[sigModules])
-myfile <- file.path(tabsdir,paste0("3_",net,"_Module_Summary.xlsx")
+myfile <- file.path(tabsdir,paste0("3_",net,"_Module_Summary.xlsx"))
 write_excel(results,myfile)
