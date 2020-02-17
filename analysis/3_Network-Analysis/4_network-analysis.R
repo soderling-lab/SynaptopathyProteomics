@@ -19,8 +19,8 @@ image_format <- "tiff"
 input_files <- list(Cortex=list(adjm_file = "3_Cortex_Adjm.RData",
 			        data_file = "3_Cortex_cleanDat.RData",
 			        part_file = c("2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
-						"2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData",
-						"2020-02-13_Cortex_PPI_Module_Self_Preservation.RData")),
+					      "2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData",
+					      "2020-02-13_Cortex_PPI_Module_Self_Preservation.RData")),
 		    Striatum=list(adjm_file = "3_Striatum_Adjm.RData",
 			          data_file = "3_Striatum_cleanDat.RData",
 			          part_file = c("2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
@@ -74,36 +74,30 @@ glm_stats <- readRDS(myfile)
 
 # Proteins with any significant change.
 idy <- lapply(c("Cortex","Striatum"),function(x) grep(x,colnames(glm_stats$FDR)))
-sigProts <- lapply(idy, function(x) apply(glm_stats$FDR[,x],1,function(pval) any(pval<0.05)))
+sigProts <- lapply(idy, function(x) {
+			   apply(glm_stats$FDR[,x],1,function(pval) any(pval<0.05)) })
 names(sigProts) <- c("Cortex","Striatum")
 
 # Load expression data.
 # Data should be transposed: rows, proteins.
-myfiles <- file.path(rdatdir,sapply(input_files,function(x) x$data_file))
-data <- lapply(myfiles,function(x) t(readRDS(x))) 
-names(data) <- c("Cortex","Striatum","Combined")
+myfile <- file.path(rdatdir,input_files[[net]]$data_file)
+data <- t(readRDS(myfile))
 
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Load co-expression (adjacency) matrix.
-myfiles <- file.path(rdatdir,sapply(input_files,function(x) x$adjm_file))
-adjm <- lapply(myfiles,function(x) as.matrix(readRDS(x)))
-adjm <- lapply(adjm,function(x) { rownames(x) <- colnames(x); return(x) })
-names(adjm) <- c("Cortex","Striatum","Combined")
+myfile <- file.path(rdatdir,input_files[[net]]$adjm_file)
+adjm <- as.matrix(readRDS(myfile))
+rownames(adjm) <- colnames(adjm)
 
 # Load PPI adjacency matrix.
 adjm_ppi <- fread(file.path(rdatdir,"3_PPI_Adjm.csv"),drop=1)
 adjm_ppi <- as.matrix(adjm_ppi)
 rownames(adjm_ppi) <- colnames(adjm_ppi)
 
-# Load enhanced adjacency matrix.
-adjm_ne <- fread(file.path(rdatdir,"3_Cortex_NE_Adjm.csv"),drop=1)
-adjm_ne <- as.matrix(adjm_ne)
-rownames(adjm_ne) <- colnames(adjm_ne)
-
 # Load network partitions-- self-preservation enforced.
-myfiles <- file.path(rdatdir,sapply(input_files[c(1,2)],function(x) x$part_file))
+myfiles <- file.path(rdatdir,input_files[[net]]$part_file)
 partitions <- lapply(myfiles,function(x) unlist(readRDS(x)))
 names(partitions) <- lapply(lapply(strsplit(myfiles,"_"),"[",c(2,3)),
 			   function(x) paste(x,collapse="_"))
@@ -132,19 +126,9 @@ names(sigProtAnno) <- rownames(df)
 ## Collect all modules in a list.
 #---------------------------------------------------------------------
 
-all_modules <- lapply(partitions,function(x) split(x,x))
-x = partitions[[1]]
-y = partitions[[2]]
-preserved <- paste("M",unique(x[names(x) %in% names(y[!y==0])]))
-
-df = as.data.table(cbind(x,y))
-fwrite(df,"temp.csv")
-
-y0 = y[[2]]
-
-
 # Create list of modules.
 module_list <- list()
+partition <- partitions[[1]]
 
 # Module list with entrez ids.
 idx <- match(names(partition),protmap$ids)
@@ -232,7 +216,6 @@ mytheme <- gridExtra::ttheme_default(
 # Create table and add borders.
 # Border around data rows.
 mytable <- tableGrob(df, rows = NULL, theme = mytheme)
-
 mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
   t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
@@ -346,7 +329,6 @@ mytables <- lapply(dfs,function(x) tableGrob(x, rows=NULL, theme = mytheme))
 figs <- lapply(mytables,plot_grid)
 
 # Save the tables.
-## FIXME: scale the plot!
 for (i in seq_along(figs)) {
 	myfile <- prefix_file(file.path(figsdir,
 				paste0("SigGO_Module_Summary_",i,".tiff")))
@@ -364,15 +346,18 @@ gene_list <- module_list$Symbols
 dbs <- listEnrichrDbs()
 dbs <- dbs$libraryName[order(dbs$libraryName)]
 
-# Enrichment analysis.
-db <- "GO_Molecular_Function_2018"
+# Enrichment analysis for OMIM disorders.
+#db <- "GO_Molecular_Function_2018"
+db <- "OMIM_Disease"
 results <- enrichR(gene_list,db)
+
+OMIMsig <- sapply(results,function(x) any(x[[1]]$Adjusted.P.value<0.05))
+sum(OMIMsig)
+OMIMsig[OMIMsig]
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
-
-## FIXME: Add table summarize modules.
 
 # Get modules.
 modules <- module_list$IDs
@@ -454,7 +439,7 @@ method <- "bonferroni"
 KWdata$p.adj <- p.adjust(as.numeric(KWdata$p.value), method)
 
 # Significant modules.
-alpha <- 0.05
+alpha <- 0.1
 sigModules <- rownames(KWdata)[KWdata$p.adj < alpha]
 nSigModules <- length(sigModules)
 message(paste0(
@@ -524,7 +509,6 @@ for (k in seq_along(plots)) {
 	plots[[k]] <- plot
 } # Ends loop to fix plots.
 
-
 # Create table summarizing modules.
 df <- data.table("Algorithm" = "Leiden",
 		 "Quality Function" = "Surprise",
@@ -542,7 +526,7 @@ fig <- plot_grid(mytable)
 
 # Save.
 myfile <- prefix_file(file.path(figsdir,"Module_Summary.tiff"))
-ggsave(myfile,fig)
+ggsaveTable(mytable,myfile)
 
 #---------------------------------------------------------------------
 ## Save verbose box plots.
@@ -552,15 +536,14 @@ ggsave(myfile,fig)
 myfile <- prefix_file(file.path(figsdir,"All_Sig_Module_Boxplots.pdf"))
 ggsavePDF(plots[sigModules],myfile)
 
-# Save sig plots as single pdf.
-myfile <- prefix_file(file.path(figsdir,"All_Module_Boxplots.pdf"))
-ggsavePDF(plots,myfile)
-
 #---------------------------------------------------------------------
 ## Save protein boxplots of sig prots for sig modules.
 #---------------------------------------------------------------------
 
 # Load plots.
+
+
+
 myfile <- file.path(rdatdir,"All_SigProt_Boxplots.RData")
 all_plots <- readRDS(myfile)
 # Group by module.

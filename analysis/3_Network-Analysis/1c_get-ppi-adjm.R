@@ -20,12 +20,12 @@ suppressPackageStartupMessages({
 # Directories.
 here <- getwd()
 root <- dirname(dirname(here))
-rdatdir <- file.path(root, "rdata")
 funcdir <- file.path(root, "R")
+rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables",subdir)
 
 # Functions.
-myfun <- list.files(funcdir, full.names = TRUE)
-invisible(sapply(myfun, source))
+suppressWarnings({ devtools::load_all() })
 
 # Load protein identifier map.
 prot_map <- readRDS(file.path(rdatdir,"2_Protein_ID_Map.RData"))
@@ -42,19 +42,16 @@ orgs <- c(10090, 9606, 10116)
 idx <- musInteractome$Interactor_A_Taxonomy %in% orgs
 ppis <- subset(musInteractome, idx)
 
+# Save ppis data frame--this contains evidence behind ppis.
+myfile <- file.path(tabsdir,"All_Synaptosome_PPIs.csv")
+fwrite(ppis,myfile)
+
 # Get entrez IDs for all proteins in co-expression networks.
 entrez <- prot_map$entrez
 
 # Build a ppi graph.
 message("Building PPI graph...")
 g <- buildNetwork(ppis, entrez, taxid = 10090)
-
-# Louvain clustering.
-#partition = cluster_louvain(g, weights = NULL)
-#m <- partition$membership
-#names(m) <- partition$names
-#modules = split(m,m)
-#module_sizes <- sapply(modules,length)
 
 # Get ppi adjacency matrix.
 PPIadjm <- as.matrix(as_adjacency_matrix(g))

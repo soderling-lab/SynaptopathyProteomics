@@ -19,6 +19,7 @@ ggsaveTable <- function(mytable,myfile) {
 	library(grid)
 	library(gridExtra)
 	library(ggplot2)
+	library(cowplot)
 	})
   # Function to get absolute size of a grob in inches.
   # Modified from: Hack-R's solution on Stackoverflow, see refernces.

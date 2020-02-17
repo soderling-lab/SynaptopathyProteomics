@@ -43,14 +43,14 @@ tissue <- "Combined"
 # Set the working directory.
 here <- getwd()
 rootdir <- dirname(dirname(here))
+subdir <- dirname(here)
 
 # Set any other directories.
 functiondir <- paste(rootdir, "R", sep = "/")
 datadir <- paste(rootdir, "data", sep = "/")
 Rdatadir <- paste(rootdir, "rdata", sep = "/")
-outputfigs <- paste(rootdir,"figs",
-		    "2_TAMPOR-Normalization",Sys.Date(),sep="/")
-outputtabs <- paste(rootdir, "tables", sep = "/")
+outputfigs <- paste(rootdir,"figs",subdir,Sys.Date(),sep="/")
+outputtabs <- paste(rootdir, "tables", subdir,sep = "/")
 
 # Load required custom functions.
 devtools::load_all()
@@ -420,10 +420,12 @@ mytable <- gtable_add_grob(mytable,
   t = 1, l = 1, r = ncol(mytable)
 )
 
+# Check the table.
+plot <- cowplot::plot_grid(mytable)
+
 # Save.
 myfile <- prefix_file(file.path(outputfigs,"Sig_Prots_Summary.tiff"))
-plot <- cowplot::plot_grid(mytable)
-ggsave(myfile,plot)
+ggsaveTable(mytable,myfile)
 
 # Call topTags to add FDR. Gather tabularized results.
 glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
@@ -607,78 +609,6 @@ myfile <- prefix_file(file.path(outputfigs,"Ube3a_Volcano.tiff"))
 ggsave(myfile,plots$Ube3a)
 
 #---------------------------------------------------------------------
-## GO Enrichment of DA proteins using anRichment package
-#---------------------------------------------------------------------
-
-# Build a df with the combined statistical results.
-df <- glm_stats$PValue
-colnames(df) <- gsub(" PValue", "", colnames(df))
-
-## Prepare a matrix of class labels (colors) to pass to enrichmentAnalysis().
-labels <- data.frame(
-  Shank2 = df$"Shank2 Cortex" < 0.05 | df$"Shank2 Striatum" < 0.05,
-  Shank3 = df$"Shank3 Cortex" < 0.05 | df$"Shank3 Striatum" < 0.05,
-  Syngap1 = df$"Syngap1 Cortex" < 0.05 | df$"Syngap1 Striatum" < 0.05,
-  Ube3a = df$"Ube3a Cortex" < 0.05 | df$"Ube3a Striatum" < 0.05
-)
-rownames(labels) <- rownames(df)
-
-# Convert TRUE to column names.
-logic <- labels == TRUE # 1 will become TRUE, and 0 will become FALSE.
-# Loop through each column to replace 1 with column header (color).
-for (i in 1:ncol(logic)) {
-  col_header <- colnames(labels)[i]
-  labels[logic[, i], i] <- col_header
-}
-
-# Map Uniprot IDs to Entrez.
-entrez <- protmap$entrez[match(rownames(labels), protmap$ids)]
-
-# Insure that labels is a matrix.
-labels <- as.matrix(labels)
-
-# The labels matrix and vector of cooresponding entrez IDs
-# will be passed to enrichmentAnalysis().
-
-# Build a GO annotation collection:
-skip = TRUE
-if (!skip) {
-	myfile <- file.path(Rdatadir, "musGOcollection.RData")
-	if (file.exists(myfile)) {
-		musGOcollection <- readRDS(myfile)
-	} else {
-		musGOcollection <- buildGOcollection(organism = "mouse")
-		saveRDS(musGOcollection, file.path(Rdatadir, "musGOcollection.RData"))
-	}
-# Perform GO analysis for each genotype using hypergeometric (Fisher.test) test
-# as implmented by the WGCNA function enrichmentAnalysis().
-# The FDR is the BH adjusted p-value.
-# Insure that the correct background (used as reference for enrichment)
-# has been selected!
-# useBackgroud = "given" will use all given genes as reference background.
-GOenrichment <- enrichmentAnalysis(
-  classLabels = labels,
-  identifiers = entrez,
-  refCollection = musGOcollection,
-  useBackground = "given",
-  threshold = 0.05,
-  thresholdType = "Bonferroni",
-  getOverlapEntrez = TRUE,
-  getOverlapSymbols = TRUE,
-  ignoreLabels = "FALSE"
-)
-# Collect the results.
-results_GOenrichment <- list()
-for (i in 1:length(GOenrichment$setResults)) {
-  results_GOenrichment[[i]] <- GOenrichment$setResults[[i]]$enrichmentTable
-}
-names(results_GOenrichment) <- colnames(labels)
-# Save.
-myfile <- file.path(outputtabs, "2_Combined_GO_Analysis.xlsx")
-write_excel(results_GOenrichment, myfile)
-} # Ends GO analysis chunk.
-
-#---------------------------------------------------------------------
 ## Condition overlap plot.
 #---------------------------------------------------------------------
 
@@ -702,7 +632,7 @@ stats_df$Protein <- NULL
 sigProts <- list()
 for (i in c(2:ncol(df))) {
   idx <- df[, i] < 0.05
-  sigProts[[i]] <- df$Protein[idx]
+  sigProts[[i-1]] <- df$Protein[idx]
 }
 names(sigProts) <- names(stats)
 all_sigProts <- unique(unlist(sigProts))
@@ -775,7 +705,7 @@ myfile <- prefix_file(file.path(outputfigs,"Condition_Overlap_Plot.tiff"))
 ggsave(myfile,plot)
 
 #---------------------------------------------------------------------
-## Generate protein boxplots.
+## Generate faceted protein boxplots.
 #---------------------------------------------------------------------
 
 # Remove QC from traits. Group WT cortex and WT striatum.
@@ -800,7 +730,7 @@ box_order <- c(
   "Striatum.KO.Ube3a"
 )
 
-# Generate plots.
+# Generate faceted plots.
 plot_list <- ggplotProteinBoxPlot(
   data_in = log2(cleanDat),
   interesting.proteins = rownames(cleanDat),
@@ -822,7 +752,101 @@ plot_list <- plot_list[all_sigProts]
 
 # Save sig plots.
 message("Saving plots, this will take several minutes...")
-myfile <- file.path(Rdatadir,"All_SigProt_Boxplots.RData")
+myfile <- file.path(Rdatadir,"All_Faceted_SigProt_Boxplots.RData")
+saveRDS(plot_list,myfile)
+
+#---------------------------------------------------------------------
+## Save Cortex and striatum sigProt plots seperately.
+#---------------------------------------------------------------------
+
+# Remove QC from traits. Group WT cortex and WT striatum.
+out <- alltraits$SampleType == "QC"
+traits <- alltraits[!out, ]
+traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+traits$Condition <- traits$Tissue.Sample.Model
+traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
+traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
+
+# Levels for boxplots (order of the boxes):
+box_order <- c(
+  "Cortex.WT",
+  "Cortex.KO.Shank2",
+  "Cortex.KO.Shank3",
+  "Cortex.HET.Syngap1",
+  "Cortex.KO.Ube3a"
+)
+
+# Generate plots.
+plot_list <- ggplotProteinBoxPlot(
+  data_in = log2(cleanDat),
+  interesting.proteins = rownames(cleanDat),
+  traits = traits,
+  box_order,
+  scatter = TRUE
+)
+
+# Add custom colors.
+colors <- c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4")
+plot_list <- lapply(plot_list, function(x) x + 
+		    scale_fill_manual(values = colors))
+
+# Add significance stars, and reformat x.axis labels.
+plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
+
+# Collect significant plots.
+sigCortex <- unique(unlist(sigProts[grep("Cortex",names(sigProts))]))
+plot_list <- plot_list[sigCortex]
+
+# Save sig plots.
+message("Saving plots, this will take several minutes...")
+myfile <- file.path(Rdatadir,"All_Cortex_SigProt_Boxplots.RData")
+saveRDS(plot_list,myfile)
+
+#---------------------------------------------------------------------
+## Save  Striatum sigProt plots seperately.
+#---------------------------------------------------------------------
+
+# Remove QC from traits. Group WT cortex and WT striatum.
+out <- alltraits$SampleType == "QC"
+traits <- alltraits[!out, ]
+traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+traits$Condition <- traits$Tissue.Sample.Model
+traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
+traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
+
+# Levels for boxplots (order of the boxes):
+box_order <- c(
+  "Striatum.WT",
+  "Striatum.KO.Shank2",
+  "Striatum.KO.Shank3",
+  "Striatum.HET.Syngap1",
+  "Striatum.KO.Ube3a"
+)
+
+# Generate plots.
+plot_list <- ggplotProteinBoxPlot(
+  data_in = log2(cleanDat),
+  interesting.proteins = rownames(cleanDat),
+  traits = traits,
+  box_order,
+  scatter = TRUE
+)
+
+# Add custom colors.
+colors <- c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4")
+plot_list <- lapply(plot_list, function(x) x + 
+		    scale_fill_manual(values = colors))
+
+# Add significance stars, and reformat x.axis labels.
+plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
+
+# Collect significant plots.
+sigStriatum <- unique(unlist(sigProts[grep("Striatum",names(sigProts))]))
+plot_list <- plot_list[sigStriatum]
+
+# Save sig plots.
+message("Saving plots, this will take several minutes...")
+myfile <- file.path(Rdatadir,"All_Striatum_SigProt_Boxplots.RData")
 saveRDS(plot_list,myfile)
 
 #---------------------------------------------------------------------
