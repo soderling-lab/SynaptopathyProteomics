@@ -19,6 +19,7 @@ suppressPackageStartupMessages({
 
 # Directories.
 here <- getwd()
+subdir <- dirname(here)
 root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
 rdatdir <- file.path(root, "rdata")
@@ -42,9 +43,9 @@ orgs <- c(10090, 9606, 10116)
 idx <- musInteractome$Interactor_A_Taxonomy %in% orgs
 ppis <- subset(musInteractome, idx)
 
-# Save ppis data frame--this contains evidence behind ppis.
-myfile <- file.path(tabsdir,"All_Synaptosome_PPIs.csv")
-fwrite(ppis,myfile)
+# Save PPIs data frame--this contains evidence information.
+myfile <- file.path(rdatdir,"3_All_PPIs.RData")
+saveRDS(ppis,myfile)
 
 # Get entrez IDs for all proteins in co-expression networks.
 entrez <- prot_map$entrez

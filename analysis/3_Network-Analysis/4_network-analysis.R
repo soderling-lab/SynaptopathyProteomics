@@ -12,7 +12,6 @@
 
 ## User parameters to change:
 net <- "Cortex"
-create_cytoscape_graphs <- TRUE
 image_format <- "tiff"
 
 # Data files.
@@ -123,6 +122,20 @@ sigProtAnno <- df$sigProt
 names(sigProtAnno) <- rownames(df)
 
 #---------------------------------------------------------------------
+## Which modules are preserved in PPI graph?
+#---------------------------------------------------------------------
+
+# Identify which co-expression modules have preserved PPIs.
+p1 <- partitions[[1]]
+p2 <- partitions[[grep("PPI",names(partitions))]]
+p1[p2==0] <- 0 
+m <- split(p1,p1)
+names(m) <- paste0("M",names(m))
+preserved <- names(m)[which(names(m)!="M0")]
+message("Modules with preserved PPI topology:")
+print(preserved)
+
+#---------------------------------------------------------------------
 ## Collect all modules in a list.
 #---------------------------------------------------------------------
 
@@ -173,7 +186,7 @@ message(paste("Total number of disease associated modules:",
 	      length(DBDsig)))
 
 # Write to file.
-myfile <- file.path(tabsdir,"Module_DBD_Enrichment.xlsx")
+myfile <- file.path(tabsdir,"3_Module_DBD_Enrichment.xlsx")
 write_excel(DBDenrichment[DBDsig],myfile)
 
 # Collect all DBD genes.
@@ -259,7 +272,7 @@ message(paste("Total number of modules with cell-type specific",
 	      "gene enrichment:", length(Cellsig)))
 
 # Write to file.
-myfile <- file.path(tabsdir,"Velmeshev_Cell_Type_Enrichment.xlsx")
+myfile <- file.path(tabsdir,"3_Module_Cell_Type_Enrichment.xlsx")
 write_excel(cellEnrichment[Cellsig],myfile)
 
 # Table summary.
@@ -295,7 +308,7 @@ myfile <- prefix_file(file.path(figsdir,paste0("Cell_Type_Modules_Summary.tiff")
 ggsaveTable(mytable,myfile)
 
 #--------------------------------------------------------------------
-## Module GO enrichment -- anRichment.
+## Module GO enrichment using anRichment.
 #--------------------------------------------------------------------
 
 # Build a GO collection.
@@ -306,6 +319,7 @@ GOresults <- gse(gene_list,GOcollection)
 
 # Top (1) go term for every module.
 method <- "Bonferroni"
+alpha <- 0.05
 topGO <- lapply(GOresults,function(x) {
 		       	p <- x[[method]][1] 
 			names(p) <- x$shortDataSetName[1]
@@ -314,29 +328,16 @@ topGO <- lapply(GOresults,function(x) {
 
 # Number of modules with any significant GO term enrichment.
 message(paste("Total number of modules with any significant GO",
-	      "enrichment:", sum(unlist(topGO)<0.05)))
+	      "enrichment:", sum(unlist(topGO)<alpha)))
 
-# Table summary.
-df <- data.table("Module" = sapply(strsplit(names(unlist(topGO[which(topGO<0.05)])),"\\."),"[",1),
-		 "GO Term" = sapply(strsplit(names(unlist(topGO[which(topGO<0.05)])),"\\."),"[",2))
 
-# Split into two dfs.
-dfs <- split(df,rep(c(1,2),times=c(22,23)))
-
-# Create table and add borders.
-# Border around data rows.
-mytables <- lapply(dfs,function(x) tableGrob(x, rows=NULL, theme = mytheme))
-figs <- lapply(mytables,plot_grid)
-
-# Save the tables.
-for (i in seq_along(figs)) {
-	myfile <- prefix_file(file.path(figsdir,
-				paste0("SigGO_Module_Summary_",i,".tiff")))
-	ggsaveTable(mytables[[i]],myfile)
-}
+# Modules with signifcant GO enrichment:
+# Order by significance.
+GOsig <- topGO[topGO < alpha]
+GOsig <- GOsig[order(unlist(GOsig))]
 
 #--------------------------------------------------------------------
-## Module enrichment -- use enrichR.
+## Module enrichment using enrichR.
 #--------------------------------------------------------------------
 
 # Collect list of module genes--input is gene symbols.
@@ -347,13 +348,25 @@ dbs <- listEnrichrDbs()
 dbs <- dbs$libraryName[order(dbs$libraryName)]
 
 # Enrichment analysis for OMIM disorders.
+# FIXME: progress report would be nice.
 #db <- "GO_Molecular_Function_2018"
 db <- "OMIM_Disease"
 results <- enrichR(gene_list,db)
+results <- unlist(results,recursive=FALSE) # Why nested list?
+names(results) <- sapply(strsplit(names(results),"\\."),"[",1)
 
-OMIMsig <- sapply(results,function(x) any(x[[1]]$Adjusted.P.value<0.05))
-sum(OMIMsig)
-OMIMsig[OMIMsig]
+# Which modules are enriched for OMIM disorders?
+# Top OMIM term for every module.
+alpha <- 0.05
+topOMIM <- lapply(results,function(x) {
+		       	p <- x$Adjusted.P.value[1] 
+			names(p) <- x$Term[1]
+			return(p)
+	    })
+
+# Remove NA.
+topOMIM <- topOMIM[-which(is.na(topOMIM))]
+OMIMsig <- topOMIM[which(topOMIM < alpha)]
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
@@ -475,7 +488,7 @@ if (nSigDisease > 0) {
   print(sigDBDmodules)
 }
 
-# Generate boxplots.
+# Generate boxplots summarizing module protein expression.
 plots <- lapply(ME_list,function(x) {
 		 ggplotVerboseBoxplot(x,groups,group_levels)
   })
@@ -509,7 +522,7 @@ for (k in seq_along(plots)) {
 	plots[[k]] <- plot
 } # Ends loop to fix plots.
 
-# Create table summarizing modules.
+# Create table summarizing partition statistics.
 df <- data.table("Algorithm" = "Leiden",
 		 "Quality Function" = "Surprise",
 		 "N Modules"=nModules,
@@ -525,7 +538,7 @@ mytable <- tableGrob(df, rows=NULL, theme = mytheme)
 fig <- plot_grid(mytable)
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,"Module_Summary.tiff"))
+myfile <- prefix_file(file.path(figsdir,paste0(net,"_Module_Summary.tiff")))
 ggsaveTable(mytable,myfile)
 
 #---------------------------------------------------------------------
@@ -533,7 +546,7 @@ ggsaveTable(mytable,myfile)
 #---------------------------------------------------------------------
 
 # Save sig plots as single pdf.
-myfile <- prefix_file(file.path(figsdir,"All_Sig_Module_Boxplots.pdf"))
+myfile <- prefix_file(file.path(figsdir,paste0(net,"_Sig_Module_Boxplots.pdf")))
 ggsavePDF(plots[sigModules],myfile)
 
 #---------------------------------------------------------------------
@@ -543,22 +556,25 @@ ggsavePDF(plots[sigModules],myfile)
 # Load plots.
 myfile <- file.path(rdatdir,paste0("All_",net,"_SigProt_Boxplots.RData"))
 all_plots <- readRDS(myfile)
+
 # Group by module.
 plot_list <- split(all_plots,partition[names(all_plots)])
 names(plot_list) <- paste0("M",names(plot_list))
 
 # Save a single pdf containing all the sign proteins within a
 # module for each module.
+## FIXME: suppress output from grid.arrange!
 for (i in 1:length(sigModules)){
 	module_name <- sigModules[i]
 	plots <- plot_list[[module_name]]
 	groups <- rep(c(1:ceiling(length(plots)/4)),each=4)[c(1:length(plots))]
 	plot_groups <- split(plots,groups)
 	figs <- lapply(plot_groups,function(x) {
-			       gridExtra::grid.arrange(grobs=x,ncol=2,nrow=2)
+			       fig <- gridExtra::grid.arrange(grobs=x,ncol=2,nrow=2)
+			       return(fig)
 		 })
 	myfile <- prefix_file(file.path(figsdir,
-				paste0(module_name,"_Module_SigProts.pdf")))
+				paste0(module_name,"_",net,"_Module_SigProts.pdf")))
 	ggsavePDF(figs,myfile)
 }
 
@@ -654,7 +670,7 @@ names(module_colors) <- names(modules)
 
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,paste0("Modules_Dendro.tiff")))
+myfile <- prefix_file(file.path(figsdir,paste0(net,"_Modules_Dendro.tiff")))
 ggsave(myfile,plot=dendro, height=3, width = 3)
 
 #---------------------------------------------------------------------
@@ -666,10 +682,6 @@ ggsave(myfile,plot=dendro, height=3, width = 3)
 
 # Coexpression graph.
 exp_graph <- graph_from_adjacency_matrix(adjm,mode="undirected",
-				  weighted=TRUE, diag=FALSE)
-
-# Enhanced Coexpression graph.
-ne_graph <- graph_from_adjacency_matrix(adjm_ne,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
 
 # PPI graph.
@@ -685,9 +697,9 @@ symbols <- protmap$gene[match(names(V(exp_graph)),protmap$ids)]
 exp_graph <- set_vertex_attr(exp_graph,"symbol",value = symbols)
 
 # Add sigProt vertex attribute.
-anySig <- names(V(exp_graph)) %in% sigProts
+anySig <- as.numeric(sigProts[[net]][names(V(exp_graph))])
 exp_graph <- set_vertex_attr(exp_graph, "sigProt", 
-			 value = as.numeric(anySig))
+			 value = anySig)
 
 # Add any DBDprot vertex attribute.
 DBDnodes <- lapply(DBDprots,function(x) names(V(exp_graph)) %in% x)
@@ -696,12 +708,31 @@ for (DBD in names(DBDnodes)){
 				 value = as.numeric(DBDnodes[[DBD]]))
 }
 
+# Save PPI evidence to file
+myfile <- file.path(rdatdir,"3_All_PPIs.RData")
+ppis <- readRDS(myfile)
+
+# Map mouse entrez to protein ids.
+ppis$ProteinA <- protmap$ids[match(ppis$osEntrezA,protmap$entrez)]
+ppis$ProteinB <- protmap$ids[match(ppis$osEntrezB,protmap$entrez)]
+out <- is.na(ppis$ProteinA) | is.na(ppis$ProteinB)
+ppis <- ppis[!out,]
+
+# Get the relevant columns.
+ppis <- ppis %>% select(ProteinA,ProteinB,osEntrezA,osEntrezB,
+			Interactor_A_Taxonomy,Interactor_B_Taxonomy,
+			Source_database,Confidence_score,
+			Publications,Methods)
+
+# Save.
+myfile <- file.path(tabsdir,paste0("3_All_",net,"_PPIs.csv"))
+fwrite(ppis,myfile)
+
 #---------------------------------------------------------------------
 ## Generate cytoscape graphs.
 #---------------------------------------------------------------------
 
 # Create graphs.
-if (create_cytoscape_graphs){
 for (i in c(1:length(modules))) {
 	message(paste("Working on module",i,"..."))
 	module_name = names(modules)[i]
@@ -711,8 +742,11 @@ for (i in c(1:length(modules))) {
 	network_layout = 'force-directed edgeAttribute=weight'
 	image_file = file.path(figsdir,module_name)
 	image_format = "SVG"
-	createCytoscapeGraph(exp_graph,ppi_graph,nodes,module_kme,module_name, module_colors, network_layout, output_file)
-}
+	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
+			     module_kme,module_name,
+			     module_colors, network_layout,
+			     output_file, image_file,
+			     image_format)
 }
 
 #---------------------------------------------------------------------
@@ -782,5 +816,5 @@ for (i in seq_along(dfs)){
 results <- list()
 results[["Summary"]] <- module_summary
 results = c(results,dfs[sigModules])
-myfile <- file.path(tabsdir,"Module_Summary.xlsx")
+myfile <- file.path(tabsdir,paste0("3_",net,"_Module_Summary.xlsx")
 write_excel(results,myfile)

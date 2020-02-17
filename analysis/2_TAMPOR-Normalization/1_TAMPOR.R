@@ -43,7 +43,7 @@ tissue <- "Combined"
 # Set the working directory.
 here <- getwd()
 rootdir <- dirname(dirname(here))
-subdir <- dirname(here)
+subdir <- basename(here)
 
 # Set any other directories.
 functiondir <- paste(rootdir, "R", sep = "/")
@@ -895,7 +895,7 @@ writeData(wb, sheet = 1, keepNA = TRUE, traits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
-myfile <- file.path(rootdir, "tables", "2_Combined_TMT_Data.xlsx")
+myfile <- file.path(outputtabs, "2_Combined_TMT_Data.xlsx")
 saveWorkbook(wb, myfile, overwrite = TRUE)
 
 message("Done!")
