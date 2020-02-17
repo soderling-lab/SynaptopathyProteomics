@@ -537,14 +537,11 @@ myfile <- prefix_file(file.path(figsdir,"All_Sig_Module_Boxplots.pdf"))
 ggsavePDF(plots[sigModules],myfile)
 
 #---------------------------------------------------------------------
-## Save protein boxplots of sig prots for sig modules.
+## Save sigProt boxplots for sig modules.
 #---------------------------------------------------------------------
 
 # Load plots.
-
-
-
-myfile <- file.path(rdatdir,"All_SigProt_Boxplots.RData")
+myfile <- file.path(rdatdir,paste0("All_",net,"_SigProt_Boxplots.RData"))
 all_plots <- readRDS(myfile)
 # Group by module.
 plot_list <- split(all_plots,partition[names(all_plots)])
