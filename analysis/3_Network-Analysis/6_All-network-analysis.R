@@ -12,16 +12,21 @@
 
 ## User parameters to change:
 net <- "Cortex_Striatum"
-image_format <- "tiff"
 
 # Data files.
-input_files <- list(Cortex_Striatum=list(data_file="2_Combined_cleanDat.RData",
+input_files <- list(Cortex=list(adjm_file = "3_Cortex_Adjm.RData",
+			        data_file = "3_Cortex_cleanDat.RData",
+			        part_file = "2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData"),
+		    Striatum=list(adjm_file = "3_Striatum_Adjm.RData",
+			          data_file = "3_Striatum_cleanDat.RData",
+			          part_file = "2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData"),
+		    Cortex_Striatum=list(data_file="2_Combined_cleanDat.RData",
 					 adjm_file="3_Combined_Adjm.RData",
 				         part_file="2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData"),
 		    Striatum_Cortex=list(data_file="2_Combined_cleanDat.RData",
 					 adjm_file="3_Combined_Adjm.RData",
-				         part_file="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData")
-		    )
+				         part_file="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData"))
+
 
 # Global options and imports.
 suppressPackageStartupMessages({
@@ -40,9 +45,6 @@ suppressPackageStartupMessages({
   library(cowplot)
 })
 
-# Other functions.
-suppressWarnings({ devtools::load_all() })
-
 # Directories.
 here <- getwd()
 subdir <- basename(here)
@@ -51,8 +53,11 @@ funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 netsdir <- file.path(root, "networks")
-tabsdir <- file.path(root, "tables", subdir)
-figsdir <- file.path(root, "figs",subdir,net)
+figsdir <- file.path(root, "figs",subdir, net)
+tabsdir <- file.path(root, "tables", subdir, net)
+
+# Additional functions.
+suppressWarnings({ devtools::load_all() })
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -62,9 +67,12 @@ myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
 # Proteins with any significant change.
-idy <- lapply(c("Cortex","Striatum"),function(x) grep(x,colnames(glm_stats$FDR)))
+idy <- lapply(c("Cortex","Striatum"),function(x) 
+	      grep(x,colnames(glm_stats$FDR)))
 sigProts <- lapply(idy, function(x) {
-			   apply(glm_stats$FDR[,x],1,function(pval) any(pval<0.05)) })
+			   apply(glm_stats$FDR[,x],1,function(pval) {
+					 any(pval<0.05) }) 
+	      })
 names(sigProts) <- c("Cortex","Striatum")
 
 # Load expression data.
@@ -75,7 +83,7 @@ data <- t(readRDS(myfile))
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
-# Remove QC samples from data.
+# Remove any QC samples from data.
 QC <- sampleTraits$SampleID[which(sampleTraits$SampleType=="QC")]
 data <- data[!rownames(data) %in% QC,]
 
@@ -92,9 +100,6 @@ rownames(adjm_ppi) <- colnames(adjm_ppi)
 # Load network partitions-- self-preservation enforced.
 myfile <- file.path(rdatdir,input_files[[net]]$part_file)
 partition <- unlist(readRDS(myfile))
-
-# Reset partition index.
-#partition <- reset_index(partition)
 
 # Load theme for plots.
 ggtheme()
@@ -163,7 +168,7 @@ message(paste("Total number of disease associated modules:",
 	      length(DBDsig)))
 
 # Write to file.
-myfile <- file.path(tabsdir,paste0("3_",net,"_Module_DBD_Enrichment.xlsx"))
+myfile <- file.path(tabsdir,"Module_DBD_Enrichment.xlsx")
 write_excel(DBDenrichment[DBDsig],myfile)
 
 # Collect all DBD genes.
@@ -181,8 +186,6 @@ DBDprots <- lapply(DBDgenes,function(x) {
 DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
 colnames(DBDcols) <- names(DBDprots)
 DBDdf <- as.data.frame(DBDcols)
-#DBDdf <- tibble::add_column(DBDdf,"Protein"=protmap$ids,.before=1)
-#DBDdf$anyDBD <- apply(DBDcols,1,any)
 rownames(DBDdf) <- protmap$ids
 DBDanno <- apply(DBDdf,1,function(x) paste(colnames(DBDdf)[x],collapse="; "))
 DBDanno[DBDanno == ""] <- NA
@@ -219,7 +222,7 @@ mytable <- gtable_add_grob(mytable,
 fig <- plot_grid(mytable)
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,"3_DBD_Gene_Summary.tiff"))
+myfile <- prefix_file(file.path(figsdir,"DBD_Gene_Summary.tiff"))
 ggsaveTable(mytable,myfile)
 
 #---------------------------------------------------------------------
@@ -249,13 +252,14 @@ message(paste("Total number of modules with cell-type specific",
 	      "gene enrichment:", length(Cellsig)))
 
 # Write to file.
-myfile <- file.path(tabsdir,paste0("3_",net,"_Module_Cell_Type_Enrichment.xlsx"))
+myfile <- file.path(tabsdir,"Module_Cell_Type_Enrichment.xlsx")
 write_excel(cellEnrichment[Cellsig],myfile)
 
 # Table summary.
 df <- as.data.frame({
 	sapply(cellEnrichment[Cellsig],function(x) {
-		       paste(x$shortDataSetName[x$Bonferroni < alpha],collapse="; ")
+		       paste(x$shortDataSetName[x$Bonferroni < alpha],
+			     collapse="; ")
 	      })
 })
 colnames(df) <- "Enriched Cell Type Specific Genes"
@@ -281,7 +285,7 @@ mytable <- gtable_add_grob(mytable,
 fig <- plot_grid(mytable)
 
 # Save the table.
-myfile <- prefix_file(file.path(figsdir,paste0("Cell_Type_Modules_Summary.tiff")))
+myfile <- prefix_file(file.path(figsdir,"Cell_Type_Modules_Summary.tiff"))
 ggsaveTable(mytable,myfile)
 
 #--------------------------------------------------------------------
@@ -292,7 +296,7 @@ ggsaveTable(mytable,myfile)
 GOcollection <- buildGOcollection(organism="mouse")
 
 # Perform gene set enrichment analysis.
-GOresults <- gse(gene_list, GOcollection)
+GOresults <- gse(gene_list,GOcollection)
 
 # Top (1) go term for every module.
 method <- "Bonferroni"
@@ -305,7 +309,7 @@ topGO <- lapply(GOresults,function(x) {
 
 # Number of modules with any significant GO term enrichment.
 message(paste("Total number of modules with any significant GO",
-	      "enrichment:", sum(unlist(topGO)<alpha)))
+	      "enrichment:", sum(unlist(topGO) < alpha)))
 
 
 # Modules with signifcant GO enrichment:
@@ -327,10 +331,11 @@ dbs <- dbs$libraryName[order(dbs$libraryName)]
 
 # Enrichment analysis for OMIM disorders.
 # FIXME: progress report would be nice.
-#db <- "GO_Molecular_Function_2018"
+# FIXME: alter function so that nested list is not returned!
 db <- "OMIM_Disease"
 results <- enrichR(gene_list,db)
-results <- unlist(results,recursive=FALSE) # Why nested list?
+# Un-nest list.
+results <- unlist(results,recursive=FALSE)
 names(results) <- sapply(strsplit(names(results),"\\."),"[",1)
 
 # Which modules are enriched for OMIM disorders?
@@ -416,14 +421,16 @@ groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
 groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 
 # If combining tissues...
-groups[grepl("WT.*.*", groups)] <- "WT"
+if (grepl("Cortex",net) & grepl("Striatum",net)) {
+	groups[grepl("WT.*",groups)] <- "WT"
+}
 
 # Fix levels (order).
 group_order <- c("KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
 group_levels <- c("WT",
 		  paste(group_order,"Cortex",sep="."),
-		  paste(group_order,"Striatum",sep="."))
-
+		  paste(group_order,"Striatum",sep=".")
+		  )
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
@@ -445,18 +452,20 @@ message(paste0(
   " Kruskal-Wallis test: ", nSigModules,"."
 ))
 
+# Define control group for DTest.
+if (grepl("Cortex",net) & grepl("Striatum",net)) {
+	# If combining tissues...
+	control_group <- "WT"
+} else {
+	control_group <- paste("WT", net, sep = ".")
+}
+
 # Perform Dunnetts test for post-hoc comparisons.
 # Note: P-values returned by DunnettTest have already been adjusted for 
 # multiple comparisons!
-control_group <- paste("WT",net, sep = ".")
-
-# If combining...
-control_group <- "WT"
-
-# Perform DTest.
 DTdata_list <- lapply(ME_list, function(x) {
   g <- factor(groups[names(x)],levels=group_levels)
-  result <- DunnettTest(x ~ g,control = control_group)[[control_group]]
+  result <- DunnettTest(x ~ g,control = control_group)[[control_group]] 
   return(as.data.frame(result))
 })
 
@@ -478,17 +487,95 @@ if (nSigDisease > 0) {
   print(sigDBDmodules)
 }
 
+
 # Generate boxplots summarizing module protein expression.
-plots <- lapply(ME_list,function(x) {
-		 ggplotVerboseBoxplot(x,groups,group_levels)
+group_colors <- c(WT="#C2C5CC", Shank2="#FFF200", Shank3="#00A2E8", 
+	    Syngap1="#22B14C", Ube3a="#A349A4")
+
+
+ggplotVerboseBoxplot(ME_list[[1]],groups,group_levels)
+
+#' ggplotVerboseBoxplot
+#'
+#' Generate WGCNA verbose boxplots
+#'
+#' @param x - ME vector
+#' @param g - groups, same dimension as ME
+#' @param contrasts - which groups to compare
+#' @param order - order of the bars in the plot
+#'
+#' @return verbose boxplot
+#'
+#' @author Tyler W Bradshaw, \email{tyler.w.bradshaw@duke.edu}
+#' @references \url{}
+#' @keywords
+#'
+#' @export
+#'
+#' @examples
+#' ggplotVerboseBoxplot(x, g, contrasts)
+ggplotVerboseBoxplot <- function(x, groups, group_levels) {
+  # Imports
+  suppressPackageStartupMessages({
+    require(FSA)
+    require(ggplot2)
   })
-names(plots) <- names(ME_list)
+  # Bind data together as a data.frame.
+  df <- data.frame(x = x, g = groups[names(x)])
+  #check <- all(groups[rownames(df)] == df$g)
+  # Define tissue type grouping for faceted plot.
+  df$tissue <- "WT"
+  df$tissue[grep("Cortex", df$g)] <- "Cortex"
+  df$tissue[grep("Striatum", df$g)] <- "Striatum"
+  df$tissue <- factor(df$tissue,levels=c("WT","Cortex","Striatum"))
+  # Coerce groups to factor.
+  df$g <- factor(df$g,levels = group_levels)
+
+  # Add group colors.
+
+  ## Perform statistical testing.
+  Dtest <- as.data.frame({
+	  DunnettTest(df$x ~ df$g,control=control_group)[[control_group]]
+  })
+  idx <- match(paste(df$g,control_group,sep="-"),rownames(Dtest))
+  df$DT.pval <- as.numeric(Dtest$pval[idx])
+  df$xpos <- as.numeric(df$g)
+  df$ypos <- 1.02 * max(df$x)
+  df$label <- ""
+  df$label[df$DT.pval < 0.05] <- "*"
+  df$label[df$DT.pval < 0.005] <- "**"
+  df$label[df$DT.pval < 0.0005] <- "***"
+  ## Generate boxplot.
+  plot <- ggplot(df, aes(x = g, y = x, group = g, fill = g)) + geom_boxplot() +
+    geom_point(color = "white", size = 1, pch = 21, fill = "black") +
+    ylab("Summary Expression") + xlab(NULL) +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5, color = "black", size = 14, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
+      axis.text.x = element_text(color = "black", angle = 45, hjust = 1)
+    )  
+    # Facet.
+    #plot <- plot + facet_grid(~df$tissue, scales = "free", space = "free") +
+#	    theme(strip.text.x = element_text(size = 11, color = "black", face = "bold"))
+    # Customize colors
+    colors <- rep(c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4"), 2)
+    plot <- plot + scale_fill_manual(values = colors)
+  # Add significance annotation.
+  plot <- plot + annotate("text",x=df$xpos,y=df$ypos,label=df$label)
+  return(plot)
+}
+
+
 ## Clean up plots.
 # Simplify x-axis labels.
-x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
-		  "Syngap1 HET","Ube3a KO"),2)
+x_labels <- c("WT",rep(c("Shank2 KO","Shank3 KO",
+			 "Syngap1 HET","Ube3a KO"),2))
+
 # Loop to clean-up plots.
 for (k in seq_along(plots)) {
+
 	# Add title and fix xlabels.
 	plot <- plots[[k]]
 	m <- names(plots)[k]
@@ -497,6 +584,7 @@ for (k in seq_along(plots)) {
 	plot_title <- paste0(m, " (", txt, ")")
 	plot$labels$title <- plot_title
 	plot <- plot + scale_x_discrete(labels = x_labels)
+
 	# Add significance stars!
 	df <- data.table(xpos=c(2:5),
 			 ypos = 1.01 * max(plot$data$x),
@@ -505,12 +593,27 @@ for (k in seq_along(plots)) {
 	df$symbol[df$p<0.05] <- "*"
 	df$symbol[df$p<0.005] <- "**"
 	df$symbol[df$p<0.0005] <- "***"
+
 	if (any(df$p<0.05)) {
 		plot <- plot + 
 			annotate("text",x=df$xpos,y=df$ypos,label=df$symbol,size=7) }
 	# Store results in list.
 	plots[[k]] <- plot
 } # Ends loop to fix plots.
+
+  return(plot)
+
+}
+
+
+
+
+
+
+
+
+
+
 
 # Create table summarizing partition statistics.
 df <- data.table("Algorithm" = "Leiden",
