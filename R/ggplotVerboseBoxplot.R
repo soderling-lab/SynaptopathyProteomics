@@ -17,7 +17,8 @@
 #'
 #' @examples
 #' ggplotVerboseBoxplot(x, g, contrasts)
-ggplotVerboseBoxplot <- function(x, groups, group_levels) {
+ggplotVerboseBoxplot <- function(x, groups, 
+				 group_levels,control_group=NULL) {
   # Imports
   suppressPackageStartupMessages({
     require(FSA)
@@ -25,7 +26,15 @@ ggplotVerboseBoxplot <- function(x, groups, group_levels) {
   })
   # Bind data together as a data.frame.
   df <- data.frame(x = x, g = groups[names(x)])
-  #check <- all(groups[rownames(df)] == df$g)
+  # If plotting duplicated control data.
+  if (!is.null(control_group)){
+	  x0 <- subset(df,!grepl(control_group,df$g)) 
+	  y0 <- subset(df,grepl(control_group,df$g)) 
+	  z0 <- subset(df,grepl(control_group,df$g)) 
+	  y0$g <- "WT.Cortex"
+	  z0$g <- "WT.Striatum"
+	  df <- rbind(x0,y0,z0)
+  }
   # Define tissue type grouping for faceted plot.
   df$tissue <- ""
   df$tissue[grep("Cortex", df$g)] <- "Cortex"

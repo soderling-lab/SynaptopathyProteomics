@@ -11,7 +11,8 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Cortex"
+data_type <- "Combined" # Cortex, Striatum, or Combined...
+part_type <- "Cortex" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -25,12 +26,10 @@ input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
 						  other="2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData"),
 				      Striatum=list(self="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
 						    ppi = "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData",
-						    other="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData"),
-				      Combined=list(Cortex="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
-						    Striatum="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData"))
+						    other="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData"))
 		    )
 
-# Global options and imports.
+# Global imports.
 suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
@@ -68,7 +67,7 @@ protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
 myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
-# Proteins with any significant change.
+# Get proteins with any significant change.
 idy <- lapply(c("Cortex","Striatum"),function(x) grep(x,colnames(glm_stats$FDR)))
 sigProts <- lapply(idy, function(x) {
 			   apply(glm_stats$FDR[,x],1,function(pval) any(pval<0.05)) })
@@ -76,15 +75,18 @@ names(sigProts) <- c("Cortex","Striatum")
 
 # Load expression data.
 # Data should be transposed: rows, proteins.
+# Insure that column names are not lost after transpose.
 myfile <- file.path(rdatdir,input_files$data_file[[data_type]])
-data <- t(readRDS(myfile))
+temp <- readRDS(myfile)
+data <- t(temp)
+colnames(data) <- rownames(temp)
 
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
 # Remove any QC samples from data.
-QC <- sampleTraits$SampleID[which(sampleTraits$SampleType=="QC")]
-data <- data[!rownames(data) %in% QC,]
+#QC <- sampleTraits$SampleID[which(sampleTraits$SampleType=="QC")]
+#data <- data[!rownames(data) %in% QC,]
 
 # Load co-expression (adjacency) matrix.
 myfile <- file.path(rdatdir,input_files$adjm_file[[data_type]])
@@ -97,9 +99,9 @@ adjm_ppi <- as.matrix(adjm_ppi)
 rownames(adjm_ppi) <- colnames(adjm_ppi)
 
 # Load network partitions--self-preservation enforced.
-myfiles <- file.path(rdatdir,input_files$part_file[[data_type]])
+myfiles <- file.path(rdatdir,input_files$part_file[[part_type]])
 partitions <- lapply(myfiles,function(x) unlist(readRDS(x)))
-names(partitions) <- names(input_files$part_file[[data_type]])
+names(partitions) <- names(input_files$part_file[[part_type]])
 
 # Load theme for plots.
 ggtheme()
@@ -118,15 +120,26 @@ p2 <- partitions$other
 # Get preserved modules.
 preserved_modules <- list()
 modules <- split(p2,p1)
+names(modules) <- paste0("M",names(modules))
 preserved <- which(sapply(modules,function(x) unique(x)!=0))
-preserved_modules[["other"]] <- paste0("M",names(modules)[preserved])
+preserved_modules[["other"]] <- names(modules)[preserved]
 
 # Fraction of modules that are preserved in the other tissue type.
 nModules <- length(unique(p1[p1!=0]))
 nPres <- length(preserved_modules[["other"]])
 pPres <- round(100*(nPres/length(unique(p1))),3)
-message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type, 
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
 	       " modules are preserved in the opposite tissue."))
+
+# Reformat other partition, so that module names are the same 
+# as in partitions$self!
+m <- split(p1,p2)
+new_part <- sapply(seq_along(m),function(x) {
+			   p <- rep(as.numeric(names(m)[x]),length(m[[x]]))
+			   names(p) <- names(m[[x]])
+			   return(p)
+			   })
+partitions$other <- unlist(new_part)
 
 #---------------------------------------------------------------------
 ## Which modules are preserved in PPI graph?
@@ -145,7 +158,7 @@ preserved_modules[["ppi"]] <- paste0("M",names(modules)[preserved])
 nModules <- length(unique(p1[p1!=0]))
 nPres <- length(preserved_modules[["ppi"]])
 pPres <- round(100*(nPres/length(unique(p1))),3)
-message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type, 
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
 	       " modules are preserved in the PPI network."))
 
 #---------------------------------------------------------------------
@@ -203,8 +216,8 @@ gene_list <- module_list$Entrez
 DBDenrichment <- gse(gene_list, DBDcollection)
 
 # Collect modules with significant enrichment of DBD-genes.
-method <- "Bonferroni"
-alpha <- 0.1
+method <- "FDR"
+alpha <- 0.05
 any_sig <- which(sapply(DBDenrichment,function(x) any(x[method] < alpha)))
 DBDsig <- names(DBDenrichment)[any_sig]
 
@@ -226,7 +239,6 @@ names(DBDgenes) <- sapply(DBDcollection$dataSets,function(x) x$name)
 DBDprots <- lapply(DBDgenes,function(x) {
 			  protmap$ids[which(x %in% protmap$entrez)]
 })
-
 
 # Create a vector of protein-DBD annotations.
 DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
@@ -326,8 +338,7 @@ alpha <- 0.05
 topOMIM <- lapply(results,function(x) {
 		       	p <- x$Adjusted.P.value[1] 
 			names(p) <- x$Term[1]
-			return(p)
-	    })
+			})
 
 # Remove NA.
 topOMIM <- topOMIM[-which(is.na(topOMIM))]
@@ -337,11 +348,21 @@ OMIMsig <- topOMIM[which(topOMIM < alpha)]
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
 
-# Get modules.
-modules <- module_list$IDs
+# Get partition.
+if (data_type == "Combined") {
+	partition <- partitions$other
+} else {
+	partition <- partitions$self
+}
 
-# Number of modules.
-nModules <- sum(names(modules) != "M0")
+# Modules from the given partition.
+modules <- split(partition,partition)
+names(modules) <- paste0("M",names(modules))
+modules <- modules[-which(names(modules)=="M0")]
+
+# Total Number of modules.
+all_modules <- module_list$IDs
+nModules <- sum(names(all_modules) != "M0")
 message(paste("Number of modules:", nModules))
 
 # Module size statistics.
@@ -401,9 +422,10 @@ names(groups) <- rownames(MEs)
 groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
 groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 
-# Fix levels (order).
-group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
-group_levels <- paste(group_order,net,sep=".")
+# If grouping all WT samples together...
+if (data_type == "Combined") {
+	groups[grepl("WT", groups)] <- "WT"
+}
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
@@ -413,8 +435,8 @@ KWdata_list <- lapply(ME_list, function(x) {
 KWdata <- as.data.frame(do.call(rbind,KWdata_list))[-c(4,5)]
 
 # Correct p-values for n comparisons.
-method <- "bonferroni"
-KWdata$p.adj <- p.adjust(as.numeric(KWdata$p.value), method)
+KWdata$p.adj <- as.numeric(KWdata$p.value) * nModules
+KWdata$p.adj[KWdata$p.adj > 1.0] <- 1.0
 
 # Significant modules.
 alpha <- 0.1
@@ -428,7 +450,21 @@ message(paste0(
 # Perform Dunnetts test for post-hoc comparisons.
 # Note: P-values returned by DunnettTest have already been adjusted for 
 # multiple comparisons!
-control_group <- paste("WT", net, sep = ".")
+
+# Define control group and levels (order) for DunnettTest.
+group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
+group_levels <- c(paste(group_order,"Cortex",sep="."),
+		  paste(group_order,"Striatum",sep="."))
+# If combining data, set all WT samples to WT.
+if (data_type == "Combined") {
+	control_group <- paste("WT", sep = ".")
+	group_levels[grepl("WT", group_levels)] <- "WT"
+	group_levels <- unique(group_levels)
+} else {
+	control_group <- paste("WT", part_type, sep = ".")
+}
+
+# Loop to perform DTest.
 DTdata_list <- lapply(ME_list, function(x) {
   g <- factor(groups[names(x)],levels=group_levels)
   result <- DunnettTest(x ~ g,control = control_group)[[control_group]] 
@@ -453,11 +489,31 @@ if (nSigDisease > 0) {
   print(sigDBDmodules)
 }
 
+## Generate verbose boxplots.
+
+# Rest sample to group mapping.
+sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, 
+					  sampleTraits$Tissue, sep = ".")
+idx <- match(rownames(MEs), sampleTraits$SampleID)
+groups <- sampleTraits$Sample.Model.Tissue[idx]
+names(groups) <- rownames(MEs)
+
+# Group all WT samples from a tissue type together.
+groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
+groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
+
+# Reset group order.
+group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
+group_levels <- c(paste(group_order,"Cortex",sep="."),
+		  paste(group_order,"Striatum",sep="."))
+
 # Generate boxplots summarizing module protein expression.
 plots <- lapply(ME_list,function(x) {
-		 ggplotVerboseBoxplot(x,groups,group_levels)
+		 ggplotVerboseBoxplot(x,groups,
+				      group_levels,control_group="WT")
   })
 names(plots) <- names(ME_list)
+
 ## Clean up plots.
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
@@ -467,22 +523,33 @@ for (k in seq_along(plots)) {
 	# Add title and fix xlabels.
 	plot <- plots[[k]]
 	m <- names(plots)[k]
+	# Add significance stars!
+	DTdata_list[[m]]$pval
+	dt <- DTdata_list[[m]]
+	df <- data.table(plot$data)
+	idx <- match(paste(df$g,control_group,sep="-"),rownames(dt))
+	df$pval <- dt$pval[idx]
+	df$pval[is.na(df$pval)] <- 1
+	df$xpos <- df$g
+	df$ypos <- 1.1 * max(df$x)
+	df$symbol <- ""
+	df$symbol[df$pval<0.05] <- "*"
+	df$symbol[df$pval<0.005] <- "**"
+	df$symbol[df$pval<0.0005] <- "***"
+	df$tissue <- factor(df$tissue,levels=c("Cortex","Striatum"))
+	df$color <- "black"
+	df$color[df$pval<0.05] <- "red"
+	# If KW Sig, then add stars.
+	if (KWdata[m,"p.adj"] < 0.1){
+		plot <- plot + geom_text(data=df,aes(x=xpos, y=ypos,
+						     label=symbol,size=7))
+	}
+	# Fix title and xlabels.
 	txt <- paste0("P.adj = ", round(KWdata[m,"p.adj"],3),
 		      "; ","PVE = ", round(PVE[m], 3))
 	plot_title <- paste0(m, " (", txt, ")")
 	plot$labels$title <- plot_title
 	plot <- plot + scale_x_discrete(labels = x_labels)
-	# Add significance stars!
-	df <- data.table(xpos=c(2:5),
-			 ypos = 1.01 * max(plot$data$x),
-			 p=DTdata_list[[m]]$pval,
-			 symbol="")
-	df$symbol[df$p<0.05] <- "*"
-	df$symbol[df$p<0.005] <- "**"
-	df$symbol[df$p<0.0005] <- "***"
-	if (any(df$p<0.05)) {
-		plot <- plot + 
-			annotate("text",x=df$xpos,y=df$ypos,label=df$symbol,size=7) }
 	# Store results in list.
 	plots[[k]] <- plot
 } # Ends loop to fix plots.
@@ -503,7 +570,7 @@ mytable <- tableGrob(df, rows=NULL, theme = mytheme)
 fig <- plot_grid(mytable)
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,paste0(net,"_Module_Summary.tiff")))
+myfile <- prefix_file(file.path(figsdir,"Module_Summary.tiff"))
 ggsaveTable(mytable,myfile)
 
 #---------------------------------------------------------------------
@@ -511,7 +578,7 @@ ggsaveTable(mytable,myfile)
 #---------------------------------------------------------------------
 
 # Save sig plots as single pdf.
-myfile <- prefix_file(file.path(figsdir,paste0(net,"_Sig_Module_Boxplots.pdf")))
+myfile <- prefix_file(file.path(figsdir,"Sig_Module_Boxplots.pdf"))
 ggsavePDF(plots[sigModules],myfile)
 
 #---------------------------------------------------------------------
@@ -519,8 +586,9 @@ ggsavePDF(plots[sigModules],myfile)
 #---------------------------------------------------------------------
 
 # Load plots.
-myfile <- file.path(rdatdir,paste0("All_",net,"_SigProt_Boxplots.RData"))
-all_plots <- readRDS(myfile)
+myfiles <- c(Cortex=file.path(rdatdir,"All_Cortex_SigProt_Boxplots.RData"),
+	     Striatum=file.path(rdatdir,"All_Striatum_SigProt_Boxplots.RData"))
+all_plots <- lapply(myfiles,readRDS)
 
 # Group by module.
 plot_list <- split(all_plots,partition[names(all_plots)])
@@ -534,12 +602,13 @@ for (i in 1:length(sigModules)){
 	plots <- plot_list[[module_name]]
 	groups <- rep(c(1:ceiling(length(plots)/4)),each=4)[c(1:length(plots))]
 	plot_groups <- split(plots,groups)
+
 	figs <- lapply(plot_groups,function(x) {
 			       fig <- gridExtra::grid.arrange(grobs=x,ncol=2,nrow=2)
 			       return(fig)
 		 })
 	myfile <- prefix_file(file.path(figsdir,
-				paste0(module_name,"_",net,"_Module_SigProts.pdf")))
+				paste0(module_name,"_Module_SigProts.pdf")))
 	ggsavePDF(figs,myfile)
 }
 

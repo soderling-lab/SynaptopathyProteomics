@@ -11,9 +11,9 @@
 
 ## User parameters to change:
 stats <- c(1,2,6,7) 
-#stats = 1
+#stats = 1 # For PPI preservation, just consider edge weight.
 strength = "strong" # Criterion for preservation.
-replace_negative = "zero" # How to handle negative edge weights.
+replace_negative = "zero" # How to handle negative edge weights. abs or zero.
 
 ## Other NetRep parameters:
 nPerm = NULL
@@ -25,13 +25,13 @@ alternative = "greater"
 # Organization of the permutation test.
 # The data in data_list will be used, see below.
 # Define the appropriate self and test for all inputs.
-perm_test <- list(discovery = "Striatum", 
-		  test = "Cortex",
+perm_test <- list(discovery = "Cortex", 
+		  test = "Striatum",
 		  self_preservation = FALSE,
-		  network =     c(self="Striatum",test="Cortex"),
-		  data =        c(self="Striatum",test="Cortex"),
-		  correlation = c(self="Striatum",test="Cortex"),
-		  module =      c(self="Striatum",test="Cortex"))
+		  network =     c(self="Cortex",test="Striatum"),
+		  data =        c(self="Cortex",test="Striatum"),
+		  correlation = c(self="Cortex",test="Striatum"),
+		  module =      c(self="Cortex",test="Striatum"))
 
 ## Input data.
 # Data should be in rdata/.
@@ -131,14 +131,14 @@ adjm <- lapply(adjm,function(x) { rownames(x) <- colnames(x) ; return(x) })
 correlation_list <- adjm
 if (self_preservation) { names(correlation_list) <- self }
 
-# 3. Interaction network - Edges must be positive! Should network be weighted?
+# 3. Interaction network - Edges must be positive!
 myfiles <- data_files$network[perm_test$network]
 net <- lapply(myfiles,function(x) readRDS(file.path(rdatdir,x)))
 net <- lapply(net,as.matrix)
 net <- lapply(net,function(x) { rownames(x) <- colnames(x) ; return(x) })
 # Network (edges) should be positive.
 # Replace negative edges.
-if (replace_negative == "absolute value") {
+if (replace_negative == "abs") {
 	# Replace negative edges as absolute value.
 	network_list <- lapply(net,abs)
 } else if (replace_negative == "zero") {
