@@ -11,20 +11,23 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-net <- "Cortex"
-image_format <- "tiff"
+data_type <- "Cortex"
 
 # Data files.
-input_files <- list(Cortex=list(adjm_file = "3_Cortex_Adjm.RData",
-			        data_file = "3_Cortex_cleanDat.RData",
-			        part_file = c("2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
-					      "2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData",
-					      "2020-02-13_Cortex_PPI_Module_Self_Preservation.RData")),
-		    Striatum=list(adjm_file = "3_Striatum_Adjm.RData",
-			          data_file = "3_Striatum_cleanDat.RData",
-			          part_file = c("2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
-					      "2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData",
-					      "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData"))
+input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
+				      Striatum="3_Striatum_Adjm.RData",
+				      Combined="3_Combined_Adjm.RData"),
+		    data_files = list(Cortex="3_Cortex_cleanDat.RData",
+				      Striatum="3_Striatum_cleanDat.RData",
+				      Combined="3_Combined_cleanDat.RData"),
+		    part_files = list(Cortex=list(self="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
+						  ppi ="2020-02-13_Cortex_PPI_Module_Self_Preservation.RData",
+						  other="2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData"),
+				      Striatum=list(self="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
+						    ppi = "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData",
+						    other="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData"),
+				      Combined=list(Cortex="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
+						    Striatum="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData"))
 		    )
 
 # Global options and imports.
@@ -51,15 +54,9 @@ root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-netsdir <- file.path(root, "networks")
-figsdir <- file.path(root, "figs",subdir)
-tabsdir <- file.path(root, "tables", subdir)
-
-# Create directory for figure output.
-# Overwrite any existing figures.
-figsdir <- file.path(figsdir,Sys.Date())
-if (dir.exists(figsdir)) { unlink(figsdir) }
-dir.create(figsdir, recursive=TRUE, showWarnings=FALSE)
+netsdir <- file.path(root, "networks",data_type)
+figsdir <- file.path(root, "figs",subdir,data_type)
+tabsdir <- file.path(root, "tables", subdir,data_type)
 
 # Functions.
 suppressWarnings({ devtools::load_all() })
@@ -79,14 +76,18 @@ names(sigProts) <- c("Cortex","Striatum")
 
 # Load expression data.
 # Data should be transposed: rows, proteins.
-myfile <- file.path(rdatdir,input_files[[net]]$data_file)
+myfile <- file.path(rdatdir,input_files$data_file[[data_type]])
 data <- t(readRDS(myfile))
 
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
 
+# Remove any QC samples from data.
+QC <- sampleTraits$SampleID[which(sampleTraits$SampleType=="QC")]
+data <- data[!rownames(data) %in% QC,]
+
 # Load co-expression (adjacency) matrix.
-myfile <- file.path(rdatdir,input_files[[net]]$adjm_file)
+myfile <- file.path(rdatdir,input_files$adjm_file[[data_type]])
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
@@ -95,17 +96,57 @@ adjm_ppi <- fread(file.path(rdatdir,"3_PPI_Adjm.csv"),drop=1)
 adjm_ppi <- as.matrix(adjm_ppi)
 rownames(adjm_ppi) <- colnames(adjm_ppi)
 
-# Load network partitions-- self-preservation enforced.
-myfiles <- file.path(rdatdir,input_files[[net]]$part_file)
+# Load network partitions--self-preservation enforced.
+myfiles <- file.path(rdatdir,input_files$part_file[[data_type]])
 partitions <- lapply(myfiles,function(x) unlist(readRDS(x)))
-names(partitions) <- lapply(lapply(strsplit(myfiles,"_"),"[",c(2,3)),
-			   function(x) paste(x,collapse="_"))
-
-# Reset partition index.
-#partition <- reset_index(partition)
+names(partitions) <- names(input_files$part_file[[data_type]])
 
 # Load theme for plots.
 ggtheme()
+
+# Reset partition index for self-preserved modules.
+partitions$self <- reset_index(partitions$self)
+
+#---------------------------------------------------------------------
+## Check which modules are preserved in opposite tissue.
+#---------------------------------------------------------------------
+
+# Load partitions.
+p1 <- partitions$self
+p2 <- partitions$other
+
+# Get preserved modules.
+preserved_modules <- list()
+modules <- split(p2,p1)
+preserved <- which(sapply(modules,function(x) unique(x)!=0))
+preserved_modules[["other"]] <- paste0("M",names(modules)[preserved])
+
+# Fraction of modules that are preserved in the other tissue type.
+nModules <- length(unique(p1[p1!=0]))
+nPres <- length(preserved_modules[["other"]])
+pPres <- round(100*(nPres/length(unique(p1))),3)
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type, 
+	       " modules are preserved in the opposite tissue."))
+
+#---------------------------------------------------------------------
+## Which modules are preserved in PPI graph?
+#---------------------------------------------------------------------
+
+# Load partitions.
+p1 <- partitions$self
+p2 <- partitions$ppi
+
+# Get preserved modules.
+modules <- split(p2,p1)
+preserved <- which(sapply(modules,function(x) unique(x)!=0))
+preserved_modules[["ppi"]] <- paste0("M",names(modules)[preserved])
+
+# Fraction of modules that are preserved in the other tissue type.
+nModules <- length(unique(p1[p1!=0]))
+nPres <- length(preserved_modules[["ppi"]])
+pPres <- round(100*(nPres/length(unique(p1))),3)
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type, 
+	       " modules are preserved in the PPI network."))
 
 #---------------------------------------------------------------------
 ## SigProt annotations--which genotype is a given protein changing in?
@@ -122,26 +163,12 @@ sigProtAnno <- df$sigProt
 names(sigProtAnno) <- rownames(df)
 
 #---------------------------------------------------------------------
-## Which modules are preserved in PPI graph?
-#---------------------------------------------------------------------
-
-# Identify which co-expression modules have preserved PPIs.
-p1 <- partitions[[1]]
-p2 <- partitions[[grep("PPI",names(partitions))]]
-p1[p2==0] <- 0 
-m <- split(p1,p1)
-names(m) <- paste0("M",names(m))
-preserved <- names(m)[which(names(m)!="M0")]
-message("Modules with preserved PPI topology:")
-print(preserved)
-
-#---------------------------------------------------------------------
 ## Collect all modules in a list.
 #---------------------------------------------------------------------
 
 # Create list of modules.
 module_list <- list()
-partition <- partitions[[1]]
+partition <- partitions$self
 
 # Module list with entrez ids.
 idx <- match(names(partition),protmap$ids)
@@ -159,7 +186,7 @@ module_list <- lapply(module_list,function(x) {
 			  return(x)
 })
 
-# Drop M0.
+# Drop M0 from lists.
 module_list <- lapply(module_list,function(x) x[-which(names(x)=="M0")])
 
 #---------------------------------------------------------------------
@@ -182,7 +209,7 @@ any_sig <- which(sapply(DBDenrichment,function(x) any(x[method] < alpha)))
 DBDsig <- names(DBDenrichment)[any_sig]
 
 # Status.
-message(paste("Total number of disease associated modules:",
+message(paste("Total number of DBD-associated modules:",
 	      length(DBDsig)))
 
 # Write to file.
@@ -199,6 +226,7 @@ names(DBDgenes) <- sapply(DBDcollection$dataSets,function(x) x$name)
 DBDprots <- lapply(DBDgenes,function(x) {
 			  protmap$ids[which(x %in% protmap$entrez)]
 })
+
 
 # Create a vector of protein-DBD annotations.
 DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
@@ -225,7 +253,6 @@ mytheme <- gridExtra::ttheme_default(
   colhead = list(fg_params = list(cex = 0.75)),
   rowhead = list(fg_params = list(cex = 0.75))
 )
-
 # Create table and add borders.
 # Border around data rows.
 mytable <- tableGrob(df, rows = NULL, theme = mytheme)
@@ -243,68 +270,6 @@ fig <- plot_grid(mytable)
 
 # Save.
 myfile <- prefix_file(file.path(figsdir,"DBD_Gene_Summary.tiff"))
-ggsaveTable(mytable,myfile)
-
-#---------------------------------------------------------------------
-## Module enrichment for cell types.
-#---------------------------------------------------------------------
-
-# Load cell collection.
-cellSet <- "Velmeshev_ASD_Cellcollection.RData"
-myfile <- file.path(rdatdir,cellSet)
-Cellcollection <- readRDS(myfile)
-
-# Collect list of module genes.
-gene_list <- module_list$Entrez
-
-# Perform enrichment analysis.
-# gse is just a wrapper around anRichment's enrichment function.
-cellEnrichment <- gse(gene_list, Cellcollection)
-
-# Collect modules with sig. enrichment for cell-type specific genes.
-method <- "Bonferroni"
-alpha <- 0.1
-any_sig <- which(sapply(cellEnrichment,function(x) any(x[method] < alpha)))
-Cellsig <- names(cellEnrichment)[any_sig]
-
-# Status.
-message(paste("Total number of modules with cell-type specific",
-	      "gene enrichment:", length(Cellsig)))
-
-# Write to file.
-myfile <- file.path(tabsdir,"3_Module_Cell_Type_Enrichment.xlsx")
-write_excel(cellEnrichment[Cellsig],myfile)
-
-# Table summary.
-df <- as.data.frame({
-	sapply(cellEnrichment[Cellsig],function(x) {
-		       paste(x$shortDataSetName[x$Bonferroni < alpha],collapse="; ")
-	      })
-})
-colnames(df) <- "Enriched Cell Type Specific Genes"
-df <- tibble::add_column(df,Module=rownames(df),.before=1)
-
-# Create table and add borders.
-# Border around data rows.
-mytable <- tableGrob(df, rows=NULL, theme = mytheme)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
-)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 2, l = 1, r = ncol(mytable)
-)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 3, l = 1, r = ncol(mytable)
-)
-
-# Check the table.
-fig <- plot_grid(mytable)
-
-# Save the table.
-myfile <- prefix_file(file.path(figsdir,paste0("Cell_Type_Modules_Summary.tiff")))
 ggsaveTable(mytable,myfile)
 
 #--------------------------------------------------------------------
