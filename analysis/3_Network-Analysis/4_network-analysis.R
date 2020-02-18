@@ -23,7 +23,7 @@ input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
 				      Combined="3_Combined_cleanDat.RData"),
 		    part_files = list(Cortex=list(self="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
 						  ppi ="2020-02-13_Cortex_PPI_Module_Self_Preservation.RData",
-						  other="2020-02-13_Cortex_Striatum_Module_Self_Preservation.RData"),
+						  other="2020-02-18_Cortex_Striatum_Module_Self_Preservation.RData"),
 				      Striatum=list(self="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
 						    ppi = "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData",
 						    other="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData"))
@@ -349,9 +349,12 @@ OMIMsig <- topOMIM[which(topOMIM < alpha)]
 #---------------------------------------------------------------------
 
 # Get partition.
+# If Analyzing the combined data, focus on modules that are preserved
+# in opposite tissue type.
 if (data_type == "Combined") {
 	partition <- partitions$other
 } else {
+	# Otherwise focus on modules that are self-preserved.
 	partition <- partitions$self
 }
 
@@ -411,7 +414,7 @@ medianPVE <- median(PVE)
 message(paste("Median module coherence (PVE):", 
 	      round(100 * medianPVE, 2), "(%)."))
 
-# Sample to group mapping.
+# Sample to group mapping for statistical testing.
 sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, 
 					  sampleTraits$Tissue, sep = ".")
 idx <- match(rownames(MEs), sampleTraits$SampleID)
@@ -424,6 +427,7 @@ groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 
 # If grouping all WT samples together...
 if (data_type == "Combined") {
+	# WT from both tissue will be annotated as WT.
 	groups[grepl("WT", groups)] <- "WT"
 }
 
@@ -455,6 +459,7 @@ message(paste0(
 group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
 group_levels <- c(paste(group_order,"Cortex",sep="."),
 		  paste(group_order,"Striatum",sep="."))
+
 # If combining data, set all WT samples to WT.
 if (data_type == "Combined") {
 	control_group <- paste("WT", sep = ".")
@@ -472,8 +477,8 @@ DTdata_list <- lapply(ME_list, function(x) {
 })
 
 # Number of modules with significant KW + DT changes.
-alpha <- 0.05
-nSigDT <- sapply(DTdata_list, function(x) sum(x$pval < alpha))
+DTalpha <- 0.05
+nSigDT <- sapply(DTdata_list, function(x) sum(x$pval < DTalpha))
 if (length(nSigDT[sigModules]) > 0) {
   message("Summary of Dunnett's test changes for significant modules:")
   print(nSigDT[sigModules])
@@ -491,7 +496,7 @@ if (nSigDisease > 0) {
 
 ## Generate verbose boxplots.
 
-# Rest sample to group mapping.
+# Reset sample to group mapping for generating boxplots.
 sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, 
 					  sampleTraits$Tissue, sep = ".")
 idx <- match(rownames(MEs), sampleTraits$SampleID)
@@ -514,7 +519,7 @@ plots <- lapply(ME_list,function(x) {
   })
 names(plots) <- names(ME_list)
 
-## Clean up plots.
+## Loop to  clean-up plots.
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 		  "Syngap1 HET","Ube3a KO"),2)
@@ -587,8 +592,10 @@ ggsavePDF(plots[sigModules],myfile)
 
 # Load plots.
 myfiles <- c(Cortex=file.path(rdatdir,"All_Cortex_SigProt_Boxplots.RData"),
-	     Striatum=file.path(rdatdir,"All_Striatum_SigProt_Boxplots.RData"))
-all_plots <- lapply(myfiles,readRDS)
+	     Striatum=file.path(rdatdir,"All_Striatum_SigProt_Boxplots.RData"),
+	     Combined=file.path(rdatdir,"All_Faceted_SigProt_Boxplots.RData"))
+myfile <- myfiles[data_type]
+all_plots <- readRDS(myfile)
 
 # Group by module.
 plot_list <- split(all_plots,partition[names(all_plots)])
@@ -602,7 +609,6 @@ for (i in 1:length(sigModules)){
 	plots <- plot_list[[module_name]]
 	groups <- rep(c(1:ceiling(length(plots)/4)),each=4)[c(1:length(plots))]
 	plot_groups <- split(plots,groups)
-
 	figs <- lapply(plot_groups,function(x) {
 			       fig <- gridExtra::grid.arrange(grobs=x,ncol=2,nrow=2)
 			       return(fig)
