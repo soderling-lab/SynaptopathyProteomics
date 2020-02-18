@@ -72,6 +72,7 @@ idy <- lapply(c("Cortex","Striatum"),function(x) grep(x,colnames(glm_stats$FDR))
 sigProts <- lapply(idy, function(x) {
 			   apply(glm_stats$FDR[,x],1,function(pval) any(pval<0.05)) })
 names(sigProts) <- c("Cortex","Striatum")
+sigProts[["Combined"]] <- apply(cbind(sigProts[[1]],sigProts[[2]]),1,any)
 
 # Load expression data.
 # Data should be transposed: rows, proteins.
@@ -83,10 +84,6 @@ colnames(data) <- rownames(temp)
 
 # Load Sample info.
 sampleTraits <- readRDS(file.path(rdatdir, "2_Combined_traits.RData"))
-
-# Remove any QC samples from data.
-#QC <- sampleTraits$SampleID[which(sampleTraits$SampleType=="QC")]
-#data <- data[!rownames(data) %in% QC,]
 
 # Load co-expression (adjacency) matrix.
 myfile <- file.path(rdatdir,input_files$adjm_file[[data_type]])
@@ -132,7 +129,7 @@ message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type,
 	       " modules are preserved in the opposite tissue."))
 
 # Reformat other partition, so that module names are the same 
-# as in partitions$self!
+# as in self-preserved partition (partitions$self)!
 m <- split(p1,p2)
 new_part <- sapply(seq_along(m),function(x) {
 			   p <- rep(as.numeric(names(m)[x]),length(m[[x]]))
@@ -254,6 +251,8 @@ DBDanno[DBDanno == ""] <- NA
 ## Create a table summarizing disease genes.
 #---------------------------------------------------------------------
 
+# Summarize all DBD genes identified in synaptosome.
+
 # Summary of disease genes.
 df <- t(as.data.frame(sapply(DBDprots,length)))
 rownames(df) <- NULL
@@ -313,9 +312,19 @@ message(paste("Total number of modules with any significant GO",
 GOsig <- topGO[topGO < alpha]
 GOsig <- GOsig[order(unlist(GOsig))]
 
+# Write GO results to file.
+myfile <- file.path(tabsdir,"Module_GO_Enrichment.xlsx")
+write_excel(GOresults,myfile)
+
 #--------------------------------------------------------------------
 ## Module enrichment using enrichR.
 #--------------------------------------------------------------------
+
+# EnrichR is an online platform for gene set enrichment.
+# https://amp.pharm.mssm.edu/Enrichr/
+
+# EnrichR can perform enrichment analysis querying a large number of 
+# gene collections: https://amp.pharm.mssm.edu/Enrichr/#stats
 
 # Collect list of module genes--input is gene symbols.
 gene_list <- module_list$Symbols
@@ -328,28 +337,37 @@ dbs <- dbs$libraryName[order(dbs$libraryName)]
 # FIXME: progress report would be nice.
 #db <- "GO_Molecular_Function_2018"
 db <- "OMIM_Disease"
-results <- enrichR(gene_list,db)
-results <- unlist(results,recursive=FALSE) # Why nested list?
-names(results) <- sapply(strsplit(names(results),"\\."),"[",1)
+OMIMresults <- enrichR(gene_list,db)
+OMIMresults <- unlist(OMIMresults,recursive=FALSE) # Why nested list?
+names(OMIMresults) <- sapply(strsplit(names(OMIMresults),"\\."),"[",1)
+
+# Remove NA.
+out <- which(sapply(OMIMresults,function(x) dim(x)[1]==0))
+OMIMresults <- OMIMresults[-out]
 
 # Which modules are enriched for OMIM disorders?
 # Top OMIM term for every module.
 alpha <- 0.05
-topOMIM <- lapply(results,function(x) {
+topOMIM <- lapply(OMIMresults,function(x) {
 		       	p <- x$Adjusted.P.value[1] 
 			names(p) <- x$Term[1]
+			return(p)
 			})
 
-# Remove NA.
-topOMIM <- topOMIM[-which(is.na(topOMIM))]
+
+# Collect any signficant terms.
 OMIMsig <- topOMIM[which(topOMIM < alpha)]
+
+# Save results to file...
+myfile <- file.path(tabsdir,"Module_OMIM_Enrichment.xlsx")
+write_excel(OMIMresults,myfile)
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
 
-# Get partition.
-# If Analyzing the combined data, focus on modules that are preserved
+# Get partition of interest.
+# If analyzing the combined data, focus on modules that are preserved
 # in opposite tissue type.
 if (data_type == "Combined") {
 	partition <- partitions$other
@@ -469,7 +487,7 @@ if (data_type == "Combined") {
 	control_group <- paste("WT", part_type, sep = ".")
 }
 
-# Loop to perform DTest.
+# Loop to perform DTest. NOTE: This takes several seconds.
 DTdata_list <- lapply(ME_list, function(x) {
   g <- factor(groups[names(x)],levels=group_levels)
   result <- DunnettTest(x ~ g,control = control_group)[[control_group]] 
@@ -494,7 +512,9 @@ if (nSigDisease > 0) {
   print(sigDBDmodules)
 }
 
+#---------------------------------------------------------------------
 ## Generate verbose boxplots.
+#---------------------------------------------------------------------
 
 # Reset sample to group mapping for generating boxplots.
 sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, 
@@ -619,8 +639,11 @@ for (i in 1:length(sigModules)){
 }
 
 #---------------------------------------------------------------------
-## Examine overall structure of network, ME network.
+## Examine overall structure of network.
 #---------------------------------------------------------------------
+
+# Examine relationships between modules by comparing their summary
+# expression profiles (MEs).
 
 # Calculate correlations between ME vectors.
 adjm_me <- cor(do.call(cbind,ME_list))
@@ -710,7 +733,7 @@ names(module_colors) <- names(modules)
 
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,paste0(net,"_Modules_Dendro.tiff")))
+myfile <- prefix_file(file.path(figsdir,"Modules_Dendro.tiff"))
 ggsave(myfile,plot=dendro, height=3, width = 3)
 
 #---------------------------------------------------------------------
@@ -720,11 +743,11 @@ ggsave(myfile,plot=dendro, height=3, width = 3)
 ## NOTE: Coerce boolean attributes to integer to avoid warnings when
 # loading into cytoscape.
 
-# Coexpression graph.
+# Create co-expression graph.
 exp_graph <- graph_from_adjacency_matrix(adjm,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
 
-# PPI graph.
+# Create PPI graph.
 ppi_graph <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
 				  weighted=TRUE, diag=FALSE)
 
@@ -737,7 +760,7 @@ symbols <- protmap$gene[match(names(V(exp_graph)),protmap$ids)]
 exp_graph <- set_vertex_attr(exp_graph,"symbol",value = symbols)
 
 # Add sigProt vertex attribute.
-anySig <- as.numeric(sigProts[[net]][names(V(exp_graph))])
+anySig <- as.numeric(sigProts[[data_type]][names(V(exp_graph))])
 exp_graph <- set_vertex_attr(exp_graph, "sigProt", 
 			 value = anySig)
 
@@ -748,7 +771,7 @@ for (DBD in names(DBDnodes)){
 				 value = as.numeric(DBDnodes[[DBD]]))
 }
 
-# Save PPI evidence to file
+# Collect PPI evidence.
 myfile <- file.path(rdatdir,"3_All_PPIs.RData")
 ppis <- readRDS(myfile)
 
@@ -764,8 +787,8 @@ ppis <- ppis %>% select(ProteinA,ProteinB,osEntrezA,osEntrezB,
 			Source_database,Confidence_score,
 			Publications,Methods)
 
-# Save.
-myfile <- file.path(tabsdir,paste0("3_All_",net,"_PPIs.csv"))
+# Save to file..
+myfile <- file.path(tabsdir,paste0("3_All_PPIs.csv"))
 fwrite(ppis,myfile)
 
 #---------------------------------------------------------------------
@@ -773,6 +796,7 @@ fwrite(ppis,myfile)
 #---------------------------------------------------------------------
 
 # Create graphs.
+# FIXME: function should remove temp file. probably problem with winpath.
 for (i in c(1:length(modules))) {
 	message(paste("Working on module",i,"..."))
 	module_name = names(modules)[i]
@@ -780,13 +804,21 @@ for (i in c(1:length(modules))) {
 	module_kme = KME_list[[module_name]]
 	output_file = file.path(netsdir,module_name)
 	network_layout = 'force-directed edgeAttribute=weight'
-	image_file = file.path(figsdir,module_name)
+	image_file = file.path(figsdir,"NETWORKS",module_name)
 	image_format = "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
 			     module_colors, network_layout,
 			     output_file, image_file,
 			     image_format)
+	# Remove temporary file.
+	unlink(paste0(output_file,".gml"))
+	# When done, save cytoscape session.
+	if (i == length(modules)) {
+		myfile <- file.path(netsdir,paste0(data_type,".cys"))
+		winfile <- gsub("/mnt/d/","D:/",myfile)
+		saveSession(winfile)
+	}
 }
 
 #---------------------------------------------------------------------
@@ -856,5 +888,5 @@ for (i in seq_along(dfs)){
 results <- list()
 results[["Summary"]] <- module_summary
 results = c(results,dfs[sigModules])
-myfile <- file.path(tabsdir,paste0("3_",net,"_Module_Summary.xlsx"))
+myfile <- file.path(tabsdir,"Module_Summary.xlsx")
 write_excel(results,myfile)

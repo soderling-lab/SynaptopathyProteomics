@@ -25,13 +25,13 @@ alternative = "greater"
 # Organization of the permutation test.
 # The data in data_list will be used, see below.
 # Define the appropriate self and test for all inputs.
-perm_test <- list(discovery = "Cortex", 
-		  test = "Striatum",
+perm_test <- list(discovery = "Striatum", 
+		  test = "Cortex",
 		  self_preservation = FALSE,
-		  network =     c(self="Cortex",test="Striatum"),
-		  data =        c(self="Cortex",test="Striatum"),
-		  correlation = c(self="Cortex",test="Striatum"),
-		  module =      c(self="Cortex",test="Striatum"))
+		  network =     c(self="Striatum",test="Cortex"),
+		  data =        c(self="Striatum",test="Cortex"),
+		  correlation = c(self="Striatum",test="Cortex"),
+		  module =      c(self="Striatum",test="Cortex"))
 
 ## Input data.
 # Data should be in rdata/.
