@@ -49,16 +49,11 @@ subdir <- basename(here)
 functiondir <- paste(rootdir, "R", sep = "/")
 datadir <- paste(rootdir, "data", sep = "/")
 Rdatadir <- paste(rootdir, "rdata", sep = "/")
-outputfigs <- paste(rootdir,"figs",subdir,Sys.Date(),sep="/")
+outputfigs <- paste(rootdir,"figs",subdir,tissue,sep="/")
 outputtabs <- paste(rootdir, "tables", subdir,sep = "/")
 
 # Load required custom functions.
 devtools::load_all()
-
-# Create a directory for figure output.
-outputfigs <- paste(rootdir,"figs",
-		    "2_TAMPOR-Normalization",Sys.Date(),sep="/")
-dir.create(outputfigs,recursive=TRUE,showWarnings=FALSE)
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("2_", tissue)
@@ -190,7 +185,7 @@ plot <- sample_connectivity$connectivityplot +
   ggtitle("Sample Connectivity post-TAMPOR")
 
 # Save.
-myfile <- prefix_file(file.path(outputfigs,"Sample_Outlier.tiff"))
+myfile <- prefix_file(file.path(outputfigs,"Sample_Outliers.tiff"))
 ggsave(myfile,plot)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.

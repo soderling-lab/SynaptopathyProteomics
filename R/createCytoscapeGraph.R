@@ -47,7 +47,7 @@ createCytoscapeGraph <- function(exp_graph,
 	winfile <- gsub("/mnt/d/","D:/",myfile)
 	cys_net <- importNetworkFromFile(winfile)
 	Sys.sleep(2)
-	unlink(winfile)
+	unlink(myfile)
 	# Create a visual style.
 	style.name <- paste(module_name,"style",sep="-")
 	# DEFAULTS:

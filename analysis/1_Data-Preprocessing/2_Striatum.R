@@ -58,7 +58,7 @@ suppressPackageStartupMessages({
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
 type <- 2
 tissue <- c("Cortex", "Striatum")[type]
-image_format <- ".eps"
+image_format <- ".tiff"
 
 # Directories:
 here <- getwd()
@@ -651,9 +651,6 @@ tab <- sample_connectivity$table
 df <- tibble::add_column(tab, SampleName = rownames(tab), .before = 1)
 rownames(df) <- NULL
 
-plot1 <- sample_connectivity$connectivityplot +
-  ggtitle("QC Sample Connectivity")
-
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
 threshold <- -2.5
@@ -696,42 +693,40 @@ IRS_OutRemoved_protein <- normalize_IRS(combat_protein[, !out],
 IRS_protein <- IRS_OutRemoved_protein
 
 # Save plots for outliers.
-plots <- plots[which(unlist(out_samples) != "none")]
-file_names <- file.path(figsdir,
+idx <- which(unlist(out_samples) != "none")
+if (length(idx) > 0) {
+	plots <- plots[which(unlist(out_samples) != "none")]
+	file_names <- file.path(figsdir,
 			paste0("Outlier_Sample_",c(1:length(plots))))
-myfiles <- paste0(file_names,image_format)
-ggsavePlots(plots,prefix_file(myfiles))
+	myfiles <- paste0(file_names,image_format)
+	ggsavePlots(plots,prefix_file(myfiles))
+}
 
 #---------------------------------------------------------------------
 ## Examine the IRS Normalized protein level data.
 #---------------------------------------------------------------------
 
-# Generate boxplot.
+# Colors for plots.
+# Can handle chaning number of samples if any removed as outliers.
 data_in <- IRS_protein
 title <- "IRS Normalized protein"
-colors <- c(
-  rep("green", 11), rep("purple", 11),
-  rep("yellow", 11), rep("blue", 11)
-)
+n <- sapply(groups,function(x) length(grep(x,colnames(data_in))))
+colors <- unlist(mapply(function(x,y) rep(x,each=y), 
+			c("yellow", "blue", "green", "purple"), n,
+			SIMPLIFY = FALSE),use.names=FALSE)
+
+# Generate boxplot.
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) +
   theme(legend.position = "none")
-colors <- c(
-  rep("yellow", 11), rep("blue", 11),
-  rep("green", 11), rep("purple", 11)
-)
 p2 <- p2 + scale_color_manual(values = colors)
 
 # Generate meanSd plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
-n <- sapply(groups,function(x) length(grep(x,colnames(data_in))))
-colors <- unlist(mapply(function(x,y) rep(x,each=y), 
-			c("yellow", "blue", "green", "purple"), n),
-		 use.names=FALSE)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 

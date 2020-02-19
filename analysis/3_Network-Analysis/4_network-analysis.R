@@ -12,7 +12,7 @@
 
 ## User parameters to change:
 data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Striatum" # Specify part type when working with comb data.
+part_type <- "Cortex" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
