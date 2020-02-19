@@ -111,8 +111,7 @@ sample_info <- sample_info[order(sample_info$Order), ]
 
 # Generate a plot.
 plot <- ggplotPeptideBarPlot(raw_peptide)
-myfile <- prefix_file(file.path(figsdir,
-				paste0("Example_Peptide",image_format)))
+myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
 ggsave(prefix_file(myfile),plot)
 
 #---------------------------------------------------------------------

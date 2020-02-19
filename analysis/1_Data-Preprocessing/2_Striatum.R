@@ -6,7 +6,9 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## Data preprocssing Workflow:
+#---------------------------------------------------------------------
+## Overview of Data Preprocssing:
+#---------------------------------------------------------------------
 
 # All done within an experiment...
 #    * SL normalization
@@ -31,9 +33,9 @@
 #    * Final TMM normalization
 #    * GLM for differential abundance.
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Prepare the workspace.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Prepare the R workspace for the analysis. Load custom functions and prepare
 # the project directory for saving output files.
 
@@ -52,24 +54,24 @@ suppressPackageStartupMessages({
   library(cowplot)
 })
 
+## User parameters:
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
 type <- 2
 tissue <- c("Cortex", "Striatum")[type]
+image_format <- ".eps"
 
 # Directories:
 here <- getwd()
+subdir <- basename(here)
 rootdir <- dirname(dirname(here))
 funcdir <- file.path(rootdir, "R")
 datadir <- file.path(rootdir, "data")
 Rdatadir <- file.path(rootdir, "rdata")
-figsdir <- file.path(rootdir, "figures")
+figsdir <- file.path(rootdir, "figs",subdir,tissue)
+tabsdir <- file.path(rootdir, "tables",subdir,tissue)
 
 # Load required custom functions.
-source_myfun <- function() {
-  myfun <- list.files(funcdir, pattern = ".R", full.names = TRUE)
-  invisible(sapply(myfun, source))
-}
-source_myfun()
+suppressWarnings({ devtools::load_all() })
 
 # Define prefix for output figures and tables.
 outputMatName <- paste0("1_", tissue)
@@ -77,13 +79,9 @@ outputMatName <- paste0("1_", tissue)
 # Globally set ggplots theme.
 ggtheme()
 
-# All plots will be stored in a list and saved to RData.
-output_plots <- file.path(Rdatadir, paste0(outputMatName, "_plots.Rds"))
-all_plots <- list()
-
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # The raw peptide intensity data were exported from ProteomeDiscover (PD)
 # version 2.2. Note that the default export from PD2.x is a unitless signal to
 # noise ratio, and it is not recommended to use ths for quantification.
@@ -107,19 +105,18 @@ sample_info <- fread(file = file.path(datadir, samplefile[type]))
 # Insure traits are in matching order.
 sample_info <- sample_info[order(sample_info$Order), ]
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Examine an example peptide.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Generate a plot.
 plot <- ggplotPeptideBarPlot(raw_peptide)
+myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
+ggsave(prefix_file(myfile),plot)
 
-# Store in list.
-all_plots[[paste(tissue, "Example_TMT", sep = "_")]] <- plot
-
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Approximately 40,000 unique peptides cooresponding to ~3,000 proteins are
 # quantified across all four experiments. When comparing the peptides
 # identified in each experiment, the overlap is only ~25%. ~20$ of peptides are
@@ -185,17 +182,33 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) +
   labs(title = "Peptide Identification\nOverlap")
 
-# Store plots in list.
-all_plots[[paste(tissue, "n_pep_per_protein", sep = "_")]] <- plot1
-all_plots[[paste(tissue, "pep_id_overlap", sep = "_")]] <- plot2
-all_plots[[paste(tissue, "total_pep_and_prot_tab", sep = "_")]] <- tab1
-all_plots[[paste(tissue, "pep_id_overlap_tab", sep = "_")]] <- tab2
+# Save tables and plots.
+myfile <- prefix_file(file.path(figsdir,
+				paste0("Raw_Peptide_Identification",
+				       image_format)))
+ggsaveTable(tab1,myfile)
 
-#-------------------------------------------------------------------------------
+myfile <- prefix_file(file.path(figsdir,
+				paste0("Peptide_Identification_Table",
+				       image_format)))
+ggsaveTable(tab2,myfile)
+
+myfile <- prefix_file(file.path(figsdir,
+				paste0("Peptide_Histogram",
+				       image_format)))
+ggsave(myfile,plot1)
+
+myfile <- prefix_file(file.path(figsdir,
+				paste0("Peptide_Overlap",
+				       image_format)))
+ggsave(myfile,plot2)
+
+#---------------------------------------------------------------------
 ## Examine the raw data.
-#-------------------------------------------------------------------------------
-# The need for normalization is evident in the raw data. Note that in the MDS
-# plot, samples cluster by experiment--evidence of a batch effect.
+#---------------------------------------------------------------------
+# The need for normalization is evident in the raw data. Note that in 
+# the MDS plot, samples cluster by experiment--this is evidence of 
+# a batch effect.
 
 # Prepare the data.
 data_in <- raw_peptide
@@ -222,15 +235,16 @@ colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
-# Store plots in list.
-all_plots[[paste(tissue, "raw_bp", sep = "_")]] <- p1
-all_plots[[paste(tissue, "raw_dp", sep = "_")]] <- p2
-all_plots[[paste(tissue, "raw_msd", sep = "_")]] <- p3
-all_plots[[paste(tissue, "raw_mds", sep = "_")]] <- p4
+# Save plots.
+file_names <- paste0("Raw_Peptide_",
+		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+myfiles <- file.path(figsdir,paste0(file_names,image_format))
+plots <- list(p1,p2,p3,p4)
+ggsavePlots(plots,prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Sample loading normalization within experiments.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # The function __normalize_SL__ performs sample loading (SL) normalization to
 # equalize the run level intensity (column) sums. The data in each column are
 # multiplied by a factor such that the mean of the column sums are are equal.
@@ -245,9 +259,9 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 # Perform SL normalization.
 SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Examine the SL Data.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Sample loading normalization equalizes the run-level sums within
 # an 11-plex TMT experiment.
 
@@ -271,15 +285,15 @@ colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
-# Store plots.
-all_plots[[paste(tissue, "sl_bp", sep = "_")]] <- p1
-all_plots[[paste(tissue, "sl_dp", sep = "_")]] <- p2
-all_plots[[paste(tissue, "sl_msd", sep = "_")]] <- p3
-all_plots[[paste(tissue, "sl_mds", sep = "_")]] <- p4
+# Save plots.
+file_names <- paste0("SL_Peptide_",
+		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+myfiles <- file.path(figsdir,paste0(file_names,image_format))
+ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Illustrate the mean variance relationship of QC peptides.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Quality control samples can be used to asses intra-experimental variability.
 # Peptides that have highly variable QC measurements will increase protein
 # level variability and should be removed. The peptide-level QC data are
@@ -298,13 +312,16 @@ hist_list <- lapply(as.list(groups), function(x) {
 })
 names(hist_list) <- groups
 
-# Store plots.
-all_plots[[paste(tissue, "corQC_list", sep = "_")]] <- plots
-all_plots[[paste(tissue, "histQC_list", sep = "_")]] <- hist_list
+# Save plots.
+file_names <- paste(rep(names(hist_list),each=5),
+		    "QC_Hist",c(1,2,3,4,5),sep="_")
+myfiles <- file.path(figsdir,paste0(file_names,image_format))
+plots <- unlist(hist_list,recursive=FALSE)
+ggsavePlots(plots,prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Peptide level filtering based on QC samples.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Peptides that were not quantified in all three qc replicates are removed.
 # The data are binned by intensity, and measurments that are 4xSD from the mean
 # ratio of the intensity bin are considered outliers and removed.
@@ -320,12 +337,14 @@ out <- list(c(94, 78, 134, 59), c(182, 67, 73, 75))[[type]] # Cox and Str peps r
 mytable <- data.frame(cbind(groups, out))
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
-# Store table
-all_plots[[paste(tissue, "n_pep_filtered", sep = "_")]] <- mytable
+# Save the table.
+myfile <- file.path(figsdir,
+		    paste0("N_Peptides_Removed_Table",image_format))
+ggsaveTable(mytable,prefix_file(myfile))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Examine the nature of missing values.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Missing values are inherent in high throughput experiments. There are two
 # main classes of missing values, missing at random (MAR) and missing not at
 # random (MNAR). The appropriate imputing algorithm should be chosen based on
@@ -355,15 +374,14 @@ p3 <- p3 + theme(legend.position = "none")
 p4 <- ggplotDetect(filter_peptide, groups[4]) #+ ggtitle(NULL)
 p4 <- p4 + theme(legend.position = "none")
 
-# Store plots.
-all_plots[[paste(tissue, "missing_val_shank2", sep = "_")]] <- p1
-all_plots[[paste(tissue, "missing_val_shank3", sep = "_")]] <- p2
-all_plots[[paste(tissue, "missing_val_syngap1", sep = "_")]] <- p3
-all_plots[[paste(tissue, "missing_val_ube3a", sep = "_")]] <- p4
+# Save plots.
+file_names <- paste0(groups,"_Protein_Missing_Value_Density")
+myfiles <- file.path(figsdir,paste0(file_names,image_format))
+ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Impute missing peptide values within an experiment.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # The function __impute_Peptides__ supports imputing missing values with the
 # maximum likelyhood estimation (MLE) or KNN algorithms for missing not at
 # random (MNAR) and missing at random data, respectively. Impution is performed
@@ -389,12 +407,13 @@ mytable <- tibble::add_column(mytable, rownames(mytable), .before = 1)
 colnames(mytable) <- c("Experiment", "N Imputed")
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
-# Store table.
-all_plots[[paste(tissue, "n_imputed_pep_tab", sep = "_")]] <- mytable
+# Save table.
+myfile <- file.path(figsdir,paste0("N_Imputed_Peptides",image_format))
+ggsaveTable(mytable,prefix_file(myfile))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Protein level summarization and normalization across all batches.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Summarize to protein level by summing peptide intensities. Note that the
 # peptide column in the returned data frame reflects the total number of
 # peptides identified for a given protein across all experiments.
@@ -405,9 +424,9 @@ raw_protein <- summarize_protein(impute_peptide)
 # Normalize across all columns.
 SL_protein <- normalize_SL(raw_protein, "Abundance", "Abundance")
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## IntraBatch Protein-lavel ComBat.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Each experimental cohort of 8 was prepared in two batches. This was necessary
 # because the ultra-centrifuge rotor used to prepare purified synaptosomes
 # holds a maximum of 6 samples. This intra-batch batch effect was recorded for
@@ -550,28 +569,28 @@ df <- tibble::add_column(df, rownames(df), .before = 1)
 colnames(df) <- c("Experiment", "preComBat", "postComBat")
 mytable <- tableGrob(df, rows = NULL)
 
-# Store plots...
-all_plots[[paste(tissue, "batch_effect_tab", sep = "_")]] <- mytable
-all_plots[[paste(tissue, "shank2_combat_pca", sep = "_")]] <- plot_list[[1]]
-all_plots[[paste(tissue, "shank3_combat_pca", sep = "_")]] <- plot_list[[2]]
-all_plots[[paste(tissue, "syngap1_combat_pca", sep = "_")]] <- plot_list[[3]]
-all_plots[[paste(tissue, "ube3a_combat_pca", sep = "_")]] <- plot_list[[4]]
+# Save table quantifying batch effects.
+myfile <- file.path(figsdir,
+		    paste0("Batch_Effect_Quant_Table",image_format))
+ggsaveTable(mytable,prefix_file(myfile))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ##  Examine protein identification overlap.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Approximately 80-90% of all proteins are identified in all experiments.
 
 # Inspect the overlap in protein identifcation.
 plot <- ggplotFreqOverlap(combat_protein, "Abundance", groups) +
   ggtitle("Protein Identification Overlap")
 
-# Store plot.
-all_plots[[paste(tissue, "prot_id_overlap", sep = "_")]] <- plot
+# Save.
+myfile <- file.path(figsdir,
+		    paste0("Protein_Identification_Overlap",image_format))
+ggsave(prefix_file(myfile),plot)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Examine the Normalized protein level data.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Generate boxplot.
 data_in <- combat_protein
@@ -592,15 +611,15 @@ colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
-# Store plots.
-all_plots[[paste(tissue, "norm_prot_bp", sep = "_")]] <- p1
-all_plots[[paste(tissue, "norm_prot_dp", sep = "_")]] <- p2
-all_plots[[paste(tissue, "norm_prot_msd", sep = "_")]] <- p3
-all_plots[[paste(tissue, "norm_prot_mds", sep = "_")]] <- p4
+# Save the plots.
+file_names <- paste0("Norm_Protein_",
+		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+myfiles <- file.path(figsdir,paste0(file_names,image_format))
+ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## IRS Normalization.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Internal reference sclaing (IRS) normalization equalizes the protein-wise means
 # of reference (QC) samples across all batches. Thus, IRS normalization accounts
 # for the random sampling of peptides at the MS2 level which results in the
@@ -611,9 +630,9 @@ all_plots[[paste(tissue, "norm_prot_mds", sep = "_")]] <- p4
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
 
-#-------------------------------------------------------------------------------
-## Identify and remove QC outliers.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
+## Identify and remove QC sample outliers.
+#---------------------------------------------------------------------
 # IRS normalization utilizes QC samples as reference samples. Outlier QC
 # measurements (caused by interference or other artifact) would influence the
 # create unwanted variability. Thus, outlier QC samples are removed, if
@@ -676,12 +695,16 @@ IRS_OutRemoved_protein <- normalize_IRS(combat_protein[, !out],
 # Write over IRS_data
 IRS_protein <- IRS_OutRemoved_protein
 
-# Store plots.
-all_plots[[paste(tissue, "sample_connectivity_list", sep = "_")]] <- plots
+# Save plots for outliers.
+plots <- plots[which(unlist(out_samples) != "none")]
+file_names <- file.path(figsdir,
+			paste0("Outlier_Sample_",c(1:length(plots))))
+myfiles <- paste0(file_names,image_format)
+ggsavePlots(plots,prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Examine the IRS Normalized protein level data.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 
 # Generate boxplot.
 data_in <- IRS_protein
@@ -705,19 +728,22 @@ p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
-colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
+n <- sapply(groups,function(x) length(grep(x,colnames(data_in))))
+colors <- unlist(mapply(function(x,y) rep(x,each=y), 
+			c("yellow", "blue", "green", "purple"), n),
+		 use.names=FALSE)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
-# Store plots.
-all_plots[[paste(tissue, "irs_bp", sep = "_")]] <- p1
-all_plots[[paste(tissue, "irs_dp", sep = "_")]] <- p2
-all_plots[[paste(tissue, "irs_msd", sep = "_")]] <- p3
-all_plots[[paste(tissue, "irs_mds", sep = "_")]] <- p4
+# Save the plots.
+file_names <- paste0("IRS_Protein_",
+		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+myfiles <- file.path(figsdir,paste0(file_names,image_format))
+ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 ## Protein level filtering, and imputing.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Proteins that are identified by only a single peptide are removed. Proteins
 # that are identified in less than 50% of all samples are also removed. The
 # nature of the remaining missng values are examined by density plot and
@@ -734,12 +760,14 @@ plot <- ggplotDetect(filter_protein, "Abundance") +
 # Impute the remaining number of missing values with KNN.
 impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 
-# Store plots.
-all_plots[[paste(tissue, "prot_missing_val_dp", sep = "_")]] <- plot
+# Save plot.
+myfile <- file.path(figsdir,paste0("Protein_Missing_Value_Density",
+				   image_format))
+ggsave(prefix_file(myfile),plot)
 
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Reformat data for TAMPOR normalization script.
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------
 # Reformat final normalized, intra-batch regressed, IRS-normalized, filtered,
 # and imputed data for TAMPOR Normalization.
 
@@ -781,10 +809,6 @@ cleanDat <- data_out[, order(colnames(data_out))]
 # Save raw data.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.RData"))
 saveRDS(raw_peptide, myfile)
-
-# Save all plots in plot list.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_plots.RData"))
-saveRDS(all_plots, myfile)
 
 # Save cleanDat as RData.
 myfile <- file.path(Rdatadir, paste0(outputMatName, "_cleanDat.RData"))
