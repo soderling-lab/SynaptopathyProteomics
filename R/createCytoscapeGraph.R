@@ -10,6 +10,7 @@ createCytoscapeGraph <- function(exp_graph,
 				 image_format=NULL){
 	## NOTE: Sys.sleep()'s are important to prevent R from getting
         # ahead of Cytoscape!
+
 	suppressPackageStartupMessages({
 		library(RCy3)
 		cytoscapePing()
@@ -39,6 +40,7 @@ createCytoscapeGraph <- function(exp_graph,
 	cutoff_limit <- cut_off[max(which(check))]
 	# Prune edges -- this removes all edge types...
 	g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
+
 	# Write graph to file this is faster than sending to cytoscape.
 	myfile <- file.path(netsdir,paste0(module_name,".gml"))
 	write_graph(g,myfile,format="gml")
@@ -137,6 +139,10 @@ createCytoscapeGraph <- function(exp_graph,
 	fitContent()
 	# Save Image..
 	if (!is.null(image_file)) { 
+		# If image exists, first remove it.
+		if (file.exists(paste(image_file,image_format,sep="."))) {
+			unlink(paste(image_file,image_format,sep="."))
+		}
 		winfile <- gsub("/mnt/d/","D:/",image_file)
 		exportImage(winfile,image_format)
 	}

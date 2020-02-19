@@ -12,7 +12,7 @@
 
 ## User parameters to change:
 data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
+part_type <- "Striatum" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -796,13 +796,11 @@ fwrite(ppis,myfile)
 #---------------------------------------------------------------------
 
 # Create graphs.
-# FIXME: function should remove temp file. probably problem with winpath.
 for (i in c(1:length(modules))) {
 	message(paste("Working on module",i,"..."))
 	module_name = names(modules)[i]
 	nodes = names(modules[[module_name]])
 	module_kme = KME_list[[module_name]]
-	output_file = file.path(netsdir,module_name)
 	network_layout = 'force-directed edgeAttribute=weight'
 	image_file = file.path(figsdir,"NETWORKS",module_name)
 	image_format = "SVG"
@@ -811,8 +809,6 @@ for (i in c(1:length(modules))) {
 			     module_colors, network_layout,
 			     output_file, image_file,
 			     image_format)
-	# Remove temporary file.
-	unlink(paste0(output_file,".gml"))
 	# When done, save cytoscape session.
 	if (i == length(modules)) {
 		if (data_type == "Combined") {
