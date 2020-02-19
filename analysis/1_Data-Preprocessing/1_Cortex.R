@@ -290,7 +290,6 @@ p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
 file_names <- paste0("SL_Peptide_",
 		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
 myfiles <- file.path(figsdir,paste0(file_names,image_format))
-
 ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
 
 #---------------------------------------------------------------------
@@ -315,8 +314,8 @@ hist_list <- lapply(as.list(groups), function(x) {
 names(hist_list) <- groups
 
 # Save plots.
-file_names <- paste(rep(names(hist_list),each=4),
-		    "QC_Hist",c(1,2,3,4),sep="_")
+file_names <- paste(rep(names(hist_list),each=5),
+		    "QC_Hist",c(1,2,3,4,5),sep="_")
 myfiles <- file.path(figsdir,paste0(file_names,image_format))
 plots <- unlist(hist_list,recursive=FALSE)
 ggsavePlots(plots,prefix_file(myfiles))

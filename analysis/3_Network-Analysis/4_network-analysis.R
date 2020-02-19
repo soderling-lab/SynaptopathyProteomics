@@ -11,7 +11,7 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Striatum" # Cortex, Striatum, or Combined...
+data_type <- "Combined" # Cortex, Striatum, or Combined...
 part_type <- "Striatum" # Specify part type when working with comb data.
 
 # Data files.
@@ -815,7 +815,11 @@ for (i in c(1:length(modules))) {
 	unlink(paste0(output_file,".gml"))
 	# When done, save cytoscape session.
 	if (i == length(modules)) {
-		myfile <- file.path(netsdir,paste0(data_type,".cys"))
+		if (data_type == "Combined") {
+			myfile <- file.path(netsdir,paste0(data_type,"_",part_type,".cys"))
+		} else {
+			myfile <- file.path(netsdir,paste0(data_type,".cys"))
+		}
 		winfile <- gsub("/mnt/d/","D:/",myfile)
 		saveSession(winfile)
 	}
