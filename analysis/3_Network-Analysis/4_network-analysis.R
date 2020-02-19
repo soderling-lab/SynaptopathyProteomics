@@ -12,7 +12,7 @@
 
 ## User parameters to change:
 data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Striatum" # Specify part type when working with comb data.
+part_type <- "Cortex" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -890,3 +890,6 @@ results[["Summary"]] <- module_summary
 results = c(results,dfs[sigModules])
 myfile <- file.path(tabsdir,"Module_Summary.xlsx")
 write_excel(results,myfile)
+
+# Remove that pesky temporary file.
+unlink("Rplots.pdf"
