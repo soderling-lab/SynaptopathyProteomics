@@ -11,8 +11,8 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
+data_type <- "Striatum" # Cortex, Striatum, or Combined...
+part_type <- "Striatum" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -26,7 +26,7 @@ input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
 						  other="2020-02-18_Cortex_Striatum_Module_Self_Preservation.RData"),
 				      Striatum=list(self="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
 						    ppi = "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData",
-						    other="2020-02-13_Striatum_Cortex_Module_Self_Preservation.RData"))
+						    other="2020-02-19_Striatum_Cortex_Module_Self_Preservation.RData"))
 		    )
 
 # Global imports.
