@@ -50,7 +50,11 @@ functiondir <- paste(rootdir, "R", sep = "/")
 datadir <- paste(rootdir, "data", sep = "/")
 Rdatadir <- paste(rootdir, "rdata", sep = "/")
 outputfigs <- paste(rootdir,"figs",subdir,tissue,sep="/")
-outputtabs <- paste(rootdir, "tables", subdir,sep = "/")
+outputtabs <- paste(rootdir, "tables", subdir,tissue,sep = "/")
+
+# Remove any existing figures and tables.
+invisible(sapply(list.files(outputfigs),unlink))
+invisible(sapply(list.files(outputtabs),unlink))
 
 # Load required custom functions.
 devtools::load_all()

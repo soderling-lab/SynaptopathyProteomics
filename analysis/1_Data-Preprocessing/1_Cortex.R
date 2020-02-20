@@ -70,6 +70,10 @@ Rdatadir <- file.path(rootdir, "rdata")
 figsdir <- file.path(rootdir, "figs",subdir,tissue)
 tabsdir <- file.path(rootdir, "tables",subdir,tissue)
 
+# Remove any existing figures and tables.
+invisible(sapply(list.files(figsdir),unlink))
+invisible(sapply(list.files(tabsdir),unlink))
+
 # Load required custom functions.
 suppressWarnings({ devtools::load_all() })
 

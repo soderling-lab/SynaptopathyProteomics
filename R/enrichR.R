@@ -1,6 +1,11 @@
 enrichR <- function(gene_list,database,quiet=FALSE){
 	# Simple wrapper around enrichR.
 	# Supress output from cat within enrichr with capture.output().
+	# FIXME: When not run interactively pbar prodcuces a bunchh of 
+	# little pbars...
+	suppressPackageStartupMessages({
+		library(enrichR)
+	})
 	results <- list()
 	n <- length(gene_list)
 	if (!quiet) { 

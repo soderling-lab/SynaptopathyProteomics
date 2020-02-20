@@ -41,7 +41,6 @@ suppressPackageStartupMessages({
   library(DescTools)
   library(igraph)
   library(ggplot2)
-  library(enrichR)
   library(gtable)
   library(cowplot)
   library(RCy3)
@@ -58,8 +57,9 @@ netsdir <- file.path(root, "networks",part_type)
 figsdir <- file.path(root, "figs",subdir,data_type,part_type)
 tabsdir <- file.path(root, "tables", subdir,data_type)
 
-# Remove any existing figures.
+# Remove any existing figures and tables.
 invisible(sapply(list.files(figsdir),unlink))
+invisible(sapply(list.files(tabsdir),unlink))
 
 # Functions.
 suppressWarnings({ devtools::load_all() })
@@ -302,6 +302,7 @@ ggsaveTable(mytable,myfile)
 #--------------------------------------------------------------------
 
 # Build a GO collection.
+message("Performing GO analysis with anRichment...")
 GOcollection <- buildGOcollection(organism="mouse")
 
 # Perform gene set enrichment analysis.
@@ -336,17 +337,14 @@ preserved_modules$go <- term_pval
 
 # EnrichR can perform enrichment analysis querying a large number of 
 # gene collections: https://amp.pharm.mssm.edu/Enrichr/#stats
+message("Performing enrichment analysis with enrichR...")
 
 # Collect list of module genes--input is gene symbols.
 gene_list <- module_list$Symbols
 
-# All available databases.
-dbs <- listEnrichrDbs()
-dbs <- dbs$libraryName[order(dbs$libraryName)]
-
 # Enrichment analysis for OMIM disorders.
 db <- "OMIM_Disease"
-OMIMresults <- enrichR(gene_list,db)
+OMIMresults <- enrichR(gene_list,db,quiet=TRUE)
 
 # Remove NA.
 out <- which(sapply(OMIMresults,function(x) dim(x)[1]==0))
@@ -378,12 +376,13 @@ term_pval <- sapply(topOMIM[sigOMIM],function(x) {
 preserved_modules$omim <- term_pval
 
 #---------------------------------------------------------------------
-## Other EnrichR enrichment...
+## Other EnrichR enrichment.
 #---------------------------------------------------------------------
 
 # Enrichment analysis for PFAM domains.
+message("Performing enrichment analysis with enrichR...")
 db <- "Pfam_Domains_2019"
-PFAMresults <- enrichR(gene_list,db)
+PFAMresults <- enrichR(gene_list,db,quiet=TRUE)
 
 # Remove NA.
 out <- which(sapply(PFAMresults,function(x) dim(x)[1]==0))
@@ -831,11 +830,14 @@ ppis <- ppis %>% select(ProteinA,ProteinB,osEntrezA,osEntrezB,
 
 # Save to file..
 myfile <- file.path(tabsdir,paste0("3_All_PPIs.csv"))
-fwrite(ppis,myfile)
+write_excel(list(PPIs=ppis),myfile)
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graphs.
 #---------------------------------------------------------------------
+
+# Prompt the user to open Cytoscape if it is not open.
+cytoscape_ping()
 
 # If working with Combined data, append graphs to tissue specific 
 # Cytoscape file.
@@ -873,49 +875,6 @@ for (i in c(1:length(modules))) {
 		saveSession(winfile)
 	}
 } # Ends loop to create graphs.
-
-#---------------------------------------------------------------------
-## Collect network images and combine as single pdf.
-#---------------------------------------------------------------------
-
-# Collect groups of interesting modules.
-netfiles <- list.files(file.path(figsdir,"Networks"),full.names=TRUE)
-names(netfiles) <- gsub(".svg","",basename(netfiles))
-
-# Convert svg images to tiff.
-# svg2tiff should be in your path.
-cmd <- paste("svg2tiff",file.path(figsdir,"Networks/*.svg"))
-system(cmd)
-
-# Create directory for tiffs.
-tiffdir <- file.path(figsdir,"Networks","tiff")
-dir.create(tiffdir)
-
-# Move tiffs.
-tiffs <- list.files(pattern=".tiff")
-filesstrings::file.move(tiffs,file.path(tiffdir,tiffs))
-
-# Create directory for svg.
-svgdir <- file.path(figsdir,"Networks","svg")
-dir.create(svgdir)
-
-# Move tiffs.
-svgs <- list.files(file.path(figsdir,"Networks"),pattern=".svg",
-		   full.names=TRUE)
-filesstrings::file.move(svgs,file.path(svgdir,basename(svgs)))
-
-# Collect tiffs as pdf.
-#foo <- "pfam"
-#idx <- which(names(netfiles) %in% names(preserved_modules[[foo]]))
-#mytiffs <- file.path(tiffdir,paste0(names(netfiles)[idx],".tiff"))
-#mypdf <- file.path(figsdir,paste0(foo,"_Modules.pdf"))
-#paste(mytiffs,collapse=" ")
-
-#x = unlist(preserved_modules,recursive=TRUE)
-#df <- data.frame("Category" = sapply(strsplit(names(x),"\\."),"[",1),
-#		 "Module" = sapply(strsplit(names(x),"\\."),"[",2),
-#		 "Value" = x)
-#fwrite(df,"temp.csv")
 
 #---------------------------------------------------------------------
 ## Save key results summarizing modules.
@@ -988,11 +947,11 @@ results <- c(results,dfs[sigModules])
 # data and partition type...
 if (data_type == "Combined") {
 	myfile <- file.path(tabsdir,
-			    paste(data_type,part_type,
-				   "Module_Summary.xlsx",sep="_"))
+			    paste0("3_",data_type,"_",part_type,
+				   "_Module_Summary.xlsx"))
 } else {
 	myfile <- file.path(tabsdir,
-			    paste0(data_type,"_Module_Summary.xlsx"))
+			    paste0("3_",data_type,"_Module_Summary.xlsx"))
 }
 write_excel(results,myfile)
 
