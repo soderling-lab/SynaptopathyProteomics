@@ -50,7 +50,7 @@ functiondir <- paste(rootdir, "R", sep = "/")
 datadir <- paste(rootdir, "data", sep = "/")
 Rdatadir <- paste(rootdir, "rdata", sep = "/")
 outputfigs <- paste(rootdir,"figs",subdir,tissue,sep="/")
-outputtabs <- paste(rootdir, "tables", subdir,tissue,sep = "/")
+outputtabs <- paste(rootdir, "tables", subdir, sep = "/")
 
 # Remove any existing figures and tables.
 invisible(sapply(list.files(outputfigs),unlink))

@@ -11,8 +11,8 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Striatum" # Cortex, Striatum, or Combined...
-part_type <- "Striatum" # Specify part type when working with comb data.
+data_type <- "Combined" # Cortex, Striatum, or Combined...
+part_type <- "Cortex" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -884,7 +884,7 @@ for (i in c(1:length(modules))) {
 module_summary <- data.frame(Module = names(PVE),
 			     Nodes = sapply(modules,length),
 			     PVE = PVE,
-			     Color = module_colors)
+			     Color = col2rgb(module_colors))
 
 # Combine with KWdata.
 tempKW <- KWdata
@@ -913,6 +913,10 @@ module_summary$"N DT sig" <- nSigDT
 
 # Any DT sig.
 module_summary$"Any DT sig" <- module_summary$"N DT sig" > 0
+
+# Other attributes: PPI pres, tissue pres, OMIM, DBD, GOsig.
+
+
 
 ## More detailed summary of every module.
 dfs <- lapply(seq_along(KME_list), function(x) {
