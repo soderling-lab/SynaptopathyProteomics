@@ -11,7 +11,7 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Cortex" # Cortex, Striatum, or Combined...
+data_type <- "Combined" # Cortex, Striatum, or Combined...
 part_type <- "Cortex" # Specify part type when working with comb data.
 
 # Data files.
@@ -57,6 +57,9 @@ rdatdir <- file.path(root, "rdata")
 netsdir <- file.path(root, "networks",part_type)
 figsdir <- file.path(root, "figs",subdir,data_type)
 tabsdir <- file.path(root, "tables", subdir,data_type)
+
+# Remove any existing figures.
+invisible(sapply(list.files(figsdir),unlink))
 
 # Functions.
 suppressWarnings({ devtools::load_all() })
@@ -223,6 +226,8 @@ any_sig <- which(sapply(DBDenrichment,function(x) any(x[method] < alpha)))
 DBDsig <- names(DBDenrichment)[any_sig]
 
 # Add DBD genes and terms to list of preserved modules.
+# Function to reformat pvalues and combine with term nam.e
+fx <- function(x) { return(formatC(x,digits=2,format="e")) }
 term_pval <- sapply(DBDenrichment[DBDsig], function(x) {
 			    paste0(x$shortDataSetName[x$FDR<0.05],
 				   " (FDR = ",fx(x$FDR[x$FDR<0.05]),")") }) 
@@ -320,7 +325,6 @@ message(paste("Total number of modules with any significant GO",
 	      "enrichment:", length(sigGO)))
 
 # Add to list of preserved modules.
-fx <- function(x) { return(formatC(x,digits=2,format="e")) }
 term_pval <- sapply(topGO,function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$go <- term_pval
@@ -374,7 +378,6 @@ message(paste("Total number of modules with any significant OMIM",
 	      "enrichment:", length(sigOMIM)))
 
 # Add to list of preserved modules.
-fx <- function(x) { return(formatC(x,digits=2,format="e")) }
 term_pval <- sapply(topOMIM[sigOMIM],function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$omim <- term_pval
@@ -393,11 +396,6 @@ names(PFAMresults) <- sapply(strsplit(names(PFAMresults),"\\."),"[",1)
 out <- which(sapply(PFAMresults,function(x) dim(x)[1]==0))
 PFAMresults <- PFAMresults[-out]
 
-# Check, all enriched?
-if (sum(sapply(PFAMresults,function(x) any(x$Odds.Ratio<1)))>0){
-	message("Warning, some terms are depleted.")
-}
-
 # Sig PFAM terms from every module.
 alpha <- 0.05
 topPFAM <- lapply(PFAMresults,function(x) {
@@ -413,7 +411,6 @@ message(paste("Total number of modules with any significant PFAM",
 	      "domain enrichment:", length(sigPFAM)))
 
 # Add to list of preserved modules.
-fx <- function(x) { return(formatC(x,digits=2,format="e")) }
 term_pval <- sapply(topPFAM[sigPFAM],function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$pfam <- term_pval
@@ -442,11 +439,13 @@ if (data_type == "Combined") {
 modules <- split(partition,partition)
 names(modules) <- paste0("M",names(modules))
 
-# Drop modules that are preserved in other tissue.
+# If not working with combined data,
+# drop modules that are preserved in other tissue.
 # These will be analyzed seperately.
-## FIXME: How to handle when working with combined?
-out <- which(names(modules) %in% preserved_modules$other)
-modules <- modules[-out]
+if (data_type != "Combined") {
+	out <- which(names(modules) %in% preserved_modules$other)
+	modules <- modules[-out]
+}
 
 # Remove M0.
 modules <- modules[-which(names(modules)=="M0")]
@@ -853,13 +852,16 @@ if (data_type == "Combined") {
 		winfile <- gsub("/mnt/d/","D:/",cysfile)
 		openSession(winfile)
 	} else {
-		message(paste(
+		message(paste("Analyze",part_type,"data first.",
+			      "Combined graphs will be appended to",
+			      "this file."))
+	}
 }
 
 # Create graphs.
 for (i in c(1:length(modules))) {
-	message(paste("Working on module",i,"..."))
 	module_name = names(modules)[i]
+	message(paste("Working on module", module_name"..."))
 	nodes = names(modules[[module_name]])
 	module_kme = KME_list[[module_name]]
 	network_layout = 'force-directed edgeAttribute=weight'
@@ -944,7 +946,7 @@ for (i in seq_along(dfs)){
 # Write to file.
 results <- list()
 results[["Summary"]] <- module_summary
-results = c(results,dfs[sigModules])
+results <- c(results,dfs[sigModules])
 # Insure that if working with combined data we know which
 # data and partition type...
 if (data_type == "Combined") {
@@ -953,6 +955,6 @@ if (data_type == "Combined") {
 				   "Module_Summary.xlsx",sep="_"))
 } else {
 	myfile <- file.path(tabsdir,
-			    paste0(data_type,"_Module_Summary.xlsx")
+			    paste0(data_type,"_Module_Summary.xlsx"))
 }
 write_excel(results,myfile)
