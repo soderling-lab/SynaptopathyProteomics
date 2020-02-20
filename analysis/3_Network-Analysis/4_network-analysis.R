@@ -13,6 +13,7 @@
 ## User parameters to change:
 data_type <- "Combined" # Cortex, Striatum, or Combined...
 part_type <- "Cortex" # Specify part type when working with comb data.
+generate_cytoscape_graphs <- FALSE
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -841,38 +842,41 @@ cytoscape_ping()
 
 # If working with Combined data, append graphs to tissue specific 
 # Cytoscape file.
-if (data_type == "Combined") {
-	cysfile <- file.path(netsdir,paste0(part_type,".cys"))
-	if (file.exists(cysfile)){
-		message(paste("Adding graphs to",part_type,"file!"))
-		winfile <- gsub("/mnt/d/","D:/",cysfile)
-		openSession(winfile)
-	} else {
-		message(paste("Analyze",part_type,"data first.",
-			      "Combined graphs will be appended to",
-			      "this file."))
+if (generate_cytoscape_graphs) {
+	if (data_type == "Combined") {
+		cysfile <- file.path(netsdir,paste0(part_type,".cys"))
+		if (file.exists(cysfile)){
+			message(paste("Adding graphs to",part_type,"file!"))
+			winfile <- gsub("/mnt/d/","D:/",cysfile)
+			openSession(winfile)
+		} else {
+			message(paste("Analyze",part_type,"data first.",
+			              "Combined graphs will be appended to",
+			              "this file."))
 	}
 }
 
 # Create graphs.
-for (i in c(1:length(modules))) {
-	module_name = names(modules)[i]
-	message(paste("Working on module", module_name,"..."))
-	nodes = names(modules[[module_name]])
-	module_kme = KME_list[[module_name]]
-	network_layout = 'force-directed edgeAttribute=weight'
-	image_file = file.path(dirname(figsdir),"Networks",module_name)
-	image_format = "SVG"
-	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
+if (generate_cytoscape_graphs) {
+	for (i in c(1:length(modules))) {
+		module_name = names(modules)[i]
+		message(paste("Working on module", module_name,"..."))
+		nodes = names(modules[[module_name]])
+		module_kme = KME_list[[module_name]]
+		network_layout = 'force-directed edgeAttribute=weight'
+		image_file = file.path(dirname(figsdir),"Networks",module_name)
+		image_format = "SVG"
+		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
 			     module_colors, network_layout,
 			     output_file, image_file,
 			     image_format)
-	# When done, save cytoscape session.
-	if (i == length(modules)) {
-		myfile <- file.path(netsdir,paste0(part_type,".cys"))
-		winfile <- gsub("/mnt/d/","D:/",myfile)
-		saveSession(winfile)
+		# When done, save cytoscape session.
+		if (i == length(modules)) {
+			myfile <- file.path(netsdir,paste0(part_type,".cys"))
+			winfile <- gsub("/mnt/d/","D:/",myfile)
+			saveSession(winfile)
+		}
 	}
 } # Ends loop to create graphs.
 
@@ -883,8 +887,7 @@ for (i in c(1:length(modules))) {
 # Summarize modules: Name, N Nodes, PVE, Color, Prots.
 module_summary <- data.frame(Module = names(PVE),
 			     Nodes = sapply(modules,length),
-			     PVE = PVE,
-			     Color = col2rgb(module_colors))
+			     PVE = PVE)
 
 # Combine with KWdata.
 tempKW <- KWdata
@@ -914,10 +917,6 @@ module_summary$"N DT sig" <- nSigDT
 # Any DT sig.
 module_summary$"Any DT sig" <- module_summary$"N DT sig" > 0
 
-# Other attributes: PPI pres, tissue pres, OMIM, DBD, GOsig.
-
-
-
 ## More detailed summary of every module.
 dfs <- lapply(seq_along(KME_list), function(x) {
 	       df <- data.table(Protein = names(partition))
@@ -931,6 +930,8 @@ dfs <- lapply(seq_along(KME_list), function(x) {
 	       df <- df[order(df$KME,decreasing=TRUE),]
 		 })
 names(dfs) <- names(modules)
+
+# Other protein attributes: PPI pres, tissue pres, OMIM, DBD, GOsig.
 
 # Add expression data.
 for (i in seq_along(dfs)){
