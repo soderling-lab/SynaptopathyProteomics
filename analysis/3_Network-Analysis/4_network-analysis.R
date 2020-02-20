@@ -11,8 +11,8 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
+data_type <- "Striatum" # Cortex, Striatum, or Combined...
+part_type <- "Striatum" # Specify part type when working with comb data.
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -55,7 +55,7 @@ funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 netsdir <- file.path(root, "networks",part_type)
-figsdir <- file.path(root, "figs",subdir,data_type)
+figsdir <- file.path(root, "figs",subdir,data_type,part_type)
 tabsdir <- file.path(root, "tables", subdir,data_type)
 
 # Remove any existing figures.
@@ -257,8 +257,6 @@ DBDprots <- lapply(DBDgenes,function(x) {
 DBDcols <- do.call(cbind,lapply(DBDprots,function(x) protmap$ids %in% x))
 colnames(DBDcols) <- names(DBDprots)
 DBDdf <- as.data.frame(DBDcols)
-#DBDdf <- tibble::add_column(DBDdf,"Protein"=protmap$ids,.before=1)
-#DBDdf$anyDBD <- apply(DBDcols,1,any)
 rownames(DBDdf) <- protmap$ids
 DBDanno <- apply(DBDdf,1,function(x) paste(colnames(DBDdf)[x],collapse="; "))
 DBDanno[DBDanno == ""] <- NA
@@ -347,11 +345,8 @@ dbs <- listEnrichrDbs()
 dbs <- dbs$libraryName[order(dbs$libraryName)]
 
 # Enrichment analysis for OMIM disorders.
-# FIXME: progress report would be nice.
 db <- "OMIM_Disease"
 OMIMresults <- enrichR(gene_list,db)
-OMIMresults <- unlist(OMIMresults,recursive=FALSE) # Why nested list?
-names(OMIMresults) <- sapply(strsplit(names(OMIMresults),"\\."),"[",1)
 
 # Remove NA.
 out <- which(sapply(OMIMresults,function(x) dim(x)[1]==0))
@@ -389,8 +384,6 @@ preserved_modules$omim <- term_pval
 # Enrichment analysis for PFAM domains.
 db <- "Pfam_Domains_2019"
 PFAMresults <- enrichR(gene_list,db)
-PFAMresults <- unlist(PFAMresults,recursive=FALSE)
-names(PFAMresults) <- sapply(strsplit(names(PFAMresults),"\\."),"[",1)
 
 # Remove NA.
 out <- which(sapply(PFAMresults,function(x) dim(x)[1]==0))
@@ -590,9 +583,10 @@ group_levels <- c(paste(group_order,"Cortex",sep="."),
 		  paste(group_order,"Striatum",sep="."))
 
 # Generate boxplots summarizing module protein expression.
+if (data_type != "Combined") { control_group <- NULL }
 plots <- lapply(ME_list,function(x) {
 		 ggplotVerboseBoxplot(x,groups,
-				      group_levels,control_group="WT")
+				      group_levels,control_group)
   })
 names(plots) <- names(ME_list)
 
@@ -861,11 +855,11 @@ if (data_type == "Combined") {
 # Create graphs.
 for (i in c(1:length(modules))) {
 	module_name = names(modules)[i]
-	message(paste("Working on module", module_name"..."))
+	message(paste("Working on module", module_name,"..."))
 	nodes = names(modules[[module_name]])
 	module_kme = KME_list[[module_name]]
 	network_layout = 'force-directed edgeAttribute=weight'
-	image_file = file.path(figsdir,"Networks",module_name)
+	image_file = file.path(dirname(figsdir),"Networks",module_name)
 	image_format = "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
@@ -879,6 +873,49 @@ for (i in c(1:length(modules))) {
 		saveSession(winfile)
 	}
 } # Ends loop to create graphs.
+
+#---------------------------------------------------------------------
+## Collect network images and combine as single pdf.
+#---------------------------------------------------------------------
+
+# Collect groups of interesting modules.
+netfiles <- list.files(file.path(figsdir,"Networks"),full.names=TRUE)
+names(netfiles) <- gsub(".svg","",basename(netfiles))
+
+# Convert svg images to tiff.
+# svg2tiff should be in your path.
+cmd <- paste("svg2tiff",file.path(figsdir,"Networks/*.svg"))
+system(cmd)
+
+# Create directory for tiffs.
+tiffdir <- file.path(figsdir,"Networks","tiff")
+dir.create(tiffdir)
+
+# Move tiffs.
+tiffs <- list.files(pattern=".tiff")
+filesstrings::file.move(tiffs,file.path(tiffdir,tiffs))
+
+# Create directory for svg.
+svgdir <- file.path(figsdir,"Networks","svg")
+dir.create(svgdir)
+
+# Move tiffs.
+svgs <- list.files(file.path(figsdir,"Networks"),pattern=".svg",
+		   full.names=TRUE)
+filesstrings::file.move(svgs,file.path(svgdir,basename(svgs)))
+
+# Collect tiffs as pdf.
+#foo <- "pfam"
+#idx <- which(names(netfiles) %in% names(preserved_modules[[foo]]))
+#mytiffs <- file.path(tiffdir,paste0(names(netfiles)[idx],".tiff"))
+#mypdf <- file.path(figsdir,paste0(foo,"_Modules.pdf"))
+#paste(mytiffs,collapse=" ")
+
+#x = unlist(preserved_modules,recursive=TRUE)
+#df <- data.frame("Category" = sapply(strsplit(names(x),"\\."),"[",1),
+#		 "Module" = sapply(strsplit(names(x),"\\."),"[",2),
+#		 "Value" = x)
+#fwrite(df,"temp.csv")
 
 #---------------------------------------------------------------------
 ## Save key results summarizing modules.
@@ -958,3 +995,6 @@ if (data_type == "Combined") {
 			    paste0(data_type,"_Module_Summary.xlsx"))
 }
 write_excel(results,myfile)
+
+# Remove that pesky Rplots.
+unlink("Rplots.pdf")
