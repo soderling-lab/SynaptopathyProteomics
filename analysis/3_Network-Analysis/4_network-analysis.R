@@ -11,7 +11,7 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Combined" # Cortex, Striatum, or Combined...
+data_type <- "Cortex" # Cortex, Striatum, or Combined...
 part_type <- "Cortex" # Specify part type when working with comb data.
 
 # Data files.
@@ -44,6 +44,7 @@ suppressPackageStartupMessages({
   library(enrichR)
   library(gtable)
   library(cowplot)
+  library(RCy3)
 })
 
 # Directories.
@@ -53,7 +54,7 @@ root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-netsdir <- file.path(root, "networks",data_type)
+netsdir <- file.path(root, "networks",part_type)
 figsdir <- file.path(root, "figs",subdir,data_type)
 tabsdir <- file.path(root, "tables", subdir,data_type)
 
@@ -68,9 +69,12 @@ myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
 # Get proteins with any significant change.
-idy <- lapply(c("Cortex","Striatum"),function(x) grep(x,colnames(glm_stats$FDR)))
+idy <- lapply(c("Cortex","Striatum"),function(x) {
+		      grep(x,colnames(glm_stats$FDR)) })
 sigProts <- lapply(idy, function(x) {
-			   apply(glm_stats$FDR[,x],1,function(pval) any(pval<0.05)) })
+			   apply(glm_stats$FDR[,x],1,function(pval) {
+					any(pval<0.05) }) 
+		      })
 names(sigProts) <- c("Cortex","Striatum")
 sigProts[["Combined"]] <- apply(cbind(sigProts[[1]],sigProts[[2]]),1,any)
 
@@ -218,6 +222,13 @@ alpha <- 0.05
 any_sig <- which(sapply(DBDenrichment,function(x) any(x[method] < alpha)))
 DBDsig <- names(DBDenrichment)[any_sig]
 
+# Add DBD genes and terms to list of preserved modules.
+term_pval <- sapply(DBDenrichment[DBDsig], function(x) {
+			    paste0(x$shortDataSetName[x$FDR<0.05],
+				   " (FDR = ",fx(x$FDR[x$FDR<0.05]),")") }) 
+preserved_modules$dbd <- term_pval 
+
+
 # Status.
 message(paste("Total number of DBD-associated modules:",
 	      length(DBDsig)))
@@ -293,28 +304,26 @@ GOcollection <- buildGOcollection(organism="mouse")
 # Perform gene set enrichment analysis.
 GOresults <- gse(gene_list,GOcollection)
 
-# Top (1) go term for every module.
+# Significant go terms for every module.
 method <- "Bonferroni"
 alpha <- 0.05
 topGO <- lapply(GOresults,function(x) {
-		       	p <- x[[method]][1] 
-			names(p) <- x$shortDataSetName[1]
+			idx <- x[[method]] < alpha
+			p <- x[[method]][idx]
+			names(p) <- x$shortDataSetName[idx]
 			return(p)
 	    })
 
 # Number of modules with any significant GO term enrichment.
+sigGO <- names(which(sapply(topGO,function(x) length(x) > 0)))
 message(paste("Total number of modules with any significant GO",
-	      "enrichment:", sum(unlist(topGO)<alpha)))
+	      "enrichment:", length(sigGO)))
 
-
-# Modules with signifcant GO enrichment:
-# Order by significance.
-GOsig <- topGO[topGO < alpha]
-GOsig <- GOsig[order(unlist(GOsig))]
-
-# Write GO results to file.
-myfile <- file.path(tabsdir,"Module_GO_Enrichment.xlsx")
-write_excel(GOresults,myfile)
+# Add to list of preserved modules.
+fx <- function(x) { return(formatC(x,digits=2,format="e")) }
+term_pval <- sapply(topGO,function(x) {
+		      paste0(names(x)," (p.adj = ",fx(x),")") })
+preserved_modules$go <- term_pval
 
 #--------------------------------------------------------------------
 ## Module enrichment using enrichR.
@@ -335,7 +344,6 @@ dbs <- dbs$libraryName[order(dbs$libraryName)]
 
 # Enrichment analysis for OMIM disorders.
 # FIXME: progress report would be nice.
-#db <- "GO_Molecular_Function_2018"
 db <- "OMIM_Disease"
 OMIMresults <- enrichR(gene_list,db)
 OMIMresults <- unlist(OMIMresults,recursive=FALSE) # Why nested list?
@@ -345,26 +353,80 @@ names(OMIMresults) <- sapply(strsplit(names(OMIMresults),"\\."),"[",1)
 out <- which(sapply(OMIMresults,function(x) dim(x)[1]==0))
 OMIMresults <- OMIMresults[-out]
 
+# Check, all enriched?
+if (sum(sapply(OMIMresults,function(x) any(x$Odds.Ratio<1)))>0){
+	message("Warning, some terms are depleted.")
+}
+
 # Which modules are enriched for OMIM disorders?
 # Top OMIM term for every module.
 alpha <- 0.05
 topOMIM <- lapply(OMIMresults,function(x) {
-		       	p <- x$Adjusted.P.value[1] 
-			names(p) <- x$Term[1]
+			idx <- x$Adjusted.P.value < alpha
+			p <- x$Adjusted.P.value[idx]
+			names(p) <- x$Term[idx]
 			return(p)
-			})
+	    })
 
+# Number of modules with any significant GO term enrichment.
+sigOMIM <- names(which(sapply(topOMIM,function(x) length(x) > 0)))
+message(paste("Total number of modules with any significant OMIM",
+	      "enrichment:", length(sigOMIM)))
 
-# Collect any signficant terms.
-OMIMsig <- topOMIM[which(topOMIM < alpha)]
+# Add to list of preserved modules.
+fx <- function(x) { return(formatC(x,digits=2,format="e")) }
+term_pval <- sapply(topOMIM[sigOMIM],function(x) {
+		      paste0(names(x)," (p.adj = ",fx(x),")") })
+preserved_modules$omim <- term_pval
 
-# Save results to file...
-myfile <- file.path(tabsdir,"Module_OMIM_Enrichment.xlsx")
-write_excel(OMIMresults,myfile)
+#---------------------------------------------------------------------
+## Other EnrichR enrichment...
+#---------------------------------------------------------------------
+
+# Enrichment analysis for PFAM domains.
+db <- "Pfam_Domains_2019"
+PFAMresults <- enrichR(gene_list,db)
+PFAMresults <- unlist(PFAMresults,recursive=FALSE)
+names(PFAMresults) <- sapply(strsplit(names(PFAMresults),"\\."),"[",1)
+
+# Remove NA.
+out <- which(sapply(PFAMresults,function(x) dim(x)[1]==0))
+PFAMresults <- PFAMresults[-out]
+
+# Check, all enriched?
+if (sum(sapply(PFAMresults,function(x) any(x$Odds.Ratio<1)))>0){
+	message("Warning, some terms are depleted.")
+}
+
+# Sig PFAM terms from every module.
+alpha <- 0.05
+topPFAM <- lapply(PFAMresults,function(x) {
+			idx <- x$Adjusted.P.value < alpha & x$Odds.Ratio > 1
+			p <- x$Adjusted.P.value[idx]
+			names(p) <- x$Term[idx]
+			return(p)
+	    })
+
+# Number of modules with any significant enrichment.
+sigPFAM <- names(which(sapply(topPFAM,function(x) length(x) > 0)))
+message(paste("Total number of modules with any significant PFAM",
+	      "domain enrichment:", length(sigPFAM)))
+
+# Add to list of preserved modules.
+fx <- function(x) { return(formatC(x,digits=2,format="e")) }
+term_pval <- sapply(topPFAM[sigPFAM],function(x) {
+		      paste0(names(x)," (p.adj = ",fx(x),")") })
+preserved_modules$pfam <- term_pval
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
+
+# Total Number of modules.
+# P.values will be corrected for n comparisions.
+all_modules <- module_list$IDs
+nModules <- sum(names(all_modules) != "M0")
+message(paste("Number of modules:", nModules))
 
 # Get partition of interest.
 # If analyzing the combined data, focus on modules that are preserved
@@ -379,23 +441,19 @@ if (data_type == "Combined") {
 # Modules from the given partition.
 modules <- split(partition,partition)
 names(modules) <- paste0("M",names(modules))
+
+# Drop modules that are preserved in other tissue.
+# These will be analyzed seperately.
+## FIXME: How to handle when working with combined?
+out <- which(names(modules) %in% preserved_modules$other)
+modules <- modules[-out]
+
+# Remove M0.
 modules <- modules[-which(names(modules)=="M0")]
 
-# Total Number of modules.
-all_modules <- module_list$IDs
-nModules <- sum(names(all_modules) != "M0")
-message(paste("Number of modules:", nModules))
-
-# Module size statistics.
-mod_stats <- summary(sapply(modules, length))[-c(2, 5)]
-message(paste("Minumum module size:",mod_stats["Min."]))
-message(paste("Median module size:",mod_stats["Median"]))
-message(paste("Maximum module size:",mod_stats["Max."]))
-
-# Percent not clustered.
-percentNC <- sum(partition == 0) / length(partition)
-message(paste("Percent of proteins not clustered:", 
-	      round(100 * percentNC, 2), "(%)"))
+# Fix partition--only analyzing modules defined above.
+out <- partition %notin% as.numeric(gsub("M","",names(modules)))
+partition[out] <- 0
 
 # Calculate Module Eigengenes.
 # Note: Soft power does not influence MEs.
@@ -502,7 +560,7 @@ if (length(nSigDT[sigModules]) > 0) {
   print(nSigDT[sigModules])
 }
 
-# Numer of significant modules with disease association.
+# Numer of significant modules with any DBD association.
 sigDBDmodules <- nSigDT[sigModules[which(sigModules %in% DBDsig)]]
 nSigDisease <- length(sigDBDmodules)
 if (nSigDisease > 0) {
@@ -579,30 +637,15 @@ for (k in seq_along(plots)) {
 	plots[[k]] <- plot
 } # Ends loop to fix plots.
 
-# Create table summarizing partition statistics.
-df <- data.table("Algorithm" = "Leiden",
-		 "Quality Function" = "Surprise",
-		 "N Modules"=nModules,
-		 "Percent Not-clustered"=round(100*percentNC,3),
-		 "Median PVE" = round(medianPVE,3),
-		 "N Sig. Modules"=nSigModules,
-		 "Min Size" = mod_stats[[1]],
-		 "Median Size" = mod_stats[[2]],
-		 "Max Size" = mod_stats[[4]])
-mytable <- tableGrob(df, rows=NULL, theme = mytheme)
-
-# Check the table.
-fig <- plot_grid(mytable)
-
-# Save.
-myfile <- prefix_file(file.path(figsdir,"Module_Summary.tiff"))
-ggsaveTable(mytable,myfile)
-
 #---------------------------------------------------------------------
 ## Save verbose box plots.
 #---------------------------------------------------------------------
 
-# Save sig plots as single pdf.
+# Save all modules.
+myfile <- prefix_file(file.path(figsdir,"All_Module_Boxplots.pdf"))
+ggsavePDF(plots,myfile)
+
+# Save sig modules as single pdf.
 myfile <- prefix_file(file.path(figsdir,"Sig_Module_Boxplots.pdf"))
 ggsavePDF(plots[sigModules],myfile)
 
@@ -611,6 +654,8 @@ ggsavePDF(plots[sigModules],myfile)
 #---------------------------------------------------------------------
 
 # Load plots.
+# If Cortex or striatum -- then only cortex or striatum are plotted.
+# If Combined -- then data from both tissues are plotted.
 myfiles <- c(Cortex=file.path(rdatdir,"All_Cortex_SigProt_Boxplots.RData"),
 	     Striatum=file.path(rdatdir,"All_Striatum_SigProt_Boxplots.RData"),
 	     Combined=file.path(rdatdir,"All_Faceted_SigProt_Boxplots.RData"))
@@ -627,16 +672,21 @@ names(plot_list) <- paste0("M",names(plot_list))
 for (i in 1:length(sigModules)){
 	module_name <- sigModules[i]
 	plots <- plot_list[[module_name]]
-	groups <- rep(c(1:ceiling(length(plots)/4)),each=4)[c(1:length(plots))]
+	n <- length(plots)
+	groups <- rep(c(1:ceiling(n/4)),each=4)[c(1:n)]
 	plot_groups <- split(plots,groups)
 	figs <- lapply(plot_groups,function(x) {
-			       fig <- gridExtra::grid.arrange(grobs=x,ncol=2,nrow=2)
+			       fig <- grid.arrange(grobs=x,ncol=2,nrow=2)
 			       return(fig)
 		 })
+	# Save.
 	myfile <- prefix_file(file.path(figsdir,
 				paste0(module_name,"_Module_SigProts.pdf")))
 	ggsavePDF(figs,myfile)
 }
+
+# Close the device.
+dev.off()
 
 #---------------------------------------------------------------------
 ## Examine overall structure of network.
@@ -731,7 +781,6 @@ names(module_colors) <- names(modules)
 #gp1$widths[2:5] <- as.list(maxWidth)
 #gp2$widths[2:5] <- as.list(maxWidth)
 
-
 # Save.
 myfile <- prefix_file(file.path(figsdir,"Modules_Dendro.tiff"))
 ggsave(myfile,plot=dendro, height=3, width = 3)
@@ -795,6 +844,18 @@ fwrite(ppis,myfile)
 ## Generate cytoscape graphs.
 #---------------------------------------------------------------------
 
+# If working with Combined data, append graphs to tissue specific 
+# Cytoscape file.
+if (data_type == "Combined") {
+	cysfile <- file.path(netsdir,paste0(part_type,".cys"))
+	if (file.exists(cysfile)){
+		message(paste("Adding graphs to",part_type,"file!"))
+		winfile <- gsub("/mnt/d/","D:/",cysfile)
+		openSession(winfile)
+	} else {
+		message(paste(
+}
+
 # Create graphs.
 for (i in c(1:length(modules))) {
 	message(paste("Working on module",i,"..."))
@@ -802,7 +863,7 @@ for (i in c(1:length(modules))) {
 	nodes = names(modules[[module_name]])
 	module_kme = KME_list[[module_name]]
 	network_layout = 'force-directed edgeAttribute=weight'
-	image_file = file.path(figsdir,"NETWORKS",module_name)
+	image_file = file.path(figsdir,"Networks",module_name)
 	image_format = "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
@@ -811,15 +872,11 @@ for (i in c(1:length(modules))) {
 			     image_format)
 	# When done, save cytoscape session.
 	if (i == length(modules)) {
-		if (data_type == "Combined") {
-			myfile <- file.path(netsdir,paste0(data_type,"_",part_type,".cys"))
-		} else {
-			myfile <- file.path(netsdir,paste0(data_type,".cys"))
-		}
+		myfile <- file.path(netsdir,paste0(part_type,".cys"))
 		winfile <- gsub("/mnt/d/","D:/",myfile)
 		saveSession(winfile)
 	}
-}
+} # Ends loop to create graphs.
 
 #---------------------------------------------------------------------
 ## Save key results summarizing modules.
@@ -888,8 +945,14 @@ for (i in seq_along(dfs)){
 results <- list()
 results[["Summary"]] <- module_summary
 results = c(results,dfs[sigModules])
-myfile <- file.path(tabsdir,"Module_Summary.xlsx")
+# Insure that if working with combined data we know which
+# data and partition type...
+if (data_type == "Combined") {
+	myfile <- file.path(tabsdir,
+			    paste(data_type,part_type,
+				   "Module_Summary.xlsx",sep="_"))
+} else {
+	myfile <- file.path(tabsdir,
+			    paste0(data_type,"_Module_Summary.xlsx")
+}
 write_excel(results,myfile)
-
-# Remove that pesky temporary file.
-unlink("Rplots.pdf"
