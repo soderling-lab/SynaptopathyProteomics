@@ -115,58 +115,6 @@ ggtheme()
 partitions$self <- reset_index(partitions$self)
 
 #---------------------------------------------------------------------
-## Check which modules are preserved in opposite tissue.
-#---------------------------------------------------------------------
-
-# Load partitions.
-p1 <- partitions$self
-p2 <- partitions$other
-
-# Get preserved modules.
-preserved_modules <- list()
-modules <- split(p2,p1)
-names(modules) <- paste0("M",names(modules))
-preserved <- which(sapply(modules,function(x) unique(x)!=0))
-preserved_modules[["other"]] <- names(modules)[preserved]
-
-# Fraction of modules that are preserved in the other tissue type.
-nModules <- length(unique(p1[p1!=0]))
-nPres <- length(preserved_modules[["other"]])
-pPres <- round(100*(nPres/length(unique(p1))),3)
-message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
-	       " modules are preserved in the opposite tissue."))
-
-# Reformat other partition, so that module names are the same 
-# as in self-preserved partition (partitions$self)!
-m <- split(p1,p2)
-new_part <- sapply(seq_along(m),function(x) {
-			   p <- rep(as.numeric(names(m)[x]),length(m[[x]]))
-			   names(p) <- names(m[[x]])
-			   return(p)
-			   })
-partitions$other <- unlist(new_part)
-
-#---------------------------------------------------------------------
-## Which modules are preserved in PPI graph?
-#---------------------------------------------------------------------
-
-# Load partitions.
-p1 <- partitions$self
-p2 <- partitions$ppi
-
-# Get preserved modules.
-modules <- split(p2,p1)
-preserved <- which(sapply(modules,function(x) unique(x)!=0))
-preserved_modules[["ppi"]] <- paste0("M",names(modules)[preserved])
-
-# Fraction of modules that are preserved in the other tissue type.
-nModules <- length(unique(p1[p1!=0]))
-nPres <- length(preserved_modules[["ppi"]])
-pPres <- round(100*(nPres/length(unique(p1))),3)
-message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
-	       " modules are preserved in the PPI network."))
-
-#---------------------------------------------------------------------
 ## SigProt annotations--which genotype is a given protein changing in?
 #---------------------------------------------------------------------
 
@@ -208,7 +156,59 @@ module_list <- lapply(module_list,function(x) {
 module_list <- lapply(module_list,function(x) x[-which(names(x)=="M0")])
 
 #---------------------------------------------------------------------
-## Module enrichment for DBD-associated genes.
+## Which modules are preserved in opposite tissue?
+#---------------------------------------------------------------------
+
+# Load partitions.
+p1 <- partitions$self
+p2 <- partitions$other
+
+# Get preserved modules.
+preserved_modules <- list()
+modules <- split(p2,p1)
+names(modules) <- paste0("M",names(modules))
+preserved <- which(sapply(modules,function(x) unique(x)!=0))
+preserved_modules[["other"]] <- names(modules)[preserved]
+
+# Fraction of modules that are preserved in the other tissue type.
+nModules <- length(unique(p1[p1!=0]))
+nPres <- length(preserved_modules[["other"]])
+pPres <- round(100*(nPres/length(unique(p1))),3)
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
+	       " modules are preserved in the opposite tissue."))
+
+# Reformat other partition, so that module names are the same 
+# as in self-preserved partition (partitions$self)!
+m <- split(p1,p2)
+new_part <- sapply(seq_along(m),function(x) {
+			   p <- rep(as.numeric(names(m)[x]),length(m[[x]]))
+			   names(p) <- names(m[[x]])
+			   return(p)
+			   })
+partitions$other <- unlist(new_part)
+
+#---------------------------------------------------------------------
+## Which modules are preserved in the PPI graph?
+#---------------------------------------------------------------------
+
+# Load partitions.
+p1 <- partitions$self
+p2 <- partitions$ppi
+
+# Get preserved modules.
+modules <- split(p2,p1)
+preserved <- which(sapply(modules,function(x) unique(x)!=0))
+preserved_modules[["ppi"]] <- paste0("M",names(modules)[preserved])
+
+# Fraction of modules that are preserved in the other tissue type.
+nModules <- length(unique(p1[p1!=0]))
+nPres <- length(preserved_modules[["ppi"]])
+pPres <- round(100*(nPres/length(unique(p1))),3)
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
+	       " modules are preserved in the PPI network."))
+
+#---------------------------------------------------------------------
+## Which modules are enriched for DBD-associated genes?
 #---------------------------------------------------------------------
 
 # Load Disease ontology.
@@ -233,7 +233,6 @@ term_pval <- sapply(DBDenrichment[DBDsig], function(x) {
 			    paste0(x$shortDataSetName[x$FDR<0.05],
 				   " (FDR = ",fx(x$FDR[x$FDR<0.05]),")") }) 
 preserved_modules$dbd <- term_pval 
-
 
 # Status.
 message(paste("Total number of DBD-associated modules:",
@@ -267,8 +266,6 @@ DBDanno[DBDanno == ""] <- NA
 #---------------------------------------------------------------------
 
 # Summarize all DBD genes identified in synaptosome.
-
-# Summary of disease genes.
 df <- t(as.data.frame(sapply(DBDprots,length)))
 rownames(df) <- NULL
 
@@ -299,9 +296,10 @@ myfile <- prefix_file(file.path(figsdir,"DBD_Gene_Summary.tiff"))
 ggsaveTable(mytable,myfile)
 
 #--------------------------------------------------------------------
-## Module GO enrichment using anRichment.
+## Which modules are enriched for GO terms?
 #--------------------------------------------------------------------
 
+## Use the anRichment package.
 # Build a GO collection.
 message("Performing GO analysis with anRichment...")
 GOcollection <- buildGOcollection(organism="mouse")
@@ -328,6 +326,43 @@ message(paste("Total number of modules with any significant GO",
 term_pval <- sapply(topGO,function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$go <- term_pval
+
+#--------------------------------------------------------------------
+## Which modules are enriched for ASD DEGs?
+#--------------------------------------------------------------------
+
+# Load ASD DEG collection.
+GeneSet <- "mouse_ASD_DEG_collection.RData"
+myfile <- file.path(rdatdir,GeneSet)
+ASDcollection <- readRDS(myfile)
+
+# All ASD DEGs
+ASD_DEGs <- unique(ASDcollection$dataSets[[1]]$data$Entrez)
+idx <- match(ASD_DEGs[which(ASD_DEGs %in% protmap$entrez)],protmap$entrez)
+ASDprots <- protmap$ids[idx]
+
+# Perform gene set enrichment analysis.
+ASDresults <- gse(gene_list,ASDcollection)
+
+# Significant go terms for every module.
+method <- "Bonferroni"
+alpha <- 0.05
+topGO <- lapply(ASDresults,function(x) {
+			idx <- x[[method]] < alpha & x$enrichmentRatio > 1
+			p <- x[[method]][idx]
+			names(p) <- x$shortDataSetName[idx]
+			return(p)
+	    })
+
+# Number of modules with any significant GO term enrichment.
+sigGO <- names(which(sapply(topGO,function(x) length(x) > 0)))
+message(paste("Total number of modules with any significant ASD DEG",
+	      "enrichment:", length(sigGO)))
+
+# Add to list of preserved modules.
+term_pval <- sapply(topGO[sigGO],function(x) {
+		      paste0(names(x)," (p.adj = ",fx(x),")") })
+preserved_modules$asd <- term_pval
 
 #--------------------------------------------------------------------
 ## Module enrichment using enrichR.
@@ -676,10 +711,9 @@ for (i in 1:length(sigModules)){
 	myfile <- prefix_file(file.path(figsdir,
 				paste0(module_name,"_Module_SigProts.pdf")))
 	ggsavePDF(figs,myfile)
+	# Close the device.
+	if (i == length(sigModules)) { dev.off() }
 }
-
-# Close the device.
-dev.off()
 
 #---------------------------------------------------------------------
 ## Examine overall structure of network.
@@ -687,6 +721,26 @@ dev.off()
 
 # Examine relationships between modules by comparing their summary
 # expression profiles (MEs).
+
+# Load the data and partition.
+# Don't use the combined dataset.
+myfile <- file.path(rdatdir,input_files$data[[part_type]])
+tempdat <- readRDS(myfile)
+tempdat <- t(tempdat)
+part <- partitions$self
+
+# Calculate module eigengenes.
+MEdata <- moduleEigengenes(tempdat,
+  colors = part, 
+  excludeGrey = TRUE, # Ignore M0!
+  softPower = 1, 
+  impute = FALSE
+)
+MEs <- as.matrix(MEdata$eigengenes)
+
+# List of MEs.
+ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) 
+names(ME_list) <- names(all_modules)
 
 # Calculate correlations between ME vectors.
 adjm_me <- cor(do.call(cbind,ME_list))
@@ -760,15 +814,15 @@ module_colors <- df$color
 names(module_colors) <- names(modules)
 
 # Add colored bars to dendro.
-# FIXME: need to improve this.
-#dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
-#dend_data <- dend_data$labels
-#df <- data.frame("Color" = module_colors[as.character(dend_data$label)],
-#		 "Module" = as.character(dend_data$label))
+dend_data <- ggdendro::dendro_data(as.dendrogram(hc))$labels
+df <- data.frame("Color" = module_colors[as.character(dend_data$label)],
+		 "Module" = as.character(dend_data$label))
+df$Module <- factor(df$Module,levels=df$Module)
+df$Color <- factor(df$Color,levels=df$Color)
 
-#p2<-ggplot(df,aes(x=Module,y=1,fill=Color)) + geom_tile() +
-#	scale_fill_manual(values=as.character(df$Color)) + 
-#	theme(legend.position="none")
+p2<-ggplot(df,aes(x=Module,y=1,fill=Color)) + geom_tile() +
+	scale_fill_manual(values=as.character(df$Color)) + 
+	theme(legend.position="none", axis.text.x = element_text(angle=45))
 
 #maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5])
 #gp1$widths[2:5] <- as.list(maxWidth)
