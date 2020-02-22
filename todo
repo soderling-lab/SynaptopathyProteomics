@@ -1,0 +1,7 @@
+# Split network analysis into two scripts.
+# Add centrality measures for modules.
+# Generate go scatter plots for modules.
+# Make module colors better--try network enhancement of ME graph.
+# Add DBD protein annotation to graph.
+# Generate overview network of all modules.
+# Generate table summarizing network.
