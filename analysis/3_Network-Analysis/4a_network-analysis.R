@@ -379,7 +379,7 @@ topASD <- lapply(ASDresults,function(x) {
 # Number of modules with any significant GO term enrichment.
 ASDsig <- names(which(sapply(topASD,function(x) length(x) > 0)))
 message(paste("Total number of modules with significant enrichment",
-	      "of ASD DEGs:",length(sigASD)))
+	      "of ASD DEGs:",length(ASDsig)))
 
 # Add to list of preserved modules.
 term_pval <- sapply(topASD[ASDsig],function(x) {
@@ -837,14 +837,14 @@ createCytoscapeModuleGraph(partition,ME_list)
 main.network <- getNetworkSuid()
 
 # Generate subnetworks highlighting some modules of intereest.
-highlightModules(nodes=sigModules,main.network,subnetwork.name="KWsig")
-highlightModules(nodes=DBDsig,main.network,subnetwork.name="DBD")
-highlightModules(nodes=ASDsig,main.network,subnetwork.name="ASD DEGs")
-highlightModules(nodes=GOsig,main.network,subnetwork.name="GO")
-highlightModules(nodes=preserved_modules$ppi,main.network,
+highlightNodes(nodes=sigModules,main.network,subnetwork.name="Sig Modules")
+highlightNodes(nodes=DBDsig,main.network,subnetwork.name="DBD")
+highlightNodes(nodes=ASDsig,main.network,subnetwork.name="ASD DEG")
+highlightNodes(nodes=GOsig,main.network,subnetwork.name="GO")
+highlightNodes(nodes=preserved_modules$ppi,main.network,
 		 subnetwork.name="PPI")
-highlightModules(nodes=preserved_modules$other,main.network,
-		 subnetwork.name="other")
+highlightNodes(nodes=preserved_modules$other,main.network,
+		 subnetwork.name="Other")
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graphs of all modules.
