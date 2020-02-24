@@ -7,6 +7,9 @@ createCytoscapeModuleGraph <- function(partition,ME_list) {
 	# Collect modules.
 	modules <- split(partition,partition)
         names(modules) <- paste0("M",names(modules))
+	# Remove M0.
+	modules <- modules[-which(names(modules) =="M0")]
+	# Module sizes.
         module_size <- sapply(modules,length)
 	# Calculate correlation between module eigengenes.
 	adjm_me <- cor(do.call(cbind,ME_list))
@@ -24,7 +27,7 @@ createCytoscapeModuleGraph <- function(partition,ME_list) {
 	e_max <- max(abs(E(g)$weight))
 	e_min <- min(abs(E(g)$weight))
 	cutoffs <- seq(e_min,e_max,by=0.01)
-	check <- vector("logical",length=length(cutoff))
+	check <- vector("logical",length=length(cutoffs))
 	for (k in seq_along(cutoffs)){
 		g_temp <- g
 		idx <- which(abs(E(g_temp)$weight) <= cutoffs[k])
@@ -45,7 +48,7 @@ createCytoscapeModuleGraph <- function(partition,ME_list) {
 	  defaults = list(
 	    NODE_SHAPE = "ellipse",
 	    EDGE_TRANSPARENCY = 155,
-	    NODE_LABEL_TRANSPARENCY = 0,
+	    NODE_LABEL_TRANSPARENCY = 255,
 	    NODE_LABEL_FONT_SIZE = 12,
 	    NODE_LABEL_COLOR = col2hex("black"),
 	    NODE_BORDER_TRANSPARENCY = 200,

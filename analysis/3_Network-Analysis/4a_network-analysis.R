@@ -11,8 +11,7 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Cortex" # Cortex, Striatum, or Combined...
-generate_cytoscape_graphs <- FALSE
+data_type <- "Cortex" # Cortex or Striatum
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -217,24 +216,21 @@ DBDcollection <- readRDS(myfile)
 gene_list <- module_list$Entrez
 DBDenrichment <- gse(gene_list, DBDcollection)
 
-
 # Collect modules with significant enrichment of DBD-genes.
 method <- "FDR"
 alpha <- 0.05
 DBDresults <- list()
 for (i in 1:length(DBDenrichment)) {
 	df <- DBDenrichment[[i]]
+	namen <- names(DBDenrichment)[i]
 	idx <- which(df[[method]]  < alpha)
 	if (length(idx) > 0) {
-		DBDresults[[length(DBDresults)+1]] <- df[idx,]
+		DBDresults[[namen]] <- df[idx,]
 	}
 }
-DBDresults <- do.call(rbind,DBDresults)
-DBDresults <- list(DBDresults)
-names(DBDresults) <- data_type
 
 # Modules with sig DBD enrichment:
-DBDsig <- unique(DBDresults$class)
+DBDsig <- names(DBDresults)
 
 # Add DBD genes and terms to list of preserved modules.
 # Function to reformat pvalues and combine with term nam.e
@@ -389,48 +385,6 @@ results <- list(do.call(rbind,ASDresults[sigASD]))
 names(results) <- data_type
 write_excel(results,myfile)
 
-#--------------------------------------------------------------------
-## Module enrichment using enrichR.
-#--------------------------------------------------------------------
-
-# EnrichR is an online platform for gene set enrichment.
-# https://amp.pharm.mssm.edu/Enrichr/
-
-# EnrichR can perform enrichment analysis querying a large number of 
-# gene collections: https://amp.pharm.mssm.edu/Enrichr/#stats
-
-# Enrichment analysis for PFAM domains.
-message("Performing enrichment analysis with enrichR...")
-db <- "Pfam_Domains_2019"
-PFAMresults <- enrichR(gene_list,db,quiet=TRUE)
-
-# Remove NA.
-out <- which(sapply(PFAMresults,function(x) dim(x)[1]==0))
-PFAMresults <- PFAMresults[-out]
-
-# Sig PFAM terms from every module.
-alpha <- 0.05
-topPFAM <- lapply(PFAMresults,function(x) {
-			idx <- x$Adjusted.P.value < alpha & x$Odds.Ratio > 1
-			p <- x$Adjusted.P.value[idx]
-			names(p) <- x$Term[idx]
-			return(p)
-	    })
-
-# Number of modules with any significant enrichment.
-sigPFAM <- names(which(sapply(topPFAM,function(x) length(x) > 0)))
-message(paste("Total number of modules with any significant PFAM",
-	      "domain enrichment:", length(sigPFAM)))
-
-# Add to list of preserved modules.
-term_pval <- sapply(topPFAM[sigPFAM],function(x) {
-		      paste0(names(x)," (p.adj = ",fx(x),")") })
-preserved_modules$pfam <- term_pval
-
-# Write to file.
-myfile <- file.path(tabsdir,"3_Module_PFAM_Enrichment.xlsx")
-write_excel(PFAMresults[sigPFAM],myfile)
-
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
@@ -453,15 +407,15 @@ names(modules) <- paste0("M",names(modules))
 # If not working with combined data,
 # drop modules that are preserved in other tissue.
 # These will be analyzed seperately.
-out <- which(names(modules) %in% preserved_modules$other)
-modules <- modules[-out]
+#out <- which(names(modules) %in% preserved_modules$other)
+#modules <- modules[-out]
 
 # Remove M0.
 modules <- modules[-which(names(modules)=="M0")]
 
 # Fix partition--only analyzing modules defined above.
-out <- partition %notin% as.numeric(gsub("M","",names(modules)))
-partition[out] <- 0
+#out <- partition %notin% as.numeric(gsub("M","",names(modules)))
+#partition[out] <- 0
 
 # Calculate Module Eigengenes.
 # Note: Soft power does not influence MEs.
@@ -575,7 +529,7 @@ plots <- lapply(ME_list,function(x) {
   })
 names(plots) <- names(ME_list)
 
-## Loop to  clean-up plots.
+## Loop to clean-up plots.
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 		  "Syngap1 HET","Ube3a KO"),2)
@@ -672,26 +626,6 @@ for (i in 1:length(sigModules)){
 # Examine relationships between modules by comparing their summary
 # expression profiles (MEs).
 
-# Load the data and partition.
-# Don't use the combined dataset.
-myfile <- file.path(rdatdir,input_files$data[[data_type]])
-tempdat <- readRDS(myfile)
-tempdat <- t(tempdat)
-part <- partitions$self
-
-# Calculate module eigengenes.
-MEdata <- moduleEigengenes(tempdat,
-  colors = part, 
-  excludeGrey = TRUE, # Ignore M0!
-  softPower = 1, 
-  impute = FALSE
-)
-MEs <- as.matrix(MEdata$eigengenes)
-
-# List of MEs.
-ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) 
-names(ME_list) <- names(all_modules)
-
 # Calculate correlations between ME vectors.
 adjm_me <- cor(do.call(cbind,ME_list))
 
@@ -776,7 +710,7 @@ df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 
 # Collect color assignments.
 module_colors <- df$color
-names(module_colors) <- names(all_modules)
+names(module_colors) <- names(modules)
 
 # Save.
 myfile <- file.path(rdatdir,paste0(data_type,"_Module_Colors.RData"))
@@ -796,6 +730,16 @@ ggsave(myfile,plot=dendro, height=3, width = 3)
 # Save.
 myfile <- prefix_file(file.path(figsdir,"Module_Colors.tiff"))
 ggsave(myfile,plot=p2, height=3, width = 3)
+
+#---------------------------------------------------------------------
+## GO Scatter plots.
+#---------------------------------------------------------------------
+
+ggplotGOscatter(GOresults,color,topN=10)
+
+
+
+
 
 #---------------------------------------------------------------------
 ## Generate ppi graphs and co-expression graphs.
@@ -857,7 +801,7 @@ write_excel(list(PPIs=ppis),myfile)
 #---------------------------------------------------------------------
 
 # Create a cytoscape network showing all modules.
-createCytoscapeModuleGraph(partitions$self,ME_list)
+createCytoscapeModuleGraph(partition,ME_list)
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graphs of all modules.
@@ -865,13 +809,13 @@ createCytoscapeModuleGraph(partitions$self,ME_list)
 
 # Loop to create graphs.
 for (i in c(1:length(modules))) {
-	module_name = names(modules)[i]
+	module_name <- names(modules)[i]
 	message(paste("Working on module", module_name,"..."))
-	nodes = names(modules[[module_name]])
-	module_kme = KME_list[[module_name]]
-	network_layout = 'force-directed edgeAttribute=weight'
-	image_file = file.path(dirname(figsdir),"Networks",module_name)
-	image_format = "SVG"
+	nodes <- names(modules[[module_name]])
+	module_kme <- KME_list[[module_name]]
+	network_layout <- 'force-directed edgeAttribute=weight'
+	image_file <- file.path(dirname(figsdir),"Networks",module_name)
+	image_format <- "SVG"
 	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 		     module_kme,module_name,
 		     module_colors, network_layout,
@@ -879,7 +823,7 @@ for (i in c(1:length(modules))) {
 		     image_format)
 	# When done, save cytoscape session.
 	if (i == length(modules)) {
-		myfile <- file.path(netsdir,paste0(part_type,".cys"))
+		myfile <- file.path(netsdir,paste0(data_type,".cys"))
 		winfile <- gsub("/mnt/d/","D:/",myfile)
 		saveSession(winfile)
 	}

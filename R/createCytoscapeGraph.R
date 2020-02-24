@@ -10,20 +10,24 @@ createCytoscapeGraph <- function(exp_graph,
 				 image_format=NULL){
 	## NOTE: Sys.sleep()'s are important to prevent R from getting
         # ahead of Cytoscape!
-
 	suppressPackageStartupMessages({
 		library(RCy3)
-		cytoscapePing()
+		library(neten)
 	})
+	# Check that we are connected to cytoscape.
+	cytoscape_ping()
 	# Subset graph.
 	idx <- match(nodes,names(V(exp_graph)))
-	g <- induced_subgraph(exp_graph,vids = V(exp_graph)[idx])
+	g0 <- induced_subgraph(exp_graph,vids = V(exp_graph)[idx])
 	# Add node color attribute.
-	g <- set_vertex_attr(g,"color", value = module_colors[module_name])
+	g0 <- set_vertex_attr(g0,"color", 
+			     value = module_colors[module_name])
 	# Add node module attribute.
-	g <- set_vertex_attr(g,"module",value = module_name)
+	g0 <- set_vertex_attr(g0,"module",value = module_name)
 	# Add hubiness (KME) attributes.
-	g <- set_vertex_attr(g, "kme" ,value=module_kme[names(V(g))])
+	g0 <- set_vertex_attr(g0, "kme" ,value=module_kme[names(V(g0))])
+	# Network enhancment.
+	g <- neten(g0)
 	# Prune weak edges.
 	nEdges <- length(E(g))
 	e_max <- max(E(g)$weight)
@@ -34,13 +38,14 @@ createCytoscapeGraph <- function(exp_graph,
 	for (k in seq_along(cut_off)) {
 		threshold <- cut_off[k]
 		g_temp <- g
-		g_temp <- delete.edges(g_temp, which(E(g_temp)$weight <= threshold))
+		idx <- which(E(g_temp)$weight <= threshold)
+		g_temp <- delete.edges(g_temp,idx)
 		check[k] <- is.connected(g_temp)
 	}
 	cutoff_limit <- cut_off[max(which(check))]
 	# Prune edges -- this removes all edge types...
-	g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
-
+	idx <- which(E(g)$weight <= cutoff_limit)
+	g <- delete.edges(g0,E(g0)[E(g)[idx]])
 	# Write graph to file this is faster than sending to cytoscape.
 	myfile <- file.path(netsdir,paste0(module_name,".gml"))
 	write_graph(g,myfile,format="gml")
@@ -72,7 +77,8 @@ createCytoscapeGraph <- function(exp_graph,
 	# MAPPED PROPERTIES:
 	mappings <- list(
 	  NODE_LABEL = mapVisualProperty('node label', 'symbol', 'p'),
-	  NODE_FILL_COLOR = mapVisualProperty('node fill color','color','p'),
+	  NODE_FILL_COLOR = mapVisualProperty('node fill color',
+					      'color','p'),
 	  NODE_SIZE = mapVisualProperty('node size',
 	                                'kme',
 	                                'c', 
