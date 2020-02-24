@@ -1,0 +1,76 @@
+createSubnetwork             package:RCy3              R Documentation
+
+_C_r_e_a_t_e _s_u_b_n_e_t_w_o_r_k _f_r_o_m _e_x_i_s_t_i_n_g _n_e_t_w_o_r_k
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     Copies a subset of nodes and edges into a newly created
+     subnetwork.
+
+_U_s_a_g_e:
+
+     createSubnetwork(
+       nodes = NULL,
+       nodes.by.col = "SUID",
+       edges = NULL,
+       edges.by.col = "SUID",
+       exclude.edges = FALSE,
+       subnetwork.name = NULL,
+       network = NULL,
+       base.url = .defaultBaseUrl
+     )
+     
+_A_r_g_u_m_e_n_t_s:
+
+   nodes: list of node names or keyword: selected, unselected or all.
+          Default is currently selected nodes.
+
+nodes.by.col: name of node table column corresponding to provided nodes
+          list; default is 'SUID'
+
+   edges: list of edge names or keyword: selected, unselected or all.
+          Default is currently selected edges.
+
+edges.by.col: name of edge table column corresponding to provided edges
+          list; default is 'SUID'
+
+exclude.edges: (boolean) whether to exclude connecting edges; default
+          is FALSE
+
+subnetwork.name: name of new subnetwork to be created; default is to
+          add a numbered suffix to source network name
+
+ network: (optional) Name or SUID of the network. Default is the
+          "current" network active in Cytoscape.
+
+base.url: (optional) Ignore unless you need to specify a custom domain,
+          port or version to connect to the CyREST API. Default is
+          http://localhost:1234 and the latest version of the CyREST
+          API supported by this version of RCy3.
+
+_D_e_t_a_i_l_s:
+
+     If you spe@param base.url (optional) Ignore unless you need to
+     specify a custom domain, port or version to connect to the CyREST
+     API. Default is http://localhost:1234 and the latest version of
+     the CyREST API supported by this version of RCy3.cify both nodes
+     and edges, the resulting subset will be the union of those sets.
+     Typical usage only requires specifying either nodes or edges. Note
+     that selected nodes will bring along their connecting edges by
+     default (see exclude.edges arg) and selected edges will always
+     bring along their source and target nodes.
+
+_V_a_l_u_e:
+
+     SUID of new subnetwork
+
+_E_x_a_m_p_l_e_s:
+
+     createSubnetwork()
+     createSubnetwork("all")
+     createSubnetwork(subnetwork.name="mySubnetwork")
+     createSubnetwork(c("node 1","node 2","node 3"),"name")
+     createSubnetwork(c("AKT1","TP53","PIK3CA"),"display name")
+     createSubnetwork(edges="all") #subnetwork of all connected nodes
+     
+

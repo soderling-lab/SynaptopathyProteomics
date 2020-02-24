@@ -110,6 +110,13 @@ ggtheme()
 # Reset partition index for self-preserved modules.
 partitions$self <- reset_index(partitions$self)
 
+# Define opposite tissue type.
+if (data_type == "Cortex") {
+	other <- "Striatum"
+} else if (data_type == "Striatum") {
+	other <- "Cortex"
+}
+
 #---------------------------------------------------------------------
 ## SigProt annotations--which genotype is a given protein changing in?
 #---------------------------------------------------------------------
@@ -327,9 +334,9 @@ for (i in 1:length(GOenrichment)) {
 }
 
 # Number of modules with any significant GO term enrichment.
-sigGO <- names(GOresults)
+GOsig <- names(GOresults)
 message(paste("Total number of modules with any significant GO",
-	      "enrichment:", length(sigGO)))
+	      "enrichment:", length(GOsig)))
 
 # Add to list of preserved modules.
 term_pval <- sapply(GOresults,function(x) {
@@ -370,18 +377,18 @@ topASD <- lapply(ASDresults,function(x) {
 	    })
 
 # Number of modules with any significant GO term enrichment.
-sigASD <- names(which(sapply(topASD,function(x) length(x) > 0)))
+ASDsig <- names(which(sapply(topASD,function(x) length(x) > 0)))
 message(paste("Total number of modules with significant enrichment",
 	      "of ASD DEGs:",length(sigASD)))
 
 # Add to list of preserved modules.
-term_pval <- sapply(topASD[sigASD],function(x) {
+term_pval <- sapply(topASD[ASDsig],function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$asd <- term_pval
 
 # Write to file.
 myfile <- file.path(tabsdir,"3_Module_ASD_DEGs_Enrichment.xlsx")
-results <- list(do.call(rbind,ASDresults[sigASD]))
+results <- list(do.call(rbind,ASDresults[ASDsig]))
 names(results) <- data_type
 write_excel(results,myfile)
 
@@ -396,26 +403,14 @@ nModules <- sum(names(all_modules) != "M0")
 message(paste("Number of modules:", nModules))
 
 # Get partition of interest.
-# If analyzing the combined data, focus on modules that are preserved
-# in opposite tissue type.
 partition <- partitions$self
 
 # Modules from the given partition.
 modules <- split(partition,partition)
 names(modules) <- paste0("M",names(modules))
 
-# If not working with combined data,
-# drop modules that are preserved in other tissue.
-# These will be analyzed seperately.
-#out <- which(names(modules) %in% preserved_modules$other)
-#modules <- modules[-out]
-
 # Remove M0.
 modules <- modules[-which(names(modules)=="M0")]
-
-# Fix partition--only analyzing modules defined above.
-#out <- partition %notin% as.numeric(gsub("M","",names(modules)))
-#partition[out] <- 0
 
 # Calculate Module Eigengenes.
 # Note: Soft power does not influence MEs.
@@ -663,13 +658,6 @@ groups <- split(hc_partition,hc_partition)
 # to all others in its group.
 rep_modules <- getMedoid(adjm_me,h=best_k)
 
-# Get module which is most different!
-#rep_modules <- sapply(groups,function(x) {
-#	       colSums <- apply(adjm_me[names(x),names(x)],2,sum)
-#	       rep_module <- names(which(colSums == max(colSums)))
-#	       return(rep_module)
-#  })
-
 # Get dendrogram data, update with group and rep_module.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
 dend_data <- dend_data$labels
@@ -712,10 +700,6 @@ df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 module_colors <- df$color
 names(module_colors) <- names(modules)
 
-# Save.
-myfile <- file.path(rdatdir,paste0(data_type,"_Module_Colors.RData"))
-saveRDS(module_colors,myfile)
-
 # Generate colored bars.
 dend_data$color <- module_colors[as.character(dend_data$label)]
 dend_data$color <- factor(dend_data$color,levels=dend_data$color)
@@ -732,14 +716,48 @@ myfile <- prefix_file(file.path(figsdir,"Module_Colors.tiff"))
 ggsave(myfile,plot=p2, height=3, width = 3)
 
 #---------------------------------------------------------------------
-## GO Scatter plots.
+## Generate GO Scatter plots.
 #---------------------------------------------------------------------
 
-ggplotGOscatter(GOresults,color,topN=10)
+# Loop to generate plots:
+plots <- list()
+alpha <- 0.05
 
+for (i in 1:length(GOenrichment)) {
+	# Get subset of data.
+	df <- GOenrichment[[i]]
+	namen <- names(GOenrichment)[i]
+	if (nrow(df) <= 10) {
+		topN <- nrow(df)-1
+	} else {
+		topN <- 10
+	}
+	# Generate the plot.
+	plot <- ggplotGOscatter(df,module_colors[namen],topN)
+	# Add approximate threshold for significance.
+	if (any(df$FDR<alpha)) {
+		threshold <- floor(-log(df$pValue[max(which(df$FDR<0.05))]))
+		plot <- plot + 
+			geom_hline(yintercept = threshold, 
+				   linetype="dashed", color="red")
+	}
+	# Add title, if significant then print it in red.
+	if (namen %in% sigModules){
+		title_color <- "red"
+	} else {
+		title_color <- "black"
+	}
+	plot <- plot + ggtitle(namen) + 
+		theme(plot.title = element_text(color=title_color,size=14))
+	plots[[i]] <- plot
+}
 
+# Save as single pdf.
 
-
+# Save a single pdf containing all the sign proteins within a
+# module for each module.
+myfile <- prefix_file(file.path(figsdir,"All_Module_GOscatter.pdf"))
+ggsavePDF(plots,myfile)
 
 #---------------------------------------------------------------------
 ## Generate ppi graphs and co-expression graphs.
@@ -802,6 +820,31 @@ write_excel(list(PPIs=ppis),myfile)
 
 # Create a cytoscape network showing all modules.
 createCytoscapeModuleGraph(partition,ME_list)
+
+#---------------------------------------------------------------------
+## Highlight some important modules.
+#---------------------------------------------------------------------
+
+## Highlight modules that are:
+#     Significant KW test.
+#     Enriched for DBDs.
+#     Enriched for ASD DEGs.
+#     Underlying PPI toplogy is significant.
+#     Significant GO enrichment.
+#     Preserved in other tissue.
+
+# Get the main network's suid.
+main.network <- getNetworkSuid()
+
+# Generate subnetworks highlighting some modules of intereest.
+highlightModules(nodes=sigModules,main.network,subnetwork.name="KWsig")
+highlightModules(nodes=DBDsig,main.network,subnetwork.name="DBD")
+highlightModules(nodes=ASDsig,main.network,subnetwork.name="ASD DEGs")
+highlightModules(nodes=GOsig,main.network,subnetwork.name="GO")
+highlightModules(nodes=preserved_modules$ppi,main.network,
+		 subnetwork.name="PPI")
+highlightModules(nodes=preserved_modules$other,main.network,
+		 subnetwork.name="other")
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graphs of all modules.
