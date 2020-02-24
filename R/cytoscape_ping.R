@@ -1,7 +1,6 @@
 cytoscape_ping <- function() {
 	suppressPackageStartupMessages({
 		library(RCy3)
-		devtools::load_all()
 	})
 	tryCatch(
 	 expr = {
@@ -11,7 +10,13 @@ cytoscape_ping <- function() {
 		 prompt <- paste("Please open Cytoscape.",
 				 "When ready to proceed,",
 				 "press [enter] to continue...\n")
-		 pause(prompt)
+		 # Prompt the user to open cytoscape.
+		 if (interactive()) {
+			 invisible(readline(prompt))
+		 } else {
+			 cat(prompt)
+			 invisible(readLines(file("stdin"), 1))
+		 }
 	 },
 	 finally = {
 		 cytoscapePing()
