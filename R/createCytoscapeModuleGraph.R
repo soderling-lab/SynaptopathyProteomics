@@ -1,4 +1,4 @@
-createCytoscapeModuleGraph <- function(partition,ME_list) {
+createCytoscapeModuleGraph <- function(partition,ME_list,title="Network") {
 	suppressPackageStartupMessages({ 
 		library(RCy3) 
 	        library(neten)
@@ -41,7 +41,7 @@ createCytoscapeModuleGraph <- function(partition,ME_list) {
 	# Add original weights as edge attribute.
 	g <- set_edge_attr(g, "cor", value=E(g0)[E(g)]$weight)
 	# Send to Cytoscape. 
-	createNetworkFromIgraph(g, title = "Modules")
+	createNetworkFromIgraph(g, title)
 	# Create a visual style.
 	  style.name = "myStyle"
 	  # DEFAULTS:

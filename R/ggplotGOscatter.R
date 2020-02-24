@@ -19,10 +19,12 @@
 #' @examples
 #' ggplotGOscatter(GO_results, color, topN = 10)
 ggplotGOscatter <- function(GO_results, color, topN = 15) {
+	suppressPackageStartupMessages({
+		library(data.table)
+		library(ggplot2)
+		library(ggrepel)
+	})
   # Collect data in df.
-  library(data.table)
-  library(ggplot2)
-  library(ggrepel)
   df <- data.table(
     x = GO_results$enrichmentRatio,
     y = -log(GO_results$pValue),

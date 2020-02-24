@@ -13,7 +13,7 @@
 stats <- c(1,2,6,7) 
 #stats = 1 # For PPI preservation, just consider edge weight.
 strength = "strong" # Criterion for preservation.
-replace_negative = "abs" # How to handle negative edge weights. abs or zero.
+replace_negative = "zero" # How to handle negative edge weights. abs or zero.
 
 ## Other NetRep parameters:
 nPerm = NULL
