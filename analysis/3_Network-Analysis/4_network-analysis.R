@@ -11,13 +11,17 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Cortex" # Cortex or Striatum
+data_type <- "Combined" # Cortex, Striatum, or Combined...
+part_type <- "Cortex" # Specify part type when working with comb data.
+generate_cytoscape_graphs <- FALSE
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
-				      Striatum="3_Striatum_Adjm.RData"),
+				      Striatum="3_Striatum_Adjm.RData",
+				      Combined="3_Combined_Adjm.RData"),
 		    data_files = list(Cortex="3_Cortex_cleanDat.RData",
-				      Striatum="3_Striatum_cleanDat.RData"),
+				      Striatum="3_Striatum_cleanDat.RData",
+				      Combined="3_Combined_cleanDat.RData"),
 		    part_files = list(Cortex=list(self="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
 						  ppi ="2020-02-13_Cortex_PPI_Module_Self_Preservation.RData",
 						  other="2020-02-18_Cortex_Striatum_Module_Self_Preservation.RData"),
@@ -50,8 +54,8 @@ root <- dirname(dirname(here))
 funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-netsdir <- file.path(root, "networks",data_type)
-figsdir <- file.path(root, "figs",subdir,data_type)
+netsdir <- file.path(root, "networks",part_type)
+figsdir <- file.path(root, "figs",subdir,data_type,part_type)
 tabsdir <- file.path(root, "tables", subdir,data_type)
 
 # Remove any existing figures and tables.
@@ -100,9 +104,9 @@ adjm_ppi <- as.matrix(adjm_ppi)
 rownames(adjm_ppi) <- colnames(adjm_ppi)
 
 # Load network partitions--self-preservation enforced.
-myfiles <- file.path(rdatdir,input_files$part_file[[data_type]])
+myfiles <- file.path(rdatdir,input_files$part_file[[part_type]])
 partitions <- lapply(myfiles,function(x) unlist(readRDS(x)))
-names(partitions) <- names(input_files$part_file[[data_type]])
+names(partitions) <- names(input_files$part_file[[part_type]])
 
 # Load theme for plots.
 ggtheme()
@@ -111,9 +115,9 @@ ggtheme()
 partitions$self <- reset_index(partitions$self)
 
 # Define opposite tissue type.
-if (data_type == "Cortex") {
+if (part_type == "Cortex") {
 	other <- "Striatum"
-} else if (data_type == "Striatum") {
+} else if (part_type == "Striatum") {
 	other <- "Cortex"
 }
 
@@ -177,7 +181,7 @@ preserved_modules[["other"]] <- names(modules)[preserved]
 nModules <- length(unique(p1[p1!=0]))
 nPres <- length(preserved_modules[["other"]])
 pPres <- round(100*(nPres/length(unique(p1))),3)
-message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type, 
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
 	       " modules are preserved in the opposite tissue."))
 
 # Reformat other partition, so that module names are the same 
@@ -207,7 +211,7 @@ preserved_modules[["ppi"]] <- paste0("M",names(modules)[preserved])
 nModules <- length(unique(p1[p1!=0]))
 nPres <- length(preserved_modules[["ppi"]])
 pPres <- round(100*(nPres/length(unique(p1))),3)
-message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type, 
+message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type, 
 	       " modules are preserved in the PPI network."))
 
 #---------------------------------------------------------------------
@@ -216,6 +220,7 @@ message(paste0(nPres," of ",nModules," (",pPres,"%) ", data_type,
 
 # Load Disease ontology.
 DBDset <- "mouse_Combined_DBD_collection.RData"
+DBDset <- "2020-02-21_mouse_Combined_DBD_collection.RData"
 myfile <- file.path(rdatdir,DBDset)
 DBDcollection <- readRDS(myfile)
 
@@ -226,18 +231,8 @@ DBDenrichment <- gse(gene_list, DBDcollection)
 # Collect modules with significant enrichment of DBD-genes.
 method <- "FDR"
 alpha <- 0.05
-DBDresults <- list()
-for (i in 1:length(DBDenrichment)) {
-	df <- DBDenrichment[[i]]
-	namen <- names(DBDenrichment)[i]
-	idx <- which(df[[method]]  < alpha)
-	if (length(idx) > 0) {
-		DBDresults[[namen]] <- df[idx,]
-	}
-}
-
-# Modules with sig DBD enrichment:
-DBDsig <- names(DBDresults)
+any_sig <- which(sapply(DBDenrichment,function(x) any(x[method] < alpha)))
+DBDsig <- names(DBDenrichment)[any_sig]
 
 # Add DBD genes and terms to list of preserved modules.
 # Function to reformat pvalues and combine with term nam.e
@@ -253,7 +248,7 @@ message(paste("Total number of DBD-associated modules:",
 
 # Write to file.
 myfile <- file.path(tabsdir,"3_Module_DBD_Enrichment.xlsx")
-write_excel(DBDresults,myfile)
+write_excel(DBDenrichment[DBDsig],myfile)
 
 # Collect all DBD genes.
 DBDgenes <- lapply(DBDcollection$dataSets,function(x) {
@@ -318,35 +313,27 @@ message("Performing GO analysis with anRichment...")
 GOcollection <- buildGOcollection(organism="mouse")
 
 # Perform gene set enrichment analysis.
-GOenrichment <- gse(gene_list,GOcollection)
+GOresults <- gse(gene_list,GOcollection)
 
-# Collect significant go terms.
-method <- "FDR"
+# Significant go terms for every module.
+method <- "Bonferroni"
 alpha <- 0.05
-GOresults <- list()
-for (i in 1:length(GOenrichment)) {
-	df <- GOenrichment[[i]]
-	namen <- names(GOenrichment)[i]
-	idx <- which(df[[method]] < alpha)
-	if (length(idx) > 0) {
-		GOresults[[namen]] <- df[idx,]
-	}
-}
+topGO <- lapply(GOresults,function(x) {
+			idx <- x[[method]] < alpha
+			p <- x[[method]][idx]
+			names(p) <- x$shortDataSetName[idx]
+			return(p)
+	    })
 
 # Number of modules with any significant GO term enrichment.
-GOsig <- names(GOresults)
+GOsig <- names(which(sapply(topGO,function(x) length(x) > 0)))
 message(paste("Total number of modules with any significant GO",
 	      "enrichment:", length(GOsig)))
 
 # Add to list of preserved modules.
-term_pval <- sapply(GOresults,function(x) {
-		      paste0(x$shortDataSetName,
-			     " (FDR = ",fx(x[[method]]),")") })
+term_pval <- sapply(topGO,function(x) {
+		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$go <- term_pval
-
-# Write to file.
-myfile <- file.path(tabsdir,"3_Module_GO_Enrichment.xlsx")
-write_excel(GOresults,myfile)
 
 #--------------------------------------------------------------------
 ## Which modules are enriched for ASD DEGs?
@@ -367,7 +354,7 @@ gene_list <- module_list$Entrez
 ASDresults <- gse(gene_list,ASDcollection)
 
 # Significant go terms for every module.
-method <- "FDR"
+method <- "Bonferroni"
 alpha <- 0.05
 topASD <- lapply(ASDresults,function(x) {
 			idx <- x[[method]] < alpha & x$enrichmentRatio > 1
@@ -386,12 +373,6 @@ term_pval <- sapply(topASD[ASDsig],function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$asd <- term_pval
 
-# Write to file.
-myfile <- file.path(tabsdir,"3_Module_ASD_DEGs_Enrichment.xlsx")
-results <- list(do.call(rbind,ASDresults[ASDsig]))
-names(results) <- data_type
-write_excel(results,myfile)
-
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
@@ -403,14 +384,33 @@ nModules <- sum(names(all_modules) != "M0")
 message(paste("Number of modules:", nModules))
 
 # Get partition of interest.
-partition <- partitions$self
+# If analyzing the combined data, focus on modules that are preserved
+# in opposite tissue type.
+if (data_type == "Combined") {
+	partition <- partitions$other
+} else {
+	# Otherwise focus on modules that are self-preserved.
+	partition <- partitions$self
+}
 
 # Modules from the given partition.
 modules <- split(partition,partition)
 names(modules) <- paste0("M",names(modules))
 
+# If not working with combined data,
+# drop modules that are preserved in other tissue.
+# These will be analyzed seperately.
+if (data_type != "Combined") {
+	out <- which(names(modules) %in% preserved_modules$other)
+	modules <- modules[-out]
+}
+
 # Remove M0.
 modules <- modules[-which(names(modules)=="M0")]
+
+# Fix partition--only analyzing modules defined above.
+out <- partition %notin% as.numeric(gsub("M","",names(modules)))
+partition[out] <- 0
 
 # Calculate Module Eigengenes.
 # Note: Soft power does not influence MEs.
@@ -458,6 +458,12 @@ names(groups) <- rownames(MEs)
 groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
 groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 
+# If grouping all WT samples together...
+if (data_type == "Combined") {
+	# WT from both tissue will be annotated as WT.
+	groups[grepl("WT", groups)] <- "WT"
+}
+
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
 KWdata_list <- lapply(ME_list, function(x) { 
@@ -483,10 +489,18 @@ message(paste0(
 # multiple comparisons!
 
 # Define control group and levels (order) for DunnettTest.
-control_group <- paste("WT", data_type, sep = ".")
 group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
 group_levels <- c(paste(group_order,"Cortex",sep="."),
 		  paste(group_order,"Striatum",sep="."))
+
+# If combining data, set all WT samples to WT.
+if (data_type == "Combined") {
+	control_group <- paste("WT", sep = ".")
+	group_levels[grepl("WT", group_levels)] <- "WT"
+	group_levels <- unique(group_levels)
+} else {
+	control_group <- paste("WT", part_type, sep = ".")
+}
 
 # Loop to perform DTest. NOTE: This takes several seconds.
 DTdata_list <- lapply(ME_list, function(x) {
@@ -517,14 +531,31 @@ if (nSigDisease > 0) {
 ## Generate verbose boxplots.
 #---------------------------------------------------------------------
 
+# Reset sample to group mapping for generating boxplots.
+sampleTraits$Sample.Model.Tissue <- paste(sampleTraits$Sample.Model, 
+					  sampleTraits$Tissue, sep = ".")
+idx <- match(rownames(MEs), sampleTraits$SampleID)
+groups <- sampleTraits$Sample.Model.Tissue[idx]
+names(groups) <- rownames(MEs)
+
+# Group all WT samples from a tissue type together.
+groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
+groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
+
+# Reset group order.
+group_order <- c("WT","KO.Shank2","KO.Shank3", "HET.Syngap1","KO.Ube3a")
+group_levels <- c(paste(group_order,"Cortex",sep="."),
+		  paste(group_order,"Striatum",sep="."))
+
 # Generate boxplots summarizing module protein expression.
+if (data_type != "Combined") { control_group <- NULL }
 plots <- lapply(ME_list,function(x) {
 		 ggplotVerboseBoxplot(x,groups,
-				      group_levels,control_group=NULL)
+				      group_levels,control_group)
   })
 names(plots) <- names(ME_list)
 
-## Loop to clean-up plots.
+## Loop to  clean-up plots.
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 		  "Syngap1 HET","Ube3a KO"),2)
@@ -613,6 +644,7 @@ for (i in 1:length(sigModules)){
 	# Close the device.
 	if (i == length(sigModules)) { dev.off() }
 }
+
 
 #---------------------------------------------------------------------
 ## Examine overall structure of network.
@@ -752,8 +784,6 @@ for (i in 1:length(GOenrichment)) {
 	plots[[i]] <- plot
 }
 
-# Save as single pdf.
-
 # Save a single pdf containing all the sign proteins within a
 # module for each module.
 myfile <- prefix_file(file.path(figsdir,"All_Module_GOscatter.pdf"))
@@ -821,6 +851,7 @@ write_excel(list(PPIs=ppis),myfile)
 # Create a cytoscape network showing all modules.
 createCytoscapeModuleGraph(partition,ME_list)
 
+
 #---------------------------------------------------------------------
 ## Highlight some important modules.
 #---------------------------------------------------------------------
@@ -850,27 +881,46 @@ highlightNodes(nodes=preserved_modules$other,main.network,
 ## Generate cytoscape graphs of all modules.
 #---------------------------------------------------------------------
 
-# Loop to create graphs.
-for (i in c(1:length(modules))) {
-	module_name <- names(modules)[i]
-	message(paste("Working on module", module_name,"..."))
-	nodes <- names(modules[[module_name]])
-	module_kme <- KME_list[[module_name]]
-	network_layout <- 'force-directed edgeAttribute=weight'
-	image_file <- file.path(dirname(figsdir),"Networks",module_name)
-	image_format <- "SVG"
-	createCytoscapeGraph(exp_graph,ppi_graph,nodes,
-		     module_kme,module_name,
-		     module_colors, network_layout,
-		     output_file, image_file,
-		     image_format)
-	# When done, save cytoscape session.
-	if (i == length(modules)) {
-		myfile <- file.path(netsdir,paste0(data_type,".cys"))
-		winfile <- gsub("/mnt/d/","D:/",myfile)
-		saveSession(winfile)
+# If working with Combined data, append graphs to tissue specific 
+# Cytoscape file.
+if (generate_cytoscape_graphs) {
+# Prompt the user to open Cytoscape if it is not open.
+	cytoscape_ping()
+	if (data_type == "Combined") {
+		cysfile <- file.path(netsdir,paste0(part_type,".cys"))
+		if (file.exists(cysfile)){
+			message(paste("Adding graphs to",part_type,"file!"))
+			winfile <- gsub("/mnt/d/","D:/",cysfile)
+			openSession(winfile)
+		} else {
+			message(paste("Analyze",part_type,"data first.",
+			              "Combined graphs will be appended to",
+			              "this file."))
 	}
 }
+
+# Create graphs.
+	for (i in c(1:length(modules))) {
+		module_name = names(modules)[i]
+		message(paste("Working on module", module_name,"..."))
+		nodes = names(modules[[module_name]])
+		module_kme = KME_list[[module_name]]
+		network_layout = 'force-directed edgeAttribute=weight'
+		image_file = file.path(dirname(figsdir),"Networks",module_name)
+		image_format = "SVG"
+		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
+			     module_kme,module_name,
+			     module_colors, network_layout,
+			     output_file, image_file,
+			     image_format)
+		# When done, save cytoscape session.
+		if (i == length(modules)) {
+			myfile <- file.path(netsdir,paste0(part_type,".cys"))
+			winfile <- gsub("/mnt/d/","D:/",myfile)
+			saveSession(winfile)
+		}
+	}
+} # ENDS IF CHUNK
 
 #---------------------------------------------------------------------
 ## Save key results summarizing modules.
