@@ -11,8 +11,8 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
+data_type <- "Striatum" # Cortex, Striatum, or Combined...
+part_type <- "Striatum" # Specify part type when working with comb data.
 generate_cytoscape_graphs <- FALSE
 
 # Data files.
@@ -213,6 +213,7 @@ message(paste0(nPres," of ",nModules," (",pPres,"%) ", part_type,
 
 # Load Disease ontology.
 DBDset <- "mouse_Combined_DBD_collection.RData"
+DBDset <- "2020-02-21_mouse_Combined_DBD_collection.RData"
 myfile <- file.path(rdatdir,DBDset)
 DBDcollection <- readRDS(myfile)
 
@@ -342,12 +343,13 @@ idx <- match(ASD_DEGs[which(ASD_DEGs %in% protmap$entrez)],protmap$entrez)
 ASDprots <- protmap$ids[idx]
 
 # Perform gene set enrichment analysis.
+gene_list <- module_list$Entrez
 ASDresults <- gse(gene_list,ASDcollection)
 
 # Significant go terms for every module.
 method <- "Bonferroni"
 alpha <- 0.05
-topGO <- lapply(ASDresults,function(x) {
+topASD <- lapply(ASDresults,function(x) {
 			idx <- x[[method]] < alpha & x$enrichmentRatio > 1
 			p <- x[[method]][idx]
 			names(p) <- x$shortDataSetName[idx]
@@ -355,12 +357,12 @@ topGO <- lapply(ASDresults,function(x) {
 	    })
 
 # Number of modules with any significant GO term enrichment.
-sigGO <- names(which(sapply(topGO,function(x) length(x) > 0)))
-message(paste("Total number of modules with any significant ASD DEG",
-	      "enrichment:", length(sigGO)))
+sigASD <- names(which(sapply(topASD,function(x) length(x) > 0)))
+message(paste("Total number of modules with significant enrichment",
+	      "of ASD DEGs:",length(sigASD)))
 
 # Add to list of preserved modules.
-term_pval <- sapply(topGO[sigGO],function(x) {
+term_pval <- sapply(topASD[sigASD],function(x) {
 		      paste0(names(x)," (p.adj = ",fx(x),")") })
 preserved_modules$asd <- term_pval
 
@@ -779,13 +781,27 @@ groups <- split(hc_partition,hc_partition)
 # to all others in its group.
 rep_modules <- getMedoid(adjm_me,h=best_k)
 
-# Update dendro with cutheight and representative modules.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
-  geom_hline(yintercept=best_h, color='red', size = 1)
+# Get module which is most different!
+#rep_modules <- sapply(groups,function(x) {
+#	       colSums <- apply(adjm_me[names(x),names(x)],2,sum)
+#	       rep_module <- names(which(colSums == max(colSums)))
+#	       return(rep_module)
+#  })
+
+# Get dendrogram data, update with group and rep_module.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
 dend_data <- dend_data$labels
-dend_data$group <- as.factor(hc_partition[dend_data$label])
+dend_data$group <- hc_partition[as.character(dend_data$label)]
 dend_data$rep_module <- dend_data$label %in% rep_modules
+
+# Add actual position to dend data.
+dend_data$x <- match(as.character(dend_data$label),hc$label[hc$order])
+dend_data <- dend_data %>% arrange(x)
+dend_data$label <- factor(dend_data$label,levels=dend_data$label)
+
+# Generate dendrogram.
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = TRUE) + 
+  geom_hline(yintercept=best_h, color='red', size = 1)
 dendro <- dendro + 
   geom_text(data = dend_data, aes(x, y, label = label, color = rep_module),
             hjust = 1, angle = 90, size = 3) + 
@@ -804,33 +820,30 @@ colnames(df) <- paste0(rep_modules,"cor")
 dm <- (df - min(df))/(max(df) - min(df))
 colnames(dm) <- c("R","G","B")
 df <- data.table(cbind(df,dm))
-rownames(df) <- colnames(adjm_me)
+df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
+df <- df %>% arrange(match(df$Module,as.character(dend_data$label)))
 
 # Convert RGB to hexadecimal color.
 df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
 
 # Collect color assignments.
 module_colors <- df$color
-names(module_colors) <- names(modules)
+names(module_colors) <- names(all_modules)
 
-# Add colored bars to dendro.
-dend_data <- ggdendro::dendro_data(as.dendrogram(hc))$labels
-df <- data.frame("Color" = module_colors[as.character(dend_data$label)],
-		 "Module" = as.character(dend_data$label))
-df$Module <- factor(df$Module,levels=df$Module)
-df$Color <- factor(df$Color,levels=df$Color)
-
-p2<-ggplot(df,aes(x=Module,y=1,fill=Color)) + geom_tile() +
-	scale_fill_manual(values=as.character(df$Color)) + 
+# Generate colored bars.
+dend_data$color <- module_colors[as.character(dend_data$label)]
+dend_data$color <- factor(dend_data$color,levels=dend_data$color)
+p2 <- ggplot(dend_data,aes(x=label,y=1,fill=color)) + geom_tile() +
+	scale_fill_manual(values=as.character(dend_data$color)) + 
 	theme(legend.position="none", axis.text.x = element_text(angle=45))
-
-#maxWidth = grid::unit.pmax(gp1$widths[2:5], gp2$widths[2:5])
-#gp1$widths[2:5] <- as.list(maxWidth)
-#gp2$widths[2:5] <- as.list(maxWidth)
 
 # Save.
 myfile <- prefix_file(file.path(figsdir,"Modules_Dendro.tiff"))
 ggsave(myfile,plot=dendro, height=3, width = 3)
+
+# Save.
+myfile <- prefix_file(file.path(figsdir,"Module_Colors.tiff"))
+ggsave(myfile,plot=p2, height=3, width = 3)
 
 #---------------------------------------------------------------------
 ## Generate ppi graphs and co-expression graphs.
@@ -888,15 +901,18 @@ myfile <- file.path(tabsdir,paste0("3_All_PPIs.csv"))
 write_excel(list(PPIs=ppis),myfile)
 
 #---------------------------------------------------------------------
-## Generate cytoscape graphs.
+## Generate cytoscape graph summarizing overall topolgy of the network.
 #---------------------------------------------------------------------
 
-# Prompt the user to open Cytoscape if it is not open.
-cytoscape_ping()
+#---------------------------------------------------------------------
+## Generate cytoscape graphs of all modules.
+#---------------------------------------------------------------------
 
 # If working with Combined data, append graphs to tissue specific 
 # Cytoscape file.
 if (generate_cytoscape_graphs) {
+# Prompt the user to open Cytoscape if it is not open.
+	cytoscape_ping()
 	if (data_type == "Combined") {
 		cysfile <- file.path(netsdir,paste0(part_type,".cys"))
 		if (file.exists(cysfile)){
@@ -911,7 +927,6 @@ if (generate_cytoscape_graphs) {
 }
 
 # Create graphs.
-if (generate_cytoscape_graphs) {
 	for (i in c(1:length(modules))) {
 		module_name = names(modules)[i]
 		message(paste("Working on module", module_name,"..."))
@@ -932,7 +947,7 @@ if (generate_cytoscape_graphs) {
 			saveSession(winfile)
 		}
 	}
-} # Ends loop to create graphs.
+} # ENDS IF CHUNK
 
 #---------------------------------------------------------------------
 ## Save key results summarizing modules.
@@ -952,7 +967,7 @@ module_summary <- cbind(module_summary,tempKW)
 module_summary$"KW parameter" <- NULL
 
 # Add column for KW sig.
-module_summary$"KW sig" <- module_summary$"KW p.adj" < 0.05
+module_summary$"KW sig" <- module_summary$"KW p.adj" < 0.1
 
 # Combine with DT results.
 reformatDT <- function(x){
@@ -971,6 +986,14 @@ module_summary$"N DT sig" <- nSigDT
 # Any DT sig.
 module_summary$"Any DT sig" <- module_summary$"N DT sig" > 0
 
+# Other protein attributes: PPI pres, tissue pres, OMIM, DBD, GOsig.
+module_summary$PPI <- as.character(module_summary$Module) %in% preserved_modules$ppi
+module_summary$DBD <- sapply(preserved_modules$dbd,function(x) paste(x,collapse=" | "))[as.character(module_summary$Module)]
+module_summary$OMIM <- sapply(preserved_modules$omim,function(x) paste(x,collapse=" | "))[as.character(module_summary$Module)]
+module_summary$PFAM <- sapply(preserved_modules$pfam,function(x) paste(x,collapse=" | "))[as.character(module_summary$Module)]
+module_summary$ASD_DEGs <- sapply(preserved_modules$asd,function(x) paste(x,collapse=" | "))[as.character(module_summary$Module)]
+module_summary$"Preserved in opposite tissue" <- sapply(preserved_modules$other,function(x) paste(x,collapse=" | "))[as.character(module_summary$Module)]
+
 ## More detailed summary of every module.
 dfs <- lapply(seq_along(KME_list), function(x) {
 	       df <- data.table(Protein = names(partition))
@@ -984,8 +1007,6 @@ dfs <- lapply(seq_along(KME_list), function(x) {
 	       df <- df[order(df$KME,decreasing=TRUE),]
 		 })
 names(dfs) <- names(modules)
-
-# Other protein attributes: PPI pres, tissue pres, OMIM, DBD, GOsig.
 
 # Add expression data.
 for (i in seq_along(dfs)){
