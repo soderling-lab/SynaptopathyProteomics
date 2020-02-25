@@ -15,7 +15,7 @@ data_type <- "Striatum" # Cortex, Striatum, or Combined...
 part_type <- "Striatum" # Specify part type when working with comb data.
 fig_ext <- "tiff"
 
-# Data files.
+## Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
 				      Striatum="3_Striatum_Adjm.RData",
 				      Combined="3_Combined_Adjm.RData"),
@@ -69,7 +69,6 @@ if (data_type == "Combined") {
 # Remove any existing figures and tables.
 invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
 invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
-
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -322,6 +321,10 @@ GOcollection <- buildGOcollection(organism="mouse")
 # Perform gene set enrichment analysis.
 GOresults <- gse(gene_list,GOcollection)
 
+# Check enrichment of DBD genes.
+#DBD_GOresults <- gse(DBDgenes,GOcollection,background="reference")
+#write_excel(DBD_GOresults,"DBD_GO_Enrichment.xlsx")
+
 # Significant go terms for every module.
 method <- "FDR"
 alpha <- 0.05
@@ -529,8 +532,10 @@ sigDBDmodules <- nSigDT[sigModules[which(sigModules %in% DBDsig)]]
 nSigDisease <- length(sigDBDmodules)
 if (nSigDisease > 0) {
   message(paste("Number of significant modules with",
-		"significant enrichment of DBD-associated genes:", nSigDisease))
-  message("Summary of Dunnett's test changes for significant, DBD-associated modules:")
+		"significant enrichment of DBD-associated genes:", 
+		nSigDisease))
+  message(paste("Summary of Dunnett's test changes for significant,",
+	  "DBD-associated modules:"))
   print(sigDBDmodules)
 }
 
@@ -567,12 +572,11 @@ plots <- lapply(ME_list,function(x) {
 names(plots) <- names(ME_list)
 
 ## Loop to  clean-up plots.
-# Simplify x-axis labels.
-x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
-		  "Syngap1 HET","Ube3a KO"),2)
-
 # Loop to clean-up plots.
 for (k in seq_along(plots)) {
+	# Simplify x-axis labels.
+	x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
+			  "Syngap1 HET","Ube3a KO"),2)
 	# Add title and fix xlabels.
 	plot <- plots[[k]]
 	m <- names(plots)[k]
@@ -597,8 +601,9 @@ for (k in seq_along(plots)) {
 	df$color[df$pval<0.05] <- "red"
 	# If KW Sig, then add stars.
 	if (KWdata[m,"p.adj"] < 0.1){
-		plot <- plot + geom_text(data=df,aes(x=xpos, y=ypos,
-						     label=symbol,size=7))
+		plot <- plot + 
+			geom_text(data=df,aes(x=xpos, 
+					      y=ypos,label=symbol,size=7))
 	}
 	# Fix title and xlabels.
 	txt <- paste0("P.adj = ", round(KWdata[m,"p.adj"],3),
@@ -668,7 +673,23 @@ for (i in 1:length(sigModules)){
 #---------------------------------------------------------------------
 
 # Examine relationships between modules by comparing their summary
-# expression profiles (MEs).
+# expression profiles (MEs). This is done for tissue specific MEs--
+# i.e. do not use the Combined data.
+
+# Recalculate MEs.
+myfile <- file.path(rdatdir,input_files$data_file[[part_type]])
+temp <- readRDS(myfile)
+tempdat <- t(temp)
+colnames(tempdat) <- rownames(temp)
+MEdata <- moduleEigengenes(tempdat,
+			   colors = partitions$self, 
+			   excludeGrey = TRUE,
+			   softPower = 1, 
+			   impute = FALSE
+			   )
+MEs <- as.matrix(MEdata$eigengenes)
+ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) 
+names(ME_list) <- names(all_modules)
 
 # Calculate correlations between ME vectors.
 adjm_me <- cor(do.call(cbind,ME_list))
@@ -707,6 +728,16 @@ groups <- split(hc_partition,hc_partition)
 # to all others in its group.
 rep_modules <- getMedoid(adjm_me,k=best_k)
 
+# Try getting hub instead...
+rep_modules <- sapply(groups,function(x) {
+			      idx <- idy <- names(x)
+			      col_sums <- apply(adjm_me[idx,idy],2,sum)
+	       idmax <- names(which(col_sums==max(col_sums)))
+	       return(idmax)
+  })
+
+
+
 # Get dendrogram data, update with group and rep_module.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
 dend_data <- dend_data$labels
@@ -742,9 +773,11 @@ if (length(groups) == 3) {
 	colnames(dm) <- c("R","G","B")
 	df <- data.table(cbind(df,dm))
 	df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
-	df <- df %>% arrange(match(df$Module,as.character(dend_data$label)))
+	df <- df %>% 
+		arrange(match(df$Module,as.character(dend_data$label)))
 	# Convert RGB to hexadecimal color.
-	df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
+	df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, 
+			 maxColorValue=255)
 } else if (length(groups) == 4) {
 	# Use CMYK colors if four groups!
 	# Rescale the data to [0,1].
@@ -752,18 +785,20 @@ if (length(groups) == 3) {
 	colnames(dm) <- c("C","M","Y","K")
 	color <- vector("numeric",nrow(dm))
 	for (idx in 1:nrow(dm)) {
-		color[idx] <- cmyk(dm[idx,1],dm[idx,2],dm[idx,3],dm[idx,4])
+		color[idx] <- cmyk(dm[idx,1],dm[idx,2],
+				   dm[idx,3],dm[idx,4])
 	}
 	df <- data.table(cbind(df,dm))
 	df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
-	df <- df %>% arrange(match(df$Module,as.character(dend_data$label)))
+	df <- df %>% 
+		arrange(match(df$Module,as.character(dend_data$label)))
 	# Convert CMYK to hexadecimal color.
 	df$color <- color 
 }
 
 # Collect color assignments.
 module_colors <- df$color
-names(module_colors) <- names(modules)
+names(module_colors) <- names(all_modules)
 
 # Generate colored bars.
 dend_data$color <- module_colors[as.character(dend_data$label)]
@@ -773,11 +808,11 @@ p2 <- ggplot(dend_data,aes(x=label,y=1,fill=color)) + geom_tile() +
 	theme(legend.position="none", axis.text.x = element_text(angle=45))
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,"Modules_Dendro.tiff"))
+myfile <- filename("Modules_Dendro",fig_ext,figsdir)
 ggsave(myfile,plot=dendro, height=3, width = 3)
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,"Module_Colors.tiff"))
+myfile <- filename("Module_Colors",fig_ext,figsdir)
 ggsave(myfile,plot=p2, height=3, width = 3)
 
 #---------------------------------------------------------------------
@@ -822,7 +857,7 @@ names(plots) <- names(modules)
 
 # Save a single pdf containing all the sign proteins within a
 # module for each module.
-myfile <- prefix_file(file.path(figsdir,"Module_GOscatter.pdf"))
+myfile <- filename("Module_GOscatter","pdf",figsdir)
 ggsavePDF(plots,myfile)
 
 #---------------------------------------------------------------------
@@ -860,7 +895,7 @@ for (DBD in names(DBDnodes)){
 				 value = as.numeric(DBDnodes[[DBD]]))
 }
 
-# Collect PPI evidence.
+# Collect PPI evidence and save to file.
 myfile <- file.path(rdatdir,"3_All_PPIs.RData")
 ppis <- readRDS(myfile)
 
@@ -877,14 +912,14 @@ ppis <- ppis %>% select(ProteinA,ProteinB,osEntrezA,osEntrezB,
 			Publications,Methods)
 
 # Save to file.
-myfile <- file.path(tabsdir,paste0("3_All_PPIs.csv"))
+myfile <- file.path(tabsdir,paste0("3_All_PPIs.xlxs"))
 write_excel(list(PPIs=ppis),myfile)
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graph summarizing overall topolgy of the network.
 #---------------------------------------------------------------------
 
-# Prompt user to open Cytoscape.
+# Prompt user to open Cytoscape if it is not already open.
 cytoscape_ping()
 
 # If working with Combined data, append graphs to tissue specific 
@@ -896,14 +931,14 @@ if (data_type == "Combined") {
 		winfile <- gsub("/mnt/d/","D:/",cysfile)
 		openSession(winfile)
 	} else {
-		message(paste("Analyze",part_type,"data first.",
-			              "Combined graphs will be appended to",
-			              "this file."))
+		message(paste("Analyze",part_type,
+			      "data first. Combined graphs will be",
+			      "appended to this file."))
 	}
 }
 
 # Create a cytoscape network showing all modules.
-createCytoscapeModuleGraph(partition,ME_list,
+createCytoscapeModuleGraph(partitions$self,ME_list,
 			   title=paste(data_type,"Modules"))
 
 #---------------------------------------------------------------------
@@ -924,17 +959,17 @@ net <- getNetworkSuid()
 
 # Generate subnetworks highlighting some modules of intereest.
 highlightNodes(nodes=sigModules,main.network=net,
-	       subnetwork.name="Sig Modules")
-highlightNodes(nodes=DBDsig[DBDsig %in% names(modules)],
+	       subnetwork.name=paste(part_type,"Sig"))
+highlightNodes(nodes=DBDsig[DBDsig %in% names(all_modules)],
 	       main.network=net,subnetwork.name="DBD")
-highlightNodes(nodes=ASDsig[ASDsig %in% names(modules)],
+highlightNodes(nodes=ASDsig[ASDsig %in% names(all_modules)],
 	       main.network=net,subnetwork.name="ASD DEG")
-highlightNodes(nodes=GOsig[GOsig %in% names(modules)],
+highlightNodes(nodes=GOsig[GOsig %in% names(all_modules)],
 	       main.network=net, subnetwork.name="GO")
-highlightNodes(nodes=PPIsig[PPIsig %in% names(modules)],
+highlightNodes(nodes=PPIsig[PPIsig %in% names(all_modules)],
 	       main.network=net, subnetwork.name="PPI")
 
-# Meta modules.
+# Meta modules groups.
 for (i in 1:length(groups)){
 	highlightNodes(nodes=names(groups[[i]]),main.network=net, 
 		       subnetwork.name=paste("MetaModule",i))
@@ -954,12 +989,15 @@ if (data_type == "Combined") {
 		openSession(winfile)
 	} else {
 		message(paste("Analyze",part_type,"data first.",
-			              "Combined graphs will be appended to",
-			              "this file."))
+			              "Combined graphs will be",
+				      "appended to this file."))
 	}
 }
+	
+# Create a new network collection.
+#createEmptyNetwork(paste(data_type,"Modules"))
 
-# Create graphs.
+# Loop to create graphs.
 for (i in c(1:length(modules))) {
 		module_name = names(modules)[i]
 		message(paste("Working on module", module_name,"..."))
