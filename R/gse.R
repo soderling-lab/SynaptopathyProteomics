@@ -55,8 +55,12 @@ gse <- function(gene_list,GeneSetcollection, background = "given", ...) {
 	# Collect the results.
 	results <- list()
 	n <- ncol(classLabels)
-	for (r in 1:n) {
-		results[[r]] <- temp_results$setResults[[r]]$enrichmentTable
+	if (n==1) {
+		results[[r]] <- temp_results$enrichmentTable
+	} else {
+		for (r in 1:n) {
+			results[[r]] <- temp_results$setResults[[r]]$enrichmentTable
+		}
 	}
 	names(results) <- colnames(classLabels)
 	# Return results.
