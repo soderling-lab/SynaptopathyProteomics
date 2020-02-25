@@ -11,8 +11,9 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Cortex" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
+data_type <- "Striatum" # Cortex, Striatum, or Combined...
+part_type <- "Striatum" # Specify part type when working with comb data.
+fig_ext <- "tiff"
 
 # Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -46,6 +47,9 @@ suppressPackageStartupMessages({
   library(RCy3)
 })
 
+# Functions.
+suppressWarnings({ devtools::load_all() })
+
 # Directories.
 here <- getwd()
 subdir <- basename(here)
@@ -57,12 +61,15 @@ netsdir <- file.path(root, "networks",part_type)
 figsdir <- file.path(root, "figs",subdir,data_type)
 tabsdir <- file.path(root, "tables", subdir,data_type)
 
+# Subdirectory for combined figures.
+if (data_type == "Combined") {
+	figsdir <- file.path(figsdir,part_type)
+}
+
 # Remove any existing figures and tables.
 invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
 invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
 
-# Functions.
-suppressWarnings({ devtools::load_all() })
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -300,7 +307,7 @@ mytable <- gtable_add_grob(mytable,
 fig <- plot_grid(mytable)
 
 # Save.
-myfile <- prefix_file(file.path(figsdir,"DBD_Gene_Summary.tiff"))
+myfile <- filename("DBD_Gene_Summary",fig_ext,figsdir)
 ggsaveTable(mytable,myfile)
 
 #--------------------------------------------------------------------
@@ -527,8 +534,8 @@ if (nSigDisease > 0) {
   print(sigDBDmodules)
 }
 
-# Table summarizing key network stats.
-n <- length(modules)
+## TODO: add table summarizing key network stats.
+#n <- length(modules)
 #medianPVE
 
 #---------------------------------------------------------------------
@@ -563,6 +570,7 @@ names(plots) <- names(ME_list)
 # Simplify x-axis labels.
 x_labels <- rep(c("WT","Shank2 KO","Shank3 KO",
 		  "Syngap1 HET","Ube3a KO"),2)
+
 # Loop to clean-up plots.
 for (k in seq_along(plots)) {
 	# Add title and fix xlabels.
@@ -572,6 +580,9 @@ for (k in seq_along(plots)) {
 	DTdata_list[[m]]$pval
 	dt <- DTdata_list[[m]]
 	df <- data.table(plot$data)
+	if (data_type != "Combined") { 
+		control_group <- paste("WT", part_type, sep = ".")
+	}
 	idx <- match(paste(df$g,control_group,sep="-"),rownames(dt))
 	df$pval <- dt$pval[idx]
 	df$pval[is.na(df$pval)] <- 1
@@ -604,11 +615,11 @@ for (k in seq_along(plots)) {
 #---------------------------------------------------------------------
 
 # Save all modules.
-myfile <- prefix_file(file.path(figsdir,"Module_Boxplots.pdf"))
+myfile <- filename("Module_Boxplots","pdf",figsdir)
 ggsavePDF(plots,myfile)
 
 # Save sig modules as single pdf.
-myfile <- prefix_file(file.path(figsdir,"Sig_Module_Boxplots.pdf"))
+myfile <- filename("Sig_Module_Boxplots","pdf",figsdir)
 ggsavePDF(plots[sigModules],myfile)
 
 #---------------------------------------------------------------------
@@ -631,9 +642,9 @@ all_plots <- readRDS(myfile)
 plot_list <- split(all_plots,partition[names(all_plots)])
 names(plot_list) <- paste0("M",names(plot_list))
 
-# Save a single pdf containing all the sign proteins within a
-# module for each module.
-## FIXME: suppress output from grid.arrange!
+# Save a single pdf for each sig module containing all of its 
+# sig proteins.
+## TODO: suppress output from grid.arrange!
 for (i in 1:length(sigModules)){
 	module_name <- sigModules[i]
 	plots <- plot_list[[module_name]]
@@ -645,8 +656,8 @@ for (i in 1:length(sigModules)){
 			       return(fig)
 		 })
 	# Save.
-	myfile <- prefix_file(file.path(figsdir,
-				paste0(module_name,"_Module_SigProts.pdf")))
+	namen <- paste0(module_name,"_Module_SigProts")
+	myfile <- filename(namen,"pdf",figsdir)
 	ggsavePDF(figs,myfile)
 	# Close the device.
 	if (i == length(sigModules)) { dev.off() }
@@ -694,7 +705,7 @@ groups <- split(hc_partition,hc_partition)
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
-rep_modules <- getMedoid(adjm_me,h=best_k)
+rep_modules <- getMedoid(adjm_me,k=best_k)
 
 # Get dendrogram data, update with group and rep_module.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
@@ -720,19 +731,35 @@ dendro <- dendro +
 ## Generate module colors based on their dist to rep modules.
 #---------------------------------------------------------------------
 
-# Assign modules a color based on similarity with three rep modules.
+# Assign modules a color based on similarity with rep modules.
 df <- do.call(cbind,lapply(rep_modules,function(x) adjm_me[,x]))
 colnames(df) <- paste0(rep_modules,"cor")
 
-# Rescale the data to [0,1].
-dm <- (df - min(df))/(max(df) - min(df))
-colnames(dm) <- c("R","G","B")
-df <- data.table(cbind(df,dm))
-df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
-df <- df %>% arrange(match(df$Module,as.character(dend_data$label)))
-
-# Convert RGB to hexadecimal color.
-df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
+if (length(groups) == 3) {
+	# Use RGB colors for three groups!
+	# Rescale the data to [0,1].
+	dm <- (df - min(df))/(max(df) - min(df))
+	colnames(dm) <- c("R","G","B")
+	df <- data.table(cbind(df,dm))
+	df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
+	df <- df %>% arrange(match(df$Module,as.character(dend_data$label)))
+	# Convert RGB to hexadecimal color.
+	df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, maxColorValue=255)
+} else if (length(groups) == 4) {
+	# Use CMYK colors if four groups!
+	# Rescale the data to [0,1].
+	dm <- (df - min(df))/(max(df) - min(df))
+	colnames(dm) <- c("C","M","Y","K")
+	color <- vector("numeric",nrow(dm))
+	for (idx in 1:nrow(dm)) {
+		color[idx] <- cmyk(dm[idx,1],dm[idx,2],dm[idx,3],dm[idx,4])
+	}
+	df <- data.table(cbind(df,dm))
+	df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
+	df <- df %>% arrange(match(df$Module,as.character(dend_data$label)))
+	# Convert CMYK to hexadecimal color.
+	df$color <- color 
+}
 
 # Collect color assignments.
 module_colors <- df$color
@@ -857,6 +884,24 @@ write_excel(list(PPIs=ppis),myfile)
 ## Generate cytoscape graph summarizing overall topolgy of the network.
 #---------------------------------------------------------------------
 
+# Prompt user to open Cytoscape.
+cytoscape_ping()
+
+# If working with Combined data, append graphs to tissue specific 
+# Cytoscape file.
+if (data_type == "Combined") {
+	cysfile <- file.path(netsdir,paste0(part_type,".cys"))
+	if (file.exists(cysfile)){
+		message(paste("Adding graphs to",part_type,"file!"))
+		winfile <- gsub("/mnt/d/","D:/",cysfile)
+		openSession(winfile)
+	} else {
+		message(paste("Analyze",part_type,"data first.",
+			              "Combined graphs will be appended to",
+			              "this file."))
+	}
+}
+
 # Create a cytoscape network showing all modules.
 createCytoscapeModuleGraph(partition,ME_list,
 			   title=paste(data_type,"Modules"))
@@ -880,16 +925,12 @@ net <- getNetworkSuid()
 # Generate subnetworks highlighting some modules of intereest.
 highlightNodes(nodes=sigModules,main.network=net,
 	       subnetwork.name="Sig Modules")
-
 highlightNodes(nodes=DBDsig[DBDsig %in% names(modules)],
 	       main.network=net,subnetwork.name="DBD")
-
 highlightNodes(nodes=ASDsig[ASDsig %in% names(modules)],
 	       main.network=net,subnetwork.name="ASD DEG")
-
 highlightNodes(nodes=GOsig[GOsig %in% names(modules)],
 	       main.network=net, subnetwork.name="GO")
-
 highlightNodes(nodes=PPIsig[PPIsig %in% names(modules)],
 	       main.network=net, subnetwork.name="PPI")
 
@@ -925,7 +966,8 @@ for (i in c(1:length(modules))) {
 		nodes = names(modules[[module_name]])
 		module_kme = KME_list[[module_name]]
 		network_layout = 'force-directed edgeAttribute=weight'
-		image_file = file.path(dirname(figsdir),"Networks",module_name)
+		image_file = file.path(dirname(figsdir),
+				       "Networks",data_type,module_name)
 		image_format = "SVG"
 		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
