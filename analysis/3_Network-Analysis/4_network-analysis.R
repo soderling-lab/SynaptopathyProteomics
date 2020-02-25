@@ -67,8 +67,8 @@ if (data_type == "Combined") {
 }
 
 # Remove any existing figures and tables.
-invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
-invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
+invisible(sapply(files.no.dirs(figsdir),unlink))
+invisible(sapply(files.no.dirs(tabsdir),unlink))
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -798,6 +798,13 @@ if (length(groups) == 3) {
 module_colors <- df$color
 names(module_colors) <- names(all_modules)
 
+# Add gray.
+module_colors <- c(module_colors,c("M0" = col2hex("light gray")))
+
+# Generate node colors.
+node_colors <- module_colors[paste0("M",partitions$self)]
+names(node_colors) <- names(partitions$self)
+
 # Generate colored bars.
 dend_data$color <- module_colors[as.character(dend_data$label)]
 dend_data$color <- factor(dend_data$color,levels=dend_data$color)
@@ -914,6 +921,91 @@ myfile <- file.path(tabsdir,paste0("3_All_PPIs.xlxs"))
 write_excel(list(PPIs=ppis),myfile)
 
 #---------------------------------------------------------------------
+## Demonstrate that interacting proteins are highly co-expressed.
+#---------------------------------------------------------------------
+
+# Merge PPI and co-expression graphs into a single data.table.
+df <- as_long_data_frame(igraph::union(ppi_graph,exp_graph))
+df <- as.data.table(df)
+
+# Get the relevant data columns.
+df <- df %>% dplyr::select(c(from_name,to_name,weight_1,weight_2))
+
+# Convert NA's to 0/FALSE (PPI edges).
+df$weight_1[is.na(df$weight_1)] <- 0
+
+# Seed seed for reproducibility.
+set.seed(1207) 
+
+# Randomly sample edges.
+n <- 10000
+if ( n > sum(df$weight_1)) { 
+	message(paste("Warning: n can't be larger than the observed",
+		      "number of interactions in the graph."))
+}
+
+# Get random subset of interacting proteins.
+idx <- sample(which(df$weight_1==1),n)
+
+# Get random subset of non-interacting proteins.
+idy <- sample(which(df$weight_1==0),n)
+
+# Subset the data, coerce PPI column to factor.
+subdat <- df[c(idx,idy),]
+subdat$weight_1 <- factor(subdat$weight_1,levels=c(0,1)) 
+
+# Calculate WRS p-value.
+# Refactor, test that TRUE > FALSE.
+WRS_test <- wilcox.test(subdat$weight_2 ~ subdat$weight_1, alternative = "less")
+WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
+
+# Generate a plot.
+  plot <- ggplot(subdat, aes(x = weight_1, y = weight_2, fill = weight_1)) +
+    geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
+    scale_x_discrete(labels = c("PPI = False", "PPI = True")) +
+    ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
+    scale_fill_manual(values = c("gray", "dark orange")) +
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 11, face = "bold"),
+      legend.position = "none"
+    )
+  
+# Add Annotation.
+plot <- plot + 
+  annotate("text", x = 1.5, y = 1.0,
+           label = paste("p-value =",WRS_pval), size = 6, color = "black")
+
+# Save figure.
+myfile <- filename("WRS_PPI_Bicor_Proteins",fig_ext,figsdir)
+ggsave(myfile, plot, height = 4, width = 4)
+
+#---------------------------------------------------------------------
+## Generate cytoscape graph summarizing overall topolgy of the network.
+#---------------------------------------------------------------------
+
+save.image()
+quit()
+
+# Create a cytoscape graph of the co-expression network.
+# Perform network enhancement and thresholding to improve layout.
+net <- createCytoscapeCoExpressionGraph(partitions$self,node_colors,
+				 threshold = 7.815, background =0,
+				 network_layout = 'force-directed edgeAttribute=weight',
+				 title = part_type)
+
+# Generate subnetworks highlighting some modules of intereest.
+
+highlightNodes(nodes=sigProts,main.network=net,
+	       subnetwork.name=paste(part_type,"SigProts"))
+
+#---------------------------------------------------------------------
+## Generate cytoscape graph summarizing overall topolgy of the network.
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
 ## Generate cytoscape graph summarizing overall topolgy of the network.
 #---------------------------------------------------------------------
 
@@ -966,6 +1058,8 @@ highlightNodes(nodes=GOsig[GOsig %in% names(all_modules)],
 	       main.network=net, subnetwork.name="GO")
 highlightNodes(nodes=PPIsig[PPIsig %in% names(all_modules)],
 	       main.network=net, subnetwork.name="PPI")
+highlightNodes(nodes=rep_modules[rep_modules %in% names(all_modules)],
+	       main.network=net, subnetwork.name="MetaModule Hubs")
 
 # Meta modules groups.
 for (i in 1:length(groups)){

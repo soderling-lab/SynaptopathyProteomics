@@ -12,4 +12,5 @@ highlightNodes <- function(nodes, main.network, subnetwork.name) {
 	setNodePropertyBypass(node.names = nodes, 
 			      new.values="red",
 			      visual.property="NODE_FILL_COLOR")
+	fitContent(network=subnet)
 }
