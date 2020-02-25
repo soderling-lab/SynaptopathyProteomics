@@ -11,8 +11,8 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Striatum" # Cortex, Striatum, or Combined...
-part_type <- "Striatum" # Specify part type when working with comb data.
+data_type <- "Combined" # Cortex, Striatum, or Combined...
+part_type <- "Cortex" # Specify part type when working with comb data.
 fig_ext <- "tiff"
 
 ## Data files.
@@ -726,7 +726,7 @@ groups <- split(hc_partition,hc_partition)
 # Get representative module from each group, its medoid.
 # The medoid is the module which is closes (i.e. most similar) 
 # to all others in its group.
-rep_modules <- getMedoid(adjm_me,k=best_k)
+#rep_modules <- getMedoid(adjm_me,k=best_k)
 
 # Try getting hub instead...
 rep_modules <- sapply(groups,function(x) {
@@ -735,8 +735,6 @@ rep_modules <- sapply(groups,function(x) {
 	       idmax <- names(which(col_sums==max(col_sums)))
 	       return(idmax)
   })
-
-
 
 # Get dendrogram data, update with group and rep_module.
 dend_data <- ggdendro::dendro_data(as.dendrogram(hc))
@@ -979,21 +977,6 @@ for (i in 1:length(groups)){
 ## Generate cytoscape graphs of all modules.
 #---------------------------------------------------------------------
 
-# If working with Combined data, append graphs to tissue specific 
-# Cytoscape file.
-if (data_type == "Combined") {
-	cysfile <- file.path(netsdir,paste0(part_type,".cys"))
-	if (file.exists(cysfile)){
-		message(paste("Adding graphs to",part_type,"file!"))
-		winfile <- gsub("/mnt/d/","D:/",cysfile)
-		openSession(winfile)
-	} else {
-		message(paste("Analyze",part_type,"data first.",
-			              "Combined graphs will be",
-				      "appended to this file."))
-	}
-}
-	
 # Create a new network collection.
 #createEmptyNetwork(paste(data_type,"Modules"))
 
@@ -1005,7 +988,7 @@ for (i in c(1:length(modules))) {
 		module_kme = KME_list[[module_name]]
 		network_layout = 'force-directed edgeAttribute=weight'
 		image_file = file.path(dirname(figsdir),
-				       "Networks",data_type,module_name)
+				       "Networks",part_type,module_name)
 		image_format = "SVG"
 		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
