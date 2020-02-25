@@ -3,6 +3,7 @@
 .Rproj.user
 .Rhistory
 .RData
+.RDataTmp
 *.Rproj
 *.swp
 __pycache__/

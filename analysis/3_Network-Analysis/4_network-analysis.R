@@ -13,7 +13,7 @@
 ## User parameters to change:
 data_type <- "Combined" # Cortex, Striatum, or Combined...
 part_type <- "Cortex" # Specify part type when working with comb data.
-fig_ext <- "tiff"
+fig_ext <- "eps"
 
 ## Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -764,35 +764,17 @@ dendro <- dendro +
 df <- do.call(cbind,lapply(rep_modules,function(x) adjm_me[,x]))
 colnames(df) <- paste0(rep_modules,"cor")
 
-if (length(groups) == 3) {
-	# Use RGB colors for three groups!
-	# Rescale the data to [0,1].
-	dm <- (df - min(df))/(max(df) - min(df))
-	colnames(dm) <- c("R","G","B")
-	df <- data.table(cbind(df,dm))
-	df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
-	df <- df %>% 
-		arrange(match(df$Module,as.character(dend_data$label)))
-	# Convert RGB to hexadecimal color.
-	df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, 
-			 maxColorValue=255)
-} else if (length(groups) == 4) {
-	# Use CMYK colors if four groups!
-	# Rescale the data to [0,1].
-	dm <- (df - min(df))/(max(df) - min(df))
-	colnames(dm) <- c("C","M","Y","K")
-	color <- vector("numeric",nrow(dm))
-	for (idx in 1:nrow(dm)) {
-		color[idx] <- cmyk(dm[idx,1],dm[idx,2],
-				   dm[idx,3],dm[idx,4])
-	}
-	df <- data.table(cbind(df,dm))
-	df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
-	df <- df %>% 
-		arrange(match(df$Module,as.character(dend_data$label)))
-	# Convert CMYK to hexadecimal color.
-	df$color <- color 
-}
+# Use RGB colors for three groups!
+# Rescale the data to [0,1].
+dm <- (df - min(df))/(max(df) - min(df))
+colnames(dm) <- c("R","G","B")
+df <- data.table(cbind(df,dm))
+df <- tibble::add_column(df,Module=colnames(adjm_me),.before=1)
+df <- df %>% 
+	arrange(match(df$Module,as.character(dend_data$label)))
+# Convert RGB to hexadecimal color.
+df$color <-  rgb(255*df$R, 255*df$G, 255*df$B, 
+		 maxColorValue=255)
 
 # Collect color assignments.
 module_colors <- df$color
