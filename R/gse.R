@@ -17,7 +17,7 @@
 #'
 #' @examples
 #' gse()
-gse <- function(gene_list,GeneSetcollection, ...) {
+gse <- function(gene_list,GeneSetcollection, background = "given", ...) {
 	suppressPackageStartupMessages({
 		library(org.Mm.eg.db)
 	        library(anRichment)
@@ -44,7 +44,7 @@ gse <- function(gene_list,GeneSetcollection, ...) {
 	                                   refCollection = GeneSetcollection,
 					   active = NULL,
 					   inactive = NULL,
-					   useBackground = "given",
+					   useBackground = background,
 					   threshold = 0.05,
 					   thresholdType = "Bonferroni",
 					   getOverlapEntrez = TRUE,
