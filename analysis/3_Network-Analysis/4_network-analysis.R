@@ -11,7 +11,7 @@
 #--------------------------------------------------------------------
 
 ## User parameters to change:
-data_type <- "Combined" # Cortex, Striatum, or Combined...
+data_type <- "Cortex" # Cortex, Striatum, or Combined...
 part_type <- "Cortex" # Specify part type when working with comb data.
 fig_ext <- "eps"
 
@@ -66,9 +66,18 @@ if (data_type == "Combined") {
 	figsdir <- file.path(figsdir,part_type)
 }
 
+# Other subdirectories for figures.
+modsdir <- file.path(figsdir,"Modules")
+protdir <- file.path(figsdir,"Proteins")
+scatdir <- file.path(figsdir,"GOScatter")
+figsdir <- file.path(figsdir,toupper(fig_ext))
+
 # Remove any existing figures and tables.
 invisible(sapply(files.no.dirs(figsdir),unlink))
 invisible(sapply(files.no.dirs(tabsdir),unlink))
+invisible(sapply(files.no.dirs(modsdir),unlink))
+invisible(sapply(files.no.dirs(protdir),unlink))
+invisible(sapply(files.no.dirs(scatdir),unlink))
 
 # Load protein identifier map.
 protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
@@ -115,6 +124,9 @@ names(partitions) <- names(input_files$part_file[[part_type]])
 
 # Load theme for plots.
 ggtheme()
+
+# Load theme for tables.
+#mytheme <- gtabtheme()
 
 # Reset partition index for self-preserved modules.
 partitions$self <- reset_index(partitions$self)
@@ -234,6 +246,7 @@ DBDcollection <- readRDS(myfile)
 gene_list <- module_list$Entrez
 DBDenrichment <- gse(gene_list, DBDcollection)
 
+
 # Collect modules with significant enrichment of DBD-genes.
 method <- "FDR"
 alpha <- 0.05
@@ -276,23 +289,45 @@ DBDanno <- apply(DBDdf,1,function(x) paste(colnames(DBDdf)[x],collapse="; "))
 DBDanno[DBDanno == ""] <- NA
 
 #---------------------------------------------------------------------
+## Is the Synaptosome enriched for DBD genes?
+#---------------------------------------------------------------------
+
+# FIXME: Not working!
+#all_genes <- unlist(gene_list,use.names=FALSE)
+#gene_list <- list("Synaptosome" = genes)
+#SP_DBDenrichment <- gse(gene_list, DBDcollection,background="allOrgGenes")
+#write_excel(SP_DBDenrichment,"temp.xlsx")
+
+#results = enrichmentAnalysis(active = DBDgenes, 
+#j			inactive = all_genes,
+#			useBackground = "intersection",
+#			refCollection = GOcollection)
+
+#---------------------------------------------------------------------
 ## Create a table summarizing disease genes.
 #---------------------------------------------------------------------
 
+# Summarize disease genes in final clustered dataset.
+part <- partitions$self
+prots <- names(part)[which(part != 0)]
+
+# Filter DBDprots
+myprots <- sapply(DBDprots,function(x) x[x %in% prots])
+
 # Summarize all DBD genes identified in synaptosome.
-df <- t(as.data.frame(sapply(DBDprots,length)))
+df <- t(as.data.frame(sapply(myprots,length)))
 rownames(df) <- NULL
 
-# Modify default table theme to change font size.
-# Cex is a scaling factor relative to the defaults.
+# Theme for tables.
 mytheme <- gridExtra::ttheme_default(
-  core = list(fg_params = list(cex = 0.75)),
-  colhead = list(fg_params = list(cex = 0.75)),
-  rowhead = list(fg_params = list(cex = 0.75))
-)
+	core = list(fg_params = list(cex = 0.75)),
+	colhead = list(fg_params = list(cex = 0.75)),
+	rowhead = list(fg_params = list(cex = 0.75)) )
+
 # Create table and add borders.
-# Border around data rows.
 mytable <- tableGrob(df, rows = NULL, theme = mytheme)
+
+# Add Border around data rows.
 mytable <- gtable_add_grob(mytable,
   grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
   t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
@@ -320,10 +355,6 @@ GOcollection <- buildGOcollection(organism="mouse")
 
 # Perform gene set enrichment analysis.
 GOresults <- gse(gene_list,GOcollection)
-
-# Check enrichment of DBD genes.
-#DBD_GOresults <- gse(DBDgenes,GOcollection,background="reference")
-#write_excel(DBD_GOresults,"DBD_GO_Enrichment.xlsx")
 
 # Significant go terms for every module.
 method <- "FDR"
@@ -539,9 +570,9 @@ if (nSigDisease > 0) {
   print(sigDBDmodules)
 }
 
-## TODO: add table summarizing key network stats.
-#n <- length(modules)
-#medianPVE
+# Save significant modules. 
+myfile <- file.path(rdatdir,paste0(data_type,"_sigModules.RData"))
+saveRDS(sigModules,myfile)
 
 #---------------------------------------------------------------------
 ## Generate verbose boxplots.
@@ -620,18 +651,22 @@ for (k in seq_along(plots)) {
 #---------------------------------------------------------------------
 
 # Save all modules.
-myfile <- filename("Module_Boxplots","pdf",figsdir)
-ggsavePDF(plots,myfile)
+for (i in seq_along(plots)) {
+	namen <- names(plots)[i]
+	myfile <- filename(namen,fig_ext,modsdir)
+	ggsave(myfile,plots[[i]],height=7,width=7)
+}
 
 # Save sig modules as single pdf.
-myfile <- filename("Sig_Module_Boxplots","pdf",figsdir)
-ggsavePDF(plots[sigModules],myfile)
+#myfile <- filename("Sig_Module_Boxplots","pdf",figsdir)
+#ggsavePDF(plots[sigModules],myfile)
 
 #---------------------------------------------------------------------
 ## Save sigProt boxplots for sig modules.
 #---------------------------------------------------------------------
 
-# Load plots.
+# Load protein boxplots.
+# NOTE: The plots are only of proteins with any sig change.
 # If Cortex or striatum -- then only cortex or striatum are plotted.
 # If Combined -- then data from both tissues are plotted.
 myfiles <- c(Cortex=file.path(rdatdir,
@@ -650,22 +685,32 @@ names(plot_list) <- paste0("M",names(plot_list))
 # Save a single pdf for each sig module containing all of its 
 # sig proteins.
 ## TODO: suppress output from grid.arrange!
-for (i in 1:length(sigModules)){
-	module_name <- sigModules[i]
-	plots <- plot_list[[module_name]]
-	n <- length(plots)
-	groups <- rep(c(1:ceiling(n/4)),each=4)[c(1:n)]
-	plot_groups <- split(plots,groups)
-	figs <- lapply(plot_groups,function(x) {
-			       fig <- grid.arrange(grobs=x,ncol=2,nrow=2)
-			       return(fig)
-		 })
-	# Save.
-	namen <- paste0(module_name,"_Module_SigProts")
-	myfile <- filename(namen,"pdf",figsdir)
-	ggsavePDF(figs,myfile)
-	# Close the device.
-	if (i == length(sigModules)) { dev.off() }
+#for (i in 1:length(sigModules)){
+#	module_name <- sigModules[i]
+#	plots <- plot_list[[module_name]]
+#	n <- length(plots)
+#	groups <- rep(c(1:ceiling(n/4)),each=4)[c(1:n)]
+#	plot_groups <- split(plots,groups)
+#	figs <- lapply(plot_groups,function(x) {
+#			       fig <- grid.arrange(grobs=x,ncol=2,nrow=2)
+#			       return(fig)
+#		 })
+#	# Save.
+#	namen <- paste0(module_name,"_Module_SigProts")
+#	myfile <- filename(namen,"pdf",figsdir)
+#	ggsavePDF(figs,myfile)
+#	# Close the device.
+#	if (i == length(sigModules)) { dev.off() }
+#}
+
+# Save protein boxplots for sig modules.
+for (module in sigModules) {
+	plots <- plot_list[[module]]
+	namen <- paste(module,names(plots),sep="_")
+	for (i in seq_along(plots)){
+		myfile <- filename(namen[i],fig_ext,protdir)
+		ggsave(myfile,plots[[i]],height=7,width=7)
+	}
 }
 
 #---------------------------------------------------------------------
@@ -690,6 +735,9 @@ MEdata <- moduleEigengenes(tempdat,
 MEs <- as.matrix(MEdata$eigengenes)
 ME_list <- lapply(seq(ncol(MEs)),function(x) MEs[,x]) 
 names(ME_list) <- names(all_modules)
+
+# Get PVE.
+pve <- MEdata$varExplained
 
 # Calculate correlations between ME vectors.
 adjm_me <- cor(do.call(cbind,ME_list))
@@ -748,16 +796,17 @@ dend_data <- dend_data %>% arrange(x)
 dend_data$label <- factor(dend_data$label,levels=dend_data$label)
 
 # Generate dendrogram.
-dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = TRUE) + 
+dendro <- ggdendro::ggdendrogram(hc, rotate = FALSE, labels = FALSE) + 
   geom_hline(yintercept=best_h, color='red', size = 1)
 dendro <- dendro + 
-  geom_text(data = dend_data, aes(x, y, label = label, color = rep_module),
-            hjust = 1, angle = 90, size = 3) + 
+  geom_text(data = dend_data, 
+	    aes(x, y, label = label, color = rep_module),
+	    hjust = 1, angle = 90, size = 3) + 
   scale_colour_manual(values=c("black", "red")) +
   theme(legend.position="none")
 
 #---------------------------------------------------------------------
-## Generate module colors based on their dist to rep modules.
+## Generate module colors based on their cor with rep modules.
 #---------------------------------------------------------------------
 
 # Assign modules a color based on similarity with rep modules.
@@ -783,11 +832,11 @@ names(module_colors) <- names(all_modules)
 # Add gray.
 module_colors <- c(module_colors,c("M0" = col2hex("light gray")))
 
-# Generate node colors.
+# Collect protein color assignments.
 node_colors <- module_colors[paste0("M",partitions$self)]
 names(node_colors) <- names(partitions$self)
 
-# Generate colored bars.
+# Generate colored bars for dendrogram.
 dend_data$color <- module_colors[as.character(dend_data$label)]
 dend_data$color <- factor(dend_data$color,levels=dend_data$color)
 p2 <- ggplot(dend_data,aes(x=label,y=1,fill=color)) + geom_tile() +
@@ -823,32 +872,34 @@ for (i in 1:length(GOresults)) {
 	}
 	# Generate the plot.
 	plot <- ggplotGOscatter(df,module_colors[namen],topN)
-	# Add approximate threshold for significance.
+	# Add approximate significance threshold.
 	if (any(df$FDR<alpha)) {
 		threshold <- floor(-log(df$pValue[max(which(df$FDR<0.05))]))
 		plot <- plot + 
 			geom_hline(yintercept = threshold, 
 				   linetype="dashed", color="red")
 	}
-	# Add title, if significant then print it in red.
-	if (namen %in% sigModules){
-		title_color <- "red"
-	} else {
-		title_color <- "black"
-	}
+	# Add title.
 	plot <- plot + ggtitle(namen) + 
-		theme(plot.title = element_text(color=title_color,size=14))
+		theme(plot.title = element_text(color="black",size=14))
 	plots[[i]] <- plot
 }
 names(plots) <- names(modules)
 
-# Save a single pdf containing all the sign proteins within a
-# module for each module.
-myfile <- filename("Module_GOscatter","pdf",figsdir)
-ggsavePDF(plots,myfile)
+# Save a single pdf with all plots.
+#myfile <- filename("Module_GOscatter","pdf",figsdir)
+#ggsavePDF(plots,myfile)
+
+# Loop to save plots.
+for (i in seq_along(plots)){
+	plot <- plots[[i]]
+	namen <- names(plots)[i]
+	myfile <- filename(namen,fig_ext,scatdir)
+	ggsave(myfile,plot,height=7,width=7)
+}
 
 #---------------------------------------------------------------------
-## Generate ppi graphs and co-expression graphs.
+## Generate PPI and co-expression graphs.
 #---------------------------------------------------------------------
 
 ## NOTE: Coerce boolean attributes to integer to avoid warnings when
@@ -965,30 +1016,7 @@ myfile <- filename("WRS_PPI_Bicor_Proteins",fig_ext,figsdir)
 ggsave(myfile, plot, height = 4, width = 4)
 
 #---------------------------------------------------------------------
-## Generate cytoscape graph summarizing overall topolgy of the network.
-#---------------------------------------------------------------------
-
-save.image()
-quit()
-
-# Create a cytoscape graph of the co-expression network.
-# Perform network enhancement and thresholding to improve layout.
-net <- createCytoscapeCoExpressionGraph(partitions$self,node_colors,
-				 threshold = 7.815, background =0,
-				 network_layout = 'force-directed edgeAttribute=weight',
-				 title = part_type)
-
-# Generate subnetworks highlighting some modules of intereest.
-
-highlightNodes(nodes=sigProts,main.network=net,
-	       subnetwork.name=paste(part_type,"SigProts"))
-
-#---------------------------------------------------------------------
-## Generate cytoscape graph summarizing overall topolgy of the network.
-#---------------------------------------------------------------------
-
-#---------------------------------------------------------------------
-## Generate cytoscape graph summarizing overall topolgy of the network.
+## Generate cytoscape graph of all clustered proteins.
 #---------------------------------------------------------------------
 
 # Prompt user to open Cytoscape if it is not already open.
@@ -1009,6 +1037,37 @@ if (data_type == "Combined") {
 	}
 }
 
+# Create a cytoscape graph of the co-expression network.
+# Perform network enhancement and thresholding to improve layout.
+net <- createCytoscapeCoExpressionGraph(partitions$self,node_colors,
+				 threshold = 7.815, background =0,
+				 network_layout = 'force-directed edgeAttribute=weight',
+				 title = part_type)
+
+# Generate subnetworks highlighting some modules of interest.
+
+# Significant proteins. Need to remove any that were not clustered.
+all_nodes <- getAllNodes(network = net)
+nodes <- sigProts[[data_type]]
+sigNodes <- names(nodes[nodes])
+highlightNodes(nodes=sigNodes[sigNodes %in% all_nodes],
+	       main.network=net,subnetwork.name=paste(part_type,"SigProts"))
+
+# DBD proteins.
+highlightNodes(nodes=DBDprots[DBDprots %in% all_nodes],
+	       main.network=net,subnetwork.name=paste(part_type,"DBDProts"))
+
+# Meta modules groups.
+for (i in 1:length(DBDprots)){
+	namen <- names(DBDprots)[i]
+	nodes <- DBDprots[[i]]
+	highlightNodes(nodes=nodes[nodes %in% all_nodes],
+		       main.network=net,subnetwork.name=namen)
+}
+
+#---------------------------------------------------------------------
+## Generate cytoscape graph summarizing overall topolgy of the network.
+#---------------------------------------------------------------------
 # Create a cytoscape network showing all modules.
 createCytoscapeModuleGraph(partitions$self,ME_list,
 			   title=paste(data_type,"Modules"))
