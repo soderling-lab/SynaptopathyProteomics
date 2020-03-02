@@ -1,4 +1,5 @@
-highlightNodes <- function(nodes, main.network, subnetwork.name) {
+highlightNodes <- function(nodes, main.network, 
+			   subnetwork.name, new.values="red") {
 	suppressPackageStartupMessages({
 		library(RCy3)
 	})
@@ -10,7 +11,7 @@ highlightNodes <- function(nodes, main.network, subnetwork.name) {
 			      new.values=col2hex("light gray"),
 			      visual.property="NODE_FILL_COLOR")
 	setNodePropertyBypass(node.names = nodes, 
-			      new.values="red",
+			      new.values,
 			      visual.property="NODE_FILL_COLOR")
 	fitContent(network=subnet)
 	clearSelection(type="both",network=main.network)

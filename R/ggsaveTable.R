@@ -32,5 +32,12 @@ ggsaveTable <- function(mytable,myfile) {
   unlink(f)
   # Save.
   plot <- plot_grid(mytable)
-  ggsave(myfile,plot,width=1.05*w,height=1.1*h,units="in")
+  if (tolower(tools::file_ext(myfile))=="eps") {
+	  # Save with cairo_ps device.
+	  ggsave(myfile,plot,width=1.05*w,height=1.1*h,units="in",
+		 device=grDevices::cairo_ps)
+  } else {
+	  # Use ggsave default.
+	  ggsave(myfile,plot,width=1.05*w,height=1.1*h,units="in")
+  }
 }

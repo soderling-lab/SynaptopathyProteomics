@@ -1,4 +1,5 @@
 createCytoscapeCoExpressionGraph <- function(partition,node_colors,
+					     DBDcolors,
 					     threshold,network_layout,
 					     background,title){
 	# TODO: speed can be increased by writting to file.
@@ -25,6 +26,9 @@ createCytoscapeCoExpressionGraph <- function(partition,node_colors,
 	# Add node color attribute.
 	g <- set_vertex_attr(g,"color",
 			     value = node_colors[names(V(g))])
+	# Add node DBD color attribute.
+	g <- set_vertex_attr(g,"DBDcolor",
+			     value = DBDcolors[names(V(g))])
 	# Prune weak edges.
 	idx <- which(abs(E(g)$weight) <= threshold)
 	g <- delete.edges(g,idx)
