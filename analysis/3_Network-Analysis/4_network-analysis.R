@@ -13,7 +13,8 @@
 ## User parameters to change:
 data_type <- "Cortex" # Cortex, Striatum, or Combined...
 part_type <- "Cortex" # Specify part type when working with comb data.
-fig_ext <- "eps"
+fig_ext <- "RData" # Save individual ggplots as RData.
+create_networks <- TRUE
 
 ## Data files.
 input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
@@ -344,6 +345,10 @@ fig <- plot_grid(mytable)
 myfile <- filename("DBD_Gene_Summary",fig_ext,figsdir)
 ggsaveTable(mytable,myfile)
 
+saveRDS(mytable,"temp.RData")
+
+quit()
+
 #--------------------------------------------------------------------
 ## Which modules are enriched for GO terms?
 #--------------------------------------------------------------------
@@ -571,7 +576,8 @@ if (nSigDisease > 0) {
 }
 
 # Save significant modules. 
-myfile <- file.path(rdatdir,paste0(data_type,"_sigModules.RData"))
+myfile <- file.path(rdatdir,paste0(data_type,"_",part_type,
+				   "_sigModules.RData"))
 saveRDS(sigModules,myfile)
 
 #---------------------------------------------------------------------
@@ -806,6 +812,51 @@ dendro <- dendro +
   theme(legend.position="none")
 
 #---------------------------------------------------------------------
+## Create a table summarizing key network stats.
+#---------------------------------------------------------------------
+
+# If working with the Combined data, get tissue specific sigModules,
+# and add these to sigModules.
+if (data_type == "Combined") {
+	myfile <- file.path(rdatdir,paste0(part_type,"_",part_type,
+					   "_sigModules.RData"))
+	tissueSig <- readRDS(myfile)
+	AllsigModules <- c(tissueSig,sigModules)
+} else {
+	AllsigModules <- sigModules
+}
+
+# Summarize key network stats.
+nClust <- sum(partitions$self != 0)
+nNodes <- length(partition)
+pClust <- round(100*nClust/nNodes,2)
+nodes <- paste0(nClust,"/",nNodes," (",pClust,"%)")
+medPVE <- round(median(as.numeric(pve)),3)
+nModules <- length(all_modules)
+nSigModules <- length(AllsigModules)
+
+# Collect in df.
+df <- as.data.table(cbind(c("Algorithm","Modularity","N Modules",
+			    "N Clustered","Median PVE","N SigModules"),
+			  c("Leiden","Surprise",nModules,nodes,medPVE,
+			    nSigModules)))
+
+# Create table and add borders.
+mytable <- tableGrob(df, cols=NULL,rows = NULL, theme = mytheme)
+# Add Border around data rows.
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 1, b = nrow(mytable), l = 1, r = ncol(mytable)
+)
+
+# Check the table.
+fig <- plot_grid(mytable)
+
+# Save.
+myfile <- filename("Network_Summary",fig_ext,figsdir)
+ggsaveTable(mytable,myfile)
+
+#---------------------------------------------------------------------
 ## Generate module colors based on their cor with rep modules.
 #---------------------------------------------------------------------
 
@@ -971,11 +1022,7 @@ df$weight_1[is.na(df$weight_1)] <- 0
 set.seed(1207) 
 
 # Randomly sample edges.
-n <- 10000
-if ( n > sum(df$weight_1)) { 
-	message(paste("Warning: n can't be larger than the observed",
-		      "number of interactions in the graph."))
-}
+n <- 1000
 
 # Get random subset of interacting proteins.
 idx <- sample(which(df$weight_1==1),n)
@@ -993,11 +1040,11 @@ WRS_test <- wilcox.test(subdat$weight_2 ~ subdat$weight_1, alternative = "less")
 WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
 
 # Generate a plot.
-  plot <- ggplot(subdat, aes(x = weight_1, y = weight_2, fill = weight_1)) +
+plot <- ggplot(subdat, aes(x = weight_1, y = weight_2, fill = weight_1)) +
     geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
     scale_x_discrete(labels = c("PPI = False", "PPI = True")) +
     ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
-    scale_fill_manual(values = c("gray", "dark orange")) +
+    scale_fill_manual(values = c("gray", "dark red")) + ggtitle(part_type) + 
     theme(
       plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
       axis.title.x = element_text(color = "black", size = 11, face = "bold"),
@@ -1020,9 +1067,10 @@ ggsave(myfile, plot, height = 4, width = 4)
 #---------------------------------------------------------------------
 
 # Prompt user to open Cytoscape if it is not already open.
-cytoscape_ping()
 
 # If working with Combined data, append graphs to tissue specific 
+if (create_networks) {
+	cytoscape_ping()
 # Cytoscape file.
 if (data_type == "Combined") {
 	cysfile <- file.path(netsdir,paste0(part_type,".cys"))
@@ -1037,6 +1085,9 @@ if (data_type == "Combined") {
 	}
 }
 
+# Define threshold for Cortex and Striatum networks.
+threshold = 7.815 # Cortex
+
 # Create a cytoscape graph of the co-expression network.
 # Perform network enhancement and thresholding to improve layout.
 net <- createCytoscapeCoExpressionGraph(partitions$self,node_colors,
@@ -1044,8 +1095,7 @@ net <- createCytoscapeCoExpressionGraph(partitions$self,node_colors,
 				 network_layout = 'force-directed edgeAttribute=weight',
 				 title = part_type)
 
-# Generate subnetworks highlighting some modules of interest.
-
+## Generate subnetworks highlighting some modules of interest.
 # Significant proteins. Need to remove any that were not clustered.
 all_nodes <- getAllNodes(network = net)
 nodes <- sigProts[[data_type]]
@@ -1053,24 +1103,24 @@ sigNodes <- names(nodes[nodes])
 highlightNodes(nodes=sigNodes[sigNodes %in% all_nodes],
 	       main.network=net,subnetwork.name=paste(part_type,"SigProts"))
 
-# DBD proteins.
-highlightNodes(nodes=DBDprots[DBDprots %in% all_nodes],
-	       main.network=net,subnetwork.name=paste(part_type,"DBDProts"))
-
-# Meta modules groups.
+# DBDprots
 for (i in 1:length(DBDprots)){
 	namen <- names(DBDprots)[i]
 	nodes <- DBDprots[[i]]
 	highlightNodes(nodes=nodes[nodes %in% all_nodes],
 		       main.network=net,subnetwork.name=namen)
 }
+} #ENDS NETWORK CHUNK.
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graph summarizing overall topolgy of the network.
 #---------------------------------------------------------------------
+
 # Create a cytoscape network showing all modules.
-createCytoscapeModuleGraph(partitions$self,ME_list,
-			   title=paste(data_type,"Modules"))
+if (create_networks) {
+net <- createCytoscapeModuleGraph(partitions$self,ME_list,
+				  title=paste(data_type,"Modules"))
+}
 
 #---------------------------------------------------------------------
 ## Highlight some important modules.
@@ -1085,11 +1135,9 @@ createCytoscapeModuleGraph(partitions$self,ME_list,
 #     Significant GO enrichment.
 #     Preserved in other tissue.
 
-# Get the main network's suid.
-net <- getNetworkSuid()
-
 # Generate subnetworks highlighting some modules of intereest.
-highlightNodes(nodes=sigModules,main.network=net,
+if (create_networks) {
+highlightNodes(nodes=AllsigModules,main.network=net,
 	       subnetwork.name=paste(part_type,"Sig"))
 highlightNodes(nodes=DBDsig[DBDsig %in% names(all_modules)],
 	       main.network=net,subnetwork.name="DBD")
@@ -1107,23 +1155,25 @@ for (i in 1:length(groups)){
 	highlightNodes(nodes=names(groups[[i]]),main.network=net, 
 		       subnetwork.name=paste("MetaModule",i))
 }
+} # ENDS NETWORK CHUNK.
 
 #---------------------------------------------------------------------
-## Generate cytoscape graphs of all modules.
+## Generate cytoscape graphs of all co-expression modules.
 #---------------------------------------------------------------------
 
-# Create a new network collection.
-#createEmptyNetwork(paste(data_type,"Modules"))
+# Directory for output network images.
+imgdir <- file.path(strsplit(figsdir,paste0("/",subdir))[[1]][1],subdir,
+		    "Networks",part_type)
 
 # Loop to create graphs.
+if (create_networks){
 for (i in c(1:length(modules))) {
 		module_name = names(modules)[i]
 		message(paste("Working on module", module_name,"..."))
 		nodes = names(modules[[module_name]])
 		module_kme = KME_list[[module_name]]
 		network_layout = 'force-directed edgeAttribute=weight'
-		image_file = file.path(dirname(figsdir),
-				       "Networks",part_type,module_name)
+		image_file = file.path(imgdir,module_name)
 		image_format = "SVG"
 		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
@@ -1137,6 +1187,7 @@ for (i in c(1:length(modules))) {
 			saveSession(winfile)
 		}
 } # ENDS loop.
+} #ENDS Network chunk.
 
 #---------------------------------------------------------------------
 ## Save key results summarizing modules.
@@ -1186,27 +1237,16 @@ module_summary$"Preserved in opposite tissue" <- sapply(preserved_modules$other,
 ## More detailed summary of every module.
 dfs <- lapply(seq_along(KME_list), function(x) {
 	       df <- data.table(Protein = names(partition))
-	       df$Module <- partition
+	       df$Module <- paste0("M",partition)
 	       df$KME <- KME_list[[x]][df$Protein]
 	       df$sigProt <- df$Protein %in% sigProts
-	       df$"Genotypes" <- sigProtAnno[df$Protein]
+	       df$"Sig Genotype(s)" <- sigProtAnno[df$Protein]
 	       df$DBDProt <- df$Protein %in% DBDprots
 	       df$"DBD Association(s)" <- DBDanno[df$Protein]
-	       df <- df %>% filter(Module == x)
+	       df <- df %>% filter(Module == names(KME_list)[x])
 	       df <- df[order(df$KME,decreasing=TRUE),]
 		 })
 names(dfs) <- names(modules)
-
-# Add expression data.
-for (i in seq_along(dfs)){
-	x <- dfs[[i]]
-	y <- do.call(cbind,glm_stats[c(1,2,4,5)])
-	colnames(y) <- sapply(strsplit(colnames(y),"\\."),"[",2)
-	y$Protein <- rownames(y)
-	y <- y %>% filter(Protein %in% x$Protein)
-	z <- merge(x,y,by="Protein")
-	dfs[[i]] <- z
-}
 
 # Write to file.
 results <- list()

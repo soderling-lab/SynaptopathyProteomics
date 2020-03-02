@@ -13,4 +13,5 @@ highlightNodes <- function(nodes, main.network, subnetwork.name) {
 			      new.values="red",
 			      visual.property="NODE_FILL_COLOR")
 	fitContent(network=subnet)
+	clearSelection(type="both",network=main.network)
 }

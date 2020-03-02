@@ -8,6 +8,7 @@
 *.swp
 __pycache__/
 *tempnet.csv # files staring with temp
+ARCHIVE/
 
 # Other files to ignore.
 downloads/

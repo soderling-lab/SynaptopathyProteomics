@@ -43,7 +43,7 @@ createCytoscapeModuleGraph <- function(partition,ME_list,title="Network") {
 	# Add original weights as edge attribute.
 	g <- set_edge_attr(g, "cor", value=E(g0)[E(g)]$weight)
 	# Send to Cytoscape. 
-	createNetworkFromIgraph(g, title)
+	net <- createNetworkFromIgraph(g, title)
 	# Create a visual style.
 	  style.name = "myStyle"
 	  # DEFAULTS:
@@ -80,4 +80,5 @@ createCytoscapeModuleGraph <- function(partition,ME_list,title="Network") {
 	  fitContent()
 	  Sys.sleep(2) # Wait... 
 	  cytoscapeFreeMemory()
+	  return(net)
 	} #Ends function.
