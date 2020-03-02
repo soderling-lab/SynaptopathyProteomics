@@ -11,7 +11,7 @@
 #---------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
+stats <- c(1, 2, 6, 7) # Module statistics to use for permutation testing.
 self <- "Striatum"
 test <- "PPI"
 strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
@@ -26,7 +26,7 @@ verbose <- FALSE
 ## Permutation Statistics:
 # 1. avg.weight
 # 2. coherence
-# 3. cor.cor - Don't use for correlation matrices! 
+# 3. cor.cor - Don't use for correlation matrices!
 #              Sensitive to small changes in edge weight.
 # 4. cor.degree - Don't use! Sensitive to small changes.
 # 5. cor.contrib - Don't use! Sensitive to small changes.
@@ -40,11 +40,11 @@ verbose <- FALSE
 #    explained by a modules summary vector.
 # 3. cor.cor (concordance of correlation structure) - Calculated from
 #    correlation matrix. Sensitive to small changes in correlation coefficients.
-# 4. cor.degree (concordance of weighted degree) - Calculated from network. 
-#    Assumes edge weights are positive. Sensitive to small changes in 
+# 4. cor.degree (concordance of weighted degree) - Calculated from network.
+#    Assumes edge weights are positive. Sensitive to small changes in
 #    weighted degree.
 # 5. cor.contrib (concordance of node contribution) - Calculated from the data.
-#    Sensitve to small changes in node contribution. 
+#    Sensitve to small changes in node contribution.
 # 6. avg.cor (density of correlation structure) - Calculated from correlation
 #    matrix.
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
@@ -61,7 +61,7 @@ if (slurm) {
   myfile <- file.path("./out", paste0("job_", jobID, ".info"))
   write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
 } else {
-	nThreads <- parallel::detectCores() - 1
+  nThreads <- parallel::detectCores() - 1
   jobID <- Sys.Date()
 }
 
@@ -73,7 +73,7 @@ suppressPackageStartupMessages({
 
 # Additional functions.
 suppressWarnings({
-	devtools::load_all()
+  devtools::load_all()
 })
 
 # Directories.
@@ -100,40 +100,49 @@ net <- as.matrix(readRDS(myfile))
 rownames(net) <- colnames(net)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
-	     "Cortex_MCL" = "3_Cortex_MCL_partitions.csv",
-	     "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
-	     "Striatum_MCL" = "3_Striatum_MCL_partitions.csv",
-	     "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv",
-	     "Striatum_Surprise" = "3_Striatum_SurpriseVertexPartition_partitions.csv")
-partitions <- fread(file.path(rdatdir,myfiles[partition_file]), 
-		    header=TRUE,drop = 1)
+myfiles <- c(
+  "Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
+  "Cortex_MCL" = "3_Cortex_MCL_partitions.csv",
+  "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
+  "Striatum_MCL" = "3_Striatum_MCL_partitions.csv",
+  "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv",
+  "Striatum_Surprise" = "3_Striatum_SurpriseVertexPartition_partitions.csv"
+)
+partitions <- fread(file.path(rdatdir, myfiles[partition_file]),
+  header = TRUE, drop = 1
+)
 resolutions <- nrow(partitions)
 
 # Check that all columns in the data are in adjm and network.
 out1 <- colnames(data) %notin% colnames(adjm)
 out2 <- colnames(data) %notin% colnames(net)
-if (sum(out1)>0 | sum(out2)>0) { 
-	message("Warning: removing columns from data that are not in network.") 
+if (sum(out1) > 0 | sum(out2) > 0) {
+  message("Warning: removing columns from data that are not in network.")
 }
 
 # Enforce consistent dimensions between data and adjm.
-idx <- idy <- match(colnames(data),colnames(adjm))
-adjm <- adjm[idx,idy]
+idx <- idy <- match(colnames(data), colnames(adjm))
+adjm <- adjm[idx, idy]
 check <- all(colnames(data) == colnames(adjm))
-if (!check) { message("Problem: data doesn't match correlation matrix!") }
+if (!check) {
+  message("Problem: data doesn't match correlation matrix!")
+}
 
 # Enforce consistent dimensions between data and partitions.
-idy <- match(colnames(data),colnames(partitions))
-partitions <- as.data.frame(partitions)[,idy]
+idy <- match(colnames(data), colnames(partitions))
+partitions <- as.data.frame(partitions)[, idy]
 check <- all(colnames(data) == colnames(partitions))
-if (!check) { message("Problem: data doesn't match partitions!") }
+if (!check) {
+  message("Problem: data doesn't match partitions!")
+}
 
 # Enforce consistent dimensions between data and network.
-idz <- match(colnames(data),colnames(net))
-net <- net[idz,idz]
+idz <- match(colnames(data), colnames(net))
+net <- net[idz, idz]
 check <- all(colnames(data) == colnames(net))
-if (!check) { message("Problem: data doesn't match network!") }
+if (!check) {
+  message("Problem: data doesn't match network!")
+}
 
 # Final check.
 check <- all(colnames(partitions) == colnames(data) & colnames(data) == colnames(net))
@@ -152,11 +161,11 @@ correlation_list <- list(self = adjm)
 
 # Networks (edges) should be positive...
 if (replace_negative == "absolute value") {
-	# Replace negative edges as absolute value.
-	network_list <- list(self = abs(net))
+  # Replace negative edges as absolute value.
+  network_list <- list(self = abs(net))
 } else if (replace_negative == "zero") {
-	net[net<0] <- 0
-	network_list <- list(self = net)
+  net[net < 0] <- 0
+  network_list <- list(self = net)
 }
 
 # Module preservation stats.
@@ -166,11 +175,14 @@ module_stats <- paste(c(
 )[stats], collapse = ", ")
 
 # Status report:
-message(paste("Evaluating self-preservation of",
-		self, "modules in the",test,"network."))
+message(paste(
+  "Evaluating self-preservation of",
+  self, "modules in the", test, "network."
+))
 message(paste0(
   "Module statistic(s) used to evaluate module preservation: ",
-  module_stats), ".")
+  module_stats
+), ".")
 message(paste0(
   "Criterion for module preservation/divergence: ",
   strength, ".", "\n"
@@ -179,17 +191,21 @@ message(paste0(
 # Loop through partitions, evaluating self-preservation.
 results <- list()
 for (resolution in resolutions) {
-  message(paste("Working on partition", resolution, 
-		"of", length(resolutions), "..."))
+  message(paste(
+    "Working on partition", resolution,
+    "of", length(resolutions), "..."
+  ))
   # Get partition.
-  partition <- as.integer(partitions[resolution, ]) 
+  partition <- as.integer(partitions[resolution, ])
   # Add 1 so that all module assignments >0.
-  if (min(partition)==0) { partition <- partition + 1 }
+  if (min(partition) == 0) {
+    partition <- partition + 1
+  }
   partition <- reset_index(partition)
   names(partition) <- colnames(partitions)
   # Remove modules less than min size.
   too_small <- which(table(partition) < min_size)
-  partition[partition %in% too_small] <- 0 
+  partition[partition %in% too_small] <- 0
   module_list <- list(self = partition)
   # Perform permutation test for module self-preservation.
   suppressWarnings({
@@ -222,8 +238,10 @@ for (resolution in resolutions) {
   results[[resolution]] <- partition
   # Save to Rdata.
   if (resolution == length(resolutions)) {
-    output_name <- paste0(jobID, "_", partition_file, "_", net_file,
-			  "_Module_Self_Preservation.RData")
+    output_name <- paste0(
+      jobID, "_", partition_file, "_", net_file,
+      "_Module_Self_Preservation.RData"
+    )
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }

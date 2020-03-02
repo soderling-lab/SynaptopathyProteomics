@@ -26,7 +26,7 @@ tabsdir <- file.path(root, "tables")
 funcdir <- file.path(root, "R")
 
 # Functions.
-myfun <- list.files(funcdir,full.names = TRUE)
+myfun <- list.files(funcdir, full.names = TRUE)
 invisible(sapply(myfun, source))
 
 # Load the normalized expression data.
@@ -79,11 +79,11 @@ adjm <- lapply(subDat, function(x) {
 
 # Perform network enhancement.
 message("Performing network enhancement, this will take several minutes...")
-adjm_ne <- lapply(adjm,neten)
-names(adjm_ne) <- paste(names(adjm_ne),"NE",sep="_")
+adjm_ne <- lapply(adjm, neten)
+names(adjm_ne) <- paste(names(adjm_ne), "NE", sep = "_")
 
 # Combine with other networks.
-adjm <- c(adjm,adjm_ne)
+adjm <- c(adjm, adjm_ne)
 
 # Coerce adjm to data.tables.
 adjm <- lapply(adjm, as.data.table)
