@@ -141,11 +141,8 @@ names(partitions) <- names(input_files$part_file[[part_type]])
 # Load theme for plots.
 ggtheme()
 
-# Associate Arial font.
-library(extrafont)
-font_path <- "/mnt/c/Program Files/Adobe/Adobe Illustrator 2020/Support Files/Required/PDFL Resource/Resource/Fonts/TTF/"
-font_import(path=font_path,prompt=FALSE)
-choose_font("Arial")
+# Use arial font.
+set_font("Arial")
 
 # Load theme for tables.
 # FIXME: ADD THIS! Include arial font.

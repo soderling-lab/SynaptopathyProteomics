@@ -36,8 +36,7 @@
 #---------------------------------------------------------------------
 ## Prepare the workspace.
 #---------------------------------------------------------------------
-# Prepare the R workspace for the analysis. Load custom functions and prepare
-# the project directory for saving output files.
+# Prepare the R workspace for the analysis. 
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -83,6 +82,9 @@ outputMatName <- paste0("1_", tissue)
 # Globally set ggplots theme.
 ggtheme()
 
+# Use arial font.
+set_font("Arial")
+
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
 #---------------------------------------------------------------------
@@ -117,6 +119,9 @@ sample_info <- sample_info[order(sample_info$Order), ]
 plot <- ggplotPeptideBarPlot(raw_peptide)
 myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
 ggsave(prefix_file(myfile),plot)
+
+# Save plots as RData.
+saveRDS(plot,paste0(tools::file_path_sans_ext(myfile),".RData"))
 
 #---------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
