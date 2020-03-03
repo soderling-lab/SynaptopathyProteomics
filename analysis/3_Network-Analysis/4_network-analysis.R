@@ -139,8 +139,13 @@ partitions <- lapply(myfiles, function(x) unlist(readRDS(x)))
 names(partitions) <- names(input_files$part_file[[part_type]])
 
 # Load theme for plots.
-# FIXME: ADD FONT ARIAL
 ggtheme()
+
+# Associate Arial font.
+library(extrafont)
+font_path <- "/mnt/c/Program Files/Adobe/Adobe Illustrator 2020/Support Files/Required/PDFL Resource/Resource/Fonts/TTF/"
+font_import(path=font_path,prompt=FALSE)
+choose_font("Arial")
 
 # Load theme for tables.
 # FIXME: ADD THIS! Include arial font.
@@ -742,9 +747,7 @@ for (i in seq_along(plots)) {
   namen <- names(plots)[i]
   myfile <- filename(namen, fig_ext, modsdir)
   ggsave(myfile, plots[[i]],
-    height = 7, width = 7,
-    device = grDevices::cairo_ps
-  )
+    height = 7, width = 7)
 }
 
 # Save sig modules as single pdf.
@@ -808,9 +811,7 @@ for (module in sigModules) {
   for (i in seq_along(plots)) {
     myfile <- filename(namen[i], fig_ext, protdir)
     ggsave(myfile, plots[[i]],
-      height = 7, width = 7,
-      device = grDevices::cairo_ps
-    )
+      height = 7, width = 7)
   }
 }
 
@@ -1007,16 +1008,12 @@ p2 <- ggplot(dend_data, aes(x = label, y = 1, fill = color)) +
 # Save.
 myfile <- filename("Modules_Dendro", fig_ext, figsdir)
 ggsave(myfile,
-  plot = dendro, height = 3, width = 3,
-  device = grDevices::cairo_ps
-)
+  plot = dendro, height = 3, width = 3)
 
 # Save.
 myfile <- filename("Module_Colors", fig_ext, figsdir)
 ggsave(myfile,
-  plot = p2, height = 3, width = 3,
-  device = grDevices::cairo_ps
-)
+  plot = p2, height = 3, width = 3)
 
 #---------------------------------------------------------------------
 ## Generate GO Scatter plots.
@@ -1065,9 +1062,7 @@ for (i in seq_along(plots)) {
   namen <- names(plots)[i]
   myfile <- filename(namen, fig_ext, scatdir)
   ggsave(myfile, plot,
-    height = 7, width = 7,
-    device = grDevices::cairo_ps
-  )
+    height = 7, width = 7)
 }
 
 #---------------------------------------------------------------------
@@ -1195,9 +1190,7 @@ plot <- plot +
 # Save figure.
 myfile <- filename("WRS_PPI_Bicor_Proteins", fig_ext, figsdir)
 ggsave(myfile, plot,
-  height = 4, width = 4,
-  device = grDevices::cairo_ps
-)
+  height = 4, width = 4)
 
 #---------------------------------------------------------------------
 ## Generate cytoscape graph of all clustered proteins.
