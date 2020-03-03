@@ -24,10 +24,19 @@ ggtheme <- function() {
   })
   ggtheme <- theme_gray() +
     theme(
-      plot.title = element_text(color = "black", size = 11, face = "bold", hjust = 0.5),
-      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-      axis.text.x = element_text(color = "black", size = 11, angle = 0, hjust = 1.0)
+	  text = element_text(family = "Arial"),
+	  plot.title = element_text(color = "black",size = 11, 
+				    face = "bold", hjust = 0.5,
+				    family = "Arial"),
+	  axis.title.x = element_text(color = "black", 
+				      size = 11, face = "bold",
+				      family = "Arial"),
+	  axis.title.y = element_text(color = "black", 
+				      size = 11, face = "bold",
+				      family = "Arial"),
+	  axis.text.x = element_text(color = "black", size = 11, 
+				     angle = 0, hjust = 1.0,
+				     family = "Arial")
     )
   theme_set(ggtheme)
 }

@@ -31,7 +31,7 @@ ggsaveTable <- function(mytable,myfile) {
   dev.off()
   unlink(f)
   # Save.
-  plot <- plot_grid(mytable)
+  plot <- plot_grid(mytable) + theme(text=element_text(family="Arial"))
   if (tolower(tools::file_ext(myfile))=="eps") {
 	  # Save with cairo_ps device.
 	  ggsave(myfile,plot,width=1.05*w,height=1.1*h,units="in",
