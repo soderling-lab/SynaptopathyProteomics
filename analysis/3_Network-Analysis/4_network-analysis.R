@@ -389,9 +389,10 @@ mytable <- gtable_add_grob(mytable,
 )
 
 # Check the table.
-fig <- plot_grid(mytable) + theme(text = element_text(family = "Arial"))
+fig <- plot_grid(mytable)
 
 # Save.
+# Note: ggssaveTable uses arial font.
 myfile <- filename("DBD_Gene_Summary", fig_ext, figsdir)
 ggsaveTable(mytable, myfile)
 
