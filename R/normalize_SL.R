@@ -4,6 +4,10 @@
 #' This function also removes rows in which qc was not quantified in all three replicates.
 #'
 #' @param data_in - expression data.
+#' 
+#' @param colID - identifier for data columns.
+#'
+#' @param groups - vector of exerpimental groups.
 #'
 #' @return none
 #'
@@ -16,8 +20,8 @@
 #' @export
 #'
 #' @examples
-#' normalize_SL(data_in, colID = "", group = "")
-normalize_SL <- function(data_in, colID = "", group = "") {
+#' normalize_SL(data_in, colID = "", groups = "")
+normalize_SL <- function(data_in, colID = "", groups = "") {
   # Coerce to data.frame.
   data_in <- as.data.frame(data_in)
   # Seperate data columns and info columns
@@ -27,8 +31,8 @@ normalize_SL <- function(data_in, colID = "", group = "") {
   # Insure 0 is NA
   data_cols[data_cols == 0] <- NA
   # Loop through groups, calculate SL norm
-  for (i in 1:length(group)) {
-    group_cols <- grep(group[i], colnames(data_cols))
+  for (i in 1:length(groups)) {
+    group_cols <- grep(groups[i], colnames(data_cols))
     sub_data <- data_cols[, group_cols]
     target <- mean(colSums(sub_data, na.rm = TRUE), na.rm = TRUE)
     norm_facs <- target / colSums(sub_data, na.rm = TRUE)

@@ -18,8 +18,13 @@
 #' @examples
 #' impute_peptides(data_in, groups, method)
 impute_peptides <- function(data_in, groups, method, qc_threshold = 0, bio_threshold = 2) {
-  # Function to supress output of function.
-  source("~/projects/SynaptopathyProteomics/R/quiet.R")
+	suppressPackageStartupMessages({library(impute)})
+	# A function to suppress output from impute.knn.
+	quiet <- function(x) {
+		sink(tempfile())
+		on.exit(sink())
+		invisible(force(x))
+	}
   n_out <- list()
   for (i in 1:length(groups)) {
     data_work <- data_in

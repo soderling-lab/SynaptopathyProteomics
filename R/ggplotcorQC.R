@@ -20,6 +20,12 @@
 #' @examples
 #' ggplotCorQC(data_in, groups, colID, nbins, annotate = TRUE)
 ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
+	suppressPackageStartupMessages({
+		library(ggplot2)
+		library(gtable)
+		library(grid)
+		library(gridExtra)
+	})
   plot_list <- list()
   for (i in 1:length(groups)) {
     cols <- grep(groups[i], colnames(data_in))
@@ -41,7 +47,9 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
     data <- as.data.frame(do.call(rbind, data_list))
     # Bin by mean intensity.
     mu <- rowMeans(data_work)
-    data$bins <- rep(BurStMisc::ntile(mu, nbins, na.rm = TRUE, checkBleed = FALSE, result = "numeric"), num_iter)
+    data$bins <- rep(BurStMisc::ntile(mu, nbins, na.rm = TRUE, 
+				      checkBleed = FALSE, 
+				      result = "numeric"), num_iter)
     # Determine best fit line.
     fit <- lm(data$Log2QC1 ~ data$Log2QC2)
     # Calculate Pearson P-Value.
@@ -65,15 +73,16 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
       )
     # Add annotation layer.
     mytable <- rbind(R2, Slope)
-    xrange <- unlist(ggplot_build(plot)$layout$panel_params[[1]][1])
-    yrange <- unlist(ggplot_build(plot)$layout$panel_params[[1]][8])
+    xrange <- unlist(ggplot_build(plot)$layout$panel_params[[1]]$x.range)
+    yrange <- unlist(ggplot_build(plot)$layout$panel_params[[1]]$y.range)
     xmin <- min(xrange)
     xmax <- max(xrange)
     xdelta <- xmax - xmin
     ymin <- min(yrange)
     ymax <- max(yrange)
     ydelta <- ymax - ymin
-    tt <- ttheme_default(base_size = 11, core = list(bg_params = list(fill = "white")))
+    tt <- ttheme_default(base_size = 11, 
+			 core = list(bg_params = list(fill = "white")))
     tab <- tableGrob(mytable, rows = NULL, theme = tt)
     g <- gtable_add_grob(tab,
       grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
