@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# Launch vcxsrv for a WSL graphical interface.
-"/mnt/c/Program Files/VcXsrv/vcxsrv.exe" :0 -multiwindow -clipboard -wgl
