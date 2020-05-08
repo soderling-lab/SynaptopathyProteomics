@@ -115,8 +115,8 @@ uniprot <- unique(peptides$Accession)
 
 # Map Uniprot IDs to entrez using MGI database.
 # This takes a couple minutes because the function currently
-# downlaods the MGI data each time the function is called.
-entrez <- mgi_batch_query(uniprot,quiet=FALSE) # Warning  not mapped.
+# downloads the MGI data each time the function is called.
+entrez <- mgi_batch_query(uniprot,quiet=FALSE)
 names(entrez) <- uniprot
 
 # Check: we have successfully mapped all uniprot ids.
@@ -158,7 +158,7 @@ tidy_peptide <- left_join(tidy_peptide,samples,by="Sample")
 # Perform sample normalization. Normalization is down for each 
 # experiment independently (group by Experiment:Sample).
 message("\nPerforming sample loading normalization.")
-sl_peptide <- normSL(tidy_peptide, groupBy=c("Model","Sample"))
+sl_peptide <- normSL(tidy_peptide, groupBy=c("Experiment","Sample"))
 
 #---------------------------------------------------------------------
 ## Impute missing peptide values.
@@ -169,8 +169,8 @@ sl_peptide <- normSL(tidy_peptide, groupBy=c("Model","Sample"))
 # * Peptides (rows) with more than 50% missingness will not be imputed.
 # Values in these rows are masked (replaced with NA).
 message("\nImputing a small number of missing peptide values.")
-imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Model",
-				samples_to_ignore="QC") 
+imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Experiment",
+				samples_to_ignore="QC",quiet=FALSE) 
 
 #---------------------------------------------------------------------
 ## Examine reproducibility of QC measurements.
@@ -180,10 +180,11 @@ imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Model",
 # This strategy was adapted from Ping et al., 2018 (pmid: 29533394).
 # For each experiment, calculate the ratio of QC measurements.
 # Bin these ratios based on the average Intensity of QC peptides into
-# 5 bins. For each bin, remove measuremnts that are outside 
+# 5 bins. For each bin, remove measurements that are outside 
 # +/- 4x SD from the mean of all ratios within that bin.
+# This threshold can be set with nSD.
 message("\nRemoving peptides with irreproducible QC measurements.")
-filt_peptide <- filtQC(imputed_peptide,controls="SPQC")
+filt_peptide <- filtQC(imputed_peptide,grouping.col='SampleType')
 
 #---------------------------------------------------------------------
 ## Summarize to protein level.
