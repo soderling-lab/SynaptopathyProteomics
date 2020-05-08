@@ -1,21 +1,22 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: Swip Proteomics
-#' description: Preprocessing of Swip TMT proteomics data.
+#' title:
+#' description:
 #' authors: Tyler W Bradshaw
 #' ---
 
-## User defined parameters:
-# Input data should be in root/input/:
-input_data = "TMT-raw-peptide.csv"
-input_samples = "TMT-samples.csv"
+## Inputs:
+# Input data should be in root/data/:
+# 1. TMT-samples.csv - sample meta data.
+input_samples = "4227_TMT_Cortex_Combined_traits.csv"
+
+# 2. TMT-raw-peptide.csv - raw peptide data from PD.
+input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
+
+## Parameters:
 sample_connectivity_threshold = 2.5 # Threshold for sample level outliers
 alpha = 0.1 # FDR threshold for differential abundance
-
-## Inputs:
-# 1. TMT-samples.csv - sample meta data.
-# 2. TMT-raw-peptide.csv - raw peptide data from PD.
 
 ## Main Outputs:
 # Stored in root/tables/
@@ -69,12 +70,12 @@ suppressPackageStartupMessages({
 })
 
 # Load additional functions.
-suppressWarnings({ devtools::load_all() })
+TBmiscr::load_all()
 
 # Project directories:
 rootdir <- getrd()
 funcdir <- file.path(rootdir, "R")
-datadir <- file.path(rootdir, "input")
+datadir <- file.path(rootdir, "data")
 rdatdir <- file.path(rootdir, "rdata")
 downdir <- file.path(rootdir, "downloads")
 figsdir <- file.path(rootdir, "figs")
@@ -96,8 +97,9 @@ samples <- fread(myfile)
 ## Map all Uniprot accession numbers to stable entrez IDs.
 #---------------------------------------------------------------------
 
-# Map Uniprot IDs to Entrez using MGI batch query function.
-# Map Entrez IDs to gene symbols using getPPIs::getIDs().
+# 0. Remove non-mouse and other spurious proteins.
+# 1. Map Uniprot IDs to Entrez using MGI batch query function.
+# 2. Map Entrez IDs to gene symbols using getPPIs::getIDs().
 message("\nCreating gene identifier map.")
 
 # First, remove any non-mouse proteins from the data.
@@ -114,14 +116,8 @@ uniprot <- unique(peptides$Accession)
 # Map Uniprot IDs to entrez using MGI database.
 # This takes a couple minutes because the function currently
 # downlaods the MGI data each time the function is called.
-entrez <- mgi_batch_query(uniprot,quiet=FALSE) # Warning 4 not mapped.
+entrez <- mgi_batch_query(uniprot,quiet=FALSE) # Warning  not mapped.
 names(entrez) <- uniprot
-
-# Map the remaining missing ids by hand.
-message("Mapping missing IDs by hand.\n")
-missing <- entrez[is.na(entrez)]
-mapped_by_hand <- c(P05214=22144, P0CG14=214987, P84244=15078)
-entrez[names(mapped_by_hand)] <- mapped_by_hand
 
 # Check: we have successfully mapped all uniprot ids.
 check <- sum(is.na(entrez)) == 0
@@ -130,7 +126,12 @@ if (!check) { stop("Unable to map all Uniprot IDs to stable gene identifiers!") 
 # Map entrez ids to gene symbols.
 symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
 
+# Check: we have successfully mapped all gene symbols.
+check <- sum(is.na(symbols)) == 0
+if (!check) { stop("Unable to map all Entrez IDs to gene Symbols!") }
+
 # Create mapping data.table.
+# We will save this in rdata/.
 gene_map <- data.table(uniprot = names(entrez),
                        entrez = entrez,
 	               symbol = symbols)
@@ -145,7 +146,7 @@ gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
 # Treatment, Channel, Sample, Experiment
 message("\nLoading raw data from Proteome Discover...")
 cols=colnames(peptides)[!grepl("Abundance",colnames(peptides))]
-tidy_peptide <- tidyProt(peptides,id.vars=cols)
+tidy_peptide <- tidyProt(peptides,intensity.cols=cols)
 
 # Annotate tidy data with additional meta data from samples.
 tidy_peptide <- left_join(tidy_peptide,samples,by="Sample")
@@ -157,7 +158,7 @@ tidy_peptide <- left_join(tidy_peptide,samples,by="Sample")
 # Perform sample normalization. Normalization is down for each 
 # experiment independently (group by Experiment:Sample).
 message("\nPerforming sample loading normalization.")
-sl_peptide <- normSL(tidy_peptide, groupBy=c("Experiment","Sample"))
+sl_peptide <- normSL(tidy_peptide, groupBy=c("Model","Sample"))
 
 #---------------------------------------------------------------------
 ## Impute missing peptide values.
@@ -168,8 +169,8 @@ sl_peptide <- normSL(tidy_peptide, groupBy=c("Experiment","Sample"))
 # * Peptides (rows) with more than 50% missingness will not be imputed.
 # Values in these rows are masked (replaced with NA).
 message("\nImputing a small number of missing peptide values.")
-imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Experiment",
-				samples_to_ignore="SPQC") 
+imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Model",
+				samples_to_ignore="QC") 
 
 #---------------------------------------------------------------------
 ## Examine reproducibility of QC measurements.
