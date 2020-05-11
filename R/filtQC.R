@@ -1,4 +1,5 @@
-filtQC <- function(tp,grouping.col,controls="QC|SPQC",nbins=5,nSD=4,quiet=TRUE){
+filtQC <- function(tp,grouping.col,controls,nbins=5,nSD=4,quiet=TRUE){
+
 	# Remove peptides with highly variable QC measurments.
 	# Calculate ratios of QC peptides, grouped by Experiment.
 	# Imports.
@@ -7,15 +8,15 @@ filtQC <- function(tp,grouping.col,controls="QC|SPQC",nbins=5,nSD=4,quiet=TRUE){
 		library(data.table)
 	})
 
-	ratio_data <- tp %>% filter(grouping.col == controls) %>% 
+	ratio_data <- tp %>% filter(tp[[grouping.col]] == controls) %>% 
 		group_by(Experiment,Accession,Sequence,Modifications) %>% 
-
 		dplyr::summarize(Ratio = log2(Intensity[2]) - log2(Intensity[1]),
 			  Mean = log2(mean(Intensity)),
 			  N = length(Intensity),
 			  nMissing = sum(is.na(Intensity)),
 			  Remove = sum(is.na(Intensity)>0))
 	ratio_data <- ratio_data %>% filter(!Remove)
+
 	# Group ratio data into intensity bins.
 	breaks <- quantile(ratio_data$Mean,seq(0,1,length.out=nbins+1),
 			   names=FALSE,na.rm=TRUE)

@@ -33,61 +33,53 @@ mgi_batch_query <- function(ids,from="Uniprot",to="Entrez",
 	geneID <- IDs[idy]
 	if (length(geneID)>1) { stop("Multiple matching gene identifiers.") }
 
-	# Load MGI marker associations.
-	if (download) {
+	# Load MGI gene mapping data.
+	if (!download) {
+		data(MGI_Gene_Map)
+	} else {
+		# Build a mappint database.
+		message("Creating mapping database...")
 		# Download the data.
 		MRK_Sequence <- fread(url,showProgress=!quiet)
-	} else {
-		# Load saved data.
-		data(MRK_Sequence)
-	}
-
-	# Get MGI and gene ID columns.
-	cols <- c("MGI Marker Accession ID",geneID)
-	dtA <- MRK_Sequence %>% 
-		dplyr::select(all_of(cols))
-
-	# Simplify column names.
-	colNames <- c("MGI","GenBank","Ensembl_transcript","TrEMBL",
-		      "RefSeq_protein","Symbol","RefSeq_transcript",
-		      "UniProt","Ensembl_protein","UniGene")
-	colnames(dtA) <- c("MGI",colNames[idy])
-	colName <- colNames[idy]
-
-	# Dynamically execute command to separate rows.
-	cmd <- paste0("tidyr::separate_rows(dtA,",colName,",sep='\\\\|')")
-	dtA <- eval(parse(text=cmd))
-
-	# Dynamically execute command to remove empty rows.
-	cmd <- paste0("filter(dtA,",colName,"!='')")
-	dtA <- eval(parse(text=cmd))
-
-	# Coerce result to a data.table.
-	dtA <- as.data.table(dtA)
-
-	# Download MGI to Entrez mapping data.
-	# Separate rows with multiple secondary MGI IDs.
-	# Collect Entrez and MGI ids in a data.table.
-	# "http://www.informatics.jax.org/downloads/reports/MGI_EntrezGene.rpt"
-	url <- "https://bit.ly/3aeO1Xi"
-	if (download) {
+		# Get MGI and gene ID columns.
+		cols <- c("MGI Marker Accession ID",geneID)
+		dtA <- MRK_Sequence %>% 
+			dplyr::select(all_of(cols))
+		# Simplify column names.
+		colNames <- c("MGI","GenBank","Ensembl_transcript","TrEMBL",
+		              "RefSeq_protein","Symbol","RefSeq_transcript",
+		              "UniProt","Ensembl_protein","UniGene")
+		colnames(dtA) <- c("MGI",colNames[idy])
+		colName <- colNames[idy]
+		# Dynamically execute command to separate rows.
+		cmd <- paste0("tidyr::separate_rows(dtA,",
+			      colName,",sep='\\\\|')")
+		dtA <- eval(parse(text=cmd))
+		# Dynamically execute command to remove empty rows.
+		cmd <- paste0("filter(dtA,",colName,"!='')")
+		dtA <- eval(parse(text=cmd))
+		# Coerce result to a data.table.
+		dtA <- as.data.table(dtA)
+		# Download MGI to Entrez mapping data.
+		# Separate rows with multiple secondary MGI IDs.
+		# Collect Entrez and MGI ids in a data.table.
+		# http://www.informatics.jax.org/downloads/reports/MGI_EntrezGene.rpt
+		url <- "https://bit.ly/3aeO1Xi"
 		MGI_EntrezGene <- fread(url,showProgress=!quiet) 
-	} else {
-		data(MGI_EntrezGene)
+		dtB <- MGI_EntrezGene %>% dplyr::select(V1,V8,V9)
+		colnames(dtB) <- c("MGI_A","MGI_B","Entrez")
+		dtB <- tidyr::separate_rows(dtB,"MGI_B",sep="\\|")
+		dtB <- melt(dtB, id.vars="Entrez",
+			    measure.vars=c("MGI_A","MGI_B"),value.name="MGI")
+		dtB <- dtB %>% dplyr::select(Entrez,MGI) %>% na.omit()
+		# Merge the two tables.
+		dtC <- inner_join(dtA,dtB,by="MGI") %>% as.data.table
+		MGI_Gene_Map <- dtC
 	}
-	dtB <- MGI_EntrezGene %>% dplyr::select(V1,V8,V9)
-	colnames(dtB) <- c("MGI_A","MGI_B","Entrez")
-	dtB <- tidyr::separate_rows(dtB,"MGI_B",sep="\\|")
-	dtB <- melt(dtB, id.vars="Entrez",
-		    measure.vars=c("MGI_A","MGI_B"),value.name="MGI")
-	dtB <- dtB %>% dplyr::select(Entrez,MGI) %>% na.omit()
-
-	# Merge the two tables.
-	dtC <- inner_join(dtA,dtB,by="MGI") %>% as.data.table
 
 	# Map IDs.
-	idx <- match(ids,dtC$UniProt)
-	entrez <- dtC$Entrez[idx]
+	idx <- match(ids,MGI_Gene_Map$UniProt)
+	entrez <- MGI_Gene_Map$Entrez[idx]
 	n_missing <- sum(is.na(entrez))
 	if (n_missing > 0) {
 		warn(paste("Unable to map",n_missing,

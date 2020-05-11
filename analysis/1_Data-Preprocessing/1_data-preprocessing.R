@@ -15,12 +15,13 @@ input_samples = "4227_TMT_Cortex_Combined_traits.csv"
 input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
 
 ## Other parameters:
-sample_connectivity_threshold = 2.5 # Threshold for sample level outliers
-alpha = 0.1 # FDR threshold for differential abundance
+output_name = "Cortex" # Prefix for naming output files.
+sample_connectivity_threshold = 2.5 # Threshold for detecting sample level outliers.
+alpha = 0.1 # FDR threshold for differential abundance.
 
 ## Main Outputs:
 # Stored in root/tables/
-# 0. Swip_TMT_Results.xlsx
+# 0. [output_name]_TMT_Results.xlsx
 
 ## Output for downstream analysis:
 # Stored in root/rdata/
@@ -65,6 +66,7 @@ suppressPackageStartupMessages({
 	library(dplyr)
 	library(WGCNA)
 	library(TBmiscr)
+	library(getPPIs)
 	library(ggplot2)
 	library(data.table)
 })
@@ -116,7 +118,7 @@ uniprot <- unique(peptides$Accession)
 # Map Uniprot IDs to entrez using MGI database.
 # This takes a couple minutes because the function currently
 # downloads the MGI data each time the function is called.
-entrez <- mgi_batch_query(uniprot,quiet=FALSE)
+entrez <- mgi_batch_query(uniprot,quiet=FALSE,download=FALSE)
 names(entrez) <- uniprot
 
 # Check: we have successfully mapped all uniprot ids.
@@ -184,7 +186,8 @@ imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Experiment",
 # +/- 4x SD from the mean of all ratios within that bin.
 # This threshold can be set with nSD.
 message("\nRemoving peptides with irreproducible QC measurements.")
-filt_peptide <- filtQC(imputed_peptide,grouping.col='SampleType')
+filt_peptide <- filtQC(imputed_peptide,grouping.col='Treatment',
+		       controls='QC',quiet=FALSE)
 
 #---------------------------------------------------------------------
 ## Summarize to protein level.
@@ -218,7 +221,6 @@ message(paste("\nStandardizing protein measurements between",
 	      "experiments by IRS normalization."))
 irs_protein <- normIRS(sl_protein,controls="QC",robust=TRUE)
 
-
 #---------------------------------------------------------------------
 ## Protein level filtering.
 #---------------------------------------------------------------------
@@ -229,7 +231,7 @@ irs_protein <- normIRS(sl_protein,controls="QC",robust=TRUE)
 # Remove proteins with any missing QC values.
 # Remove proteins that have outlier measurements.
 message(paste("\nFiltering proteins..."))
-filt_protein <- filtProt(imputed_protein,
+filt_protein <- filtProt(irs_protein,
 			 controls="QC",nbins=5,nSD=4,summary=TRUE)
 
 # There should be no missing values at this point.
