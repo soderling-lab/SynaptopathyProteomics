@@ -267,7 +267,33 @@ filt_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
 #---------------------------------------------------------------------
 
 # Reformat final normalized data for TAMPOR Normalization.
-dm_tampor <- reformat_TAMPOR(filt_protein,samples)
+reformat_TAMPOR <- function(tp,samples){
+	# Coerce tidy data to matrix.
+	tp <- filt_protein
+	tp_in <- tp <- as.data.table(tp)
+	dt <- tp %>% dcast(Accession ~ Sample,value.var="Intensity")
+	dm <- as.matrix(dt,rownames="Accession")
+	# Row names are Symbol|Accession
+	idx <- match(rownames(dm),gene_map$uniprot)
+	rownames(dm) <- paste(gene_map$symbol[idx],rownames(dm),sep="|")
+	# Column names are batch.channel
+	idx <- match(colnames(dm), samples$Sample)
+	batch <- paste0("b",as.numeric(as.factor(samples$Genotype)))
+	channel <- samples$Channel
+	colnames(dm) <- paste(batch,channel,sep=".")[idx]
+	# Reorder based on batch.channel.
+	dm <- dm[,order(colnames(dm))]
+	return(dm)
+}
+
+## Save data as RData...
+# Save raw data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.RData"))
+saveRDS(raw_peptide, myfile)
+
+# Save cleanDat as RData.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_cleanDat.RData"))
+saveRDS(cleanDat, myfile)
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
@@ -276,20 +302,12 @@ dm_tampor <- reformat_TAMPOR(filt_protein,samples)
 ## Output for downstream analysis:
 # Stored in root/rdata/
 # 0. gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-# 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
+# 1. tidy_peptide.csv - raw peptide data.
+# 2. tidy_protein.csv - final normalized protein data.
+# 3. norm_protein.csv - final normalized protein data matrix.
+# 4. adjm.csv         - adjacency matrix. 
+# 5. ne_adjm.csv      - enhanced adjacency matrix. 
+# 6. glm_stats.RData  - statistical results from edgeR glm
 
 ## Save key results.
 message("\nSaving data for downstream analysis")
-
-# 0. gene_map.RData   - gene identifier map.
-myfile <- file.path(rdatdir,"gene_map.RData")
-saveRDS(gene_map,myfile)
-
-# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
-fwrite(tidy_peptide,myfile)
-
-# 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
-myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
-fwrite(dm_tampor,myfile)
