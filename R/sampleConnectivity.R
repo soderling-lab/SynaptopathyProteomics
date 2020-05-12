@@ -12,18 +12,17 @@ sampleConnectivity <- function(tp, log = TRUE) {
 		  library(dplyr)
 	})
 	# Cast tp into matix.
+	tp <- as.data.table(tp)
 	dm <- tp %>% dcast(Accession ~ Sample, value.var="Intensity") %>% 
 		as.matrix(rownames=TRUE)
 	# Evaluate correlations between samples.
-	silence({
-		if (log) {
-			cormat <- WGCNA::bicor(log2(dm),
-					       use="pairwise.complete.obs")
-		} else {
-			cormat <- WGCNA::bicor(dm,
-					       use="pairwise.complete.obs")
-		}
-	})
+	if (log) {
+		cormat <- WGCNA::bicor(log2(dm),
+				       use="pairwise.complete.obs")
+	} else {
+		cormat <- WGCNA::bicor(dm,
+				       use="pairwise.complete.obs")
+	}
 	# Calculate adjm.
 	adjm <- 0.5*cormat^2 + 0.5
 	# Normalized ki by maximum.

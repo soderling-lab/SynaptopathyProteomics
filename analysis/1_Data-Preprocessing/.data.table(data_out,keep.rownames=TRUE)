@@ -1,0 +1,109 @@
+as.data.table            package:data.table            R Documentation
+
+_C_o_e_r_c_e _t_o _d_a_t_a._t_a_b_l_e
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     Functions to check if an object is ‘data.table’, or coerce it if
+     possible.
+
+_U_s_a_g_e:
+
+     as.data.table(x, keep.rownames=FALSE, ...)
+     
+     ## S3 method for class 'data.table'
+     as.data.table(x, ...)
+     
+     ## S3 method for class 'array'
+     as.data.table(x, keep.rownames=FALSE, key=NULL, sorted=TRUE,
+                   value.name="value", na.rm=TRUE, ...)
+     
+     is.data.table(x)
+     
+_A_r_g_u_m_e_n_t_s:
+
+       x: An R object.
+
+keep.rownames: Default is ‘FALSE’. If ‘TRUE’, adds the input object's
+          names as a separate column named ‘"rn"’. ‘keep.rownames =
+          "id"’ names the column ‘"id"’ instead.
+
+     key: Character vector of one or more column names which is passed
+          to ‘setkeyv’.
+
+  sorted: logical used in _array_ method, default ‘TRUE’ is overridden
+          when ‘key’ is provided.
+
+value.name: character scalar used in _array_ method, default ‘"value"’.
+
+   na.rm: logical used in _array_ method, default ‘TRUE’ will remove
+          rows with ‘NA’ values.
+
+     ...: Additional arguments to be passed to or from other methods.
+
+_D_e_t_a_i_l_s:
+
+     ‘as.data.table’ is a generic function with many methods, and other
+     packages can supply further methods.
+
+     If a ‘list’ is supplied, each element is converted to a column in
+     the ‘data.table’ with shorter elements recycled automatically.
+     Similarly, each column of a ‘matrix’ is converted separately.
+
+     ‘character’ objects are _not_ converted to ‘factor’ types unlike
+     ‘as.data.frame’.
+
+     If a ‘data.frame’ is supplied, all classes preceding
+     ‘"data.frame"’ are stripped. Similarly, for ‘data.table’ as input,
+     all classes preceding ‘"data.table"’ are stripped. ‘as.data.table’
+     methods returns a _copy_ of original data. To modify by reference
+     see ‘setDT’ and ‘setDF’.
+
+     ‘keep.rownames’ argument can be used to preserve the (row)names
+     attribute in the resulting ‘data.table’.
+
+_S_e_e _A_l_s_o:
+
+     ‘data.table’, ‘setDT’, ‘setDF’, ‘copy’, ‘setkey’, ‘J’, ‘SJ’, ‘CJ’,
+     ‘merge.data.table’, ‘:=’, ‘setalloccol’, ‘truelength’,
+     ‘rbindlist’, ‘setNumericRounding’, ‘datatable-optimize’
+
+_E_x_a_m_p_l_e_s:
+
+     nn = c(a=0.1, b=0.2, c=0.3, d=0.4)
+     as.data.table(nn)
+     as.data.table(nn, keep.rownames=TRUE)
+     as.data.table(nn, keep.rownames="rownames")
+     
+     # char object not converted to factor
+     cc = c(X="a", Y="b", Z="c")
+     as.data.table(cc)
+     as.data.table(cc, keep.rownames=TRUE)
+     as.data.table(cc, keep.rownames="rownames")
+     
+     mm = matrix(1:4, ncol=2, dimnames=list(c("r1", "r2"), c("c1", "c2")))
+     as.data.table(mm)
+     as.data.table(mm, keep.rownames=TRUE)
+     as.data.table(mm, keep.rownames="rownames")
+     as.data.table(mm, key="c1")
+     
+     ll = list(a=1:2, b=3:4)
+     as.data.table(ll)
+     as.data.table(ll, keep.rownames=TRUE)
+     as.data.table(ll, keep.rownames="rownames")
+     
+     DF = data.frame(x=rep(c("x","y","z"),each=2), y=c(1,3,6), row.names=LETTERS[1:6])
+     as.data.table(DF)
+     as.data.table(DF, keep.rownames=TRUE)
+     as.data.table(DF, keep.rownames="rownames")
+     
+     DT = data.table(x=rep(c("x","y","z"),each=2), y=c(1:6))
+     as.data.table(DT)
+     as.data.table(DT, key='x')
+     
+     ar = rnorm(27)
+     ar[sample(27, 15)] = NA
+     dim(ar) = c(3L,3L,3L)
+     as.data.table(ar)
+     
+

@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/env Rscript 
 
 #' ---
 #' title: 1a_calc-adjacency.R
@@ -9,6 +9,9 @@
 #------------------------------------------------------------------------------
 ## Generate protein correlation matrix.
 #------------------------------------------------------------------------------
+
+# Load renv.
+renv::load(getrd())
 
 # Imports.
 suppressPackageStartupMessages({
@@ -25,9 +28,8 @@ rdatadir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 funcdir <- file.path(root, "R")
 
-# Functions.
-myfun <- list.files(funcdir, full.names = TRUE)
-invisible(sapply(myfun, source))
+# Additional functions.
+TBmiscr::load_all()
 
 # Load the normalized expression data.
 # Combined and normalized data, sample level outliers removed.
@@ -37,6 +39,7 @@ cleanDat <- readRDS(myfile)
 # Load sample traits.
 myfile <- file.path(rdatadir, "2_Combined_traits.RData")
 traits <- readRDS(myfile)
+traits$Model <- gsub(" ","",traits$Model) # remove spaces
 
 # Remove QC data, log2 transform, and coerce to data.table.
 out <- traits$SampleType[match(colnames(cleanDat), rownames(traits))] == "QC"
@@ -101,3 +104,89 @@ invisible(mapply(function(x, y) fwrite(x, y, row.names = TRUE), adjm, myfiles))
 # Save correlation matrices RData.
 myfiles <- file.path(rdatadir, paste0("3_", names(adjm), "_Adjm.RData"))
 invisible(mapply(function(x, y) saveRDS(x, y), adjm, myfiles))
+
+quit()
+
+#--------------------------------------------------------------------
+## Identify subset of highly reproducible proteins
+#--------------------------------------------------------------------
+
+# Tidy up the data.
+dt <- reshape2::melt(cleanDat,value.name="Abundance")
+colnames(dt)[c(1,2)] <- c("Accession", "Sample")
+dt$Sample <- as.character(dt$Sample)
+
+# Annotate with additional meta data.
+traits$Sample <- as.character(traits$SampleID)
+traits$Channel <- sapply(strsplit(traits$SampleID,"\\."),"[",2)
+data <- left_join(dt,traits, by=c("Sample"))
+data <- data %>% select(Accession,Tissue,Model,SampleType, Channel, Abundance)
+
+# Remove QC data.
+data <- data %>% filter(SampleType != "QC")
+
+# Split the data into a list--each element is the data for a protein.
+data_list <- data %>% group_by(Accession) %>% group_split()
+names(data_list) <- sapply(data_list,function(x) unique(x$Accession)) # Prots
+
+# Define a function that checks reproducibility of a protein.
+check_reproducibility <- function(data_list,protein,tissue.type,
+				  fun="bicor",threshold=0.6) {
+	# Which proteins are highly reproducible between replicates.
+	# For a given protein, cast the data into a matrix: Fraction ~ Replicate.
+	df <- data_list[[protein]] %>% 
+		filter(SampleType != "WT",Tissue==tissue.type) 
+	df <- as.data.table(df) 
+	# Treat all mutants the same:
+	df$SampleType <- gsub("HET","KO",df$SampleType) 
+	df$Replicate <- as.numeric(as.factor(df$Channel))
+        temp <- dcast(df, Model + Tissue ~ SampleType + Replicate, 
+		      value.var="Abundance") 
+	cols <- grep("_",colnames(temp))
+	dm <- temp %>% select(all_of(cols)) %>% 
+		as.matrix(rownames.value=paste(temp$Model,temp$Tissue,sep="."))
+	dm <- log2(dm)
+	# missing values can arise in dm if outlier sample was removed.
+	# Calculate the pairwise correlation between samples.
+	opts <- "pairwise.complete.obs"
+	if (fun == "bicor") { cormat <- bicor(dm,use=opts) }
+	if (fun == "pearson") { cormat <- cor(dm,method="pearson",use=opts) }
+	if (fun == "spearman") { cormat <- cor(dm,method="spearman",use=opts) }
+	# Ignore self- and duplicate- comparisons.
+	diag(cormat) <- NA
+	cormat[lower.tri(cormat)] <- NA
+	# Melt into a vector of correlation values.
+	x <- reshape2::melt(cormat,na.rm=TRUE,value.name="cor")[["cor"]]
+	# Check if all values are > threshold.
+	check <- all(x > threshold)
+	return(check)
+}
+
+# Check protein reproducibility.
+check <- sapply(names(data_list),
+		function(prot) {
+			check_reproducibility(data_list,prot,
+					      tissue.type="Cortex",
+					      fun="bicor",threshold=0.6)
+		})
+message(paste("Numer of reproducible proteins:",sum(check)))
+
+check <- sapply(names(data_list),
+		function(prot) {
+			check_reproducibility(data_list,prot,
+					      tissue.type="Striatum",
+					      fun="bicor",threshold=0.6)
+		})
+message(paste("Numer of reproducible proteins:",sum(check)))
+
+ids <- names(which(check))
+
+
+# Status.
+n_markers <- formatC(sum(check),big.mark=",")
+message(paste("Identified",n_markers,"potential protein markers."))
+
+# List of potential markers:
+potential_markers <- list("id" = names(which(ids)),
+			  "entrez" = names(which(entrez)))
+

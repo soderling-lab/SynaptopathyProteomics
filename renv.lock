@@ -507,6 +507,12 @@
       "Repository": "CRAN",
       "Hash": "11d27b7a5f49a221224f56134f06b1f9"
     },
+    "edgeR": {
+      "Package": "edgeR",
+      "Version": "3.30.0",
+      "Source": "Bioconductor",
+      "Hash": "7815875fa8fb8629a78aa5444650d2fe"
+    },
     "ellipse": {
       "Package": "ellipse",
       "Version": "0.4.1",
@@ -628,8 +634,8 @@
       "RemoteUsername": "twesleyb",
       "RemoteRepo": "getPPIs",
       "RemoteRef": "master",
-      "RemoteSha": "e81d4bf6468174efcea71ef8343954cfc11e579f",
-      "Hash": "52113e86065cc13fb2efe893d5d100af"
+      "RemoteSha": "03dd428913adab6fd37d565b222297664b887dea",
+      "Hash": "a2e5939d25f4bbd5afab0f3e16f28189"
     },
     "ggdendro": {
       "Package": "ggdendro",
@@ -896,6 +902,12 @@
       "Repository": "CRAN",
       "Hash": "361811f31f71f8a617a9a68bf63f1f42"
     },
+    "limma": {
+      "Package": "limma",
+      "Version": "3.44.1",
+      "Source": "Bioconductor",
+      "Hash": "5568aa58d0db2c9055da3084116c69f4"
+    },
     "lme4": {
       "Package": "lme4",
       "Version": "1.1-23",
@@ -909,6 +921,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "c108129ded5ffdb129064ec1d7ba77d0"
+    },
+    "locfit": {
+      "Package": "locfit",
+      "Version": "1.5-9.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "760b5b542e8435237d1b3c253bfe18e7"
     },
     "magrittr": {
       "Package": "magrittr",
@@ -1000,6 +1019,18 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "b4467e29ec60b2d05e361c9141e4fc59"
+    },
+    "neten": {
+      "Package": "neten",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "twesleyb",
+      "RemoteRepo": "neten",
+      "RemoteRef": "master",
+      "RemoteSha": "bac0da47dca411c87160e846ccdcfdf050a8b33c",
+      "Hash": "cbfc072e7745f47856f031bc9ee13561"
     },
     "nlme": {
       "Package": "nlme",
@@ -1344,10 +1375,10 @@
     },
     "scales": {
       "Package": "scales",
-      "Version": "1.1.0",
+      "Version": "1.1.1",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "a1c68369c629ea3188d0676e37069c65"
+      "Hash": "6f76f71042411426ec8df6c54f34e6dd"
     },
     "scatterplot3d": {
       "Package": "scatterplot3d",
@@ -1435,10 +1466,10 @@
     },
     "tidyselect": {
       "Package": "tidyselect",
-      "Version": "1.0.0",
+      "Version": "1.1.0",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "7d4b0f1ab542d8cb7a40c593a4de2f36"
+      "Hash": "6ea435c354e8448819627cf686f66e0a"
     },
     "truncnorm": {
       "Package": "truncnorm",
@@ -1463,10 +1494,10 @@
     },
     "vctrs": {
       "Package": "vctrs",
-      "Version": "0.2.4",
+      "Version": "0.3.0",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "6c839a149a30cb4ffc70443efa74c197"
+      "Hash": "fbf7ee297936697ec8404a22859da129"
     },
     "viridis": {
       "Package": "viridis",

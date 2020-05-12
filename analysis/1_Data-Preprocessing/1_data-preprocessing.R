@@ -37,18 +37,16 @@ alpha = 0.1 # FDR threshold for differential abundance.
 # * Load the data from PD.
 # * Initial sample loading normalization -- done within an experiment.
 # * Impute missing peptide values with KNN algorithm (k=10).
-# * Examine QC peptide reproducibility -- remove outliers.
+# * Examine QC peptide reproducibility -- remove peptide outliers.
 # * Summarize to protein level by summing all peptides for a protein.
 # * Protein-level sample loading normalization -- done across all experiments.
 # * IRS normalization -- equalizes protein measurements made from different
 #   peptides.
-# * Sample pool normalization -- assumes that mean of QC technical replicates is
-#   equal to mean of biological replicates..
-# * Impute missing protein values with KNN (k=10).
 # * Protein level filtering -- remove proteins identified by a single peptide;
 #   remove proteins with too many missing values; remove proteins that are not 
 #   reproducible (exhibit high inter-experimental variablility across the 3x 
 #   biological replicates.
+# * Regression of covariates --
 # * Asses differential abundance with a general linear model 
 #   ([Abundance] ~ 0 + groups) as implemented by the Edge R package 
 #   and its functions gmQLFfit() and glmQLFTest().
@@ -118,7 +116,7 @@ uniprot <- unique(peptides$Accession)
 # Map Uniprot IDs to entrez using MGI database.
 # This takes a couple minutes because the function currently
 # downloads the MGI data each time the function is called.
-entrez <- mgi_batch_query(uniprot,quiet=FALSE,download=FALSE)
+entrez <- getPPIs::mgi_batch_query(uniprot,quiet=FALSE,download=FALSE)
 names(entrez) <- uniprot
 
 # Check: we have successfully mapped all uniprot ids.
@@ -147,7 +145,7 @@ gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
 # Samples should contain the following columns:
 # Treatment, Channel, Sample, Experiment
 message("\nLoading raw data from Proteome Discover...")
-cols=colnames(peptides)[!grepl("Abundance",colnames(peptides))]
+cols <- colnames(peptides)[!grepl("Abundance",colnames(peptides))]
 tidy_peptide <- tidyProt(peptides,intensity.cols=cols)
 
 # Annotate tidy data with additional meta data from samples.
@@ -171,7 +169,7 @@ sl_peptide <- normSL(tidy_peptide, groupBy=c("Experiment","Sample"))
 # * Peptides (rows) with more than 50% missingness will not be imputed.
 # Values in these rows are masked (replaced with NA).
 message("\nImputing a small number of missing peptide values.")
-imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Experiment",
+imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Genotype",
 				samples_to_ignore="QC",quiet=FALSE) 
 
 #---------------------------------------------------------------------
@@ -186,7 +184,7 @@ imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Experiment",
 # +/- 4x SD from the mean of all ratios within that bin.
 # This threshold can be set with nSD.
 message("\nRemoving peptides with irreproducible QC measurements.")
-filt_peptide <- filtQC(imputed_peptide,grouping.col='Treatment',
+filt_peptide <- filtQC(imputed_peptide, grouping.col='Treatment',
 		       controls='QC',quiet=FALSE)
 
 #---------------------------------------------------------------------
@@ -202,12 +200,20 @@ message("\nPerforming sample loading normalization between experiments.")
 sl_protein <- normSL(proteins, groupBy="Sample")
 
 #---------------------------------------------------------------------
-## Intra-Batch ComBat.
+## Insure there are no QC outlier samples.
 #---------------------------------------------------------------------
 
-#---------------------------------------------------------------------
-## Remove QC outliers.
-#---------------------------------------------------------------------
+# Calculate Oldham's normalized sample connectivity (zK) in order to 
+# identify outlier samples.
+# This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
+zK <- sampleConnectivity(sl_protein %>% filter(Treatment == "QC"))
+
+outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
+		     names(zK)[zK > sample_connectivity_threshold])
+
+# There are no sample outliers.
+check <- length(outlier_samples) == 0
+if (!check) { stop("Why are there outlier samples?") }
 
 #---------------------------------------------------------------------
 ## Perform IRS Normalization.
@@ -229,7 +235,7 @@ irs_protein <- normIRS(sl_protein,controls="QC",robust=TRUE)
 # Remove proteins that were identified by a single peptide.
 # Remove proteins with too many missing values.
 # Remove proteins with any missing QC values.
-# Remove proteins that have outlier measurements.
+# FIXME: Remove proteins that have outlier measurements.
 message(paste("\nFiltering proteins..."))
 filt_protein <- filtProt(irs_protein,
 			 controls="QC",nbins=5,nSD=4,summary=TRUE)
@@ -237,16 +243,6 @@ filt_protein <- filtProt(irs_protein,
 # There should be no missing values at this point.
 check <- sum(is.na(filt_protein$Intensity)) == 0
 if (!check) { stop("Why are there missing values!") }
-
-#---------------------------------------------------------------------
-## Protein level imputing.
-#---------------------------------------------------------------------
-
-# Impute missing values.
-# Proteins with more than 50% missing values are ignored.
-message(paste("\nImputing missing protein values."))
-imputed_protein <- imputeKNNprot(irs_protein,ignore="QC")
-
 
 #---------------------------------------------------------------------
 ## Identify Sample outliers.
@@ -259,9 +255,56 @@ zK <- sampleConnectivity(filt_protein)
 outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 		     names(zK)[zK > sample_connectivity_threshold])
 
-# There are no sample outliers.
-check <- length(outlier_samples) == 0
-if (!check) { stop("Why are there outlier samples?") }
+# Status:
+message(paste0("Outlier samples:\n",
+	       paste(outlier_samples,collapse="\n")))
+
+# Remove sample outliers.
+filt_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
+
+#---------------------------------------------------------------------
+## Final Normalization: Regression of covariates.
+#---------------------------------------------------------------------
+
+# Batch and sex are used as covariates.
+eblm_protein <- eBLM_regression(filt_protein, 
+				traits=samples, ignore="QC")
+
+#---------------------------------------------------------------------
+# Reformat data for TAMPOR normalization script.
+#---------------------------------------------------------------------
+
+# Reformat final normalized data for TAMPOR Normalization.
+reformat_TAMPOR <- function(tp,samples){}
+
+tp <- filt_protein
+tp_in <- tp <- as.data.table(tp)
+dt <- tp %>% dcast(Accession ~ Sample,value.var="Intensity")
+dm <- as.matrix(dt,rownames="Accession")
+
+# Row names are Symbol|Accession
+idx <- match(rownames(dm),gene_map$uniprot)
+rownames(dm) <- paste(gene_map$symbol[idx],rownames(dm),sep="|")
+
+# Column names are batch.channel
+idx <- match(colnames(dm), samples$Sample)
+batch <- paste0("b",as.numeric(as.factor(samples$Genotype)))
+channel <- samples$Channel
+colnames(dm) <- paste(batch,channel,sep=".")[idx]
+
+# Reorder based on batch.channel.
+dm <- dm[,order(colnames(dm))]
+
+## Save data as RData...
+# Save raw data.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.RData"))
+saveRDS(raw_peptide, myfile)
+
+# Save cleanDat as RData.
+myfile <- file.path(Rdatadir, paste0(outputMatName, "_cleanDat.RData"))
+saveRDS(cleanDat, myfile)
+
+quit()
 
 #---------------------------------------------------------------------
 ## Protein differential abundance.
@@ -271,30 +314,29 @@ if (!check) { stop("Why are there outlier samples?") }
 # Compare WT v Mutant within a fraction.
 message(paste("\nEvaluating differential abundance between WT and",
 	      "Swip mutant samples."))
-comparisons <- "Genotype.Fraction"
-results <- glmDA(filt_protein,comparisons,samples,
-		 samples_to_ignore="SPQC",summary=TRUE)
+comparisons <- "Genotype.Treatment"
+results <- glmDA(eblm_protein,comparisons,samples,
+		 samples_to_ignore="QC")
 
 # Collect the results.
 tidy_protein <- results$data
 glm_results <- results$results
 
+# Annotate glm_results with gene symbols and entrez ids.
+annotate_genes <- function(dt,gene_map){
+	idx <- match(dt$Accession,gene_map$uniprot)
+	Entrez <- gene_map$entrez[idx]
+	Symbol <- gene_map$symbol[idx]
+	dt <- tibble::add_column(dt,Symbol,.after="Accession")
+	dt <- tibble::add_column(dt,Entrez,.after="Symbol")
+	return(dt)
+}
+glm_results <- lapply(glm_results,function(x) annotate_genes(x,gene_map))
+
 # Summary of DA proteins:
 message(paste0("Summary of differentially abundant proteins ",
 	      "in each subceulluar fraction (FDR < ",alpha,"):"))
 results$summary
-
-# Proteins that are commonly dysregulated:
-combined_results <- rbindlist(glm_results,idcol="Fraction")
-idx <- match(combined_results$Accession,gene_map$uniprot)
-combined_results$Gene <- gene_map$symbol[idx]
-df <- combined_results %>% group_by(Accession) %>% 
-	summarize(Gene = unique(Gene),
-		  nSig = sum(FDR<0.1),
-		  nFractions = length(FDR)) %>% 
-	filter(nSig==nFractions)
-message(paste("Proteins that are differentially abundant in all fractions:\n",
-	      paste(df$Gene,collapse=", ")))
 
 #---------------------------------------------------------------------
 ## Examine PCA of final normalized data.
@@ -492,10 +534,3 @@ ne_list[["WT"]] %>% as.data.table(keep.rownames="Accession") %>%
 myfile <- file.path(rdatdir,"ko_ne_adjm.csv")
 ne_list[["KO"]] %>% as.data.table(keep.rownames="Accession") %>% 
 	fwrite(myfile)
-
-# 6. Save statistical results.
-myfile <- file.path(rdatdir,"glm_stats.RData")
-saveRDS(glm_results,myfile)
-
-# Done!
-message("\nDone!")
