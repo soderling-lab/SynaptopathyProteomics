@@ -58,10 +58,8 @@ renv::load(getrd()) # NOTE: getrd() is a function in my .Rprofile.
 # Load required packages and functions.
 suppressPackageStartupMessages({
 	library(dplyr)
-	library(WGCNA)
 	library(TBmiscr)
 	library(getPPIs)
-	library(ggplot2)
 	library(data.table)
 })
 
@@ -72,10 +70,10 @@ TBmiscr::load_all()
 rootdir <- getrd()
 funcdir <- file.path(rootdir, "R")
 datadir <- file.path(rootdir, "data")
-rdatdir <- file.path(rootdir, "rdata")
-downdir <- file.path(rootdir, "downloads")
 figsdir <- file.path(rootdir, "figs")
+rdatdir <- file.path(rootdir, "rdata")
 tabsdir <- file.path(rootdir, "tables")
+downdir <- file.path(rootdir, "downloads")
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info.
@@ -114,6 +112,18 @@ uniprot <- unique(peptides$Accession)
 # downloads the MGI data each time the function is called.
 entrez <- getPPIs::mgi_batch_query(uniprot,quiet=FALSE,download=FALSE)
 names(entrez) <- uniprot
+
+# Map any missing ids by hand.
+not_mapped <- is.na(entrez)
+if (sum(not_mapped) > 0) {
+	message("Mapping missing IDs by hand.")
+	mapped_by_hand <- c("P10853" = 319180)
+	entrez[names(mapped_by_hand)] <- mapped_by_hand
+}
+
+# Check: no unmapped ids?
+check <- sum(is.na(entrez)) == 0
+if (!check) { stop( "Unable to map all uniprot IDs to stable entrez IDs.") }
 
 # Check: we have successfully mapped all uniprot ids.
 check <- sum(is.na(entrez)) == 0
