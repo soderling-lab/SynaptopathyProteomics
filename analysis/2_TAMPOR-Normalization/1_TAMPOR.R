@@ -8,10 +8,18 @@
 
 ## Inputs:
 # Input data should be in root/rdata:
+
+# Sample meta data.
 input_samples = list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
 		     "Striatum" = "4227_TMT_Striatum_Combined_traits.csv") 
+
+# Preprocessed expression data.
 input_data = list("Cortex" = "Cortex_cleanDat.RData",
 		  "Striatum" = "Striatum_cleanDat.RData")
+
+# Gene mapping data.
+input_maps = list("Cortex" = "Cortex_gene_map.RData",
+		  "Striatum" = "Striatum_gene_map.RData")
 
 ## Other parameters:
 output_name = "Combined"
@@ -224,66 +232,19 @@ overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
 overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 rownames(overall) <- NULL
 
-# Table of DA candidates.
-# Modify tables theme to change font size.
-# Cex is a scaling factor relative to the defaults.
-mytheme <- gridExtra::ttheme_default(
-  core = list(fg_params = list(cex = 0.75)),
-  colhead = list(fg_params = list(cex = 0.75)),
-  rowhead = list(fg_params = list(cex = 0.75))
-)
-
-# Create table and add borders.
-mytable <- tableGrob(overall, rows = NULL, theme = mytheme)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 2, b = nrow(mytable), l = 1, r = ncol(mytable)
-)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 1, l = 1, r = ncol(mytable)
-)
+# Table:
+knitr::kable(overall)
 
 # Call topTags to add FDR. Gather tabularized results.
 f <- function(x) { return(topTags(x, n = Inf, sort.by = "none")$table) }
 glm_results <- lapply(qlf, f)
 
-# Convert logCPM column to percent WT and annotate with candidate column.
-f <- function(x) { x$logCPM <- 
-glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
+# Convert logCPM column to percent WT.
+f <- function(x) { x$logCPM <- 2^x$logFC; return(x) }
+glm_results <- lapply(glm_results, f)
 
-# Use protmap to annotate glm_results with entrez Ids and gene symbols.
-for (i in 1:length(glm_results)) {
-  x <- glm_results[[i]]
-  idx <- match(rownames(x), protmap$ids)
-  x <- add_column(x, "Gene|Uniprot" = protmap$ids[idx], .before = 1)
-  x <- add_column(x, "Uniprot" = protmap$uniprot[idx], .after = 1)
-  x <- add_column(x, "Entrez" = protmap$entrez[idx], .after = 2)
-  x <- add_column(x, "Symbol" = protmap$gene[idx], .after = 3)
-  glm_results[[i]] <- x
-}
+# Rename column.
+f <- function(x) { colnames(x)[2] <- "PercentWT"; return(x) }
+glm_results <- lapply(glm_results, f)
 
-
-
-
-# Collect the results.
-tidy_protein <- results$data
-glm_results <- results$results
-
-# Summary of DA proteins:
-message(paste0("Summary of differentially abundant proteins ",
-	      "in each subceulluar fraction (FDR < ",alpha,"):"))
-results$summary
-
-# Proteins that are commonly dysregulated:
-combined_results <- rbindlist(glm_results,idcol="Fraction")
-idx <- match(combined_results$Accession,gene_map$uniprot)
-combined_results$Gene <- gene_map$symbol[idx]
-df <- combined_results %>% group_by(Accession) %>% 
-	summarize(Gene = unique(Gene),
-		  nSig = sum(FDR<0.1),
-		  nFractions = length(FDR)) %>% 
-	filter(nSig==nFractions)
-message(paste("Proteins that are differentially abundant in all fractions:\n",
-	      paste(df$Gene,collapse=", ")))
 
