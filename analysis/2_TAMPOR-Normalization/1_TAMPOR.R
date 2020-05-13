@@ -23,6 +23,7 @@ input_maps = list("Cortex" = "Cortex_gene_map.RData",
 
 ## Other parameters:
 output_name = "Combined"
+alpha_threshold = 0.1
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -56,6 +57,17 @@ rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 
 #---------------------------------------------------------------------
+## Combine gene mapping data.
+#---------------------------------------------------------------------
+
+# Load gene mapping data.
+myfiles <- sapply(input_maps, function(f) file.path(rdatdir, f))
+gene_maps <- lapply(myfiles,readRDS)
+
+# Combine.
+gene_map <- dplyr::bind_rows(gene_maps) %>% unique()
+
+#---------------------------------------------------------------------
 ## Combine cortex and striatum traits.
 #---------------------------------------------------------------------
 # We will utilize TAMPOR to combine the Cortex and Striatum datasets.
@@ -69,12 +81,13 @@ traits <- lapply(myfiles, fread)
 traits <- do.call(rbind, traits)
 
 # SampleIDs are batch.channel.
+# This doesn't work???
 #batch <- paste0("b",as.numeric(interaction(traits$Tissue,traits$Genotype)))
 batch <- paste0("b",as.numeric(as.factor(paste(traits$Tissue,traits$Genotype))))
 channel <- traits$Channel
 traits$SampleID <- paste(batch,channel,sep=".")
 
-# Traits must include:
+# Traits must include Batch column:
 traits$Batch <- batch
 
 # Insure that rownames are new sampleIDS
@@ -243,8 +256,34 @@ glm_results <- lapply(qlf, f)
 f <- function(x) { x$logCPM <- 2^x$logFC; return(x) }
 glm_results <- lapply(glm_results, f)
 
-# Rename column.
+# Rename logCPM column.
 f <- function(x) { colnames(x)[2] <- "PercentWT"; return(x) }
 glm_results <- lapply(glm_results, f)
 
+# Function to annotate results with gene ids.
+add_ids <- function(x,gene_map) {
+	Uniprot <- rownames(x)
+	x <- tibble::add_column(x,Uniprot,.after=0)
+	idx <- match(rownames(x),gene_map$uniprot)
+	Symbol <- gene_map[["symbol"]][idx]
+	Entrez <- gene_map[["entrez"]][idx]
+	x <- tibble::add_column(x,Symbol,.after=1)
+	x <- tibble::add_column(x,Entrez,.after=2)
+	rownames(x) <- NULL
+	return(x)
+}
 
+# Annotate with gene ids.
+glm_results <- lapply(glm_results,function(x) add_ids(x,gene_map))
+
+# Sort by PValue.
+f <- function(x) { x[order(x$PValue),] }
+glm_results <- lapply(glm_results, f)
+
+# Add candidate column.
+f <- function(x) { x$Candidate <- x$FDR < alpha_threshold ; return(x) }
+glm_results <- lapply(glm_results, f)
+
+# Save to file.
+myfile <- paste(output_name,"GLM_Results.xlsx",sep="_")
+write_excel(glm_results,myfile)
