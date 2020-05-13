@@ -142,10 +142,6 @@ gene_map <- data.table(uniprot = names(entrez),
 	               symbol = symbols)
 gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
 
-# Save gene_map in root/rdata/.
-myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
-saveRDS(gene_map,myfile)
-
 #---------------------------------------------------------------------
 ## Tidy-up the input data from Proteome Discover.
 #---------------------------------------------------------------------
@@ -207,6 +203,13 @@ proteins <- summarize_prot(filt_peptide)
 # Perform SL normalization across all experiments (group by Sample).
 message("\nPerforming sample loading normalization between experiments.")
 sl_protein <- normSL(proteins, groupBy="Sample")
+
+#---------------------------------------------------------------------
+## FOOBAR
+#---------------------------------------------------------------------
+
+# Before tackling inter-experimental batch effects, address intra-experimental
+# batch effect.
 
 #---------------------------------------------------------------------
 ## Insure there are no QC outlier samples.
@@ -291,7 +294,7 @@ message(paste("Final number of samples:",
 message("\nSaving data for downstream analysis...")
 
 # 0. gene_map.RData   - gene identifier map.
-myfile <- file.path(rdatdir,"gene_map.RData")
+myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
 saveRDS(gene_map,myfile)
 
 # 1. [output_name]_tidy_peptide.csv -- raw peptide data.

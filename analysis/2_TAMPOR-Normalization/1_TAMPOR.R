@@ -23,7 +23,19 @@ input_maps = list("Cortex" = "Cortex_gene_map.RData",
 
 ## Other parameters:
 output_name = "Combined"
-alpha_threshold = 0.1
+alpha_threshold = 0.1 # FDR threshold for signficance.
+n_threads = parallel::detectCores() - 1 # Number of cores for parallel processing.
+
+## Main Outputs:
+# Stored in root/tables/
+# 0. [output_name]_GLM_Results.xlsx - Statistical results.
+
+## Output for downstream analysis:
+# Stored in root/rdata/
+# 0. [output_name]_gene_map.RData   - gene identifier map.
+# 1. [output_name]_tidy_protein.csv - tidy, final, normalized protien data.
+
+## Order of data processing operations:
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -60,6 +72,8 @@ tabsdir <- file.path(root, "tables")
 ## Combine gene mapping data.
 #---------------------------------------------------------------------
 
+message("\nCombining gene identifier maps...")
+
 # Load gene mapping data.
 myfiles <- sapply(input_maps, function(f) file.path(rdatdir, f))
 gene_maps <- lapply(myfiles,readRDS)
@@ -72,6 +86,8 @@ gene_map <- dplyr::bind_rows(gene_maps) %>% unique()
 #---------------------------------------------------------------------
 # We will utilize TAMPOR to combine the Cortex and Striatum datasets.
 # Merge the preprocessed data and traits files.
+
+message("\nPreparing sample traits data for TAMPOR normalization...")
 
 # Load the sample info into a list, traits.
 myfiles <- sapply(input_samples,function(f) file.path(datadir, f))
@@ -99,6 +115,8 @@ rownames(traits) <- traits$SampleID
 # We will utilize TAMPOR to combine the Cortex and Striatum datasets.
 # Merge the preprocessed data and traits files.
 
+message("\nPreparing protein expression data TAMPOR normalization...")
+
 # Load the Cortex and Striatum cleanDat.
 myfiles <- sapply(input_data,function(f) file.path(rdatdir, f))
 data_list <- lapply(myfiles, readRDS)
@@ -119,23 +137,23 @@ qc_samples <- traits %>% filter(Treatment == "QC")
 out <- colnames(dm) %in% qc_samples$SampleID
 dm <- dm[,!out]
 
-# Remove rows with missing values.
+# Remove rows with any missing values.
 missing_vals <- apply(dm,1,function(x) any(is.na(x)))
 message(paste("Removing", sum(missing_vals), 
 	      "rows that contain missing values."))
-cleanDat <- dm[!missing_vals,]
+combDat <- dm[!missing_vals,]
 
-# Save merged traits file.
-myfile <- file.path(rdatdir, paste(output_name,"traits.RData",sep="_"))
-saveRDS(traits, file = myfile)
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
 #---------------------------------------------------------------------
 
+message(paste("\nPerforming TAMPOR normalization to merge Cortex and",
+	      "Striatum datasets..."))
+
 # Insure than any samples that were removed from cleanDat are removed from
 # traits (outliers and QC samples).
-sub_traits <- traits[rownames(traits) %in% colnames(cleanDat), ]
+sub_traits <- traits[rownames(traits) %in% colnames(combDat), ]
 
 # Rownames of traits must match column_names(data).
 rownames(sub_traits) <- sub_traits$SampleID
@@ -152,12 +170,12 @@ rownames(sub_traits) <- sub_traits$SampleID
 # Perform TAMPOR normalization.
 # Ignore warnings about closing connections.
 results <- TAMPOR(
-  dat = cleanDat,
+  dat = combDat,
   traits = sub_traits,
   batchPrefixInSampleNames = TRUE,
   samplesToIgnore = "None",
   GISchannels = controls,
-  parallelThreads = 8
+  parallelThreads = n_threads
 )
 
 # Collect normalized, relative abundance data.
@@ -173,10 +191,10 @@ cleanDat <- results$cleanRelAbun
 ## Protein differential abundance.
 #---------------------------------------------------------------------
 
+message(paste("\nAnalyzing protein differential abundance..."))
+
 # We will analyze cleanDat.
 dm <- cleanDat
-class(dm)
-dim(dm)
 
 # Create dge object.
 dge <- DGEList(counts=dm)
@@ -284,6 +302,32 @@ glm_results <- lapply(glm_results, f)
 f <- function(x) { x$Candidate <- x$FDR < alpha_threshold ; return(x) }
 glm_results <- lapply(glm_results, f)
 
+#---------------------------------------------------------------------
+## Save output for downstream analysis.
+#---------------------------------------------------------------------
+
+## Output for downstream analysis:
+# Stored in root/rdata/
+# 0. gene_map.RData   - gene identifier map.
+# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
+# 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
+
+## Save key results.
+message("\nSaving data for downstream analysis...")
+
+# 0. gene_map.RData   - gene identifier map.
+myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
+saveRDS(gene_map,myfile)
+
+# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
+#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
+#fwrite(tidy_peptide,myfile)
+
+# 2. [output_name]_cleanDat.RData -- data for TAMPOR.
+#myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
+#saveRDS(filt_protein,myfile)
+
+message("\nDone!")
 # Save to file.
-myfile <- paste(output_name,"GLM_Results.xlsx",sep="_")
+myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
