@@ -20,7 +20,6 @@ input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
 output_name = "Cortex" # Prefix for naming output files.
 #output_name = "Striatum"
 sample_connectivity_threshold = 2.5 # Threshold for detecting sample level outliers.
-alpha = 0.1 # FDR threshold for differential abundance.
 
 ## Main Outputs:
 # Stored in root/tables/
@@ -30,6 +29,7 @@ alpha = 0.1 # FDR threshold for differential abundance.
 # Stored in root/rdata/
 # 0. gene_map.RData   - gene identifier map.
 # 1. tidy_peptide.csv - tidy, raw peptide data.
+# 2. [output_name]_cleanDat.RData - preprocessed data for TAMPOR.
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -52,6 +52,8 @@ alpha = 0.1 # FDR threshold for differential abundance.
 
 # Load renv -- use load NOT activate!
 renv::load(getrd()) # NOTE: getrd() is a function in my .Rprofile.
+# Alternatively, use: 
+# renv::load("/mnt/d/projects/SynaptopathyProteomics") # Path to project root.
 
 # Load required packages and functions.
 suppressPackageStartupMessages({
@@ -197,6 +199,8 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 ## Insure there are no QC outlier samples.
 #---------------------------------------------------------------------
 
+# Remove QC outliers before performing IRS normalization.
+
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
 # This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
@@ -205,7 +209,7 @@ zK <- sampleConnectivity(sl_protein %>% filter(Treatment == "QC"))
 outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 		     names(zK)[zK > sample_connectivity_threshold])
 
-# There are no sample outliers.
+# There are no QC sample outliers.
 check <- length(outlier_samples) == 0
 if (!check) { stop("Why are there outlier samples?") }
 
@@ -250,6 +254,8 @@ outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 		     names(zK)[zK > sample_connectivity_threshold])
 
 # Status:
+# Good: by removing outlier protein measurments, we now have one less
+# sample level outlier.
 message(paste0("Outlier samples:\n",
 	       paste(outlier_samples,collapse="\n")))
 
@@ -261,7 +267,7 @@ filt_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
 #---------------------------------------------------------------------
 
 # Reformat final normalized data for TAMPOR Normalization.
-dm_tampor <- reformat_TAMPOR(filt_protein,samples)
+cleanDat <- reformat_TAMPOR(filt_protein,samples)
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
@@ -274,7 +280,7 @@ dm_tampor <- reformat_TAMPOR(filt_protein,samples)
 # 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
 
 ## Save key results.
-message("\nSaving data for downstream analysis")
+message("\nSaving data for downstream analysis...")
 
 # 0. gene_map.RData   - gene identifier map.
 myfile <- file.path(rdatdir,"gene_map.RData")
@@ -284,6 +290,8 @@ saveRDS(gene_map,myfile)
 myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
 fwrite(tidy_peptide,myfile)
 
-# 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
+# 2. [output_name]_cleanDat.RData -- data for TAMPOR.
 myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
-fwrite(dm_tampor,myfile)
+saveRDS(cleanDat,myfile)
+
+message("Done!")
