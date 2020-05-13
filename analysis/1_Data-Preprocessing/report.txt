@@ -13,3 +13,30 @@ Imputing missing values in group: Shank2
 Imputing missing values in group: Shank3
 ... Percent missing values: 0.02% (n=103).
 Imputing missing values in group: Syngap1
+... Percent missing values: 0.039% (n=202).
+Imputing missing values in group: Ube3a
+... Percent missing values: 0.009% (n=48).
+
+Removing peptides with irreproducible QC measurements.
+Total number of QC outlier peptides identified: 611
+
+Summarizing proteins as the sum of their peptides.
+
+Performing sample loading normalization between experiments.
+
+Standardizing protein measurements between experiments by IRS normalization.
+
+Filtering proteins...
+Removed proteins identified by one peptide.....: 95
+Removed proteins with too many missing values..: 52
+Removed proteins with any missing QC values....: 430
+Removed proteins with outlier measurements.....: 40
+Final number of reproducibly quantified proteins: 2,820
+
+Removing outlier sample(s):
+Abundance: F4: 127C, Sample, KO, 41335, Shank3, Cortex
+Final number of samples: 43
+
+Saving data for downstream analysis...
+
+Done!
