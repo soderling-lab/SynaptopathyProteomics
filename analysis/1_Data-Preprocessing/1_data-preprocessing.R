@@ -256,7 +256,7 @@ outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 # Status:
 # Good: by removing outlier protein measurments, we now have one less
 # sample level outlier.
-message(paste0("Outlier samples:\n",
+message(paste0("\nRemoving outlier sample(s):\n",
 	       paste(outlier_samples,collapse="\n")))
 
 # Remove sample outliers.
@@ -294,4 +294,4 @@ fwrite(tidy_peptide,myfile)
 myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
 saveRDS(cleanDat,myfile)
 
-message("Done!")
+message("\nDone!")
