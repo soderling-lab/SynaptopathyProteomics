@@ -14,8 +14,8 @@ input_samples = list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
 		     "Striatum" = "4227_TMT_Striatum_Combined_traits.csv") 
 
 # Preprocessed expression data.
-input_data = list("Cortex" = "Cortex_cleanDat.RData",
-		  "Striatum" = "Striatum_cleanDat.RData")
+input_data = list("Cortex" = "Cortex_preprocessed.RData",
+		  "Striatum" = "Striatum_preprocessed.RData")
 
 # Gene mapping data.
 input_maps = list("Cortex" = "Cortex_gene_map.RData",
@@ -33,7 +33,9 @@ n_threads = parallel::detectCores() - 1 # Number of cores for parallel processin
 ## Output for downstream analysis:
 # Stored in root/rdata/
 # 0. [output_name]_gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_protein.csv - tidy, final, normalized protien data.
+# 1. [output_name]_tidy_protein.csv - tidy, final, normalized protein data.
+# 2. [output_name]_
+# 3. [output_name]_
 
 ## Order of data processing operations:
 
@@ -50,11 +52,9 @@ renv::load(getrd())
 # Load required packages.
 suppressPackageStartupMessages({
   library(dplyr)
+  library(edgeR)
   library(tibble)
   library(data.table)
-  library(ggplot2)
-  library(edgeR)
-  library(openxlsx)
 })
 
 # Load additional functions:
@@ -98,8 +98,8 @@ traits <- do.call(rbind, traits)
 
 # SampleIDs are batch.channel.
 # This doesn't work???
-#batch <- paste0("b",as.numeric(interaction(traits$Tissue,traits$Genotype)))
-batch <- paste0("b",as.numeric(as.factor(paste(traits$Tissue,traits$Genotype))))
+batch <- paste0("b",as.numeric(interaction(traits$Tissue,traits$Genotype)))
+#batch <- paste0("b",as.numeric(as.factor(paste(traits$Tissue,traits$Genotype))))
 channel <- traits$Channel
 traits$SampleID <- paste(batch,channel,sep=".")
 
@@ -190,20 +190,22 @@ cleanDat <- results$cleanRelAbun
 ## Protein differential abundance.
 #---------------------------------------------------------------------
 
+# Status.
 message(paste("\nAnalyzing protein differential abundance..."))
 
 # We will analyze cleanDat.
 dm <- cleanDat
 
-# Create dge object.
+# Create dge object, perform final TMM normalization.
 dge <- DGEList(counts=dm)
 dge <- calcNormFactors(dge)
+
+# Extract final normalized data from dge object.
 
 # SampleID to group mapping.
 groups <- paste(traits$Tissue,traits$Treatment,traits$Genotype,sep=".")
 groups[grep("Cortex.WT",groups)] <- "Cortex.WT"
 groups[grep("Striatum.WT",groups)] <- "Striatum.WT"
-#groups <- groups[!grepl("QC",groups)]
 names(groups) <- traits$SampleID
 
 # Annotate DGE object with sample groups.
@@ -220,14 +222,14 @@ dge <- estimateDisp(dge,design,robust=TRUE)
 # Fit a glm.
 fit <- glmQLFit(dge, design, robust = TRUE)
 
+# Make contrasts for statistical comparisons.
 g1 <- colnames(design)[grepl("Cortex", colnames(design))][-5]
 g2 <- colnames(design)[grepl("Striatum", colnames(design))][-5]
 
 cont1 <- makePairwiseContrasts(list(g1), list("Cortex.WT"))
 cont2 <- makePairwiseContrasts(list(g2), list("Striatum.WT"))
 
-# Make contrasts for EdgeR.
-# For some reason loops or lapply dont work with the makeContrasts function.
+# NOTE: For some reason, loops or lapply doesn't work with makeContrasts()
 contrasts <- list(
   makeContrasts(cont1[1], levels = design),
   makeContrasts(cont1[2], levels = design),
@@ -309,26 +311,27 @@ glm_results <- lapply(glm_results, f)
 
 ## Output for downstream analysis:
 # Stored in root/rdata/
-# 0. gene_map.RData   - gene identifier map.
+# 0. [output_name]_gene_map.RData   -- gene identifier map.
 # 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-# 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
+# 2. [output_name]_cleanDat.RData   -- data for TAMPOR.
 
 ## Save key results.
 message("\nSaving data for downstream analysis...")
 
-# 0. gene_map.RData   - gene identifier map.
+# 0. gene_map.RData - gene identifier map.
 myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
 saveRDS(gene_map,myfile)
 
-# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
-#fwrite(tidy_peptide,myfile)
-
-# 2. [output_name]_cleanDat.RData -- data for TAMPOR.
-#myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
-#saveRDS(filt_protein,myfile)
-
-message("\nDone!")
-# Save to file.
+# 1. EdgeR statistical results.
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
+
+# 2. [output_name]_tidy_protein.csv -- tidy, final normalized data.
+#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
+#fwrite(tidy_peptide, myfile)
+
+# 3. [output_name]_norm_protein.csv -- final normalized data matrix. 
+#myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
+#fwrite(tidy_protein, myfile)
+
+message("\nDone!")

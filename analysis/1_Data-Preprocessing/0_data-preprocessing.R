@@ -6,30 +6,34 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+## Parse command line input.
+args <- commandArgs(trailingOnly=TRUE)
+if (length(args)!=1) {
+	  stop("Please specify either 'Cortex' or 'Striatum' for the analysis.", call.=FALSE)
+}
+analysis_type <- args[1]
+
 ## Inputs:
 # Input data should be in root/data/:
 # 1. TMT-samples.csv - sample meta data.
-input_samples = "4227_TMT_Cortex_Combined_traits.csv"
-#input_samples = "4227_TMT_Striatum_Combined_traits.csv"
+sample_files = list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
+		     "Striatum" = "4227_TMT_Striatum_Combined_traits.csv")
+input_samples <- sample_files[[analysis_type]]
 
 # 2. TMT-raw-peptide.csv - raw peptide data from PD.
-input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
-#input_data = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
+data_files = list("Cortex" = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
+		  "Striatum" = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv")
+input_data <- data_files[[analysis_type]]
 
 ## Other parameters:
-output_name = "Cortex" # Prefix for naming output files.
-#output_name = "Striatum"
+output_name = analysis_type # Prefix for naming output files.
 sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
-
-## Main Outputs:
-# Stored in root/tables/
-# 0. [output_name]_TMT_Results.xlsx
 
 ## Output for downstream analysis:
 # Stored in root/rdata/
-# 0. [output_name]_gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
-# 2. [output_name]_cleanDat.RData   - preprocessed data for TAMPOR.
+# 0. [output_name]_gene_map.RData     - gene identifier map.
+# 1. [output_name]_tidy_peptide.csv   - tidy, raw peptide data.
+# 2. [output_name]_preprocessed.RData - preprocessed data for TAMPOR.
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -301,8 +305,8 @@ saveRDS(gene_map,myfile)
 myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
 fwrite(tidy_peptide,myfile)
 
-# 2. [output_name]_cleanDat.RData -- data for TAMPOR.
-myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
+# 2. [output_name]_preprocessed.RData -- data for TAMPOR.
+myfile <- file.path(rdatdir,paste(output_name,"preprocessed.RData",sep="_"))
 saveRDS(filt_protein,myfile)
 
 message("\nDone!")
