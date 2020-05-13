@@ -3,8 +3,18 @@
 #' ---
 #' title: 1_TAMPOR.R
 #' description: TAMPOR Normalization of preprocessed TMT data.
-#' authors: Tyler W Bradshaw, Eric B Dammer.
+#' authors: Tyler W Bradshaw, Eric B Dammer (TAMPOR).
 #' ---
+
+## Inputs:
+# Input data should be in root/rdata:
+input_data = list("Cortex" = "Cortex_cleanDat.RData",
+		  "Striatum" = "Striatum_cleanDat.RData")
+input_samples = list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
+		     "Striatum" = "4227_TMT_Striatum_Combined_traits.csv") 
+
+## Other parameters:
+output_name = "Combined"
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -13,12 +23,8 @@
 # Load custom functions and prepare the project directory for saving 
 # output files.
 
-rm(list = ls())
-if (!is.null(dev.list())) {
-  dev.off()
-}
-cat("\f")
-options(stringsAsFactors = FALSE)
+# Load renv.
+renv::load(getrd())
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -31,39 +37,22 @@ suppressPackageStartupMessages({
   library(gridExtra)
   library(gtable)
   library(grid)
-  library(anRichment)
+  #library(anRichment)
   library(openxlsx)
   library(org.Mm.eg.db)
   library(AnnotationDbi)
 })
 
-# Define tisue type:
-tissue <- "Combined"
-
-# Set the working directory.
-here <- getwd()
-rootdir <- dirname(dirname(here))
-subdir <- basename(here)
+# Load additional functions:
+TBmiscr::load_all()
 
 # Set any other directories.
-functiondir <- paste(rootdir, "R", sep = "/")
-datadir <- paste(rootdir, "data", sep = "/")
-Rdatadir <- paste(rootdir, "rdata", sep = "/")
-outputfigs <- paste(rootdir,"figs",subdir,tissue,sep="/")
-outputtabs <- paste(rootdir, "tables", subdir, sep = "/")
-
-# Remove any existing figures and tables.
-invisible(sapply(list.files(outputfigs),unlink))
-invisible(sapply(list.files(outputtabs),unlink))
-
-# Load required custom functions.
-devtools::load_all()
-
-# Define prefix for output figures and tables.
-outputMatName <- paste0("2_", tissue)
-
-# Globally set ggplots theme.
-ggtheme()
+root <- getrd()
+funcdir <- file.path(root, "R")
+figsdir <- file.path(root,"figs")
+datadir <- file.path(root, "data")
+rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 #---------------------------------------------------------------------
 ## Merge cortex and striatum data.

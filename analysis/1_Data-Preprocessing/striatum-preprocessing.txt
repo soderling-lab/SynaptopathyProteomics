@@ -1,0 +1,8 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Creating gene identifier map.
+Error in warn(paste("Unable to map", n_missing, "gene identifiers to entrez.")) : 
+  could not find function "warn"
+Calls: <Anonymous>
+Execution halted

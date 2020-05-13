@@ -9,17 +9,17 @@
 ## Inputs:
 # Input data should be in root/data/:
 # 1. TMT-samples.csv - sample meta data.
-input_samples = "4227_TMT_Cortex_Combined_traits.csv"
-#input_samples = "4227_TMT_Striatum_Combined_traits.csv"
+#input_samples = "4227_TMT_Cortex_Combined_traits.csv"
+input_samples = "4227_TMT_Striatum_Combined_traits.csv"
 
 # 2. TMT-raw-peptide.csv - raw peptide data from PD.
-input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
-#input_data = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
+#input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
+input_data = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
 
 ## Other parameters:
-output_name = "Cortex" # Prefix for naming output files.
-#output_name = "Striatum"
-sample_connectivity_threshold = 2.5 # Threshold for detecting sample level outliers.
+#output_name = "Cortex" # Prefix for naming output files.
+output_name = "Striatum"
+sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
 
 ## Main Outputs:
 # Stored in root/tables/
