@@ -255,6 +255,18 @@
       "Repository": "CRAN",
       "Hash": "9d5038b94a50c7bf26940e2ef7f340c8"
     },
+    "affy": {
+      "Package": "affy",
+      "Version": "1.66.0",
+      "Source": "Bioconductor",
+      "Hash": "c20883978bacc11511e88717ebe821c6"
+    },
+    "affyio": {
+      "Package": "affyio",
+      "Version": "1.58.0",
+      "Source": "Bioconductor",
+      "Hash": "c74fdb2854d12ad7fc819bdfbdc0a237"
+    },
     "argparser": {
       "Package": "argparser",
       "Version": "0.6",
@@ -702,10 +714,10 @@
     },
     "glue": {
       "Package": "glue",
-      "Version": "1.4.0",
+      "Version": "1.4.1",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "2aefa994e8df5da17dc09afd80f924d5"
+      "Hash": "f43e0d5e85ccb0a4045670c0607ee504"
     },
     "gridExtra": {
       "Package": "gridExtra",
@@ -1513,6 +1525,12 @@
       "Repository": "CRAN",
       "Hash": "ce4f6271baa94776db692f1cb2055bee"
     },
+    "vsn": {
+      "Package": "vsn",
+      "Version": "3.56.0",
+      "Source": "Bioconductor",
+      "Hash": "53bd4196015c8b9f978c06788e821c5a"
+    },
     "whisker": {
       "Package": "whisker",
       "Version": "0.4",
@@ -1561,6 +1579,12 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "caa73cdca1a87e5f2617915c8809f207"
+    },
+    "zlibbioc": {
+      "Package": "zlibbioc",
+      "Version": "1.34.0",
+      "Source": "Bioconductor",
+      "Hash": "a1b2fc6a5b8076e5e9edf275d50d1795"
     },
     "zoo": {
       "Package": "zoo",
