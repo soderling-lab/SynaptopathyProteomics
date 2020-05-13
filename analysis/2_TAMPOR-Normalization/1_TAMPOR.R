@@ -87,7 +87,7 @@ gene_map <- dplyr::bind_rows(gene_maps) %>% unique()
 # We will utilize TAMPOR to combine the Cortex and Striatum datasets.
 # Merge the preprocessed data and traits files.
 
-message("\nPreparing sample traits data for TAMPOR normalization...")
+message("\nPreparing sample meta data for TAMPOR normalization...")
 
 # Load the sample info into a list, traits.
 myfiles <- sapply(input_samples,function(f) file.path(datadir, f))
@@ -139,10 +139,9 @@ dm <- dm[,!out]
 
 # Remove rows with any missing values.
 missing_vals <- apply(dm,1,function(x) any(is.na(x)))
-message(paste("Removing", sum(missing_vals), 
+message(paste("\nRemoving", sum(missing_vals), 
 	      "rows that contain missing values."))
 combDat <- dm[!missing_vals,]
-
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
@@ -264,6 +263,8 @@ overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 rownames(overall) <- NULL
 
 # Table:
+message(paste("\nSummary of differentially abundant proteins (FDR<",
+	      alpha_threshold,"):"))
 knitr::kable(overall)
 
 # Call topTags to add FDR. Gather tabularized results.
