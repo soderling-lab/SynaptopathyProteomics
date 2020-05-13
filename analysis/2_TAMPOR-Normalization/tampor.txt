@@ -235,3 +235,51 @@ Starting # of Rows in data: 2554.
 [iter_219] No rows removed with >=50% missing values.     0.99 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.8e-05
 [iter_220] No rows removed with >=50% missing values.     1.13 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.8e-05
 [iter_221] No rows removed with >=50% missing values.     1.02 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.82e-05
+[iter_222] No rows removed with >=50% missing values.     0.79 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.83e-05
+[iter_223] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.23e-05
+[iter_224] No rows removed with >=50% missing values.     0.71 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.3e-05
+[iter_225] No rows removed with >=50% missing values.     0.78 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.45e-05
+[iter_226] No rows removed with >=50% missing values.     0.99 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.46e-05
+[iter_227] No rows removed with >=50% missing values.     1.01 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.47e-05
+[iter_228] No rows removed with >=50% missing values.     0.71 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.48e-05
+[iter_229] No rows removed with >=50% missing values.     0.79 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.7e-05
+[iter_230] No rows removed with >=50% missing values.     0.71 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.35e-05
+[iter_231] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.36e-05
+[iter_232] No rows removed with >=50% missing values.     1.07 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.47e-05
+[iter_233] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.32e-05
+[iter_234] No rows removed with >=50% missing values.     0.71 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.29e-05
+[iter_235] No rows removed with >=50% missing values.     1.01 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.64e-05
+[iter_236] No rows removed with >=50% missing values.     0.99 sec     iteration convergence tracking (Frobenius Norm Difference):  -6.26e-05
+[iter_237] No rows removed with >=50% missing values.     0.72 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.04e-05
+[iter_238] No rows removed with >=50% missing values.     1.05 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.81e-05
+[iter_239] No rows removed with >=50% missing values.     1.38 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.81e-05
+[iter_240] No rows removed with >=50% missing values.     0.99 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.82e-05
+[iter_241] No rows removed with >=50% missing values.     0.68 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.83e-05
+[iter_242] No rows removed with >=50% missing values.     1.05 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.98e-05
+[iter_243] No rows removed with >=50% missing values.     1 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.11e-05
+[iter_244] No rows removed with >=50% missing values.     0.72 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.55e-05
+[iter_245] No rows removed with >=50% missing values.     0.96 sec     iteration convergence tracking (Frobenius Norm Difference):  -2.42e-05
+[iter_246] No rows removed with >=50% missing values.     1.01 sec     iteration convergence tracking (Frobenius Norm Difference):  -2.59e-05
+[iter_247] No rows removed with >=50% missing values.     1.03 sec     iteration convergence tracking (Frobenius Norm Difference):  -2.59e-05
+[iter_248] No rows removed with >=50% missing values.     1.02 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.02e-05
+[iter_249] No rows removed with >=50% missing values.     1.08 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.32e-05
+[iter_250] No rows removed with >=50% missing values.     0.73 sec     iteration convergence tracking (Frobenius Norm Difference):  -4e-05
+
+
+Analyzing protein differential abundance...
+
+
+|Experiment       |   NS| Down| Up| Total Sig|
+|:----------------|----:|----:|--:|---------:|
+|Cortex Shank2    | 2541|    6|  7|        13|
+|Striatum Shank2  | 2550|    4|  0|         4|
+|Cortex Shank3    | 2423|   61| 70|       131|
+|Striatum Shank3  | 2522|   16| 16|        32|
+|Cortex Syngap1   | 2548|    4|  2|         6|
+|Striatum Syngap1 | 2530|    9| 15|        24|
+|Cortex Ube3a     | 2484|   24| 46|        70|
+|Striatum Ube3a   | 2443|   30| 81|       111|
+
+Saving data for downstream analysis...
+
+Done!
