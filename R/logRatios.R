@@ -1,4 +1,5 @@
 logRatios <- function(x){
+
 	# Calculate the log ratio of all comparisons of two 
 	# elements in vector x.
 
@@ -6,6 +7,7 @@ logRatios <- function(x){
 	logRatio <- function(x,y) { 
 		return(log2(y) - log2(x)) 
 	}
+
 	# Generate all combinations of n elements.
 	choose_from <- seq(x)
 	combn_dm <- combn(choose_from,m=2)
@@ -15,6 +17,7 @@ logRatios <- function(x){
 				    return(x) 
 			    })
 
+	# For every contrast, calculate log ratio of x and y.
 	ratios <- sapply(contrasts,function(idx) {
 				 do.call(logRatio,as.list(x[idx]))
 			    })

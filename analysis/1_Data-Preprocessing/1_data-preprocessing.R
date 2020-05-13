@@ -10,12 +10,15 @@
 # Input data should be in root/data/:
 # 1. TMT-samples.csv - sample meta data.
 input_samples = "4227_TMT_Cortex_Combined_traits.csv"
+#input_samples = "4227_TMT_Striatum_Combined_traits.csv"
 
 # 2. TMT-raw-peptide.csv - raw peptide data from PD.
 input_data = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
+#input_data = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
 
 ## Other parameters:
 output_name = "Cortex" # Prefix for naming output files.
+#output_name = "Striatum"
 sample_connectivity_threshold = 2.5 # Threshold for detecting sample level outliers.
 alpha = 0.1 # FDR threshold for differential abundance.
 
@@ -26,12 +29,7 @@ alpha = 0.1 # FDR threshold for differential abundance.
 ## Output for downstream analysis:
 # Stored in root/rdata/
 # 0. gene_map.RData   - gene identifier map.
-# 1. tidy_peptide.csv - raw peptide data.
-# 2. tidy_protein.csv - final normalized protein data.
-# 3. norm_protein.csv - final normalized protein data matrix.
-# 4. adjm.csv         - adjacency matrix. 
-# 5. ne_adjm.csv      - enhanced adjacency matrix. 
-# 6. glm_stats.RData  - statistical results from edgeR glm
+# 1. tidy_peptide.csv - tidy, raw peptide data.
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -40,16 +38,12 @@ alpha = 0.1 # FDR threshold for differential abundance.
 # * Examine QC peptide reproducibility -- remove peptide outliers.
 # * Summarize to protein level by summing all peptides for a protein.
 # * Protein-level sample loading normalization -- done across all experiments.
-# * IRS normalization -- equalizes protein measurements made from different
-#   peptides.
+# * IRS normalization -- equalizes proteins quantified by different peptides.
 # * Protein level filtering -- remove proteins identified by a single peptide;
 #   remove proteins with too many missing values; remove proteins that are not 
 #   reproducible (exhibit high inter-experimental variablility across the 3x 
 #   biological replicates.
-# * Regression of covariates --
-# * Asses differential abundance with a general linear model 
-#   ([Abundance] ~ 0 + groups) as implemented by the Edge R package 
-#   and its functions gmQLFfit() and glmQLFTest().
+# * Reformat data for final TAMPOR normalization.
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.

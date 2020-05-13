@@ -1,10 +1,7 @@
 filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
-		     ohw=FALSE,remove.protein.outliers=FALSE, summary=TRUE) {
+		     ohw=FALSE,remove.protein.outliers=TRUE, summary=TRUE) {
 
 	# FIXME: Split into multiple functions.
-	# FIXME: Protein outlier code chunk only works in n-comparisions == 3.
-	# For example, if there are 4 replicates then there are 6 contrasts, and
-	# the code is set-up to only handle three!
 
 	# Store a copy of the input data.
 	tp_in <- tp
@@ -36,24 +33,31 @@ filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
 	tp_filt <- tp %>% filter(Accession %notin% proteins_out)
 	tp_filt <- as.data.frame(tp_filt)
 
+	# Remove outlier protein measurements.
 	if (remove.protein.outliers) { 
+
 		# Split tidyprot dt into list of proteins.
 		tp_list <- tp_filt %>% filter(Treatment != controls) %>%
 			group_by(Accession,Treatment) %>% 
 			group_split()
-		# Loop to calculate ratio of log2 intensities for all three 
-		# replicate comparisons. This takes a little time.
+
+		# Loop to calculate MEAN ratio of log2 intensities for all
+		# replicate comparisons. This can take a little time.
 		tp_list <- lapply(tp_list,function(x) {
-					  x$Ratio <- logRatios(x$Intensity)
-					  return(x) })
+					  x$Ratio <- mean(logRatios(x$Intensity))
+					  return(x)
+			  })
+
 		# Bind results together as df.
 		ratio_data <- do.call(rbind,tp_list)
+
 		# Bin data by intensity.
 		breaks <- quantile(ratio_data$Intensity,
 				   seq(0,1,length.out=nbins+1),
 				   names=FALSE, na.rm=TRUE)
 		ratio_data$Bin <- cut(ratio_data$Intensity,breaks,
 				      labels=FALSE,include.lowest=TRUE)
+
 		# Summarize bins.
 		ratio_df <- ratio_data %>% group_by(Bin) %>% 
 			summarize("Median"= median(Intensity),
@@ -62,6 +66,7 @@ filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
 				  "N" = sum(!is.na(Ratio)),
 				  "Min" = mean(Ratio,na.rm=TRUE)-(nSD*sd(Ratio)),
 				  "Max" = mean(Ratio,na.rm=TRUE)+(nSD*sd(Ratio)))
+
 		# Determine if measurement is outside percision limits.
 		ratio_data$Min <- ratio_df$Min[ratio_data$Bin]
 		ratio_data$Max <- ratio_df$Max[ratio_data$Bin]
@@ -69,15 +74,19 @@ filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
 		out_high <- ratio_data$Ratio > ratio_data$Max
 		out <- out_low | out_high
 		ratio_data$isOutlier <- out
+
 		# Summarize number of protein outliers per bin.
 		nOutliers <- ratio_data %>% group_by(Bin) %>%
 			summarize(n=sum(isOutlier))
 		ratio_df$nOutliers <- nOutliers[["n"]]
+
 		# Collect protein outliers.
 		idx <- ratio_data$isOutlier
 		protein_outliers <- unique(ratio_data$Accession[idx])
 		n_outliers <- length(protein_outliers)
+
 	} else {
+		# Don't remove any protein measurements.
 		protein_outliers <- NULL
 	}
 
@@ -102,6 +111,7 @@ filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
 	message(paste("Final number of reproducibly quantified proteins:",
 		      formatC(n_prot,big.mark=",")))
 	}
+
 	# Return tidy protein.
 	return(tp)
 }
