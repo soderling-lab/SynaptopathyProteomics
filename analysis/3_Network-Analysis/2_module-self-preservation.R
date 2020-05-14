@@ -10,8 +10,8 @@
 
 ## Permutation test options:
 min_size = 5
-self = "Cortex"
-test = "Cortex"
+self = "Striatum"
+test = "Striatum"
 verbose = FALSE
 strength = "strong" 
 replace_negative <- "zero"
@@ -19,10 +19,15 @@ stats = c(1, 2, 6, 7)
 n_threads = parallel::detectCores() - 1
 
 ## Input data in root/rdata:
-input_adjm <- "Cortex_Adjm.csv"
-input_netw <- "Cortex_NE_Adjm.csv" 
+#input_adjm <- "Cortex_Adjm.csv"
+#input_netw <- "Cortex_NE_Adjm.csv" 
+#input_data <- "Combined_tidy_protein.csv"
+#input_part <- "Cortex_NE_SurpriseVertexPartition.csv"
+
+input_adjm <- "Striatum_Adjm.csv"
+input_netw <- "Striatum_NE_Adjm.csv" 
 input_data <- "Combined_tidy_protein.csv"
-input_part <- "Cortex_NE_SurpriseVertexPartition.csv"
+input_part <- "Striatum_NE_SurpriseVertexPartition.csv"
 
 ## Permutation Statistics:
 # 1. avg.weight
