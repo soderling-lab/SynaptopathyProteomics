@@ -6,22 +6,22 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-#---------------------------------------------------------------------
-## Set-up the workspace.
-#---------------------------------------------------------------------
+## User parameters.
 
-# User parameters to change:
-stats <- c(1, 2, 6, 7) # Module statistics to use for permutation testing.
-self <- "Striatum"
-test <- "PPI"
-strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-data_file <- "Striatum" # Which data to use?
-net_file <- "PPI" # Which networks to test self preservation in?
-adjm_file <- "Striatum" # Which correlation (adjm) network to use?
-partition_file <- "Striatum_Surprise" # Which partition file to use?
-replace_negative <- "zero" # How should negative weights be handled?
-min_size <- 5 # minimum allowable size for a module.
-verbose <- FALSE
+## Permutation test options:
+min_size = 5
+self = "Cortex"
+verbose = FALSE
+strength = "strong" 
+replace_negative <- "zero"
+stats = c(1, 2, 6, 7)
+n_threads = parallel::detectCores() - 1
+
+## Input data in root/rdata:
+input_adjm <- "Cortex_Adjm.csv"
+input_netw <- "Cortex_NE_Adjm.csv" 
+input_data <- "Combined_tidy_protein.csv"
+input_part <- "Cortex_NE_SurpriseVertexPartition.csv"
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -50,102 +50,72 @@ verbose <- FALSE
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
 #    to summary profile.
 
-# Is this a slurm job?
-slurm <- any(grepl("SLURM", names(Sys.getenv())))
-if (slurm) {
-  # SLURM job notes - sent to job_*.info
-  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK"))
-  jobID <- as.integer(Sys.getenv("SLURM_JOBID"))
-  info <- as.matrix(Sys.getenv())
-  idx <- grepl("SLURM", rownames(info))
-  myfile <- file.path("./out", paste0("job_", jobID, ".info"))
-  write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
-} else {
-  nThreads <- parallel::detectCores() - 1
-  jobID <- Sys.Date()
-}
+#---------------------------------------------------------------------
+## Set-up the workspace.
+#---------------------------------------------------------------------
+
+# Load renv.
+renv::load(getrd())
 
 # Global options and imports.
 suppressPackageStartupMessages({
-  library(data.table)
-  library(NetRep)
+	library(dplyr)
+	library(NetRep)
+	library(data.table)
 })
 
-# Additional functions.
-suppressWarnings({
-  devtools::load_all()
-})
+# Additional functions in root/R.
+TBmiscr::load_all()
 
 # Directories.
-here <- getwd()
-root <- dirname(dirname(here))
+root <- getrd()
 rdatdir <- file.path(root, "rdata")
-funcdir <- file.path(root, "R")
 
-# Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(rdatdir, paste0("3_", data_file, "_cleanDat.RData"))
-data <- readRDS(myfile)
-colNames <- rownames(data)
-data <- t(data)
-colnames(data) <- colNames
+# Load expression data:
+# Load the data, subset, coerce to matrix, Log2 transform, and 
+# finally transpose such that rows = samples and columns = proteins.
+myfile <- file.path(rdatdir, input_data)
+dm <- fread(myfile) %>% filter(Tissue == self) %>% 
+	as.data.table() %>%
+	dcast(Accession ~ Sample,value.var="Abundance") %>%
+	as.matrix(rownames="Accession") %>% log2() %>% t()
 
-# Load adjmatrix.
-myfile <- file.path(rdatdir, paste0("3_", adjm_file, "_Adjm.RData"))
-adjm <- as.matrix(readRDS(myfile))
-rownames(adjm) <- colnames(adjm)
+# Load adjmatrix--coerce to a matrix.
+myfile <- file.path(rdatdir, input_adjm)
+adjm <- fread(myfile) %>% as.matrix(rownames="Accession")
 
-# Load network.
-myfile <- file.path(rdatdir, paste0("3_", net_file, "_Adjm.RData"))
-net <- as.matrix(readRDS(myfile))
-rownames(net) <- colnames(net)
+# Load network--coerce to a matrix.
+myfile <- file.path(rdatdir, input_netw)
+netw <- fread(myfile) %>% as.matrix(rownames="Accession")
 
-# Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c(
-  "Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
-  "Cortex_MCL" = "3_Cortex_MCL_partitions.csv",
-  "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
-  "Striatum_MCL" = "3_Striatum_MCL_partitions.csv",
-  "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv",
-  "Striatum_Surprise" = "3_Striatum_SurpriseVertexPartition_partitions.csv"
-)
-partitions <- fread(file.path(rdatdir, myfiles[partition_file]),
-  header = TRUE, drop = 1
-)
-resolutions <- nrow(partitions)
-
-# Check that all columns in the data are in adjm and network.
-out1 <- colnames(data) %notin% colnames(adjm)
-out2 <- colnames(data) %notin% colnames(net)
-if (sum(out1) > 0 | sum(out2) > 0) {
-  message("Warning: removing columns from data that are not in network.")
-}
+# Load Leidenalg graph partition.
+myfile <- file.path(rdatdir, input_part)
+part_dt <- fread(myfile, drop=1)
+resolutions <- nrow(part_dt)
 
 # Enforce consistent dimensions between data and adjm.
-idx <- idy <- match(colnames(data), colnames(adjm))
+idx <- idy <- match(colnames(dm), colnames(adjm))
 adjm <- adjm[idx, idy]
-check <- all(colnames(data) == colnames(adjm))
+check <- all(colnames(dm) == colnames(adjm))
 if (!check) {
   message("Problem: data doesn't match correlation matrix!")
 }
 
-# Enforce consistent dimensions between data and partitions.
-idy <- match(colnames(data), colnames(partitions))
-partitions <- as.data.frame(partitions)[, idy]
-check <- all(colnames(data) == colnames(partitions))
+# Enforce consistent dimensions between data and partition.
+idy <- match(colnames(dm), colnames(part_dt))
+partitions <- as.data.frame(part_dt)[, idy]
+check <- all(colnames(dm) == colnames(partitions))
 if (!check) {
   message("Problem: data doesn't match partitions!")
 }
 
 # Enforce consistent dimensions between data and network.
-idz <- match(colnames(data), colnames(net))
-net <- net[idz, idz]
-check <- all(colnames(data) == colnames(net))
+idx <- idy <- match(colnames(dm), colnames(netw))
+netw <- net[idx, idy]
+check <- all(colnames(dm) == colnames(netw))
 if (!check) {
   message("Problem: data doesn't match network!")
 }
-
-# Final check.
-check <- all(colnames(partitions) == colnames(data) & colnames(data) == colnames(net))
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -156,19 +126,19 @@ check <- all(colnames(partitions) == colnames(data) & colnames(data) == colnames
 # 2. Correlation matrix or interaction network (co-expr, GO, or PPI).
 # 3. Interaction network - Edges must be positive! Should network be weighted?
 # 4. Network partitions.
-data_list <- list(self = data)
+data_list <- list(self = dm)
 correlation_list <- list(self = adjm)
 
 # Networks (edges) should be positive...
 if (replace_negative == "absolute value") {
   # Replace negative edges as absolute value.
-  network_list <- list(self = abs(net))
+  network_list <- list(self = abs(netw))
 } else if (replace_negative == "zero") {
-  net[net < 0] <- 0
-  network_list <- list(self = net)
+  netw[netw < 0] <- 0
+  network_list <- list(self = netw)
 }
 
-# Module preservation stats.
+# Module preservation stats to be used for enforcing preservation.
 module_stats <- paste(c(
   "avg.weight", "coherence", "cor.cor", "cor.degree",
   "cor.contrib", "avg.cor", "avg.contrib"
@@ -219,7 +189,7 @@ for (resolution in resolutions) {
       discovery = "self",
       test = "self",
       selfPreservation = TRUE,
-      nThreads = nThreads,
+      nThreads = n_threads,
       nPerm = NULL, # Determined automatically by the function.
       null = "overlap",
       alternative = "greater", # Greater for self-preservation.
@@ -238,10 +208,7 @@ for (resolution in resolutions) {
   results[[resolution]] <- partition
   # Save to Rdata.
   if (resolution == length(resolutions)) {
-    output_name <- paste0(
-      jobID, "_", partition_file, "_", net_file,
-      "_Module_Self_Preservation.RData"
-    )
+      output_name <- paste0(self,"module_self_preservation.RData")
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }

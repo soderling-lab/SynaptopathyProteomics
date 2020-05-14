@@ -9,8 +9,8 @@ max_size = 100
 recursive = True
 n_iterations = -1
 method = 'Surprise' 
-adjm_type = 'Enhanced Cortex' 
-output_name = 'Cortex_NE'
+adjm_type = 'Enhanced Striatum' 
+output_name = 'Striatum_NE'
 
 ## Description of parameters:
 # rmin - minimum resolution for multi-resolution methods.
@@ -223,12 +223,7 @@ else:
 # Ends if/else
 
 # Save cluster membership (partition).
-myfile = os.path.join(datadir,  output_name + "_" + method + "_partition.csv")
+myfile = os.path.join(datadir,  output_name + "_" + method + ".csv")
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
 df.to_csv(myfile)
-
-# Save partition profile summary data.
-#df = DataFrame.from_dict(results)
-#myfile = os.path.join(datadir, output_name + "_" + method + "_profile.csv")
-#df.to_csv(myfile)
