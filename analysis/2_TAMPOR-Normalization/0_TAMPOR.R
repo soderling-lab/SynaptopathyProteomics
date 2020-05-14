@@ -321,6 +321,16 @@ for (i in 1:length(glm_results)){
 ## Tidy-up the final normalized data.
 #---------------------------------------------------------------------
 
+tidy_norm_prot <- reshape2::melt(norm_dt,id.var = "Accession", 
+				    value.name="Abundance")
+colnames(tidy_norm_prot)[which(colnames(tidy_norm_prot)=="variable")] <- "Sample"
+tidy_norm_prot$Sample <- as.character(tidy_norm_prot$Sample)
+dt <- left_join(tidy_norm_prot,traits,by="Sample")
+
+dt$Batch <- NULL
+dt$SampleID <- NULL
+
+final_tidy_prot <- dt
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
@@ -341,11 +351,11 @@ myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
 
 # 2. [output_name]_tidy_protein.csv -- tidy, final normalized data.
-#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
-#fwrite(tidy_peptide, myfile)
+myfile <- file.path(rdatdir,paste(output_name,"tidy_protein.csv",sep="_"))
+fwrite(final_tidy_prot, myfile)
 
 # 3. [output_name]_norm_protein.csv -- final normalized data matrix. 
-#myfile <- file.path(rdatdir,paste(output_name,"cleanDat.RData",sep="_"))
-#fwrite(tidy_protein, myfile)
+myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
+fwrite(norm_dt, myfile)
 
 message("\nDone!")

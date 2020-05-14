@@ -30,13 +30,13 @@ import sys
 from sys import stderr
 
 ## Input adjacency matrix.
-adjms = {"Cortex" : "3_Cortex_Adjm.csv",
-        "Enhanced Cortex" : "3_Cortex_NE_Adjm.csv",
-        "Striatum" : "3_Striatum_Adjm.csv",
-        "Enhanced Striatum" : "3_Striatum_NE_Adjm.csv",
-        "Combined" : "3_Combined_Adjm.csv",
-        "PPI" : "3_PPI_Adjm.csv",
-        "GO" : "3_GO_Semantic_Similarity_RMS_Adjm.csv"}
+adjms = {"Cortex" : "Cortex_Adjm.csv",
+        "Enhanced Cortex" : "Cortex_NE_Adjm.csv",
+        "Striatum" : "Striatum_Adjm.csv",
+        "Enhanced Striatum" : "Striatum_NE_Adjm.csv",
+        "Combined" : "Combined_Adjm.csv",
+        "PPI" : "PPI_Adjm.csv"
+        }
 
 ## Leidenalg supports the following optimization methods:
 methods = {
