@@ -6,12 +6,25 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## Parse command line input.
-args <- commandArgs(trailingOnly=TRUE)
-if (length(args)!=1) {
-	  stop("Please specify either 'Cortex' or 'Striatum' for the analysis.", call.=FALSE)
+# Function to check command line input.
+parse_args <- function(arg_opts = c("Cortex","Striatum"), nargs=1, err=NULL){
+	args <- commandArgs(trailingOnly=TRUE)
+	if (interactive()) { 
+		set.seed(as.numeric(Sys.time()))
+		n <- sample(c(1,2),1)
+		warning(paste0("Running R interactively. ",
+			       "Analyzing ",arg_opts[n]," data."))
+		return(arg_opts[n])
+	} else if (length(args) == nargs & args[nargs] %in% arg_opts) {
+		return(args[nargs])
+	} else {
+		stop(err, call.=FALSE)
+	}
 }
-analysis_type <- args[1]
+
+## Parse input arguments.
+msg <- "Please specify either 'Cortex' or 'Striatum' for the analysis."
+analysis_type <- parse_args(err=msg)
 
 ## Inputs:
 # Input data should be in root/data/:
@@ -186,7 +199,7 @@ imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Genotype",
 #---------------------------------------------------------------------
 
 # Examine reproducibility of QC measurements.
-# This strategy was adapted from Ping et al., 2018 (pmid: 29533394).
+# This strategy was adapted from Ping et al., 2018 (pmid:29533394).
 # For each experiment, calculate the ratio of QC measurements.
 # Bin these ratios based on the average Intensity of QC peptides into
 # 5 bins. For each bin, remove measurements that are outside 
@@ -209,11 +222,33 @@ message("\nPerforming sample loading normalization between experiments.")
 sl_protein <- normSL(proteins, groupBy="Sample")
 
 #---------------------------------------------------------------------
-## FOOBAR
+## Intra-batch Protein-lavel ComBat.
 #---------------------------------------------------------------------
 
-# Before tackling inter-experimental batch effects, address intra-experimental
-# batch effect.
+# Before tackling inter-experimental batch effects, address the 
+# intra-experimental batch effect.
+
+# Each experimental cohort of 8 was prepared in two batches. 
+# This was necessary because the ultra-centrifuge rotor used to 
+# prepare purified synaptosomes holds a maximum of 6 samples. 
+# This intra-batch batch effect was recorded for 6/8 batches. 
+# Here I will utilize the sva::ComBat() function in order to account 
+# for this batch effect before correcting for inter-batch batch
+# effects with IRS normalization. 
+
+# NOTE: In the absence of evidence of a batch effect 
+# (not annotated or cor(PCA,batch)<0.1), then ComBat is not applied.
+# If ComBat is not applied, then the data is returned un-regressed.
+
+# NOTE: The values of QC samples are not adjusted by ComBat.
+# QC samples were prepared from a seperate batch of mice and
+# represent a single batch.
+
+# Perform ComBat for each dataset.
+data_combat <- intrabatch_combat(sl_protein,samples,group="Shank2",batch="PrepDate")
+data_combat <- intrabatch_combat(data_combat,samples,group="Shank3",batch="PrepDate")
+data_combat <- intrabatch_combat(data_combat,samples,group="Syngap1",batch="PrepDate")
+data_combat <- intrabatch_combat(data_combat,samples,group="Ube3a",batch="PrepDate")
 
 #---------------------------------------------------------------------
 ## Insure there are no QC outlier samples.
