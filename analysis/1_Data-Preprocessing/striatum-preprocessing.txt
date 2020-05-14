@@ -28,18 +28,29 @@ Summarizing proteins as the sum of their peptides.
 
 Performing sample loading normalization between experiments.
 
+Performing ComBat to remove intra-batch batch effect.
+Initial coorelation between batch and samples: 0.588
+Performing ComBat for group: Shank2
+Final coorelation between batch and samples: 0.04 
+
+Warning message:
+For group: Shank3 - Cannot perform ComBat with one batch! 
+Warning message:
+For group: Syngap1 - Cannot perform ComBat with one batch! 
+Warning message:
+For group: Ube3a - No detectable batch effect! Not applying ComBat. 
+
 Standardizing protein measurements between experiments by IRS normalization.
 
 Filtering proteins...
 Removed proteins identified by one peptide.....: 124
 Removed proteins with too many missing values..: 51
 Removed proteins with any missing QC values....: 605
-Removed proteins with outlier measurements.....: 52
-Final number of reproducibly quantified proteins: 2,806
+Final number of reproducibly quantified proteins: 2,858
 
 Removing outlier sample(s):
+Abundance: F2: 128C, Sample, KO, 38894, Ube3a, Striatum
 Abundance: F2: 131N, Sample, KO, 38898, Ube3a, Striatum
-Abundance: F4: 128C, Sample, KO, 38907, Shank2, Striatum
 Final number of samples: 42
 
 Saving data for downstream analysis...

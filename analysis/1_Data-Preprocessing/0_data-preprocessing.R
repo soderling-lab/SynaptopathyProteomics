@@ -247,10 +247,15 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 message("\nPerforming ComBat to remove intra-batch batch effect.")
 
 # Perform ComBat for each dataset.
-data_combat <- intrabatch_combat(sl_protein,samples,group="Shank2",batch="PrepDate")
-data_combat <- intrabatch_combat(data_combat,samples,group="Shank3",batch="PrepDate")
-data_combat <- intrabatch_combat(data_combat,samples,group="Syngap1",batch="PrepDate")
-data_combat <- intrabatch_combat(data_combat,samples,group="Ube3a",batch="PrepDate")
+data_combat <- intrabatch_combat(sl_protein, samples,
+				 group="Shank2", batch="PrepDate")
+data_combat <- intrabatch_combat(data_combat, samples,
+				 group="Shank3", batch="PrepDate")
+data_combat <- intrabatch_combat(data_combat, samples,
+				 group="Syngap1", batch="PrepDate")
+data_combat <- intrabatch_combat(data_combat, samples,
+				 group="Ube3a", batch="PrepDate")
+norm_protein <- data_combat
 
 #---------------------------------------------------------------------
 ## Insure there are no QC outlier samples.
@@ -261,7 +266,7 @@ data_combat <- intrabatch_combat(data_combat,samples,group="Ube3a",batch="PrepDa
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
 # This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
-zK <- sampleConnectivity(sl_protein %>% filter(Treatment == "QC"))
+zK <- sampleConnectivity(norm_protein %>% filter(Treatment == "QC"))
 
 outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 		     names(zK)[zK > sample_connectivity_threshold])
@@ -280,7 +285,7 @@ if (!check) { stop("Why are there outlier samples?") }
 # each experiment.
 message(paste("\nStandardizing protein measurements between",
 	      "experiments by IRS normalization."))
-irs_protein <- normIRS(sl_protein,controls="QC",robust=TRUE)
+irs_protein <- normIRS(norm_protein,controls="QC",robust=TRUE)
 
 #---------------------------------------------------------------------
 ## Protein level filtering.

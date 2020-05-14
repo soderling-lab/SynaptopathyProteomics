@@ -1,5 +1,5 @@
 filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
-		     ohw=FALSE,remove.protein.outliers=FALSE, summary=TRUE) {
+		     ohw=FALSE, remove.protein.outliers=FALSE, summary=TRUE) {
 
 	# FIXME: Split into multiple functions.
 
