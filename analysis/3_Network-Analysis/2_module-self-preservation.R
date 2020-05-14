@@ -214,7 +214,7 @@ for (resolution in resolutions) {
   results[[resolution]] <- partition
   # Save to Rdata.
   if (resolution == length(resolutions)) {
-      output_name <- paste0(self,"module_self_preservation.RData")
+      output_name <- paste0(self,"_module_self_preservation.RData")
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }
