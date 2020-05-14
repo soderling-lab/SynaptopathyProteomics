@@ -1,0 +1,63 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Combining gene identifier maps...
+
+Preparing sample meta data for TAMPOR normalization...
+
+Preparing protein expression data TAMPOR normalization...
+
+Removing 610 rows that contain missing values.
+
+Performing TAMPOR normalization to merge Cortex and Striatum datasets...
+NOTE: one or more samplesToIgnore do not match sample names (colnames) in input abundance data.
+      Not ignoring any samples.
+NOTE: Successfully checked that each batch has at least one sample designated as GIS control replicate.
+Starting # of Rows in data: 2554.
+[iter_1] No rows removed with >=50% missing values.     1.11 sec     iteration convergence tracking (Frobenius Norm Difference):  -60.9
+[iter_2] No rows removed with >=50% missing values.     0.83 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.05
+[iter_3] No rows removed with >=50% missing values.     0.74 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0195
+[iter_4] No rows removed with >=50% missing values.     0.92 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.00811
+[iter_5] No rows removed with >=50% missing values.     1.37 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0024
+[iter_6] No rows removed with >=50% missing values.     1 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.00103
+[iter_7] No rows removed with >=50% missing values.     0.79 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000527
+[iter_8] No rows removed with >=50% missing values.     0.71 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000237
+[iter_9] No rows removed with >=50% missing values.     0.73 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000119
+[iter_10] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -6.02e-05
+[iter_11] No rows removed with >=50% missing values.     1.01 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.19e-05
+[iter_12] No rows removed with >=50% missing values.     0.72 sec     iteration convergence tracking (Frobenius Norm Difference):  -1.71e-05
+[iter_13] No rows removed with >=50% missing values.     1.11 sec     iteration convergence tracking (Frobenius Norm Difference):  -8.39e-06
+[iter_14] No rows removed with >=50% missing values.     1.01 sec     iteration convergence tracking (Frobenius Norm Difference):  -4.1e-06
+[iter_15] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -2.05e-06
+[iter_16] No rows removed with >=50% missing values.     1.02 sec     iteration convergence tracking (Frobenius Norm Difference):  -1.05e-06
+[iter_17] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.5e-07
+[iter_18] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -2.96e-07
+[iter_19] No rows removed with >=50% missing values.     0.95 sec     iteration convergence tracking (Frobenius Norm Difference):  -1.63e-07
+[iter_20] No rows removed with >=50% missing values.     0.91 sec     iteration convergence tracking (Frobenius Norm Difference):  -9.21e-08
+[iter_21] No rows removed with >=50% missing values.     0.71 sec     iteration convergence tracking (Frobenius Norm Difference):  -5.34e-08
+[iter_22] No rows removed with >=50% missing values.     1.04 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.17e-08
+[iter_23] No rows removed with >=50% missing values.     0.92 sec     iteration convergence tracking (Frobenius Norm Difference):  -1.94e-08
+[iter_24] No rows removed with >=50% missing values.     0.69 sec     iteration convergence tracking (Frobenius Norm Difference):  -1.21e-08
+[iter_25] No rows removed with >=50% missing values.     0.7 sec     iteration convergence tracking (Frobenius Norm Difference):  -7.72e-09
+...Reached convergence criterion (Frobenius Norm Difference)<1e-8!
+
+
+Analyzing protein differential abundance...
+
+Summary of differentially abundant proteins (FDR< 0.1 ):
+
+
+|Experiment       |   NS| Down|  Up| Total Sig|
+|:----------------|----:|----:|---:|---------:|
+|Cortex Shank2    | 2482|   15|  57|        72|
+|Striatum Shank2  | 2550|    4|   0|         4|
+|Cortex Shank3    | 2394|   65|  95|       160|
+|Striatum Shank3  | 2474|   32|  48|        80|
+|Cortex Syngap1   | 2530|   12|  12|        24|
+|Striatum Syngap1 | 2503|   24|  27|        51|
+|Cortex Ube3a     | 2355|   57| 142|       199|
+|Striatum Ube3a   | 2453|   43|  58|       101|
+
+Saving data for downstream analysis...
+
+Done!
