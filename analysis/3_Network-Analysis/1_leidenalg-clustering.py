@@ -2,6 +2,17 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
+rmin = 0
+rmax = 1
+nsteps = 100
+max_size = 100
+recursive = True
+n_iterations = -1
+method = 'Surprise' 
+adjm_type = 'Enhanced Cortex' 
+output_name = 'Cortex_NE'
+
+## Description of parameters:
 # rmin - minimum resolution for multi-resolution methods.
 # rmax - maximum resolution for multi-resolution methods.
 # adjm_type - string specifying input adjacency matrix.
@@ -13,14 +24,6 @@
 #    improvement in the partition of the graph.
 # method - string specifying the optimization method to be used.
 # adjm_type - string specifying the input adjacency matrix, see below.
-rmin = 0
-rmax = 1
-nsteps = 100
-max_size = 100
-recursive = True
-n_iterations = -1
-method = 'Surprise' 
-adjm_type = 'Enhanced Cortex' 
 
 #--------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -100,9 +103,9 @@ sys.path.append(root)
 from Py.myfun import *
 
 # Get system variables.
-myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
-envars = {var:os.environ.get(var) for var in myvars}
-jobID = xstr(envars['SLURM_JOBID'])
+#myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
+#envars = {var:os.environ.get(var) for var in myvars}
+#jobID = xstr(envars['SLURM_JOBID'])
 
 #---------------------------------------------------------------------
 ## Load input adjacency matrix and create an igraph object.
@@ -204,7 +207,7 @@ else:
 #------------------------------------------------------------------------------
 
 # Collect partition results and save as csv. 
-if len(profile) is 1:
+if len(profile) == 1:
     # Single resolution profile:
     results = {
             'Modularity' : [partition.modularity for partition in profile],
@@ -219,16 +222,13 @@ else:
         'Resolution' : [partition.resolution_parameter for partition in profile]}
 # Ends if/else
 
-# Save cluster membership vectors.
-output_name = input_adjm.split("_")[1]
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_partitions.csv")
+# Save cluster membership (partition).
+myfile = os.path.join(datadir,  output_name + "_" + method + "_partition.csv")
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
 df.to_csv(myfile)
 
 # Save partition profile summary data.
-df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_profile.csv")
-df.to_csv(myfile)
+#df = DataFrame.from_dict(results)
+#myfile = os.path.join(datadir, output_name + "_" + method + "_profile.csv")
+#df.to_csv(myfile)
