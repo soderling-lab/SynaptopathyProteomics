@@ -12,7 +12,7 @@ intrabatch_combat <- function(data_in,samples,group,batch,
 	rows_out <- apply(dm, 1, function(x) any(is.na(x)))
 	subdm <- dm[!rows_out, ]
 	# Get Traits info.
-	subtraits <- traits %>% filter(Sample %in% colnames(subdm))
+	subtraits <- samples %>% filter(Sample %in% colnames(subdm))
 	# Check: is there more than one batch?
 	if (length(unique(subtraits$PrepDate)) == 1) { 
 		warning(paste("For group:",group, "-",

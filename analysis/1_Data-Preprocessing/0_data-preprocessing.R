@@ -244,6 +244,8 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 # QC samples were prepared from a seperate batch of mice and
 # represent a single batch.
 
+message("\nPerforming ComBat to remove intra-batch batch effect.")
+
 # Perform ComBat for each dataset.
 data_combat <- intrabatch_combat(sl_protein,samples,group="Shank2",batch="PrepDate")
 data_combat <- intrabatch_combat(data_combat,samples,group="Shank3",batch="PrepDate")
