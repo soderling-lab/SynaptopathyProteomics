@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: 1_TAMPOR.R
-#' description: TAMPOR Normalization of preprocessed TMT data.
+#' title: TAMPOR.R
+#' description: TAMPOR normalization of preprocessed TMT data.
 #' authors: Tyler W Bradshaw, Eric B Dammer (TAMPOR).
 #' ---
 
@@ -159,10 +159,10 @@ rownames(sub_traits) <- sub_traits$SampleID
 
 # GIS index for TAMPOR normalization is all WT samples.
 # WT Cortex and WT Striatum samples will be scaled by TAMPOR to be 
-# ~ equal.
+# ~ equal. NOTE: GIS - global internal standards.
 controls <- sub_traits$SampleID[grepl("WT", sub_traits$Treatment)]
 
-# For some reason, traits can only contain these columns:
+# For some reason, the code breaks if traits is more complicated:
 sub_traits <- as.data.frame(sub_traits %>% select(SampleID,Batch))
 rownames(sub_traits) <- sub_traits$SampleID
 
@@ -178,13 +178,7 @@ results <- TAMPOR(
 )
 
 # Collect normalized, relative abundance data.
-cleanDat <- results$cleanRelAbun
-
-#---------------------------------------------------------------------
-## Identify and remove any sample outliers.
-#---------------------------------------------------------------------
-
-# There are none at threshold = -3.0
+norm_protein <- results$cleanRelAbun
 
 #---------------------------------------------------------------------
 ## Protein differential abundance.
@@ -193,14 +187,14 @@ cleanDat <- results$cleanRelAbun
 # Status.
 message(paste("\nAnalyzing protein differential abundance..."))
 
-# We will analyze cleanDat.
-dm <- cleanDat
-
 # Create dge object, perform final TMM normalization.
-dge <- DGEList(counts=dm)
+dge <- DGEList(counts=norm_protein)
 dge <- calcNormFactors(dge)
 
 # Extract final normalized data from dge object.
+norm_dm <- dge$counts
+colnames(norm_dm) <- traits$Sample[match(colnames(norm_dm),traits$SampleID)]
+norm_dt <- as.data.table(norm_dm,keep.rownames="Accession")
 
 # SampleID to group mapping.
 groups <- paste(traits$Tissue,traits$Treatment,traits$Genotype,sep=".")
@@ -248,7 +242,7 @@ names(contrasts) <- unlist({
 qlf <- lapply(contrasts, function(x) glmQLFTest(fit, contrast = x))
 names(qlf) <- names(contrasts)
 
-## Determine number of significant results with decideTests().
+# Determine number of significant results with decideTests().
 summary_list <- lapply(qlf, function(x) summary(decideTests(x)))
 
 # Table summarizing DA proteins.
@@ -264,7 +258,7 @@ overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
 overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 rownames(overall) <- NULL
 
-# Table:
+# Pretty print table:
 message(paste("\nSummary of differentially abundant proteins (FDR<",
 	      alpha_threshold,"):"))
 knitr::kable(overall)
@@ -281,7 +275,7 @@ glm_results <- lapply(glm_results, f)
 f <- function(x) { colnames(x)[2] <- "PercentWT"; return(x) }
 glm_results <- lapply(glm_results, f)
 
-# Function to annotate results with gene ids.
+# Define a function to annotate results with gene ids.
 add_ids <- function(x,gene_map) {
 	Uniprot <- rownames(x)
 	x <- tibble::add_column(x,Uniprot,.after=0)
@@ -305,15 +299,35 @@ glm_results <- lapply(glm_results, f)
 f <- function(x) { x$Candidate <- x$FDR < alpha_threshold ; return(x) }
 glm_results <- lapply(glm_results, f)
 
+# Simplify list names as Tissue.Genotype.
+for (i in 1:length(glm_results)){
+	new_name <- paste(unlist(strsplit(names(glm_results)[i],"\\."))[c(1,3)],collapse=".")
+	names(glm_results)[i] <- new_name
+}
+
+# Loop to add expression data to glm results.
+for (i in 1:length(glm_results)){
+	df <- glm_results[[i]]
+	contrast <- contrasts[[i]]
+	idx <- dge$samples$group %in% names(which(contrast[,1] != 0))
+	keep <- rownames(dge$samples)[idx]
+	dm <- log2(dge$counts[,keep])
+	colnames(dm) <- traits$Sample[match(colnames(dm),traits$SampleID)]
+	dt <- as.data.table(dm,keep.rownames="Uniprot")
+	glm_results[[i]] <- left_join(df,dt,by="Uniprot")
+}
+
+#---------------------------------------------------------------------
+## Tidy-up the final normalized data.
+#---------------------------------------------------------------------
+
+
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
 # Stored in root/rdata/
-# 0. [output_name]_gene_map.RData   -- gene identifier map.
-# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-# 2. [output_name]_cleanDat.RData   -- data for TAMPOR.
 
 ## Save key results.
 message("\nSaving data for downstream analysis...")
