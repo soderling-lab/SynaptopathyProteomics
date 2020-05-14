@@ -11,6 +11,7 @@
 ## Permutation test options:
 min_size = 5
 self = "Cortex"
+test = "Cortex"
 verbose = FALSE
 strength = "strong" 
 replace_negative <- "zero"
@@ -111,7 +112,7 @@ if (!check) {
 
 # Enforce consistent dimensions between data and network.
 idx <- idy <- match(colnames(dm), colnames(netw))
-netw <- net[idx, idy]
+netw <- netw[idx, idy]
 check <- all(colnames(dm) == colnames(netw))
 if (!check) {
   message("Problem: data doesn't match network!")
