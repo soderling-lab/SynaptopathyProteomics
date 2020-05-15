@@ -52,7 +52,7 @@ intrabatch_combat <- function(data_in,samples,group,batch,
 	message(paste("Initial coorelation between batch and samples:",
 		      round(r2_1,3)))
 	message(paste("Final coorelation between batch and samples:",
-		      round(r2_1,3),"\n"))
+		      round(r2_2,3),"\n"))
 	# Put data back together again.
 	data_out <- reshape2::melt(2^data_combat,value.name="Intensity")
 	colnames(data_out)[c(1,2)] <- c("Accession","Sample")

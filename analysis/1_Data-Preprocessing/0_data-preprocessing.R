@@ -6,13 +6,14 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## Tissue type for analysis:
+## User defined parameters (you only need to change these two):
+# Tissue type for analysis:
 analysis_type = "Cortex"
-
-## Other parameters:
+# Project root directory:
 root = "/mnt/d/projects/SynaptopathyProteomics"
+
+## Other optional parameters:
 alpha_threshold = 0.1 # FDR significance threshold.
-output_name = analysis_type # Prefix for naming output files.
 sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
 
 ## Input data in root/data/:
@@ -27,6 +28,8 @@ data_files = list("Cortex" = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv"
 input_data <- data_files[[analysis_type]]
 
 ## Output for downstream analysis:
+output_name = analysis_type # Prefix for naming output files.
+
 # Stored in root/rdata/
 # 0. [output_name]_gene_map.RData     - gene identifier map.
 # 1. [output_name]_tidy_peptide.csv   - tidy, raw peptide data.
@@ -78,7 +81,7 @@ downdir <- file.path(rootdir, "downloads")
 ## Load the raw data and sample info.
 #---------------------------------------------------------------------
 
-message(paste0("\nAnalyzing ",analysis_type,"."))
+message(paste0("\nAnalyzing ",analysis_type,"..."))
 
 # Load the TMT data.
 myfile <- file.path(datadir,input_data)
@@ -151,7 +154,7 @@ gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
 # NOTE: Samples should contain the following columns:
 # Treatment, Channel, Sample, Experiment
 
-message("\nLoading raw data from Proteome Discover.")
+message("\nLoading raw peptide data from Proteome Discover.")
 
 cols <- colnames(peptides)[!grepl("Abundance",colnames(peptides))]
 tidy_peptide <- tidyProt(peptides,intensity.cols=cols)
@@ -341,7 +344,8 @@ if (length(outlier_samples) == 0) {
 # Compare WT v Mutant.
 
 # Status.
-message(paste("\nAnalyzing protein differential abundance..."))
+message(paste("\nAnalyzing protein differential abundance",
+	      "with EdgeR GLM..."))
 
 data_glm <- glmDA(filt_protein,comparisons="Genotype.Treatment",
 		     samples,gene_map,samples_to_ignore="QC",
@@ -357,15 +361,80 @@ message(paste0("Summary of differentially abundant proteins at FDR <",
 tab <- sapply(glm_results,function(x) sum(x$FDR<alpha_threshold))
 knitr::kable(t(tab))
 
+#--------------------------------------------------------------------
+## Identify subset of highly reproducible proteins
+#--------------------------------------------------------------------
+
+message(paste("\nChecking reproducibility of WT protein expresion..."))
+
+# Prepare the data.
+sub_samples <- samples %>% filter(Sample %in% norm_protein$Sample)
+data_in <- left_join(norm_protein,sub_samples,
+		     by=c("Sample","Experiment","Channel","Treatment"))
+
+# Split the data into a list of proteins.
+prot_list <- data_in %>% group_by(Accession) %>% group_split()
+names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
+
+# Define a function that checks reproducibility of a protein.
+check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
+				  fun="bicor",threshold=0.8) {
+	# Which proteins are highly reproducible between replicates.
+	# For a given protein, cast the data into a matrix: Fraction ~ Replicate.
+	dt <- prot_list[[protein]] %>% 
+		filter(Treatment == treatment.subset) %>%
+		as.data.table() 
+	dt$Replicate <- as.numeric(as.factor(dt$Channel))
+        dt_temp <- dcast(dt, Genotype + Tissue ~ Treatment + Replicate, 
+		      value.var="Intensity") 
+	value_cols <- grep("_",colnames(dt_temp))
+	dm <- dt_temp %>% dplyr::select(all_of(value_cols)) %>% 
+		as.matrix(rownames.value=paste(dt_temp$Genotype,
+					       dt_temp$Tissue,sep="."))
+	# missing values can arise in dm if outlier sample was removed.
+	# Calculate the pairwise correlation between samples.
+	opts <- "pairwise.complete.obs"
+	if (fun == "bicor") { cormat <- bicor(log2(dm),use=opts) }
+	if (fun == "pearson") { cormat <- cor(log2(dm),method="pearson",
+					      use=opts) }
+	if (fun == "spearman") { cormat <- cor(log2(dm),method="spearman",
+					       use=opts) }
+	# Ignore self- and duplicate- comparisons.
+	diag(cormat) <- NA
+	cormat[cormat==0] <- NA
+	cormat[lower.tri(cormat)] <- NA
+	# Melt into a vector of correlation values.
+	x <- reshape2::melt(cormat,na.rm=TRUE,value.name="cor")[["cor"]]
+	# Check if all values are > threshold.
+	check <- sum(x > threshold)
+	return(check)
+}
+
+# Check protein reproducibility.
+check <- list()
+for (prot in names(prot_list)) {
+	check[[prot]] <- check_reproducibility(prot_list, prot,
+				       treatment.subset="WT",
+				       fun="pearson",
+				       threshold=0.8)
+}
+
+# Status.
+checks <- unlist(check)
+n = max(checks)
+reproducible_prots <- names(which(checks==n))
+message(paste("Number of highly reproducible proteins (potential markers):",
+	      length(reproducible_prots)))
+
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
 # Stored in root/rdata/
-# 0. gene_map.RData   - gene identifier map.
+# 0. [output_name]_gene_map.RData   - gene identifier map.
 # 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-# 2. [output_name]_cleanDat.RData" -- data for TAMPOR.
+# 2. [output_name]_norm_protein.csv" -- final, normalized data.
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
@@ -380,6 +449,6 @@ fwrite(tidy_peptide,myfile)
 
 # 2. [output_name]_norm_protein.csv -- final, normalized data.
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
-saveRDS(norm_protein,myfile)
+fwrite(norm_protein,myfile)
 
 message("\nDone!\n")

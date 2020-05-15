@@ -61,8 +61,8 @@ filtQC <- function(tp,grouping.col,controls,nbins=5,nSD=4,quiet=TRUE){
 	# Status report.
 	if (!quiet){
 		total_out <- sum(out,na.rm=TRUE)
-		message(paste("Total number of",controls,
-			      "outlier peptides identified:",total_out))
+		message(paste("Total number of", "outlier",
+			      controls, "peptides identified:",total_out))
 	}
 
 	# Return tidy data.
