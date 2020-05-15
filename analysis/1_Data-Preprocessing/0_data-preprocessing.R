@@ -451,4 +451,4 @@ fwrite(tidy_peptide,myfile)
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
 fwrite(norm_protein,myfile)
 
-message("\nDone!\n")
+message("\nDone!")
