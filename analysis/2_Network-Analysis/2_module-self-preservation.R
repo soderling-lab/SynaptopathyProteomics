@@ -6,7 +6,7 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## User parameters.
+## User parameters:
 analysis_type = "Cortex"
 root = "/mnt/d/projects/SynaptopathyProteomics"
 

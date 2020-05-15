@@ -6,15 +6,13 @@
 #' authors: Tyler W. Bradshaw
 #' ---
 
-## Inputs:
+## User parameters:
 analysis_type = "Striatum"
 root = "/mnt/d/projects/SynaptopathyProteomics"
 
 # Input data should be in root/rdata/:
 input_data = list("Cortex" = "Cortex_norm_protein.csv",
 		  "Striatum" = "Striatum_norm_protein.csv")[[analysis_type]]
-
-## Other parameters:
 
 ## Output for downstream analysis:
 output_name = analysis_type
