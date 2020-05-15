@@ -143,44 +143,20 @@ for (prot in names(prot_list)) {
 
 checks <- unlist(check)
 message(paste("Numer of reproducible proteins:",sum(checks)))
-#!/usr/bin/env Rscript
-
-#' ---
-#' title: 1c_get-ppi-adjm.R
-#' description: Generate PPI adjacency matrix.
-#' authors: Tyler W Bradshaw
-#' ---
 
 #---------------------------------------------------------------------
-## Set-up the workspace.
 #---------------------------------------------------------------------
-
-# Global options and imports.
-suppressPackageStartupMessages({
-  library(getPPIs)
-  library(ggplot2)
-  library(data.table)
-})
-
-# Directories.
-here <- getwd()
-subdir <- dirname(here)
-root <- dirname(dirname(here))
-funcdir <- file.path(root, "R")
-rdatdir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables", subdir)
-
-# Functions.
-suppressWarnings({
-  devtools::load_all()
-})
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+## Generate PPI graph.
+#---------------------------------------------------------------------
 
 # Load protein identifier map.
 prot_map <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
 
-#---------------------------------------------------------------------
-## Generate PPI graph.
-#---------------------------------------------------------------------
 
 # Load mouse interactome.
 data("musInteractome")

@@ -22,9 +22,10 @@ input_maps = list("Cortex" = "Cortex_gene_map.RData",
 		  "Striatum" = "Striatum_gene_map.RData")
 
 ## Other parameters:
+tissue = "Cortex" # Analyze just one tissue?
 output_name = "Combined"
-alpha_threshold = 0.1 # FDR threshold for signficance.
-n_threads = parallel::detectCores() - 1 # Number of cores for parallel processing.
+alpha_threshold = 0.05 # FDR threshold for signficance.
+n_threads = parallel::detectCores() - 1 # Numb of cores for parallel processing.
 
 ## Main Outputs:
 # Stored in root/tables/
@@ -97,9 +98,7 @@ traits <- lapply(myfiles, fread)
 traits <- do.call(rbind, traits)
 
 # SampleIDs are batch.channel.
-# This doesn't work???
 batch <- paste0("b",as.numeric(interaction(traits$Tissue,traits$Genotype)))
-#batch <- paste0("b",as.numeric(as.factor(paste(traits$Tissue,traits$Genotype))))
 channel <- traits$Channel
 traits$SampleID <- paste(batch,channel,sep=".")
 
@@ -137,11 +136,18 @@ qc_samples <- traits %>% filter(Treatment == "QC")
 out <- colnames(dm) %in% qc_samples$SampleID
 dm <- dm[,!out]
 
+# Subset tissue?
+tissue_samples <- traits$SampleID[grepl(tissue, traits$Tissue)]
+dm <- dm[,colnames(dm) %in% tissue_samples]
+
 # Remove rows with any missing values.
 missing_vals <- apply(dm,1,function(x) any(is.na(x)))
 message(paste("\nRemoving", sum(missing_vals), 
 	      "rows that contain missing values."))
-combDat <- dm[!missing_vals,]
+dm <- dm[!missing_vals,]
+
+# Combined data for TAMPOR:
+data_combined <- dm
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
@@ -152,7 +158,7 @@ message(paste("\nPerforming TAMPOR normalization to merge Cortex and",
 
 # Insure than any samples that were removed from cleanDat are removed from
 # traits (outliers and QC samples).
-sub_traits <- traits[rownames(traits) %in% colnames(combDat), ]
+sub_traits <- traits[rownames(traits) %in% colnames(data_combined), ]
 
 # Rownames of traits must match column_names(data).
 rownames(sub_traits) <- sub_traits$SampleID
@@ -168,8 +174,8 @@ rownames(sub_traits) <- sub_traits$SampleID
 
 # Perform TAMPOR normalization.
 # Ignore warnings about closing connections.
-results <- TAMPOR(
-  dat = combDat,
+data_tampor <- TAMPOR(
+  dat = data_combined,
   traits = sub_traits,
   batchPrefixInSampleNames = TRUE,
   samplesToIgnore = "None",
@@ -177,8 +183,8 @@ results <- TAMPOR(
   parallelThreads = n_threads
 )
 
-# Collect normalized, relative abundance data.
-norm_protein <- results$cleanRelAbun
+# Collect normalized, relative abundance data post-TAMPOR.
+norm_protein <- data_tampor$cleanRelAbun
 
 #---------------------------------------------------------------------
 ## Protein differential abundance.
@@ -238,24 +244,27 @@ names(contrasts) <- unlist({
   lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
 })
 
+# Subset.
+contrasts <- contrasts[grep(tissue,names(contrasts))]
+
 # Call glmQLFTest() to evaluate differences in contrasts.
 qlf <- lapply(contrasts, function(x) glmQLFTest(fit, contrast = x))
 names(qlf) <- names(contrasts)
 
 # Determine number of significant results with decideTests().
-summary_list <- lapply(qlf, function(x) summary(decideTests(x)))
+summary_list <- lapply(qlf, function(x) {
+			       summary(decideTests(x,p.value=alpha_threshold)) })
 
 # Table summarizing DA proteins.
-overall <- t(matrix(unlist(summary_list), nrow = 3, ncol = 8))
+overall <- t(matrix(unlist(summary_list), nrow = 3, ncol = length(summary_list)))
 rownames(overall) <- unlist(lapply(contrasts, function(x) colnames(x)))
 colnames(overall) <- c("Down", "NS", "Up")
 overall <- as.data.frame(overall)
 row_names <- sapply(strsplit(rownames(overall), " - "), "[", 1)
 row_names <- gsub(".KO.|.HET.", " ", row_names)
 overall <- add_column(overall, Experiment = row_names, .before = 1)
-overall <- overall[, c(1, 3, 2, 4)]
+overall <- overall[, c(1, 3, 2, 4)] # Reorder cols.
 overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
-overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 rownames(overall) <- NULL
 
 # Pretty print table:

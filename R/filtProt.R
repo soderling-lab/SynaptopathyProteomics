@@ -1,10 +1,11 @@
-filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
-		     ohw=FALSE, remove.protein.outliers=FALSE, summary=TRUE) {
+filtProt <- function(tp,controls,remove.protein.outliers, ignore = NULL,
+		     rowmax=0.5,nbins=5,nSD=4, ohw=FALSE, summary=TRUE) {
 
 	# FIXME: Split into multiple functions.
 
 	# Store a copy of the input data.
 	tp_in <- tp
+
 	# Remove proteins that were only identified by a single peptide.
 	out1 <- unique(tp$Accession[tp$Peptides==1])
 	n_ohw <- length(out1)
@@ -37,9 +38,12 @@ filtProt <- function(tp,controls,rowmax=0.5,nbins=5,nSD=4,
 	if (remove.protein.outliers) { 
 
 		# Split tidyprot dt into list of proteins.
-		tp_list <- tp_filt %>% filter(Treatment != controls) %>%
+		# Ignore any specified proteins.
+		tp_list <- tp_filt %>% 
+			filter(Treatment != controls, Accession %notin% ignore) %>%
 			group_by(Accession,Treatment) %>% 
 			group_split()
+		names(tp_list) <- sapply(tp_list,function(x) unique(x$Accession))
 
 		# Loop to calculate MEAN ratio of log2 intensities for all
 		# replicate comparisons. This can take a little time.

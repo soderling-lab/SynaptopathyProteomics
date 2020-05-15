@@ -40,7 +40,7 @@ eBLM_regression <- function(tp, traits, ignore = NULL) {
 	# Correct for the batch effect using empiricalBayesLM from WGCNA package.
 	fit_eblm <- empiricalBayesLM(dm, removedCovariates = covariates,
 				     fitToSamples = design$status == "WT")
-	data_eblm <- fit.eblm$adjustedData
+	data_eblm <- fit_eblm$adjustedData
 	# Return regressed data, un-logged.
 	data_out <- 2^(t(data_eblm))
 	tp_eblm <- as.data.table(data_out,keep.rownames="Accession") %>%
