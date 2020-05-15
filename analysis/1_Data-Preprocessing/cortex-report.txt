@@ -1,0 +1,66 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Analyzing Cortex...
+
+Creating gene identifier map.
+
+Loading raw peptide data from Proteome Discover.
+
+Performing sample loading normalization.
+
+Imputing a small number of missing peptide values...
+Imputing missing values in group: Shank2
+... Percent missing values: 0.014% (n=71).
+Imputing missing values in group: Shank3
+... Percent missing values: 0.02% (n=103).
+Imputing missing values in group: Syngap1
+... Percent missing values: 0.039% (n=202).
+Imputing missing values in group: Ube3a
+... Percent missing values: 0.009% (n=48).
+
+Removing peptides with irreproducible QC measurements...
+Total number of outlier QC peptides identified: 611
+
+Summarizing proteins as the sum of their peptides.
+
+Performing sample loading normalization between experiments.
+
+Performing ComBat to remove intra-batch batch effect...
+Performing ComBat for group: Shank3
+Initial coorelation between batch and samples: 0.828
+Final coorelation between batch and samples: 0.102 
+
+Performing ComBat for group: Syngap1
+Initial coorelation between batch and samples: 0.543
+Final coorelation between batch and samples: 0.114 
+
+Warning messages:
+1: For group: Shank2 - No detectable batch effect! Not applying ComBat. 
+2: For group: Ube3a - No detectable batch effect! Not applying ComBat. 
+
+Standardizing protein measurements between experiments by IRS normalization.
+
+Filtering proteins...
+Removed proteins identified by one peptide.....: 95
+Removed proteins with too many missing values..: 52
+Removed proteins with any missing QC values....: 430
+Removed proteins with outlier measurements.....: 37
+Final number of reproducibly quantified proteins: 2,823
+
+Final number of samples: 44
+
+Analyzing protein differential abundance with EdgeR GLM...
+Summary of differentially abundant proteins at FDR <0.1:
+
+
+| Shank2| Shank3| Syngap1| Ube3a|
+|------:|------:|-------:|-----:|
+|      9|    482|       8|   130|
+
+Checking reproducibility of WT protein expresion...
+Number of highly reproducible proteins (potential markers): 310
+
+Saving data for downstream analysis.
+
+Done!
