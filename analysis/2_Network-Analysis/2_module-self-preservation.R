@@ -7,30 +7,30 @@
 #' ---
 
 ## User parameters.
+analysis_type = "Cortex"
+root = "/mnt/d/projects/SynaptopathyProteomics"
 
 ## Permutation test options:
 min_size = 5
-self = test = "Cortex"
 verbose = FALSE
 strength = "strong" 
+self = test = analysis_type
 replace_negative <- "zero"
 stats = c(1, 2, 6, 7)
 n_threads = parallel::detectCores() - 1
 
 ## Input data in root/rdata:
-if (self == "Cortex"){
-	input_adjm <- "Cortex_Adjm.csv"
-	input_netw <- "Cortex_NE_Adjm.csv" 
-	input_data <- "Combined_tidy_protein.csv"
-	input_part <- "Cortex_NE_SurpriseVertexPartition.csv"
-} else if ( self == "Striatum") {
-	input_adjm <- "Striatum_Adjm.csv"
-	input_netw <- "Striatum_NE_Adjm.csv" 
-	input_data <- "Combined_tidy_protein.csv"
-	input_part <- "Striatum_NE_SurpriseVertexPartition.csv"
-} else {
-	stop()
-}
+input_data <- list("Cortex" = list(
+				   adjm = "Cortex_Adjm.csv"
+				   netw = "Cortex_NE_Adjm.csv" 
+			   	   data = "Cortex_norm_protein.csv"
+				   part = "Cortex_NE_SurpriseVertexPartition.csv"),
+		   "Striatum" = list(
+				     adjm = "Striatum_Adjm.csv"
+				     netw = "Striatum_NE_Adjm.csv" 
+				     data = "Striatum_norm_protein.csv"
+				     part = "Striatum_NE_SurpriseVertexPartition.csv")
+		   )
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -64,7 +64,7 @@ if (self == "Cortex"){
 #---------------------------------------------------------------------
 
 # Load renv.
-renv::load(getrd())
+renv::load(root)
 
 # Global options and imports.
 suppressPackageStartupMessages({

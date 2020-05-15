@@ -9,8 +9,8 @@ max_size = 100
 recursive = True
 n_iterations = -1
 method = 'Surprise' 
-adjm_type = 'Enhanced Striatum' 
-output_name = 'Striatum_NE'
+adjm_type = 'Enhanced Cortex' 
+output_name = 'Cortex_NE'
 
 ## Description of parameters:
 # rmin - minimum resolution for multi-resolution methods.
