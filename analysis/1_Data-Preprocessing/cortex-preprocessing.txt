@@ -59,3 +59,8 @@ Summary of differentially abundant proteins at FDR <0.1:
 |      9|    482|       8|   130|
 
 Checking reproducibility of WT protein expresion...
+Number of highly reproducible proteins (potential markers): 310
+
+Saving data for downstream analysis.
+
+Done!

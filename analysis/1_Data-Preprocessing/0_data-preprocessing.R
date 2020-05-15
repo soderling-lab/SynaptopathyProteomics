@@ -451,4 +451,8 @@ fwrite(tidy_peptide,myfile)
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
 fwrite(norm_protein,myfile)
 
+# 3. [output_name]_GLM_Results.xlsx -- statistical results.
+myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
+write_excel(glm_results,myfile)
+
 message("\nDone!")
