@@ -21,14 +21,14 @@ n_threads = parallel::detectCores() - 1
 
 ## Input data in root/rdata:
 input_data <- list("Cortex" = list(
-				   adjm = "Cortex_Adjm.csv"
-				   netw = "Cortex_NE_Adjm.csv" 
-			   	   data = "Cortex_norm_protein.csv"
+				   adjm = "Cortex_Adjm.csv",
+				   netw = "Cortex_NE_Adjm.csv",
+			   	   data = "Cortex_norm_protein.csv",
 				   part = "Cortex_NE_SurpriseVertexPartition.csv"),
 		   "Striatum" = list(
-				     adjm = "Striatum_Adjm.csv"
-				     netw = "Striatum_NE_Adjm.csv" 
-				     data = "Striatum_norm_protein.csv"
+				     adjm = "Striatum_Adjm.csv",
+				     netw = "Striatum_NE_Adjm.csv",
+				     data = "Striatum_norm_protein.csv",
 				     part = "Striatum_NE_SurpriseVertexPartition.csv")
 		   )
 
