@@ -14,9 +14,10 @@ root = "/mnt/d/projects/SynaptopathyProteomics"
 min_size = 5
 verbose = FALSE
 strength = "strong" 
-self = test = analysis_type
-replace_negative <- "zero"
 stats = c(1, 2, 6, 7)
+n_permutations = NULL
+replace_negative = "zero"
+self = test = analysis_type
 n_threads = parallel::detectCores() - 1
 
 ## Input data in root/rdata:
@@ -30,7 +31,7 @@ input_data <- list("Cortex" = list(
 				     netw = "Striatum_NE_Adjm.csv",
 				     data = "Striatum_norm_protein.csv",
 				     part = "Striatum_NE_SurpriseVertexPartition.csv")
-		   )
+		   )[[analysis_type]]
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -83,22 +84,21 @@ rdatdir <- file.path(root, "rdata")
 # Load expression data:
 # Load the data, subset, coerce to matrix, Log2 transform, and 
 # finally transpose such that rows = samples and columns = proteins.
-myfile <- file.path(rdatdir, input_data)
-dm <- fread(myfile) %>% filter(Tissue == self) %>% 
-	as.data.table() %>%
-	dcast(Accession ~ Sample,value.var="Abundance") %>%
+myfile <- file.path(rdatdir, input_data[['data']])
+dm <- fread(myfile) %>%
+	dcast(Accession ~ Sample,value.var="Intensity") %>%
 	as.matrix(rownames="Accession") %>% log2() %>% t()
 
 # Load adjmatrix--coerce to a matrix.
-myfile <- file.path(rdatdir, input_adjm)
+myfile <- file.path(rdatdir, input_data[['adjm']])
 adjm <- fread(myfile) %>% as.matrix(rownames="Accession")
 
 # Load network--coerce to a matrix.
-myfile <- file.path(rdatdir, input_netw)
+myfile <- file.path(rdatdir, input_data[['netw']])
 netw <- fread(myfile) %>% as.matrix(rownames="Accession")
 
 # Load Leidenalg graph partition.
-myfile <- file.path(rdatdir, input_part)
+myfile <- file.path(rdatdir, input_data[['part']])
 part_dt <- fread(myfile, drop=1)
 resolutions <- nrow(part_dt)
 
@@ -199,7 +199,7 @@ for (resolution in resolutions) {
       test = "self",
       selfPreservation = TRUE,
       nThreads = n_threads,
-      nPerm = NULL, # Determined automatically by the function.
+      nPerm = n_permutations, # Determined automatically by the function.
       null = "overlap",
       alternative = "greater", # Greater for self-preservation.
       simplify = TRUE,
@@ -217,8 +217,8 @@ for (resolution in resolutions) {
   results[[resolution]] <- partition
   # Save to Rdata.
   if (resolution == length(resolutions)) {
-      output_name <- paste0(self,"_module_self_preservation.RData")
-    saveRDS(results, file.path(rdatdir, output_name))
-    message("Done!")
+	  myfile <- file.path(rdatdir,paste0(self,"_partition_self_preservation_enforced.csv"))
+	  do.call(rbind,results) %>% as.data.frame() %>% fwrite(myfile)
+	  message("Done!")
   }
 } # Ends loop.
