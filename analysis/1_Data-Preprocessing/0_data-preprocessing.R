@@ -8,7 +8,7 @@
 
 ## User defined parameters (you only need to change these two):
 # Tissue type for analysis:
-analysis_type = "Cortex"
+analysis_type = "Striatum"
 # Project root directory:
 root = "/mnt/d/projects/SynaptopathyProteomics"
 
