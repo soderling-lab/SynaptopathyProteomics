@@ -140,9 +140,12 @@ for (prot in names(prot_list)) {
 				       fun="bicor",
 				       threshold=0.6)
 }
-
 checks <- unlist(check)
+
 message(paste("Numer of reproducible proteins:",sum(checks)))
+
+
+
 
 #---------------------------------------------------------------------
 #---------------------------------------------------------------------

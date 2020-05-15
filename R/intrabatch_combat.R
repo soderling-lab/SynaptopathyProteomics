@@ -25,16 +25,13 @@ intrabatch_combat <- function(data_in,samples,group,batch,
 	names(batch_cov) <- subtraits$Sample
 	# Check the correlation between batch and PC1.
 	pc1 <- prcomp(t(log2(subdm)))$x[, 1]
-	r2 <- cor(batch_cov[names(pc1)], pc1)
+	r2_1 <- cor(batch_cov[names(pc1)], pc1)
 	# Check: is there evidence of batch effect?
-	if (abs(r2) < r2_threshold) {
+	if (abs(r2_1) < r2_threshold) {
 		warning(paste("For group:",group, "-",
-			      "No detectable batch effect! Not applying ComBat."),
-		call.=FALSE)
+			      "No detectable batch effect!",
+			      "Not applying ComBat."), call.=FALSE)
 		return(data_in)
-	} else {
-		message(paste("Initial coorelation between batch and samples:",
-			      round(r2,3)))
 	}
 	# Insure that traits data is in matching order.
 	rownames(subtraits) <- subtraits$Sample
@@ -51,9 +48,11 @@ intrabatch_combat <- function(data_in,samples,group,batch,
 	})
 	# Correlation between batch and PC1 post-ComBat.
 	pc1 <- prcomp(t(data_combat))$x[, 1]
-	r2 <- cor(batch_cov[names(pc1)], pc1)
+	r2_2 <- cor(batch_cov[names(pc1)], pc1)
+	message(paste("Initial coorelation between batch and samples:",
+		      round(r2_1,3)))
 	message(paste("Final coorelation between batch and samples:",
-		      round(r2,3),"\n"))
+		      round(r2_1,3),"\n"))
 	# Put data back together again.
 	data_out <- reshape2::melt(2^data_combat,value.name="Intensity")
 	colnames(data_out)[c(1,2)] <- c("Accession","Sample")
