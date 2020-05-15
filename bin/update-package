@@ -1,7 +1,0 @@
-#!/usr/bin/env Rscript
-
-# Update a directory containing an R package.
-devtools::document()
-
-
-

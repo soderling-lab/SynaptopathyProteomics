@@ -1,6 +1,0 @@
-# Example Usage of the radalib executables.
-
-# Community detection example:
-# required args: log_level modularity_type heuristics repetitions network best_part_name
-# log_level : N|S|P|V none,summary, progress, verbose
-./communities_detection.exe s WN l 10 sample.net output-partition.txt

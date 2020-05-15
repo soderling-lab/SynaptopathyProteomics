@@ -1,11 +1,11 @@
 Package: SynaptopathyProteomics
-Title: What the Package Does (One Line, Title Case)
+Title: Analysis of Mouse Brain TMT Proteomics
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Tyler",
+           family = "Bradshaw",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
+           email = "tyler.w.bradshaw@duke.edu",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
 License: What license it uses
