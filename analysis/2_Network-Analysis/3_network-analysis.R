@@ -15,13 +15,15 @@ input_data <- list("Cortex" = list(
 				   adjm = "Cortex_Adjm.csv",
 				   netw = "Cortex_NE_Adjm.csv",
 				   gmap = "Cortex_gene_map.RData",
+				   stat = "Cortex_glm_results.csv",
 			   	   data = "Cortex_norm_protein.csv",
 				   part = "Cortex_NE_SurpriseVertexPartition.csv",
-				   part = "Cortex_partition_self_preservation_enforced.csv"),
+				   pres = "Cortex_partition_self_preservation_enforced.csv"),
 		   "Striatum" = list(
 				     adjm = "Striatum_Adjm.csv",
 				     netw = "Striatum_NE_Adjm.csv",
 				     gmap = "Striatum_gene_map.RData",
+				     stat = "Striatum_glm_results.csv",
 				     data = "Striatum_norm_protein.csv",
 				     part = "Striatum_NE_SurpriseVertexPartition.csv",
 				     pres = "Striatum_partition_self_preservation_enforced.csv")
@@ -30,6 +32,9 @@ input_data <- list("Cortex" = list(
 #--------------------------------------------------------------------
 ## Set-up the workspace.
 #--------------------------------------------------------------------
+
+# Load renv.
+renv::load(root)
 
 # Global imports.
 suppressPackageStartupMessages({
@@ -41,7 +46,7 @@ suppressPackageStartupMessages({
 TBmiscr::load_all()
 
 # Directories.
-root <- TBmiscr::load_all()
+root <- TBmiscr::getrd()
 rdatdir <- file.path(root, "rdata")
 
 # Load expression data:
@@ -63,15 +68,19 @@ netw <- fread(myfile) %>% as.matrix(rownames="Accession")
 # Load Leidenalg graph partition.
 myfile <- file.path(rdatdir, input_data[['part']])
 part_dt <- fread(myfile, drop=1)
+la_partition <- as.numeric(part_dt) + 1
+names(la_partition) <- colnames(part_dt)
 resolutions <- nrow(part_dt)
 
 # Load graph partition after enforcing module self-preservation.
 myfile <- file.path(rdatdir, input_data[['pres']])
 part_dt <- fread(myfile)
 partition <- as.numeric(part_dt)
+names(partition) <- colnames(part_dt)
 
 # Load gene identifier map.
-gene_map <- readRDS(file.path(rdatdir, input_data[['gmap']]))
+myfile <- file.path(rdatdir, input_data[['gmap']])
+gene_map <- readRDS(myfile)
 
 #---------------------------------------------------------------------------------
 # Get proteins with any significant change.

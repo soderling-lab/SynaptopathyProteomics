@@ -7,10 +7,8 @@
 #' ---
 
 ## User defined parameters (you only need to change these two):
-# Tissue type for analysis:
-analysis_type = "Striatum"
-# Project root directory:
-root = "/mnt/d/projects/SynaptopathyProteomics"
+analysis_type = "Striatum" # Tissue type for analysis.
+root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
 
 ## Other optional parameters:
 alpha_threshold = 0.1 # FDR significance threshold.
@@ -31,9 +29,13 @@ input_data <- data_files[[analysis_type]]
 output_name = analysis_type # Prefix for naming output files.
 
 # Stored in root/rdata/
-# 0. [output_name]_gene_map.RData     - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv   - tidy, raw peptide data.
-# 2. [output_name]_preprocessed.RData - preprocessed data for TAMPOR.
+# 0. [output_name]_gene_map.RData   - gene identifier map.
+# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
+# 2. [output_name]_norm_protein     - preprocessed data for TAMPOR.
+# 3. [output_name]_glm_stats.csv    - tidy statistical results.
+
+# Stored in root/tables/
+# 4. [output_name]_GLM_Results.xlsx - glm results results.
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -451,7 +453,13 @@ fwrite(tidy_peptide,myfile)
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
 fwrite(norm_protein,myfile)
 
-# 3. [output_name]_GLM_Results.xlsx -- statistical results.
+# 3. [output_name]_glm_stats.csv -- tidy statistical results.
+cols <- Reduce(intersect, lapply(glm_results,colnames))
+glm_stats <- lapply(glm_results,function(x) x %>% select(cols)) %>% bind_rows(.id="Tissue")
+myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
+fwrite(glm_stats,myfile)
+
+# 4. [output_name]_GLM_Results.xlsx -- statistical results.
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
 
