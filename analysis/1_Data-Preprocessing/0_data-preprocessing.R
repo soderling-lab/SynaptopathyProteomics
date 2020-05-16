@@ -7,7 +7,7 @@
 #' ---
 
 ## User defined parameters (you only need to change these two):
-analysis_type = "Striatum" # Tissue type for analysis.
+analysis_type = "Cortex" # Tissue type for analysis.
 root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
 
 ## Other optional parameters:
@@ -373,7 +373,7 @@ cols <- Reduce(intersect, lapply(glm_results,colnames))
 # Stack results:
 glm_stats <- lapply(glm_results, function(x) {
 			    as.data.table(x) %>% 
-				    select(all_of(cols)) %>% 
+				    dplyr::select(all_of(cols)) %>% 
 				    bind_rows(.id="Tissue") })
 
 #--------------------------------------------------------------------
