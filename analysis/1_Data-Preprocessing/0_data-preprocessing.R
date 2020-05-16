@@ -364,6 +364,19 @@ tab <- sapply(glm_results,function(x) sum(x$FDR<alpha_threshold))
 knitr::kable(t(tab))
 
 #--------------------------------------------------------------------
+## Tidy-up glm statistical results.
+#--------------------------------------------------------------------
+
+# Shared column names:
+cols <- Reduce(intersect, lapply(glm_results,colnames))
+
+# Stack results:
+glm_stats <- lapply(glm_results, function(x) {
+			    as.data.table(x) %>% 
+				    select(all_of(cols)) %>% 
+				    bind_rows(.id="Tissue") })
+
+#--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
 #--------------------------------------------------------------------
 
@@ -433,10 +446,11 @@ message(paste("Number of highly reproducible proteins (potential markers):",
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
-# Stored in root/rdata/
 # 0. [output_name]_gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
-# 2. [output_name]_norm_protein.csv" -- final, normalized data.
+# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
+# 2. [output_name]_norm_protein     - preprocessed data for TAMPOR.
+# 3. [output_name]_glm_stats.csv    - tidy statistical results.
+# 4. [output_name]_GLM_Results.xlsx - glm results results.
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
@@ -454,8 +468,6 @@ myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
 fwrite(norm_protein,myfile)
 
 # 3. [output_name]_glm_stats.csv -- tidy statistical results.
-cols <- Reduce(intersect, lapply(glm_results,colnames))
-glm_stats <- lapply(glm_results,function(x) x %>% select(all_of(cols))) %>% bind_rows(.id="Tissue")
 myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
 fwrite(glm_stats,myfile)
 
