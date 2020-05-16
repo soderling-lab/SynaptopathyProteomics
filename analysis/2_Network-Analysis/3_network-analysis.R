@@ -6,100 +6,74 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+## User parameters to change:
+analysis_type = "Cortex"
+root = "/mnt/d/projects/SynaptopathyProteomics" 
+
+## Input data in root/rdata:
+input_data <- list("Cortex" = list(
+				   adjm = "Cortex_Adjm.csv",
+				   netw = "Cortex_NE_Adjm.csv",
+				   gmap = "Cortex_gene_map.RData",
+			   	   data = "Cortex_norm_protein.csv",
+				   part = "Cortex_NE_SurpriseVertexPartition.csv",
+				   part = "Cortex_partition_self_preservation_enforced.csv"),
+		   "Striatum" = list(
+				     adjm = "Striatum_Adjm.csv",
+				     netw = "Striatum_NE_Adjm.csv",
+				     gmap = "Striatum_gene_map.RData",
+				     data = "Striatum_norm_protein.csv",
+				     part = "Striatum_NE_SurpriseVertexPartition.csv",
+				     pres = "Striatum_partition_self_preservation_enforced.csv")
+		   )[[analysis_type]]
+
 #--------------------------------------------------------------------
 ## Set-up the workspace.
 #--------------------------------------------------------------------
 
-## User parameters to change:
-data_type <- "Cortex" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
-fig_ext <- "pdf" # Save individual ggplots as RData.
-create_networks <- TRUE
-
-## Data files.
-input_files <- list(
-  adjm_files = list(
-    Cortex = "3_Cortex_Adjm.RData",
-    Striatum = "3_Striatum_Adjm.RData",
-    Combined = "3_Combined_Adjm.RData"
-  ),
-  data_files = list(
-    Cortex = "3_Cortex_cleanDat.RData",
-    Striatum = "3_Striatum_cleanDat.RData",
-    Combined = "3_Combined_cleanDat.RData"
-  ),
-  part_files = list(
-    Cortex = list(
-      self = "2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
-      ppi = "2020-02-13_Cortex_PPI_Module_Self_Preservation.RData",
-      other = "2020-02-24_Cortex_Striatum_Module_Self_Preservation.RData"
-    ),
-    Striatum = list(
-      self = "2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
-      ppi = "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData",
-      other = "2020-02-24_Striatum_Cortex_Module_Self_Preservation.RData"
-    )
-  )
-)
-
 # Global imports.
 suppressPackageStartupMessages({
-  library(data.table)
-  library(dplyr)
-  library(purrr)
-  library(WGCNA)
-  library(org.Mm.eg.db)
-  library(anRichment)
-  library(getPPIs)
-  library(DescTools)
-  library(igraph)
-  library(ggplot2)
-  library(gtable)
-  library(cowplot)
-  library(RCy3)
+	library(dplyr)
+	library(data.table)
 })
 
 # Functions.
-suppressWarnings({
-  devtools::load_all()
-})
+TBmiscr::load_all()
 
 # Directories.
-here <- getwd()
-subdir <- basename(here)
-root <- dirname(dirname(here))
-funcdir <- file.path(root, "R")
-datadir <- file.path(root, "data")
+root <- TBmiscr::load_all()
 rdatdir <- file.path(root, "rdata")
-netsdir <- file.path(root, "networks", part_type)
-figsdir <- file.path(root, "figs", subdir, data_type)
-tabsdir <- file.path(root, "tables", subdir, data_type)
 
-# Subdirectory for combined figures.
-if (data_type == "Combined") {
-  figsdir <- file.path(figsdir, part_type)
-}
+# Load expression data:
+# Load the data, subset, coerce to matrix, Log2 transform, and 
+# finally transpose such that rows = samples and columns = proteins.
+myfile <- file.path(rdatdir, input_data[['data']])
+dm <- fread(myfile) %>%
+	dcast(Accession ~ Sample,value.var="Intensity") %>%
+	as.matrix(rownames="Accession") %>% log2() %>% t()
 
-# Other subdirectories for figures.
-modsdir <- file.path(figsdir, "Modules")
-protdir <- file.path(figsdir, "Proteins")
-scatdir <- file.path(figsdir, "GOScatter")
-figsdir <- file.path(figsdir, toupper(fig_ext))
+# Load adjmatrix--coerce to a matrix.
+myfile <- file.path(rdatdir, input_data[['adjm']])
+adjm <- fread(myfile) %>% as.matrix(rownames="Accession")
 
-# Remove any existing figures and tables.
-invisible(sapply(files.no.dirs(figsdir), unlink))
-invisible(sapply(files.no.dirs(tabsdir), unlink))
-invisible(sapply(files.no.dirs(modsdir), unlink))
-invisible(sapply(files.no.dirs(protdir), unlink))
-invisible(sapply(files.no.dirs(scatdir), unlink))
+# Load network--coerce to a matrix.
+myfile <- file.path(rdatdir, input_data[['netw']])
+netw <- fread(myfile) %>% as.matrix(rownames="Accession")
 
-# Load protein identifier map.
-protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
+# Load Leidenalg graph partition.
+myfile <- file.path(rdatdir, input_data[['part']])
+part_dt <- fread(myfile, drop=1)
+resolutions <- nrow(part_dt)
 
-# Load GLM stats.
-myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
-glm_stats <- readRDS(myfile)
+# Load graph partition after enforcing module self-preservation.
+myfile <- file.path(rdatdir, input_data[['pres']])
+part_dt <- fread(myfile)
+partition <- as.numeric(part_dt)
 
+# Load gene identifier map.
+gene_map <- readRDS(file.path(rdatdir, input_data[['gmap']]))
+
+#---------------------------------------------------------------------------------
 # Get proteins with any significant change.
 idy <- lapply(c("Cortex", "Striatum"), function(x) {
   grep(x, colnames(glm_stats$FDR))
