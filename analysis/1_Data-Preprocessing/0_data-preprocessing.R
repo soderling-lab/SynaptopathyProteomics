@@ -7,7 +7,7 @@
 #' ---
 
 ## User defined parameters (you only need to change these two):
-analysis_type = "Striatum" # Tissue type for analysis.
+analysis_type = "Cortex" # Tissue type for analysis.
 root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
 
 ## Other optional parameters:
@@ -455,7 +455,7 @@ fwrite(norm_protein,myfile)
 
 # 3. [output_name]_glm_stats.csv -- tidy statistical results.
 cols <- Reduce(intersect, lapply(glm_results,colnames))
-glm_stats <- lapply(glm_results,function(x) x %>% select(cols)) %>% bind_rows(.id="Tissue")
+glm_stats <- lapply(glm_results,function(x) x %>% select(all_of(cols))) %>% bind_rows(.id="Tissue")
 myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
 fwrite(glm_stats,myfile)
 
