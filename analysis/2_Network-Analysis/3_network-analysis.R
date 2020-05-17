@@ -252,32 +252,6 @@ results$"PVE" <- PVE[results$Module]
 results$"Sig" <- results$KW.padj < alpha_KW & results$DT.pval < alpha_DT
 
 #--------------------------------------------------------------------
-## Stats without combining WT samples.
+## Save results.
 #--------------------------------------------------------------------
-
-# Function to extract self-comparisons from dunnett test post-hoc object.
-get_self_comparison <- function(dt){
-	a = sapply(strsplit(sapply(strsplit(rownames(dt),"-"),"[",1),"\\."),"[",2)
-	b = sapply(strsplit(sapply(strsplit(rownames(dt),"-"),"[",2),"\\."),"[",2)
-	idx <- rownames(dt)[a == b]
-	return(dt[idx,])
-}
-
-# Test: don't combine WTs.
-# This is a bit slow...
-# FIXME: parallelize
-results = list()
-for (i in 1:length(ME_list)) {
-	message(paste("Working on module:",i))
-	x = ME_list[[i]]
-	g <- factor(groups[names(x)])
-	controls <- unique(as.character(g)[grep("WT",as.character(g))])
-	all_dt <- DescTools::DunnettTest(x ~ g, control = controls)
-	all_dt <- all_dt[c(1:length(all_dt)-1)]
-	results[[i]] = as.data.table(do.call(rbind,lapply(all_dt,get_self_comparison)),
-				     keep.rownames="Contrast")
-}
-
-# Any sig?
-idx = sapply(results,function(x) sum(x$pval<0.1))
-which(idx>1)
+# TODO:
