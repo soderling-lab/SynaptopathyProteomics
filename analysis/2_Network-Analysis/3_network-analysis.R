@@ -122,7 +122,7 @@ names(modules) <- paste0("M",names(modules))
 modules <- modules[-which(names(modules) == "M0")]
 
 # Module sizes.
-sapply(modules,length)
+#sapply(modules,length)
 
 # Total Number of modules.
 # P.values will be corrected for n comparisions.
@@ -194,7 +194,6 @@ data_KW$p.adj <- as.numeric(data_KW$p.value) * nModules
 data_KW$p.adj[data_KW$p.adj > 1.0] <- 1
 
 # Significant modules.
-alpha_KW = 0.05
 sigModules <- rownames(data_KW)[data_KW$p.adj < alpha_KW]
 nSigModules <- length(sigModules)
 message(paste0(
@@ -212,6 +211,35 @@ group_order <- c("WT", "KO.Shank2", "KO.Shank3", "HET.Syngap1", "KO.Ube3a")
 group_levels <- paste(group_order, analysis_type, sep = ".")
 control_group <- paste("WT", analysis_type, sep = ".")
 
+# Function to extract self-comparisons from dunnett test post-hoc object.
+get_self_comparison <- function(dt){
+	a = sapply(strsplit(sapply(strsplit(rownames(dt),"-"),"[",1),"\\."),"[",2)
+	b = sapply(strsplit(sapply(strsplit(rownames(dt),"-"),"[",2),"\\."),"[",2)
+	idx <- rownames(dt)[a == b]
+	return(dt[idx,])
+}
+
+# Test: don't combine WTs.
+# This is a bit slow...
+# FIXME: parallelize
+results = list()
+for (i in 1:length(ME_list)) {
+	message(paste("Working on module:",i))
+	x = ME_list[[i]]
+	g <- factor(groups[names(x)])
+	controls <- unique(as.character(g)[grep("WT",as.character(g))])
+	all_dt <- DescTools::DunnettTest(x ~ g, control = controls)
+	all_dt <- all_dt[c(1:length(all_dt)-1)]
+	results[[i]] = as.data.table(do.call(rbind,lapply(all_dt,get_self_comparison)),
+				     keep.rownames="Contrast")
+}
+
+# Any sig?
+idx = sapply(results,function(x) sum(x$pval<0.1))
+which(idx>1)
+
+
+
 # Loop to perform DTest. NOTE: This takes several seconds.
 DT_list <- lapply(ME_list, function(x) {
   g <- factor(groups[names(x)], levels = group_levels)
@@ -224,8 +252,31 @@ nSig_tests <- sapply(DT_list, function(x) sum(x$pval < alpha_DT))
 message("Summary of Dunnett's test changes for significant modules:")
 nSig_tests[sigModules]
 
+quit()
+
 # What are the proteins???!?!
+sigModules = c("M5","M13","M25")
 foo = modules[sigModules]
-x = foo[[1]]
 f <- function(x) { gene_map$symbol[match(names(x),gene_map$uniprot)] }
-lapply(foo,f)
+man = lapply(foo,f)
+x = man[["M25"]]
+x[order(x)]
+
+prots = names(foo[["M13"]])
+subadjm = adjm[prots,prots]
+diag(subadjm) <- NA
+subadjm[lower.tri(subadjm)] <- NA
+df = reshape2::melt(subadjm,value.name="bicor",na.rm=TRUE)
+df <- df[order(df$bicor,decreasing=TRUE),]
+df$symbolA <- map_ids(df$Var1,"uniprot","symbol")
+df$symbolB <- map_ids(df$Var2,"uniprot","symbol")
+head(df)
+
+map_ids <- function(ids,input_format,output_format) {
+	ids <- as.character(ids)
+	idx <- match(ids,gene_map[[input_format]])
+	new_ids <- gene_map[[output_format]][idx]
+	return(new_ids)
+}
+
+

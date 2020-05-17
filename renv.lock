@@ -70,6 +70,13 @@
       "Repository": "CRAN",
       "Hash": "4744be45519d675af66c28478720fce5"
     },
+    "DescTools": {
+      "Package": "DescTools",
+      "Version": "0.99.35",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "46f50f594a84e58a690bf697a4f55adf"
+    },
     "FSA": {
       "Package": "FSA",
       "Version": "0.8.30",
@@ -522,6 +529,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "ec8ca05cffcc70569eaaad8469d2a3a7"
+    },
+    "expm": {
+      "Package": "expm",
+      "Version": "0.999-4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "d4e0e839218ca1fa869f807b8668576e"
     },
     "extrafont": {
       "Package": "extrafont",
