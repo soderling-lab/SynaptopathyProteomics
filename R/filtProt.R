@@ -22,7 +22,7 @@ filtProt <- function(tp,controls,remove.protein.outliers, ignore = NULL,
 
 	# Remove proteins with any missing QC values.
 	data_QC <- tp %>% filter(Treatment==controls) %>% 
-		group_by(Accession,Experiment,Treatment) %>%
+		group_by(Accession,Genotype,Treatment) %>%
 		summarize(N = length(Intensity),
 			  nMissing = sum(is.na(Intensity)),
 			  Remove=any(is.na(Intensity))) 

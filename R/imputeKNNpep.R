@@ -49,11 +49,6 @@ imputeKNNpep <- function(tp,groupBy=NULL, samples_to_ignore = NULL,
 		opts <- paste(names(opts),opts,sep="=")
 		cmd <- paste0("dcast(tp_input, ", y, " ~ ", x,", ",opts,")")
 		df <- eval(parse(text=cmd))
-		#df <- as.data.table(tp_input) %>% 
-		#	dcast(Experiment + Accession + 
-		#	      Sequence + Modifications ~ Sample,
-		#              value.var="Intensity")
-
 		idy <- grep(colID,colnames(df))
 		dm <- df %>% dplyr::select(all_of(idy))
 		dm <- as.matrix(dm)
@@ -117,9 +112,6 @@ imputeKNNpep <- function(tp,groupBy=NULL, samples_to_ignore = NULL,
 		tp_input$Intensity <- NULL
 		idy <- colnames(tpKNN)[-which(colnames(tpKNN)=="Intensity")]
 		tpImpute <- left_join(tp_input,tpKNN,by=idy)
-		#cols <- c("Experiment","Sample","Channel","Treatment", 
-		#	  "Accession","Sequence","Modifications","Intensity")
-		#tpImpute <- tpImpute %>% dplyr::select(all_of(cols))
 
 		# Collect results in a list.
 		results[[i]] <- tpImpute

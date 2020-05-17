@@ -5,7 +5,7 @@ normIRS <- function(tp,controls,robust=FALSE){
 	# Calculate average of QC samples for each experiment (ExpMean).
 	tp <- ungroup(tp)
 	tp_list <- tp %>% filter(Treatment==controls) %>% 
-		group_by(Accession,Experiment) %>% 
+		group_by(Accession,Genotype) %>% 
 		summarize(nQC = length(Intensity),
 			  ExpMean = mean(Intensity)) %>%
 		group_split()
@@ -23,7 +23,7 @@ normIRS <- function(tp,controls,robust=FALSE){
 	# Collect the data in a df.
 	df <- do.call(rbind,tp_list)
 	# Use NormFactor's to normalize protein measurements.
-	tp_norm <- left_join(tp,df,by=c("Accession","Experiment"))
+	tp_norm <- left_join(tp,df,by=c("Accession","Genotype"))
 	if (robust==TRUE){
 		# Use Robust mean.
 		tp_norm$Intensity <- tp_norm$Intensity * tp_norm$RobustNormFactor
