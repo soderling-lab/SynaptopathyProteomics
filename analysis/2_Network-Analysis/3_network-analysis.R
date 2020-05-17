@@ -37,7 +37,6 @@ input_data <- list("Cortex" = list(
 input_meta <- list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
 		   "Striatum" = "4227_TMT_Striatum_Combined_traits.csv")[[analysis_type]]
 
-
 #--------------------------------------------------------------------
 ## Set-up the workspace.
 #--------------------------------------------------------------------
@@ -64,7 +63,7 @@ rdatdir <- file.path(root, "rdata")
 ## Load the data.
 #--------------------------------------------------------------------
 
-# Load expression data:
+# Load protein expression data:
 # Load the data, subset to remove QC data, coerce to matrix, 
 # Log2 transform, and finally transpose such that rows = samples 
 # and columns = proteins.
@@ -74,7 +73,7 @@ dm <- fread(myfile) %>% filter(Treatment != "QC") %>%
 	dcast(Accession ~ Sample,value.var="Intensity") %>%
 	as.matrix(rownames="Accession") %>% log2() %>% t()
 
-# Load adjmatrix--coerce to a matrix.
+# Load adjacency matrix--coerce to a data.matrix.
 myfile <- file.path(rdatdir, input_data[['adjm']])
 adjm <- fread(myfile) %>% as.matrix(rownames="Accession")
 
@@ -83,6 +82,7 @@ myfile <- file.path(rdatdir, input_data[['netw']])
 netw <- fread(myfile) %>% as.matrix(rownames="Accession")
 
 # Load Leidenalg graph partition.
+# This is the intial partition of the graph.
 myfile <- file.path(rdatdir, input_data[['part']])
 part_dt <- fread(myfile, drop=1)
 la_partition <- as.numeric(part_dt) + 1
@@ -122,7 +122,7 @@ names(modules) <- paste0("M",names(modules))
 modules <- modules[-which(names(modules) == "M0")]
 
 # Module sizes.
-#sapply(modules,length)
+module_sizes <- sapply(modules,length)
 
 # Total Number of modules.
 # P.values will be corrected for n comparisions.
@@ -134,15 +134,16 @@ part <- partition[!partition == 0]
 
 # Percent clustered.
 percent_clust <- length(part)/length(partition)
-message(paste("Percent proteins clustered:",round(percent_clust,3)))
+message(paste0("Percent proteins clustered: ",
+	      round(100*percent_clust,2),"%."))
 
 #---------------------------------------------------------------------
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
 
 # Calculate Module Eigengenes.
-# Note: Soft power does not influence MEs.
-# Note: Do not need to sort partition to be in the same order!
+# NOTE: Soft power does not influence MEs.
+# NOTE: Do not need to sort partition to be in the same order as dm!
 data_ME <- moduleEigengenes(dm, colors = partition, 
 			    excludeGrey = TRUE, softPower = 1, impute = FALSE)
 MEs <- as.matrix(data_ME$eigengenes)
@@ -152,7 +153,8 @@ ME_list <- lapply(seq(ncol(MEs)), function(x) MEs[, x])
 names(ME_list) <- names(modules)
 
 # Module membership (KME).
-data_KME <- signedKME(dm, data_ME$eigengenes, corFnc = "bicor", outputColumnName = "M")
+data_KME <- signedKME(dm, data_ME$eigengenes, 
+		      corFnc = "bicor", outputColumnName = "M")
 KME_list <- lapply(seq(ncol(data_KME)), function(x) {
   v <- vector("numeric", length = nrow(data_KME))
   names(v) <- rownames(data_KME)
@@ -166,9 +168,9 @@ names(KME_list) <- colnames(data_KME)
 PVE <- as.numeric(data_ME$varExplained)
 names(PVE) <- names(modules)
 medianPVE <- median(PVE)
-message(paste(
-  "Median module coherence (PVE):",
-  round(100 * medianPVE, 2), "(%)."
+message(paste0(
+  "Median module coherence (PVE): ",
+  round(100 * medianPVE, 2), "%."
 ))
 
 # Sample to group mapping for statistical testing.
@@ -187,20 +189,27 @@ groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 KW_list <- lapply(ME_list, function(x) {
   kruskal.test(x ~ groups[names(x)])
 })
-data_KW <- as.data.table(do.call(rbind, KW_list)) %>% select(c(1,2,3))
+KW_dt <- as.data.table(do.call(rbind, KW_list),keep.rownames="Module") %>% 
+	select(c(1,2,3,4))
+colnames(KW_dt)[4] <- "pval"
 
-# Correct p-values for n comparisons.
-data_KW$p.adj <- as.numeric(data_KW$p.value) * nModules
-data_KW$p.adj[data_KW$p.adj > 1.0] <- 1
+# Correct p-values for n module comparisons.
+KW_dt$padj <- as.numeric(KW_dt$pval) * nModules
+KW_dt$padj[KW_dt$padj > 1.0] <- 1
+
+# Clean-up column names.
+colnames(KW_dt)[c(-1)] <- paste0("KW.",colnames(KW_dt)[c(-1)])
 
 # Significant modules.
-sigModules <- rownames(data_KW)[data_KW$p.adj < alpha_KW]
+sigKW_dt <- KW_dt %>% filter(KW.padj < alpha_KW)
+sigModules <- sigKW_dt[["Module"]]
 nSigModules <- length(sigModules)
+
+# Status.
 message(paste0(
   "Number of modules with significant (p.adj < ", alpha_KW, ")",
   " Kruskal-Wallis test: ", nSigModules, "."
 ))
-sigModules <- paste0("M",sigModules)
 
 # Perform Dunnetts test for post-hoc comparisons.
 # Note: P-values returned by DunnettTest have already been adjusted for
@@ -210,6 +219,41 @@ sigModules <- paste0("M",sigModules)
 group_order <- c("WT", "KO.Shank2", "KO.Shank3", "HET.Syngap1", "KO.Ube3a")
 group_levels <- paste(group_order, analysis_type, sep = ".")
 control_group <- paste("WT", analysis_type, sep = ".")
+
+# Loop to perform DTest. 
+# NOTE: This takes several seconds.
+DT_list <- lapply(ME_list, function(x) {
+  g <- factor(groups[names(x)], levels = group_levels)
+  dt_res <- DescTools::DunnettTest(x ~ g, control = control_group)
+  result <- as.data.table(dt_res[[control_group]],keep.rownames="Contrast")
+  return(result)
+})
+
+# Collect DT results as data.table.
+DT_dt <- bind_rows(DT_list,.id="Module")
+colnames(DT_dt)[c(-1)] <- paste0("DT.",colnames(DT_dt)[c(-1)])
+
+# Number of modules with significant KW + DT changes.
+nSig_tests <- sapply(DT_list, function(x) sum(x$pval < alpha_DT))
+message("Summary of Dunnett's test changes for significant modules:")
+nSig_tests[sigModules]
+
+# Combine modules stats.
+results <- left_join(KW_dt,DT_dt,by="Module")
+colnames(results)
+
+# Module Size.
+results$"Size" <- module_sizes[results$Module]
+
+# PVE.
+results$"PVE" <- PVE[results$Module]
+
+# Sig?
+results$"Sig" <- results$KW.padj < alpha_KW & results$DT.pval < alpha_DT
+
+#--------------------------------------------------------------------
+## Stats without combining WT samples.
+#--------------------------------------------------------------------
 
 # Function to extract self-comparisons from dunnett test post-hoc object.
 get_self_comparison <- function(dt){
@@ -237,46 +281,3 @@ for (i in 1:length(ME_list)) {
 # Any sig?
 idx = sapply(results,function(x) sum(x$pval<0.1))
 which(idx>1)
-
-
-
-# Loop to perform DTest. NOTE: This takes several seconds.
-DT_list <- lapply(ME_list, function(x) {
-  g <- factor(groups[names(x)], levels = group_levels)
-  result <- DescTools::DunnettTest(x ~ g, control = control_group)[[control_group]]
-  return(as.data.table(result))
-})
-
-# Number of modules with significant KW + DT changes.
-nSig_tests <- sapply(DT_list, function(x) sum(x$pval < alpha_DT))
-message("Summary of Dunnett's test changes for significant modules:")
-nSig_tests[sigModules]
-
-quit()
-
-# What are the proteins???!?!
-sigModules = c("M5","M13","M25")
-foo = modules[sigModules]
-f <- function(x) { gene_map$symbol[match(names(x),gene_map$uniprot)] }
-man = lapply(foo,f)
-x = man[["M25"]]
-x[order(x)]
-
-prots = names(foo[["M13"]])
-subadjm = adjm[prots,prots]
-diag(subadjm) <- NA
-subadjm[lower.tri(subadjm)] <- NA
-df = reshape2::melt(subadjm,value.name="bicor",na.rm=TRUE)
-df <- df[order(df$bicor,decreasing=TRUE),]
-df$symbolA <- map_ids(df$Var1,"uniprot","symbol")
-df$symbolB <- map_ids(df$Var2,"uniprot","symbol")
-head(df)
-
-map_ids <- function(ids,input_format,output_format) {
-	ids <- as.character(ids)
-	idx <- match(ids,gene_map[[input_format]])
-	new_ids <- gene_map[[output_format]][idx]
-	return(new_ids)
-}
-
-
