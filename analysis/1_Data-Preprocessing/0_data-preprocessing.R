@@ -7,7 +7,7 @@
 #' ---
 
 ## User defined parameters (you only need to change these two):
-analysis_type = "Cortex" # Tissue type for analysis.
+analysis_type = "Striatum" # Tissue type for analysis.
 root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
 
 ## Other optional parameters:
@@ -71,13 +71,12 @@ suppressPackageStartupMessages({
 TBmiscr::load_all()
 
 # Project directories:
-rootdir <- TBmiscr::getrd()
-funcdir <- file.path(rootdir, "R")
-datadir <- file.path(rootdir, "data")
-figsdir <- file.path(rootdir, "figs")
-rdatdir <- file.path(rootdir, "rdata")
-tabsdir <- file.path(rootdir, "tables")
-downdir <- file.path(rootdir, "downloads")
+funcdir <- file.path(root, "R")
+datadir <- file.path(root, "data")
+figsdir <- file.path(root, "figs")
+rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
+downdir <- file.path(root, "downloads")
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info.
@@ -243,9 +242,8 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 # QC samples were prepared from a seperate batch of mice and
 # represent a single batch.
 
-message("\nPerforming ComBat to remove intra-batch batch effect...")
-
 # Perform ComBat for each dataset.
+message("\nPerforming ComBat to remove intra-batch batch effect...")
 all_combat <- function(sl_protein,samples) {
 	data_combat <- intrabatch_combat(sl_protein, samples, 
 					 group="Shank2", batch="PrepDate")
@@ -263,10 +261,10 @@ norm_protein <- all_combat(sl_protein,samples)
 ## Insure there are no QC outlier samples.
 #---------------------------------------------------------------------
 # Remove QC outliers before performing IRS normalization.
+# This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
 
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
-# This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
 zK <- sampleConnectivity(norm_protein %>% filter(Treatment == "QC"))
 
 outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
@@ -302,6 +300,7 @@ symbols_ignore = c("Shank2","Shank3","Syngap1","Ube3a")
 uniprot_ignore <- gene_map$uniprot[match(symbols_ignore,gene_map$symbol)]
 names(uniprot_ignore) <- symbols_ignore
 
+# Filter proteins.
 filt_protein <- filtProt(irs_protein,
 			 controls="QC",
 			 remove.protein.outliers=TRUE,
@@ -357,6 +356,12 @@ data_glm <- glmDA(filt_protein,comparisons="Genotype.Treatment",
 glm_results <- data_glm$results
 norm_protein <- data_glm$data
 
+# Annotate normalized protein data with sample meta data.
+# Shared column names:
+cols <- intersect(colnames(norm_protein),colnames(samples))
+norm_protein <- left_join(norm_protein,samples,by=cols) %>% 
+	as.data.table()
+
 # Summary of DA proteins.
 message(paste0("Summary of differentially abundant proteins at FDR <",
 	      alpha_threshold,":"))
@@ -367,7 +372,7 @@ knitr::kable(t(tab))
 ## Tidy-up glm statistical results.
 #--------------------------------------------------------------------
 
-# Shared column names:
+# Merge glm_results by shared column names:
 cols <- Reduce(intersect, lapply(glm_results,colnames))
 
 # Stack results:
@@ -382,13 +387,8 @@ glm_stats <- lapply(glm_results, function(x) {
 
 message(paste("\nChecking reproducibility of WT protein expresion..."))
 
-# Prepare the data.
-sub_samples <- samples %>% filter(Sample %in% norm_protein$Sample)
-data_in <- left_join(norm_protein,sub_samples,
-		     by=c("Sample","Experiment","Channel","Treatment"))
-
 # Split the data into a list of proteins.
-prot_list <- data_in %>% group_by(Accession) %>% group_split()
+prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
 names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
 
 # Define a function that checks reproducibility of a protein.
@@ -440,6 +440,10 @@ n = max(checks)
 reproducible_prots <- names(which(checks==n))
 message(paste("Number of highly reproducible proteins (potential markers):",
 	      length(reproducible_prots)))
+
+# Save these prots.
+myfile <- file.path(rdatdir,paste0(output_name,"_potential_markers.RData"))
+saveRDS(reproducible_prots,myfile)
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
