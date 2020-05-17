@@ -373,8 +373,8 @@ cols <- Reduce(intersect, lapply(glm_results,colnames))
 # Stack results:
 glm_stats <- lapply(glm_results, function(x) {
 			    as.data.table(x) %>% 
-				    dplyr::select(all_of(cols)) %>% 
-				    bind_rows(.id="Tissue") })
+				    dplyr::select(all_of(cols)) }) %>%
+				    bind_rows(.id="Tissue")
 
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
