@@ -7,7 +7,7 @@
 #' ---
 
 ## User defined parameters (you only need to change these two):
-analysis_type = "Striatum" # Tissue type for analysis.
+analysis_type = "Cortex" # Tissue type for analysis.
 root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
 
 ## Other optional parameters:
@@ -16,14 +16,12 @@ sample_connectivity_threshold = 2.5 # Sample level outlier threshold.
 
 ## Input data in root/data/:
 # 1. TMT-samples.csv - sample meta data.
-sample_files = list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
-		     "Striatum" = "4227_TMT_Striatum_Combined_traits.csv")
-input_samples <- sample_files[[analysis_type]]
+input_samples = list(Cortex = "Cortex_Samples.csv",
+		     Striatum = "Striatum_Samples.csv")[[analysis_type]]
 
 # 2. TMT-raw-peptide.csv - raw peptide data from PD.
-data_files = list("Cortex" = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
-		  "Striatum" = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv")
-input_data <- data_files[[analysis_type]]
+input_data = list(Cortex = "Cortex_Peptides.csv",
+		  Striatum = "Striatum_Peptides.csv")[[analysis_type]]
 
 ## Output for downstream analysis:
 output_name = analysis_type # Prefix for naming output files.
@@ -71,12 +69,9 @@ suppressPackageStartupMessages({
 TBmiscr::load_all()
 
 # Project directories:
-funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
-figsdir <- file.path(root, "figs")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
-downdir <- file.path(root, "downloads")
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info.
@@ -153,7 +148,7 @@ gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
 #---------------------------------------------------------------------
 # Convert PD data.frame into tidy data.table.
 # NOTE: Samples should contain the following columns:
-# Treatment, Channel, Sample, Experiment
+# Treatment, Channel, Sample, Genotype
 
 message("\nLoading raw peptide data from Proteome Discover.")
 
@@ -167,11 +162,11 @@ tidy_peptide <- left_join(tidy_peptide,samples,by="Sample")
 ## Perform sample loading normalization.
 #---------------------------------------------------------------------
 # Perform sample loading normalization. Normalization is done for each 
-# experiment independently (group by Experiment:Sample).
+# experiment independently (group by Genotype:Sample).
 
 message("\nPerforming sample loading normalization.")
 
-sl_peptide <- normSL(tidy_peptide, groupBy=c("Experiment","Sample"))
+sl_peptide <- normSL(tidy_peptide, groupBy=c("Genotype","Sample"))
 
 #---------------------------------------------------------------------
 ## Impute missing peptide values.
@@ -354,13 +349,20 @@ data_glm <- glmDA(filt_protein,comparisons="Genotype.Treatment",
 
 # Extract data from glm object.
 glm_results <- data_glm$results
-norm_protein <- data_glm$data
+norm_protein <- data_glm$data %>% filter(Treatment != "QC")
 
 # Annotate normalized protein data with sample meta data.
 # Shared column names:
 cols <- intersect(colnames(norm_protein),colnames(samples))
 norm_protein <- left_join(norm_protein,samples,by=cols) %>% 
 	as.data.table()
+
+# Add entrez ids and gene symbols to data.
+idx <- match(norm_protein$Accession,gene_map$uniprot)
+Symbol <- gene_map$symbol[idx]
+Entrez <- gene_map$entrez[idx]
+norm_protein <- tibble::add_column(norm_protein,Symbol,.after="Accession")
+norm_protein <- tibble::add_column(norm_protein,Entrez,.after="Symbol")
 
 # Summary of DA proteins.
 message(paste0("Summary of differentially abundant proteins at FDR <",
@@ -379,7 +381,10 @@ cols <- Reduce(intersect, lapply(glm_results,colnames))
 glm_stats <- lapply(glm_results, function(x) {
 			    as.data.table(x) %>% 
 				    dplyr::select(all_of(cols)) }) %>%
-				    bind_rows(.id="Tissue")
+				    bind_rows(.id="Genotype")
+
+# Annotate with tissue type.
+glm_stats <- tibble::add_column(glm_stats,Tissue=analysis_type,.after="Genotype")
 
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
@@ -460,8 +465,8 @@ saveRDS(reproducible_prots,myfile)
 message("\nSaving data for downstream analysis.")
 
 # 0. gene_map.RData   - gene identifier map.
-myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
-saveRDS(gene_map,myfile)
+#myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
+#saveRDS(gene_map,myfile)
 
 # 1. [output_name]_tidy_peptide.csv -- raw peptide data.
 myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))

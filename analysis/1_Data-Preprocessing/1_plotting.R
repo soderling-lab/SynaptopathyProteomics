@@ -19,19 +19,23 @@ input_stats = list(Cortex="Cortex_glm_stats.csv",
 # Load renv.
 renv::load(root)
 
+# Imports.
+suppressPackageStartupMessages({
+	library(dplyr)
+	library(data.table) 
+})
+
 # Directories.
 figsdir <- file.path(root,"figs")
 rdatdir <- file.path(root,"rdata")
 
-# Imports.
-library(dplyr)
-library(data.table)
-
-
+# Load tidy protein data. Drop QC samples.
 myfile <- file.path(rdatdir,input_data)
-prot_dt <- fread(myfile)
+norm_protein <- fread(myfile) %>% filter(Treatment != "QC")
 
+# Load statistical results.
 myfile <- file.path(rdatdir,input_stats)
 glm_stats <- fread(myfile)
 
-# Combine data and stats.
+proteins = unique(norm_protein$Accession)
+protein = proteins[1]

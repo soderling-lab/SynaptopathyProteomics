@@ -1,4 +1,4 @@
-plot_protein <- function(data,protein,id.col="Accession") {
+plot_protein <- function(norm_protein,glm_stats,protein) {
 
 	# Generate protein plot.
 	# Subset the data.
@@ -9,17 +9,17 @@ plot_protein <- function(data,protein,id.col="Accession") {
 	})
 	
 	# Subset the data.
-	df <- subset(data,data[[id.col]] == protein)
-	#df <- data %>% dplyr::filter(Gene==protein)
-	df <- na.omit(df)
+	subdt <- norm_protein %>% filter(Accession == protein) %>%
+		as.data.table() %>% 
+		select(Accession,Tissue,Genotype,Treatment,Intensity)
 
-	# Insure Fraction is a factor, and levels are in correct order.
-	df$Fraction <- factor(df$Fraction,
-			      levels=c("F4","F5","F6","F7","F8","F9","F10"))
 	# Collect FDR stats.
-	stats <- df %>% group_by(Treatment,Fraction) %>% 
+	glm_stats %>% filter(Accession == protein)
+
+	stats <- glm_stats %>% group_by(Treatment,Fraction) %>% 
 		summarize(Intensity = max(Intensity), FDR = unique(FDR)) %>%
 		filter(Treatment == "Control")
+
 	stats$symbol <- ""
 	stats$symbol[stats$FDR<0.1] <- "."
 	stats$symbol[stats$FDR<0.05] <- "*"

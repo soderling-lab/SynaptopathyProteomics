@@ -1,7 +1,7 @@
 filtQC <- function(tp,grouping.col,controls,nbins=5,nSD=4,quiet=TRUE){
 
 	# Remove peptides with highly variable QC measurments.
-	# Calculate ratios of QC peptides, grouped by Experiment.
+	# Calculate ratios of QC peptides, grouped by Genotype.
 	# Imports.
 	suppressPackageStartupMessages({
 		library(dplyr)
@@ -9,7 +9,7 @@ filtQC <- function(tp,grouping.col,controls,nbins=5,nSD=4,quiet=TRUE){
 	})
 
 	ratio_data <- tp %>% filter(tp[[grouping.col]] == controls) %>% 
-		group_by(Experiment,Accession,Sequence,Modifications) %>% 
+		group_by(Genotype,Accession,Sequence,Modifications) %>% 
 		dplyr::summarize(Ratio = log2(Intensity[2]) - log2(Intensity[1]),
 			  Mean = log2(mean(Intensity)),
 			  N = length(Intensity),
@@ -46,13 +46,13 @@ filtQC <- function(tp,grouping.col,controls,nbins=5,nSD=4,quiet=TRUE){
 
 	# Collect outlier peptides.
 	data_outliers <- ratio_data %>% filter(isOutlier)
-	outlier_peptides <- paste(data_outliers$Experiment,
+	outlier_peptides <- paste(data_outliers$Genotype,
 				  data_outliers$Accession,
 				  data_outliers$Sequence,
 				  data_outliers$Modifications,sep="_")
 
 	# Remove outlier peptides from data.
-	ids <- paste(tp$Experiment,tp$Accession,
+	ids <- paste(tp$Genotype,tp$Accession,
 		     tp$Sequence,tp$Modifications,sep="_")
 	is_outlier <- ids %in% outlier_peptides
 	tp_filt <- tp %>% filter(!is_outlier)
