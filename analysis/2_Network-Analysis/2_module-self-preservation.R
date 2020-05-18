@@ -7,7 +7,7 @@
 #' ---
 
 ## User parameters:
-analysis_type = "Cortex"
+analysis_type = "Striatum"
 root = "/mnt/d/projects/SynaptopathyProteomics"
 
 ## Permutation test options:
@@ -219,6 +219,6 @@ for (resolution in resolutions) {
   if (resolution == length(resolutions)) {
 	  myfile <- file.path(rdatdir,paste0(self,"_partition_self_preservation_enforced.csv"))
 	  do.call(rbind,results) %>% as.data.frame() %>% fwrite(myfile)
-	  message("Done!")
+	  message("\nDone!")
   }
 } # Ends loop.

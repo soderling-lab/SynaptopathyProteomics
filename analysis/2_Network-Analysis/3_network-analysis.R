@@ -34,8 +34,8 @@ input_data <- list("Cortex" = list(
 		   )[[analysis_type]]
 
 ## Sample meta data in root/data:
-input_meta <- list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
-		   "Striatum" = "4227_TMT_Striatum_Combined_traits.csv")[[analysis_type]]
+input_meta <- list("Cortex" = "Cortex_Samples.csv",
+		   "Striatum" = "Striatum_Samples.csv")[[analysis_type]]
 
 #--------------------------------------------------------------------
 ## Set-up the workspace.
@@ -55,13 +55,15 @@ suppressPackageStartupMessages({
 TBmiscr::load_all()
 
 # Directories.
-root <- TBmiscr::getrd()
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 #--------------------------------------------------------------------
 ## Load the data.
 #--------------------------------------------------------------------
+
+message(paste0("\nAnalyzing ",analysis_type,"..."))
 
 # Load protein expression data:
 # Load the data, subset to remove QC data, coerce to matrix, 
@@ -99,8 +101,8 @@ names(partition) <- colnames(part_dt)
 partition <- reset_index(partition)
 
 # Load gene identifier map.
-myfile <- file.path(rdatdir, input_data[['gmap']])
-gene_map <- readRDS(myfile)
+#myfile <- file.path(rdatdir, input_data[['gmap']])
+#gene_map <- readRDS(myfile)
 
 # Load glm statistical results.
 myfile <- file.path(rdatdir, input_data[["stat"]])
@@ -254,4 +256,15 @@ results$"Sig" <- results$KW.padj < alpha_KW & results$DT.pval < alpha_DT
 #--------------------------------------------------------------------
 ## Save results.
 #--------------------------------------------------------------------
-# TODO:
+
+# Annotate results with proteins.
+ids <- paste(glm_stats$Symbol,glm_stats$Accession,sep="|")
+names(ids) <- glm_stats$Accession
+results$Proteins <- sapply(modules[results$Module], function(x) {
+				   paste(ids[names(x)],collapse=";") })
+
+# Save to file.
+myfile <- file.path(tabsdir)
+results %>% as.data.table() %>% fwrite(myfile)
+
+message("\nDone!")

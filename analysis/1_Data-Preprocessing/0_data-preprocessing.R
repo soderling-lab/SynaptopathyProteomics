@@ -11,7 +11,7 @@ analysis_type = "Cortex" # Tissue type for analysis.
 root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
 
 ## Other optional parameters:
-scale = TRUE # Scale WT samples?
+scale = FALSE # Scale WT samples?
 alpha_threshold = 0.1 # FDR significance threshold.
 sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
 
