@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 intrabatch_combat <- function(data_in,samples,group,batch,
 			      ignore="QC",r2_threshold=0.3) {
+
 	# Subset data and cast into matrix.
 	idx <- grepl(group,data_in$Sample) & !grepl(ignore,data_in$Sample)
 	dm <- data_in %>% 
@@ -8,13 +9,16 @@ intrabatch_combat <- function(data_in,samples,group,batch,
 		as.data.table() %>%
 		dcast(Accession ~ Sample,value.var="Intensity") %>%
 		as.matrix(rownames="Accession")
+
 	# Ignore rows with missing values.
 	rows_out <- apply(dm, 1, function(x) any(is.na(x)))
 	subdm <- dm[!rows_out, ]
+
 	# Get Traits info.
 	subtraits <- samples %>% filter(Sample %in% colnames(subdm))
+
 	# Check: is there more than one batch?
-	if (length(unique(subtraits$PrepDate)) == 1) { 
+	if (length(unique(subtraits[[batch]])) == 1) { 
 		warning(paste("For group:",group, "-",
 			      "Cannot perform ComBat with one batch!"),
 			call.=FALSE)
@@ -43,16 +47,16 @@ intrabatch_combat <- function(data_in,samples,group,batch,
 	message(paste("Performing ComBat for group:",group))
 	data_combat <- suppressMessages({
 		sva::ComBat(dat = log2(subdm),
-			    batch = as.vector(subtraits$PrepDate), 
+			    batch = as.vector(subtraits[[batch]]), 
 			    mod = combat_model, mean.only = FALSE)
 	})
 	# Correlation between batch and PC1 post-ComBat.
 	pc1 <- prcomp(t(data_combat))$x[, 1]
 	r2_2 <- cor(batch_cov[names(pc1)], pc1)
 	message(paste("Initial coorelation between batch and samples:",
-		      round(r2_1,3)))
+		      round(abs(r2_1),3)))
 	message(paste("Final coorelation between batch and samples:",
-		      round(r2_2,3),"\n"))
+		      round(abs(r2_2),3),"\n"))
 	# Put data back together again.
 	data_out <- reshape2::melt(2^data_combat,value.name="Intensity")
 	colnames(data_out)[c(1,2)] <- c("Accession","Sample")

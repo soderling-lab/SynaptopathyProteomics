@@ -1,4 +1,5 @@
-glmDA <- function(tp,comparisons=c("Genotype","Treatment"), samples, gene_map){
+glmDA <- function(tp,comparisons=c("Genotype","Treatment"), 
+		  samples, gene_map, alpha = 0.1){
 	# Asses Differential Abundance with EdgeR GLM.
 
 	# Imports.
@@ -39,6 +40,14 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"), samples, gene_map){
 	dge$samples$background <- factor(backgrounds[rownames(dge$samples)],
 					 levels=group_order)
 
+	# Annotate dge object with animal sex.
+	animal_sex <- samples$Sex
+	names(animal_sex) <- samples$Sample
+	dge$samples$sex <- as.factor(animal_sex[rownames(dge$samples)])
+
+	# Create a design matrix for GLM -- using sex as covariate.
+	#design <- model.matrix(~background + sex + group, data = dge$samples)
+
 	# Create a design matrix for GLM.
 	design <- model.matrix(~background + group, data = dge$samples)
 
@@ -55,11 +64,11 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"), samples, gene_map){
 	# calling glmQLFTest(fit,coef=contrast)
 	contrasts <- colnames(design)
 	qlf <- lapply(contrasts,function(x) glmQLFTest(fit, coef=x))
+	names(qlf) <- contrasts
 
 	# Extract the results.
 	getTopTags <- function(qlf) { topTags(qlf, n = Inf)[["table"]] }
 	glm_results <- lapply(qlf, getTopTags)
-	names(glm_results) <- contrasts
 
 	# Insure first column is Accession.
 	glm_results <- lapply(glm_results,function(x) {
@@ -92,17 +101,19 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"), samples, gene_map){
 
 	# Annotate with gene ids.
 	glm_results <- lapply(glm_results,function(x) add_ids(x,gene_map))
+	glm_results <- lapply(glm_results,function(x) {
+				      x$Sig <- x$FDR < alpha
+				      return(x) })
 
 	# Add fitted values to results..
-	# FIXME:
-	for (i in 1:length(glm_results)){
-		df <- glm_results[[i]]
-		contrast <- contrasts[i]
-		keep <- names(which(design[,contrast] != 0))
-		dm <- log2(dge$counts[,keep])
-		dt <- as.data.table(dm,keep.rownames="Accession")
-		glm_results[[i]] <- left_join(df,dt,by="Accession")
-	}
+	#for (i in 1:length(glm_results)){
+	#	df <- glm_results[[i]]
+	#	contrast <- contrasts[i]
+	#	keep <- names(which(design[,contrast] != 0))
+	#	dm <- log2(dge$counts[,keep])
+	#	dt <- as.data.table(dm,keep.rownames="Accession")
+	#	glm_results[[i]] <- left_join(df,dt,by="Accession")
+	#}
 
 	# Return list of normalized data and results.
 	return(list(data=dm_fit,results=glm_results))

@@ -236,15 +236,14 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 # NOTE: The values of QC samples are not adjusted by ComBat
 # because QC samples were prepared as a seperate batch and
 # represent a single batch.
-x <- rep(c(0,1),each=4)
-names(x) <- c("37649","37648","37659","37653","37651","37654","37652","37655")
-
-x[sub_samples$AnimalID]
+#x <- rep(c(0,1),each=4)
+#names(x) <- c("37649","37648","37650","37653","37651","37654","37652","37655")
 
 sub_samples <- samples %>% filter(Genotype=="Syngap1", Treatment != "QC")
+#sub_samples$Batch <- x[as.character(sub_samples$AnimalID)]
 sub_samples$Batch <- sample(rep(c(0,1),each=4))
-data_combat <- intrabatch_combat(sl_protein, sub_samples, 
-				 group="Syngap1", batch="Batch")
+#data_combat <- intrabatch_combat(sl_protein, sub_samples, 
+#				 group="Syngap1", batch="Batch")
 
 idx <- match(sub_samples$Sample,samples$Sample)
 samples$PrepDate[idx] <- samples$PrepDate[idx] + sub_samples$Batch
@@ -347,82 +346,6 @@ if (length(outlier_samples) == 0) {
 		      length(unique(final_protein$Sample))))
 }
 
-#--------------------------------------------------------------------
-## Identify subset of highly reproducible proteins
-#--------------------------------------------------------------------
-# NOTE: scaling WT's to be equal scrubs WT variability and consequently,
-# there are few to zero 'highly reproducible' proteins.
-
-# A 'highly reproducible' protein is a protein whose expression profile
-# is highly reproducible-- that is, any given WT sample is highly coorelated
-# with all other WT replicates.
-
-# Check reproducibility of WT protein expression after IRS normalization,
-# This can also be done after fitting the glm, but the number of 
-# reproducible proteins may be inflated.
-message(paste("\nChecking reproducibility of WT protein expression..."))
-
-check_protein <- final_protein
-#check_protein <- glm_protein
-
-# Split the data into a list of proteins.
-prot_list <- check_protein %>% group_by(Accession) %>% group_split()
-names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
-
-# Define a function that checks reproducibility of a protein.
-check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
-				  fun="bicor",threshold=0.8) {
-	# Which proteins are highly reproducible between replicates.
-	# For a given protein, cast the data into a matrix: Fraction ~ Replicate.
-	dt <- prot_list[[protein]] %>% 
-		filter(Treatment == treatment.subset) %>%
-		as.data.table() 
-	#dt$Replicate <- as.numeric(as.factor(dt$Channel))
-        dt_temp <- dcast(dt, Genotype ~ Treatment + Channel, 
-		      value.var="Intensity") 
-	value_cols <- grep("_",colnames(dt_temp))
-	dm <- dt_temp %>% dplyr::select(all_of(value_cols)) %>% 
-		as.matrix(rownames.value=dt_temp$Genotype)
-	# missing values can arise in dm if outlier sample was removed.
-	# Calculate the pairwise correlation between samples.
-	opts <- "pairwise.complete.obs"
-	if (fun == "bicor") { cormat <- WGCNA::bicor(log2(dm),
-						     use=opts) }
-	if (fun == "pearson") { cormat <- cor(log2(dm),method="pearson",
-					      use=opts) }
-	if (fun == "spearman") { cormat <- cor(log2(dm),method="spearman",
-					       use=opts) }
-	# Ignore self- and duplicate- comparisons.
-	diag(cormat) <- NA
-	cormat[cormat==0] <- NA
-	cormat[lower.tri(cormat)] <- NA
-	# Melt into a vector of correlation values.
-	x <- reshape2::melt(cormat,na.rm=TRUE,value.name="cor")[["cor"]]
-	# Check if all values are > threshold.
-	check <- sum(x > threshold)
-	return(check)
-}
-
-# Check protein reproducibility.
-check <- list()
-for (prot in names(prot_list)) {
-	check[[prot]] <- check_reproducibility(prot_list, prot,
-				       treatment.subset="WT",
-				       fun="pearson",
-				       threshold=0.8)
-}
-
-# Status.
-checks <- unlist(check)
-n <- max(checks)
-reproducible_prots <- names(which(checks==n))
-message(paste("Number of highly reproducible proteins (potential markers):",
-	      length(reproducible_prots)))
-
-# Save these prots.
-myfile <- file.path(rdatdir,paste0(output_name,"_potential_markers.RData"))
-saveRDS(reproducible_prots,myfile)
-
 #---------------------------------------------------------------------
 ## Evaluate protein differential abundance.
 #---------------------------------------------------------------------
@@ -479,6 +402,9 @@ message(paste0("Summary of differentially abundant proteins at FDR <",
 	      alpha_threshold,":"))
 tab <- sapply(glm_results,function(x) sum(as.numeric(x$FDR) < alpha_threshold))
 knitr::kable(t(tab))
+
+glm_results$Syngap1 %>% filter(Accession=="F6SEU4") %>% 
+	as.data.table() %>% dplyr::select(FDR)
 
 # Merge glm_results by shared column names:
 cols <- Reduce(intersect, lapply(glm_results,colnames))
