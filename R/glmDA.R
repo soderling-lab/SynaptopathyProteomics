@@ -22,7 +22,8 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"), samples, gene_map){
 	dge <- calcNormFactors(dge,method="TMM")
 
 	# Create sample groupings given contrasts of interest.
-	groups <- as.character(interaction(samples %>% select(comparisons)))
+	groups <- as.character(interaction(samples %>% 
+					   dplyr::select(all_of(comparisons))))
 	names(groups) <- samples$Sample
 
 	# Combine WTs?

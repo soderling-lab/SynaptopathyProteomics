@@ -425,10 +425,16 @@ saveRDS(reproducible_prots,myfile)
 message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
-# Drop QC before EdgeR analysis.
+# Drop QC samples before EdgeR analysis.
 data_in <- final_protein %>% filter(Treatment != "QC")
+
+# Asses changes in protein expresion using a glm to account for
+# differences in genetic background (genotype).
 data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
 		  samples,gene_map)
+
+save.image()
+quit()
 
 # Extract statistical results from glm data.
 glm_results <- data_glm$results
