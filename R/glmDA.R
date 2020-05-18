@@ -46,6 +46,11 @@ glmDA <- function(tp,comparisons, samples, gene_map,
 	contrasts <- unlist(strsplit(comparisons,"\\."))
 	subsamples$Group <- apply(subsamples[,contrasts],1,paste,collapse=".")
 	groups <- subsamples$Group
+
+	# Combine WTs?
+	#groups[grep("WT",groups)] <- "WT"
+
+	# Annotate dge object with sample groups.
 	names(groups) <- subsamples$Sample
 	groups <- as.factor(groups[rownames(dge$samples)])
 	dge$samples$group <- groups

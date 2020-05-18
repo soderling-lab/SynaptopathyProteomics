@@ -16,6 +16,10 @@ input_data = list(Cortex="Cortex_norm_protein.csv",
 input_stats = list(Cortex="Cortex_glm_stats.csv",
 		  Striatum="Striatum_glm_stats.csv")[[analysis_type]]
 
+#---------------------------------------------------------------------
+## Set-up the workspace.
+#---------------------------------------------------------------------
+
 # Load renv.
 renv::load(root)
 
@@ -25,9 +29,22 @@ suppressPackageStartupMessages({
 	library(data.table) 
 })
 
+# Load additional functions.
+TBmiscr::load_all()
+
 # Directories.
 figsdir <- file.path(root,"figs")
 rdatdir <- file.path(root,"rdata")
+
+# Set ggplot theme.
+ggtheme()
+
+# Set plot font.
+set_font("Arial")
+
+#---------------------------------------------------------------------
+## Prepare the data.
+#---------------------------------------------------------------------
 
 # Load tidy protein data. Drop QC samples.
 myfile <- file.path(rdatdir,input_data)
@@ -37,5 +54,11 @@ norm_protein <- fread(myfile) %>% filter(Treatment != "QC")
 myfile <- file.path(rdatdir,input_stats)
 glm_stats <- fread(myfile)
 
-proteins = unique(norm_protein$Accession)
+# All proteins.
+proteins <- unique(norm_protein$Accession)
+
+#---------------------------------------------------------------------
+## Generate plots. 
+#---------------------------------------------------------------------
+
 protein = proteins[1]

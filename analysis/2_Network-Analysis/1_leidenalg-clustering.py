@@ -2,8 +2,7 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: 
-adjm_type = 'Enhanced Cortex' 
-output_name = 'Cortex_NE'
+analysis_type = "Cortex" # Cortex or Striatum; the only thing you need to change.
 
 ## Optional parameters:
 rmin = 0
@@ -78,6 +77,7 @@ methods = {
         }
 
 # Parameters for clustering.
+adjm_type = ' '.join(['Enhanced',analysis_type])
 parameters = methods.get(method)
 method = parameters.get('partition_type')
 
@@ -225,7 +225,9 @@ else:
 # Ends if/else
 
 # Save cluster membership (partition).
-myfile = os.path.join(datadir,  output_name + "_" + method + ".csv")
+output_name = "_".join([analysis_type,"NE",method]) + ".csv"
+
+myfile = os.path.join(datadir,  output_name)
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
 df.to_csv(myfile)

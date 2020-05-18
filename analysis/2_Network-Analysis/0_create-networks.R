@@ -17,11 +17,9 @@ input_data = list("Cortex" = "Cortex_norm_protein.csv",
 ## Output for downstream analysis:
 output_name = analysis_type
 
-# Stored in root/rdata/
-# * Cortex_Adjm.csv
-# * Striatum_Adjm.csv
-# * Cortex_NE_Adjm.csv
-# * Striatum_NE_Adjm.csv
+# Outputs stored in root/rdata/
+# * [output_name]_Adjm.csv
+# * [output_name]_NE_Adjm.csv
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -42,8 +40,11 @@ suppressPackageStartupMessages({
 TBmiscr::load_all()
 
 # Directories.
-root <- TBmiscr::getrd()
 rdatdir <- file.path(root, "rdata")
+
+#---------------------------------------------------------------------
+## Prepare the data.
+#---------------------------------------------------------------------
 
 # Load final normalized data.
 myfile <- file.path(rdatdir,input_data)
@@ -56,6 +57,13 @@ data$Abundance <- log2(data$Intensity)
 dm <- as.data.table(data) %>% 
 	dcast(Accession ~ Sample, value.var="Abundance") %>%
 	as.matrix(rownames="Accession")
+
+#---------------------------------------------------------------------
+## Create networks.
+#---------------------------------------------------------------------
+
+message(paste("\nCreating",analysis_type,
+	      "protein co-variation networks."))
 
 # Create signed adjacency (correlation) matrices.
 adjm <- WGCNA::bicor(t(dm))
@@ -71,3 +79,5 @@ adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
 # Write enhanced networks to file.
 myfile <- file.path(rdatdir, paste0(output_name,"_NE_Adjm.csv"))
 adjm_ne %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+
+message("\nDone!")
