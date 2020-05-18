@@ -282,19 +282,6 @@ message(paste("\nStandardizing protein measurements between",
 irs_protein <- normIRS(combat_protein,controls="QC",robust=TRUE)
 
 #---------------------------------------------------------------------
-## Scale WT samples?
-#---------------------------------------------------------------------
-
-# Scale median of WT samples to be equal?
-if (scale == TRUE) {
-	message(paste("\nScaling WT samples to be equal for exploratory",
-		      "analysis of combined WT samples versus mutants."))
-	scaled_protein <- normIRS(irs_protein,controls="WT",robust=TRUE)
-} else {
-	scaled_protein <- irs_protein
-}
-
-#---------------------------------------------------------------------
 ## Protein level filtering.
 #---------------------------------------------------------------------
 # Remove proteins that are:
@@ -310,7 +297,7 @@ uniprot_ignore <- gene_map$uniprot[match(symbols_ignore,gene_map$symbol)]
 names(uniprot_ignore) <- symbols_ignore
 
 # Filter proteins.
-filt_protein <- filtProt(scaled_protein,
+filt_protein <- filtProt(irs_protein,
 			 controls="QC",
 			 remove.protein.outliers=TRUE,
 			 ignore = uniprot_ignore,
@@ -361,9 +348,7 @@ if (length(outlier_samples) == 0) {
 
 # Check reproducibility of WT protein expression after IRS normalization,
 # (i.e. no WT scaling) -- drop any proteins and samples that were removed.
-check_protein <- irs_protein %>% 
-	filter(Accession %in% filt_protein$Accession) %>%
-	filter(Sample %notin% outlier_samples)
+check_protein <- final_protein
 
 message(paste("\nChecking reproducibility of WT protein expression..."))
 
@@ -415,7 +400,7 @@ check <- list()
 for (prot in names(prot_list)) {
 	check[[prot]] <- check_reproducibility(prot_list, prot,
 				       treatment.subset="WT",
-				       fun="bicor",
+				       fun="pearson",
 				       threshold=0.8)
 }
 
@@ -440,13 +425,14 @@ saveRDS(reproducible_prots,myfile)
 message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
-data_glm <- glmDA(final_protein,comparisons="Genotype.Treatment",
-		     samples,gene_map,samples_to_ignore="QC",
-		     alpha=alpha_threshold)
+# Drop QC before EdgeR analysis.
+data_in <- final_protein %>% filter(Treatment != "QC")
+data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
+		  samples,gene_map)
 
 # Extract data from glm object.
 glm_results <- data_glm$results
-glm_protein <- data_glm$data %>% filter(Treatment != "QC")
+glm_dm <- data_glm$data %>% melt(
 
 # Annotate normalized protein data with sample meta data.
 # Shared column names:

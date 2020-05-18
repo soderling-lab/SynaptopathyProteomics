@@ -11,8 +11,8 @@ analysis_type = "Cortex"
 root = "/mnt/d/projects/SynaptopathyProteomics" 
 
 ## Optional parameters:
-alpha_KW <- 0.1
-alpha_DT <- 0.05
+alpha_KW = 0.1
+alpha_DT = 0.05
 
 ## Input data in root/rdata:
 input_data <- list("Cortex" = list(
@@ -176,15 +176,10 @@ message(paste0(
 ))
 
 # Sample to group mapping for statistical testing.
-all_groups <- as.character(interaction(samples$Treatment,
-				       samples$Genotype,
-				       samples$Tissue))
+all_groups <- as.character(interaction(samples$Genotype,
+				       samples$Treatment))
 names(all_groups) <- samples$Sample
 groups <- all_groups[rownames(MEs)]
-
-# Group all WT samples from a tissue type together.
-groups[grepl("WT.*.Cortex", groups)] <- "WT.Cortex"
-groups[grepl("WT.*.Striatum", groups)] <- "WT.Striatum"
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
@@ -218,15 +213,19 @@ message(paste0(
 # multiple comparisons!
 
 # Define control group and levels (order) for DunnettTest.
-group_order <- c("WT", "KO.Shank2", "KO.Shank3", "HET.Syngap1", "KO.Ube3a")
-group_levels <- paste(group_order, analysis_type, sep = ".")
-control_group <- paste("WT", analysis_type, sep = ".")
+group_order <- c("Shank2.WT", "Shank2.KO", "Shank3.WT", "Shank3.KO",
+		 "Syngap1.WT","Syngap1.HET","Ube3a.WT","Ube3a.HET")
+
+control_groups <- paste(c("Shank2","Shank3","Syngap1","Ube3a"),"WT", sep = ".")
 
 # Loop to perform DTest. 
 # NOTE: This takes several seconds.
 DT_list <- lapply(ME_list, function(x) {
-  g <- factor(groups[names(x)], levels = group_levels)
-  dt_res <- DescTools::DunnettTest(x ~ g, control = control_group)
+
+  g <- factor(groups[names(x)], levels = group_order)
+
+  dt_res <- DescTools::DunnettTest(x ~ g, control = control_groups)
+
   result <- as.data.table(dt_res[[control_group]],keep.rownames="Contrast")
   return(result)
 })

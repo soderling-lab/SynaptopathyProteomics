@@ -7,7 +7,7 @@
 #' ---
 
 ## User parameters:
-analysis_type = "Cortex"
+analysis_type = "Striatum"
 root = "/mnt/d/projects/SynaptopathyProteomics"
 
 # Input data should be in root/rdata/:
@@ -69,7 +69,7 @@ message(paste("\nCreating",analysis_type,
 adjm <- WGCNA::bicor(t(dm))
 
 # Perform network enhancement.
-message("Performing network enhancement, this will take several minutes...")
+message("\nPerforming network enhancement.")
 adjm_ne <- neten(adjm)
 
 # Write correlation matrices to file.
