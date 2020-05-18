@@ -430,13 +430,19 @@ data_in <- final_protein %>% filter(Treatment != "QC")
 data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
 		  samples,gene_map)
 
-# Extract data from glm object.
+# Extract statistical results from glm data.
 glm_results <- data_glm$results
-glm_dm <- data_glm$data %>% melt(
+
+# Extract data from glm object.
+glm_protein <- data_glm$data %>% 
+	as.data.table(keep.rownames="Accession") %>% 
+	melt(id.vars="Accession",value.name="Abundance")
+colnames(glm_protein)[grep("variable",colnames(glm_protein))] <- "Sample"
 
 # Annotate normalized protein data with sample meta data.
 # Shared column names:
 cols <- intersect(colnames(glm_protein),colnames(samples))
+glm_protein$Sample <- as.character(glm_protein$Sample)
 glm_protein <- left_join(glm_protein,samples,by=cols) %>% 
 	as.data.table()
 
