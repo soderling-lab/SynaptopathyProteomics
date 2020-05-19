@@ -45,10 +45,15 @@ Filtering proteins...
 Removed proteins identified by one peptide.....: 95
 Removed proteins with too many missing values..: 52
 Removed proteins with any missing QC values....: 430
-Removed proteins with outlier measurements.....: 37
-Final number of reproducibly quantified proteins: 2,823
+Removed proteins with outlier measurements.....: 31
+Final number of reproducibly quantified proteins: 2,829
 
-Final number of samples: 44
+Removed outlier sample(s):
+Abundance: F4: 127C, Sample, KO, 41335, Shank3, Cortex
+Final number of samples: 43
+
+Checking reproducibility of WT protein expression...
+Number of highly reproducible proteins (potential markers): 328
 
 Analyzing protein differential abundance with EdgeR GLM...
 Summary of differentially abundant proteins at FDR <0.1:
@@ -56,11 +61,19 @@ Summary of differentially abundant proteins at FDR <0.1:
 
 | Shank2| Shank3| Syngap1| Ube3a|
 |------:|------:|-------:|-----:|
-|      9|    482|       8|   130|
-
-Checking reproducibility of WT protein expresion...
-Number of highly reproducible proteins (potential markers): 310
+|      6|      2|       7|    14|
 
 Saving data for downstream analysis.
 
 Done!
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Creating Cortex protein co-variation networks.
+
+Performing network enhancement.
+
+Done!
+./run-all.sh: line 15: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/1_leidenalg-clustering.R: No such file or directory
+./run-all.sh: line 18: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/2_module-self-preservation.R: No such file or directory
+./run-all.sh: line 21: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/3_network-analysis.R: No such file or directory
