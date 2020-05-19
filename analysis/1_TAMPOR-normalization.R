@@ -21,8 +21,8 @@ if (interactive()) {
 }
 
 # Input data should be in root/rdata:
-input_data = list("Cortex" = "Cortex_norm_protein.csv",
-		  "Striatum"= "Striatum_norm_protein.csv")
+input_data = list("Cortex" = "Cortex_filt_protein.csv",
+		  "Striatum"= "Striatum_filt_protein.csv")
 
 ## Other parameters:
 output_name = analysis_type
@@ -241,12 +241,6 @@ knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
-# * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
-# * [output_name]_norm_protein      - final preprocessed data.
-# * [output_name]_glm_stats.csv     - glm statistical results.
-# * [output_name]_glm_protein.csv   - glm fitted protein values.
-# * [output_name]_GLM_Results.xlsx  - glm statistical results.
-# * [output_name]_repro_prots.RData - potential marker proteins.
 
 ## Save key results.
 #message("\nSaving data for downstream analysis.")
@@ -254,25 +248,5 @@ knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
 # [output_name]_tidy_peptide.csv -- raw peptide data.
 #myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
 #fwrite(tidy_peptide,myfile)
-
-# [output_name]_norm_protein.csv -- final, normalized and regressed data.
-#myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
-#fwrite(norm_protein,myfile)
-
-# [output_name]_glm_stats.csv -- tidy statistical results.
-#myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
-#fwrite(glm_stats,myfile)
-
-# [output_name]_glm_protein.csv -- tidy glm fitted protein values.
-#myfile <- file.path(rdatdir,paste(output_name,"glm_protein.csv",sep="_"))
-#fwrite(glm_protein, myfile)
-
-# [output_name]_GLM_Results.xlsx -- statistical results.
-#myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
-#write_excel(glm_results,myfile)
-
-# [output_name]_repro_prots.RData -- subset of highly reproducible prots.
-#myfile <- file.path(rdatdir,paste0(output_name,"_repro_prots.RData"))
-#saveRDS(reproducible_prots,myfile)
 
 message("\nDone!")
