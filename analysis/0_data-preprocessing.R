@@ -428,10 +428,6 @@ message(paste("Number of highly reproducible proteins (potential markers):",
 	      length(reproducible_prots)))
 
 #--------------------------------------------------------------------
-## TAMPOR?
-#--------------------------------------------------------------------
-
-#--------------------------------------------------------------------
 ## Regression of genetic background?
 #--------------------------------------------------------------------
 
@@ -456,8 +452,11 @@ data_in <- dt_eblm %>% filter(Treatment != "QC")
 
 # Asses changes in protein abundance using a glm to account for
 # differences in genetic background (genotype).
+# NOTE: This script combines WTs!
+#data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
+#		  model="~background + group", samples, gene_map)
 data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
-		  model="~background + group", samples, gene_map)
+		  model="~0 + group", samples, gene_map)
 
 # Extract statistical results from glm data.
 glm_results <- data_glm$results

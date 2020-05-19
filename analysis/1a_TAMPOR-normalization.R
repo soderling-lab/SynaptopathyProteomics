@@ -6,37 +6,34 @@
 #' authors: Tyler W Bradshaw, Eric B Dammer (TAMPOR).
 #' ---
 
-## Inputs:
+## Parse command line arguments:
+if (interactive()) {
+	# If interactive, then define analysis_type:
+	analysis_type = "Striatum" # Tissue type for analysis.
+} else if (!interactive()) {
+	## If not interactive, check that only 1 arg is passed.
+	args <- commandArgs(trailingOnly=TRUE)
+	if (length(args) == 1) { 
+		analysis_type = commandArgs(trailingOnly=TRUE)[1]
+	} else { 
+		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
+	}
+}
+
 # Input data should be in root/rdata:
-
-# Sample meta data.
-input_samples = list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
-		     "Striatum" = "4227_TMT_Striatum_Combined_traits.csv") 
-
-# Preprocessed expression data.
-input_data = list("Cortex" = "Cortex_preprocessed.RData",
-		  "Striatum" = "Striatum_preprocessed.RData")
-
-# Gene mapping data.
-input_maps = list("Cortex" = "Cortex_gene_map.RData",
-		  "Striatum" = "Striatum_gene_map.RData")
+input_data = list("Cortex" = "Cortex_norm_protein.csv",
+		  "Striatum"= "Striatum_norm_protein.csv")
 
 ## Other parameters:
-tissue = "Cortex" # Analyze just one tissue?
-output_name = "Combined"
+output_name = analysis_type
 alpha_threshold = 0.05 # FDR threshold for signficance.
 n_threads = parallel::detectCores() - 1 # Numb of cores for parallel processing.
 
 ## Main Outputs:
 # Stored in root/tables/
-# 0. [output_name]_GLM_Results.xlsx - Statistical results.
 
 ## Output for downstream analysis:
 # Stored in root/rdata/
-# 0. [output_name]_gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_protein.csv - tidy, final, normalized protein data.
-# 2. [output_name]_
-# 3. [output_name]_
 
 ## Order of data processing operations:
 
@@ -48,7 +45,8 @@ n_threads = parallel::detectCores() - 1 # Numb of cores for parallel processing.
 # output files.
 
 # Load renv.
-renv::load(getrd())
+root <- getrd()
+renv::load(root)
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -62,83 +60,31 @@ suppressPackageStartupMessages({
 TBmiscr::load_all()
 
 # Set any other directories.
-root <- getrd()
-funcdir <- file.path(root, "R")
-figsdir <- file.path(root,"figs")
-datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables")
 
 #---------------------------------------------------------------------
-## Combine gene mapping data.
+## Reformat the data for TAMPOR
 #---------------------------------------------------------------------
 
-message("\nCombining gene identifier maps...")
+# Collect cortex and striatum data in a list and then bind together.
+data_list <- lapply(input_data,function(x) fread(file.path(rdatdir,x)))
+combined_dt <- bind_rows(data_list) %>% as.data.table()
+data_list[["Combined"]] <- combined_dt
 
-# Load gene mapping data.
-myfiles <- sapply(input_maps, function(f) file.path(rdatdir, f))
-gene_maps <- lapply(myfiles,readRDS)
+# Which subset are we analyzing?
+message(paste0("\nAnalyzing ",analysis_type,"..."))
+combined_dt <- data_list[[analysis_type]] %>% 
+	filter(Treatment != "QC") %>% as.data.table()
 
-# Combine.
-gene_map <- dplyr::bind_rows(gene_maps) %>% unique()
-
-#---------------------------------------------------------------------
-## Combine cortex and striatum traits.
-#---------------------------------------------------------------------
-# We will utilize TAMPOR to combine the Cortex and Striatum datasets.
-# Merge the preprocessed data and traits files.
-
-message("\nPreparing sample meta data for TAMPOR normalization...")
-
-# Load the sample info into a list, traits.
-myfiles <- sapply(input_samples,function(f) file.path(datadir, f))
-traits <- lapply(myfiles, fread)
-
-# Bind the elements of the list into a df.
-traits <- do.call(rbind, traits)
-
-# SampleIDs are batch.channel.
-batch <- paste0("b",as.numeric(interaction(traits$Tissue,traits$Genotype)))
-channel <- traits$Channel
-traits$SampleID <- paste(batch,channel,sep=".")
-
-# Traits must include Batch column:
-traits$Batch <- batch
-
-# Insure that rownames are new sampleIDS
-rownames(traits) <- traits$SampleID
-
-#---------------------------------------------------------------------
-## Combine cortex and striatum expression data.
-#---------------------------------------------------------------------
-# We will utilize TAMPOR to combine the Cortex and Striatum datasets.
-# Merge the preprocessed data and traits files.
-
-message("\nPreparing protein expression data TAMPOR normalization...")
-
-# Load the Cortex and Striatum cleanDat.
-myfiles <- sapply(input_data,function(f) file.path(rdatdir, f))
-data_list <- lapply(myfiles, readRDS)
-
-# Bind data frames together.
-data_merge <- dplyr::bind_rows(data_list) %>% as.data.table()
-
-# Add SampleID annotation.
-data_merge$SampleID <- traits$SampleID[match(data_merge$Sample,traits$Sample)]
+# Add batch.channel annotation.
+batch <- interaction(combined_dt$Tissue,combined_dt$Genotype) %>% as.numeric()
+batch <- paste0("b",batch)
+combined_dt$batch <- batch
+combined_dt$ID <- interaction(batch,combined_dt$Channel) %>% as.character()
 
 # Cast into a data.matrix.
-dm <- data_merge %>% 
-	dcast(Accession ~ SampleID, value.var="Intensity") %>% 
+dm <- combined_dt %>% dcast(Accession ~ ID, value.var="Intensity") %>% 
 	as.matrix(rownames="Accession")
-
-# Drop QC samples.
-qc_samples <- traits %>% filter(Treatment == "QC")
-out <- colnames(dm) %in% qc_samples$SampleID
-dm <- dm[,!out]
-
-# Subset tissue?
-tissue_samples <- traits$SampleID[grepl(tissue, traits$Tissue)]
-dm <- dm[,colnames(dm) %in% tissue_samples]
 
 # Remove rows with any missing values.
 missing_vals <- apply(dm,1,function(x) any(is.na(x)))
@@ -147,36 +93,25 @@ message(paste("\nRemoving", sum(missing_vals),
 dm <- dm[!missing_vals,]
 
 # Combined data for TAMPOR:
-data_combined <- dm
+combined_dm <- dm
 
-#---------------------------------------------------------------------
-## Perform TAMPOR normalization.
-#---------------------------------------------------------------------
+# Traits must include batch and ID columns.
+traits <- combined_dt %>% select(batch,ID) %>% unique()
+traits <- as.data.frame(traits)
+rownames(traits) <- traits[,"ID"]
 
-message(paste("\nPerforming TAMPOR normalization to merge Cortex and",
-	      "Striatum datasets..."))
-
-# Insure than any samples that were removed from cleanDat are removed from
-# traits (outliers and QC samples).
-sub_traits <- traits[rownames(traits) %in% colnames(data_combined), ]
-
-# Rownames of traits must match column_names(data).
-rownames(sub_traits) <- sub_traits$SampleID
-
-# GIS index for TAMPOR normalization is all WT samples.
+# Global internal standards (GIS) for normalization is all WT samples.
 # WT Cortex and WT Striatum samples will be scaled by TAMPOR to be 
-# ~ equal. NOTE: GIS - global internal standards.
-controls <- sub_traits$SampleID[grepl("WT", sub_traits$Treatment)]
+controls <- unique(filter(combined_dt,Treatment=="WT")[["ID"]])
 
-# For some reason, the code breaks if traits is more complicated:
-sub_traits <- as.data.frame(sub_traits %>% select(SampleID,Batch))
-rownames(sub_traits) <- sub_traits$SampleID
-
+#---------------------------------------------------------------------
+## TAMPOR Normalization.
+#---------------------------------------------------------------------
 # Perform TAMPOR normalization.
-# Ignore warnings about closing connections.
+
 data_tampor <- TAMPOR(
-  dat = data_combined,
-  traits = sub_traits,
+  dat = combined_dm,
+  traits = traits,
   batchPrefixInSampleNames = TRUE,
   samplesToIgnore = "None",
   GISchannels = controls,
@@ -184,187 +119,533 @@ data_tampor <- TAMPOR(
 )
 
 # Collect normalized, relative abundance data post-TAMPOR.
-norm_protein <- data_tampor$cleanRelAbun
+tampor_protein <- data_tampor$cleanRelAbun
+dt <- reshape2::melt(tampor_protein,value.name="Abundance")
+colnames(dt)[c(1,2)] <- c("Accession","ID")
+dt$ID <- as.character(dt$ID)
+dt$Accession <- as.character(dt$Accession)
+norm_protein <- left_join(combined_dt,dt,by=c("Accession","ID"))
+
+
+#' ---
+
+## Other optional parameters:
+alpha_threshold = 0.1 # FDR significance threshold.
+sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
+
+## Input data in root/data/:
+# 1. TMT-samples.csv - sample meta data.
+input_samples = list(Cortex = "Cortex_Samples.csv",
+		     Striatum = "Striatum_Samples.csv")[[analysis_type]]
+
+# 2. TMT-raw-peptide.csv - raw peptide data from PD.
+input_data = list(Cortex = "Cortex_Peptides.csv",
+		  Striatum = "Striatum_Peptides.csv")[[analysis_type]]
+
+## Output for downstream analysis, stored in root/rdata/
+output_name = analysis_type # Prefix for naming output files.
+# * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
+# * [output_name]_norm_protein      - final preprocessed data.
+# * [output_name]_glm_stats.csv     - glm statistical results.
+# * [output_name]_glm_protein.csv   - glm fitted protein values.
+# * [output_name]_GLM_Results.xlsx  - glm statistical results.
+# * [output_name]_repro_prots.RData - potential marker proteins.
+
+## Final tables, stored in root/tables/
+# * [output_name]_GLM_Results.xlsx - glm results results.
+
+## Order of data processing operations:
+# * Load the data from PD.
+# * Initial sample loading normalization -- done within an experiment.
+# * Impute missing peptide values with KNN algorithm (k=10).
+# * Examine QC peptide reproducibility -- remove peptide outliers.
+# * Summarize to protein level by summing all peptides for a protein.
+# * Protein-level sample loading normalization -- done across all experiments.
+# * IRS normalization -- equalizes proteins quantified by different peptides.
+# * Protein level filtering -- remove proteins identified by a single peptide;
+#   remove proteins with too many missing values; remove proteins that are not 
+#   reproducible (exhibit high inter-experimental variablility across the 3x 
+#   biological replicates.
+# * Reformat data for final TAMPOR normalization.
 
 #---------------------------------------------------------------------
-## Protein differential abundance.
+## Prepare the workspace.
 #---------------------------------------------------------------------
+# Prepare the R workspace for the analysis. 
 
-# Status.
-message(paste("\nAnalyzing protein differential abundance..."))
+# Load renv -- use load NOT activate!
+root <- getrd() # See .Rprofile alias or TBmiscr::getrd().
+renv::load(root)
 
-# Create dge object, perform final TMM normalization.
-dge <- DGEList(counts=norm_protein)
-dge <- calcNormFactors(dge)
-
-# Extract final normalized data from dge object.
-norm_dm <- dge$counts
-colnames(norm_dm) <- traits$Sample[match(colnames(norm_dm),traits$SampleID)]
-norm_dt <- as.data.table(norm_dm,keep.rownames="Accession")
-
-# SampleID to group mapping.
-groups <- paste(traits$Tissue,traits$Treatment,traits$Genotype,sep=".")
-groups[grep("Cortex.WT",groups)] <- "Cortex.WT"
-groups[grep("Striatum.WT",groups)] <- "Striatum.WT"
-names(groups) <- traits$SampleID
-
-# Annotate DGE object with sample groups.
-groups <- groups[rownames(dge$samples)]
-dge$samples$group <- as.factor(groups)
-
-# Create design matrix.
-design <- model.matrix(~ 0 + groups, data = dge$samples)
-colnames(design) <- levels(dge$samples$group)
-
-# Estimate dispersion.
-dge <- estimateDisp(dge,design,robust=TRUE)
-
-# Fit a glm.
-fit <- glmQLFit(dge, design, robust = TRUE)
-
-# Make contrasts for statistical comparisons.
-g1 <- colnames(design)[grepl("Cortex", colnames(design))][-5]
-g2 <- colnames(design)[grepl("Striatum", colnames(design))][-5]
-
-cont1 <- makePairwiseContrasts(list(g1), list("Cortex.WT"))
-cont2 <- makePairwiseContrasts(list(g2), list("Striatum.WT"))
-
-# NOTE: For some reason, loops or lapply doesn't work with makeContrasts()
-contrasts <- list(
-  makeContrasts(cont1[1], levels = design),
-  makeContrasts(cont1[2], levels = design),
-  makeContrasts(cont1[3], levels = design),
-  makeContrasts(cont1[4], levels = design),
-  makeContrasts(cont2[1], levels = design),
-  makeContrasts(cont2[2], levels = design),
-  makeContrasts(cont2[3], levels = design),
-  makeContrasts(cont2[4], levels = design)
-)
-names(contrasts) <- unlist({
-  lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
+# Load required packages and functions.
+suppressPackageStartupMessages({
+	library(dplyr)
+	library(edgeR)
+	library(getPPIs)
+	library(data.table)
 })
 
-# Subset.
-contrasts <- contrasts[grep(tissue,names(contrasts))]
+# Load additional functions.
+TBmiscr::load_all()
 
-# Call glmQLFTest() to evaluate differences in contrasts.
-qlf <- lapply(contrasts, function(x) glmQLFTest(fit, contrast = x))
-names(qlf) <- names(contrasts)
-
-# Determine number of significant results with decideTests().
-summary_list <- lapply(qlf, function(x) {
-			       summary(decideTests(x,p.value=alpha_threshold)) })
-
-# Table summarizing DA proteins.
-overall <- t(matrix(unlist(summary_list), nrow = 3, ncol = length(summary_list)))
-rownames(overall) <- unlist(lapply(contrasts, function(x) colnames(x)))
-colnames(overall) <- c("Down", "NS", "Up")
-overall <- as.data.frame(overall)
-row_names <- sapply(strsplit(rownames(overall), " - "), "[", 1)
-row_names <- gsub(".KO.|.HET.", " ", row_names)
-overall <- add_column(overall, Experiment = row_names, .before = 1)
-overall <- overall[, c(1, 3, 2, 4)] # Reorder cols.
-overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
-rownames(overall) <- NULL
-
-# Pretty print table:
-message(paste("\nSummary of differentially abundant proteins (FDR<",
-	      alpha_threshold,"):"))
-knitr::kable(overall)
-
-# Call topTags to add FDR. Gather tabularized results.
-f <- function(x) { return(topTags(x, n = Inf, sort.by = "none")$table) }
-glm_results <- lapply(qlf, f)
-
-# Convert logCPM column to percent WT.
-f <- function(x) { x$logCPM <- 2^x$logFC; return(x) }
-glm_results <- lapply(glm_results, f)
-
-# Rename logCPM column.
-f <- function(x) { colnames(x)[2] <- "PercentWT"; return(x) }
-glm_results <- lapply(glm_results, f)
-
-# Define a function to annotate results with gene ids.
-add_ids <- function(x,gene_map) {
-	Uniprot <- rownames(x)
-	x <- tibble::add_column(x,Uniprot,.after=0)
-	idx <- match(rownames(x),gene_map$uniprot)
-	Symbol <- gene_map[["symbol"]][idx]
-	Entrez <- gene_map[["entrez"]][idx]
-	x <- tibble::add_column(x,Symbol,.after=1)
-	x <- tibble::add_column(x,Entrez,.after=2)
-	rownames(x) <- NULL
-	return(x)
-}
-
-# Annotate with gene ids.
-glm_results <- lapply(glm_results,function(x) add_ids(x,gene_map))
-
-# Sort by PValue.
-f <- function(x) { x[order(x$PValue),] }
-glm_results <- lapply(glm_results, f)
-
-# Add candidate column.
-f <- function(x) { x$Candidate <- x$FDR < alpha_threshold ; return(x) }
-glm_results <- lapply(glm_results, f)
-
-# Simplify list names as Tissue.Genotype.
-for (i in 1:length(glm_results)){
-	new_name <- paste(unlist(strsplit(names(glm_results)[i],"\\."))[c(1,3)],collapse=".")
-	names(glm_results)[i] <- new_name
-}
-
-# Loop to add expression data to glm results.
-for (i in 1:length(glm_results)){
-	df <- glm_results[[i]]
-	contrast <- contrasts[[i]]
-	idx <- dge$samples$group %in% names(which(contrast[,1] != 0))
-	keep <- rownames(dge$samples)[idx]
-	dm <- log2(dge$counts[,keep])
-	colnames(dm) <- traits$Sample[match(colnames(dm),traits$SampleID)]
-	dt <- as.data.table(dm,keep.rownames="Uniprot")
-	glm_results[[i]] <- left_join(df,dt,by="Uniprot")
-}
+# Project directories:
+datadir <- file.path(root, "data")
+rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 #---------------------------------------------------------------------
-## Tidy-up the final normalized data.
+## Load the raw data and sample info.
 #---------------------------------------------------------------------
 
-tidy_norm_prot <- reshape2::melt(norm_dt,id.var = "Accession", 
-				    value.name="Abundance")
-colnames(tidy_norm_prot)[which(colnames(tidy_norm_prot)=="variable")] <- "Sample"
-tidy_norm_prot$Sample <- as.character(tidy_norm_prot$Sample)
-dt <- left_join(tidy_norm_prot,traits,by="Sample")
+message(paste0("\nAnalyzing ",analysis_type,"..."))
 
-dt$Batch <- NULL
-dt$SampleID <- NULL
+# Load the TMT data.
+myfile <- file.path(datadir,input_data)
+peptides <- fread(myfile)
 
-final_tidy_prot <- dt
+# Load sample information.
+myfile <- file.path(datadir,input_samples)
+samples <- fread(myfile)
+
+#---------------------------------------------------------------------
+## Map all Uniprot accession numbers to stable entrez IDs.
+#---------------------------------------------------------------------
+# Create a gene identifier map:
+# 0. Remove non-mouse and other spurious proteins.
+# 1. Map Uniprot IDs to Entrez using MGI batch query function.
+# 2. Map Entrez IDs to gene symbols using getPPIs::getIDs().
+
+message("\nCreating gene identifier map.")
+
+# First, remove any non-mouse proteins from the data.
+peptides <- peptides %>% filter(grepl("OS=Mus musculus",Description))
+
+# Remove these Immunoglobin proteins:
+ig_prots <- c("P01631","P01646","P01665","P01680","P01746","P01750",
+	      "P01786","P01864","P01878","P03975","P06330","P03987")
+peptides <- peptides %>% filter(Accession %notin% ig_prots)
+
+# Collect all uniprot IDs.
+uniprot <- unique(peptides$Accession)
+
+# Map Uniprot IDs to entrez using MGI database.
+# This takes a couple minutes because the function currently
+# downloads the MGI data each time the function is called.
+entrez <- getPPIs::mgi_batch_query(uniprot,quiet=FALSE,download=FALSE)
+names(entrez) <- uniprot
+
+# Map any missing ids by hand.
+not_mapped <- is.na(entrez)
+if (sum(not_mapped) > 0) {
+	message("Mapping missing IDs by hand.")
+	mapped_by_hand <- c("P10853" = 319180)
+	entrez[names(mapped_by_hand)] <- mapped_by_hand
+}
+
+# Check: no unmapped ids?
+check <- sum(is.na(entrez)) == 0
+if (!check) { stop( "Unable to map all uniprot IDs to stable entrez IDs.") }
+
+# Check: we have successfully mapped all uniprot ids.
+check <- sum(is.na(entrez)) == 0
+if (!check) { stop("Unable to map all Uniprot IDs to stable gene identifiers!") }
+
+# Map entrez ids to gene symbols.
+symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
+
+# Check: we have successfully mapped all gene symbols.
+check <- sum(is.na(symbols)) == 0
+if (!check) { stop("Unable to map all Entrez IDs to gene Symbols!") }
+
+# Create mapping data.table.
+gene_map <- data.table(uniprot = names(entrez),
+                       entrez = entrez,
+	               symbol = symbols)
+gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
+
+#---------------------------------------------------------------------
+## Tidy-up the input data from Proteome Discover.
+#---------------------------------------------------------------------
+# Convert PD data.frame into tidy data.table.
+# NOTE: Samples should contain the following columns:
+# Treatment, Channel, Sample, Genotype
+
+message("\nLoading raw peptide data from Proteome Discover.")
+
+cols <- colnames(peptides)[!grepl("Abundance",colnames(peptides))]
+tidy_peptide <- tidyProt(peptides,intensity.cols=cols)
+
+# Annotate tidy data with additional meta data from samples.
+tidy_peptide <- left_join(tidy_peptide,samples,by="Sample")
+
+#---------------------------------------------------------------------
+## Perform sample loading normalization.
+#---------------------------------------------------------------------
+# Perform sample loading normalization. Normalization is done for each 
+# experiment independently (group by Genotype:Sample).
+
+message("\nPerforming sample loading normalization.")
+
+sl_peptide <- normSL(tidy_peptide, groupBy=c("Genotype","Sample"))
+
+#---------------------------------------------------------------------
+## Impute missing peptide values.
+#---------------------------------------------------------------------
+# Impute missing peptide values with the KNN algorithm for data that
+# is not missing at random (MNAR). Missing values are inferred to be
+# missing because they are low abundant species. This can be confirmed
+# by plotting the density distribution of peptides with and without 
+# missing values.
+# * NOTE: Missing QC values will not be imputed.
+# * NOTE: Peptides (rows) with more than 50% missingness will not be imputed.
+# Values in these rows are masked (replaced with NA). 
+
+message("\nImputing a small number of missing peptide values...")
+
+imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Genotype",
+				samples_to_ignore="QC",quiet=FALSE) 
+
+#---------------------------------------------------------------------
+## Examine reproducibility of QC measurements.
+#---------------------------------------------------------------------
+# Examine reproducibility of QC measurements.
+
+# This strategy was adapted from Ping et al., 2018 (pmid:29533394).
+# For each experiment, calculate the ratio of QC measurements.
+# Bin these ratios based on the average Intensity of QC peptides into
+# 5 bins. For each bin, remove measurements that are outside 
+# +/- 4x SD from the mean of all ratios within that bin.
+# This threshold can be set with nSD.
+
+message("\nRemoving peptides with irreproducible QC measurements...")
+
+filt_peptide <- filtQC(imputed_peptide, grouping.col='Treatment',
+		       controls='QC',quiet=FALSE)
+
+#---------------------------------------------------------------------
+## Summarize to protein level.
+#---------------------------------------------------------------------
+# Protein intensity is just sum of all peptides for that protein.
+
+# Sum to protein level.
+message("\nSummarizing proteins as the sum of their peptides.")
+proteins <- summarize_prot(filt_peptide)
+
+# Perform SL normalization across all experiments (group by Sample).
+message("\nPerforming sample loading normalization between experiments.")
+sl_protein <- normSL(proteins, groupBy="Sample")
+
+#---------------------------------------------------------------------
+## Intra-batch Protein-lavel ComBat.
+#---------------------------------------------------------------------
+# Before tackling inter-experimental batch effects, address the 
+# intra-experimental batch effect.
+
+# Each experimental cohort of 8 was prepared in two batches. 
+# This was necessary because the ultra-centrifuge rotor used to 
+# prepare purified synaptosomes holds a maximum of 6 samples. 
+# This intra-batch batch effect was recorded for 6/8 batches. 
+# Here I will utilize the sva::ComBat() function in order to account 
+# for this batch effect before correcting for inter-batch batch
+# effects with IRS normalization. 
+
+# NOTE: In the absence of evidence of a batch effect 
+# (not annotated or cor(PCA,batch)<0.1), then ComBat is not applied.
+# If ComBat is not applied, then the data is returned un-regressed.
+
+# NOTE: The values of QC samples are not adjusted by ComBat
+# because QC samples were prepared as a seperate batch and
+# represent a single batch.
+
+# Perform ComBat for each dataset.
+message("\nPerforming ComBat to remove intra-batch batch effect...")
+all_combat <- function(sl_protein,samples) {
+	data_combat <- intrabatch_combat(sl_protein, samples, 
+					 group="Shank2", batch="PrepDate")
+	data_combat <- intrabatch_combat(data_combat, samples, 
+					 group="Shank3", batch="PrepDate")
+	data_combat <- intrabatch_combat(data_combat, samples, 
+					 group="Syngap1", batch="PrepDate")
+	data_combat <- intrabatch_combat(data_combat, samples, 
+					 group="Ube3a", batch="PrepDate")
+	return(data_combat)
+}
+combat_protein <- all_combat(sl_protein,samples)
+
+#---------------------------------------------------------------------
+## Insure there are no QC outlier samples.
+#---------------------------------------------------------------------
+# Remove QC outliers before performing IRS normalization.
+# This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
+
+# Calculate Oldham's normalized sample connectivity (zK) in order to 
+# identify outlier samples.
+zK <- sampleConnectivity(combat_protein %>% filter(Treatment == "QC"))
+
+qc_outliers <- c(names(zK)[zK < -sample_connectivity_threshold],
+		     names(zK)[zK > sample_connectivity_threshold])
+
+# There are no QC sample outliers.
+check <- length(qc_outliers) == 0
+if (!check) { stop("Why are there outlier samples?") }
+
+#---------------------------------------------------------------------
+## Perform IRS Normalization.
+#---------------------------------------------------------------------
+# Equalize QC measurements between experiments. IRS normalization 
+# accounts for protein quantification by different peptides in 
+# each experiment.
+
+message(paste("\nStandardizing protein measurements between",
+	      "experiments by IRS normalization."))
+irs_protein <- normIRS(combat_protein,controls="QC",robust=TRUE)
+
+#---------------------------------------------------------------------
+## Protein level filtering.
+#---------------------------------------------------------------------
+# Remove proteins that are:
+# * Identified by a single peptide.
+# * Have too many missing values.
+# * Have any missing QC values.
+# * Have outlier outlier measurments.
+message(paste("\nFiltering proteins..."))
+
+# Ignore proteins encoded by manipulated genes.
+symbols_ignore = c("Shank2","Shank3","Syngap1","Ube3a")
+uniprot_ignore <- gene_map$uniprot[match(symbols_ignore,gene_map$symbol)]
+names(uniprot_ignore) <- symbols_ignore
+
+# Filter proteins.
+filt_protein <- filtProt(irs_protein,
+			 controls="QC",
+			 remove.protein.outliers=TRUE,
+			 ignore = uniprot_ignore,
+			 nbins=5,nSD=4,
+			 summary=TRUE)
+
+# There should be no missing values at this point.
+check <- sum(is.na(filt_protein$Intensity)) == 0
+if (!check) { stop("Why are there missing values!") }
+
+#---------------------------------------------------------------------
+## Identify Sample outliers.
+#---------------------------------------------------------------------
+
+# Calculate Oldham's normalized sample connectivity (zK) in order to 
+# identify outlier samples.
+# This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
+zK <- sampleConnectivity(filt_protein %>% filter(Treatment != "QC"))
+if (length(zK) != 32) { stop("Whoops, something went wrong.") }
+
+# Outliers:
+outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
+		     names(zK)[zK > sample_connectivity_threshold])
+
+# Remove sample outliers.
+norm_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
+
+# Annotate protein data with sample meta data.
+# Shared column names:
+cols <- intersect(colnames(norm_protein),colnames(samples))
+norm_protein <- left_join(norm_protein,samples,by=cols) %>% 
+	as.data.table()
+
+# Add entrez ids and gene symbols to data.
+idx <- match(norm_protein$Accession,gene_map$uniprot)
+Symbol <- gene_map$symbol[idx]
+Entrez <- gene_map$entrez[idx]
+norm_protein <- tibble::add_column(norm_protein,Symbol,.after="Accession")
+norm_protein <- tibble::add_column(norm_protein,Entrez,.after="Symbol")
+
+# Status:
+if (length(outlier_samples) == 0) {
+	message(paste("\nFinal number of samples:",
+		      length(unique(norm_protein$Sample))))
+} else {
+	message(paste0("\nRemoved outlier sample(s):\n",
+	       paste(outlier_samples,collapse="\n")))
+	message(paste("Final number of samples:",
+		      length(unique(norm_protein$Sample))))
+}
+
+#--------------------------------------------------------------------
+## Identify subset of highly reproducible proteins
+#--------------------------------------------------------------------
+# NOTE: scaling WT's to be equal scrubs WT variability and consequently,
+# there are few to zero 'highly reproducible' proteins.
+
+# A 'highly reproducible' protein is a protein whose expression profile
+# is highly reproducible-- that is, any given WT sample is highly coorelated
+# with all other WT replicates.
+
+# Check reproducibility of WT protein expression after IRS normalization,
+# This can also be done after fitting the glm, but the number of 
+# reproducible proteins may be inflated.
+message(paste("\nChecking reproducibility of WT protein expression..."))
+
+# Split the data into a list of proteins.
+prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
+names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
+
+# Define a function that checks reproducibility of a protein.
+check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
+				  fun="bicor",threshold=0.8) {
+	# Which proteins are highly reproducible between replicates.
+	# For a given protein, cast the data into a matrix: Fraction ~ Replicate.
+	dt <- prot_list[[protein]] %>% 
+		filter(Treatment == treatment.subset) %>%
+		as.data.table() 
+        dt_temp <- dcast(dt, Genotype ~ Treatment + Channel, 
+		      value.var="Intensity") 
+	value_cols <- grep("_",colnames(dt_temp))
+	dm <- dt_temp %>% dplyr::select(all_of(value_cols)) %>% 
+		as.matrix(rownames.value=dt_temp$Genotype)
+	# missing values can arise in dm if outlier sample was removed.
+	# Calculate the pairwise correlation between samples.
+	opts <- "pairwise.complete.obs"
+	if (fun == "bicor") { cormat <- WGCNA::bicor(log2(dm),
+						     use=opts) }
+	if (fun == "pearson") { cormat <- cor(log2(dm),method="pearson",
+					      use=opts) }
+	if (fun == "spearman") { cormat <- cor(log2(dm),method="spearman",
+					       use=opts) }
+	# Ignore self- and duplicate- comparisons.
+	diag(cormat) <- NA
+	cormat[cormat==0] <- NA
+	cormat[lower.tri(cormat)] <- NA
+	# Melt into a vector of correlation values.
+	x <- reshape2::melt(cormat,na.rm=TRUE,value.name="cor")[["cor"]]
+	# Check if all values are > threshold.
+	check <- sum(x > threshold)
+	return(check)
+}
+
+# Check protein reproducibility.
+check <- list()
+for (prot in names(prot_list)) {
+	check[[prot]] <- check_reproducibility(prot_list, prot,
+				       treatment.subset="WT",
+				       fun="pearson",
+				       threshold=0.8)
+}
+
+# Status.
+checks <- unlist(check)
+n <- max(checks)
+reproducible_prots <- names(which(checks==n))
+message(paste("Number of highly reproducible proteins (potential markers):",
+	      length(reproducible_prots)))
+
+#--------------------------------------------------------------------
+## Regression of genetic background?
+#--------------------------------------------------------------------
+
+## Perform regression of genetic background.
+dt_eblm <- eBLM_regression(norm_protein,groups=c("Genotype","Treatment"),
+			  combine.group="Treatment",combine.var="WT",
+			  batch = "Genotype", fit.to = "WT",
+			  value.var = "Intensity",treatment.ignore="QC")
+
+#---------------------------------------------------------------------
+## Evaluate protein differential abundance.
+#---------------------------------------------------------------------
+# Use EdgeR glm to evaluate differential protein abundance.
+# Compare WT v Mutant.
+
+# Status.
+message(paste("\nAnalyzing protein differential abundance",
+	      "with EdgeR GLM..."))
+
+# Drop QC samples before EdgeR analysis.
+data_in <- dt_eblm %>% filter(Treatment != "QC")
+
+# Asses changes in protein abundance using a glm to account for
+# differences in genetic background (genotype).
+# NOTE: This script combines WTs!
+#data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
+#		  model="~background + group", samples, gene_map)
+data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
+		  model="~0 + group", samples, gene_map)
+
+# Extract statistical results from glm data.
+glm_results <- data_glm$results
+
+# Extract data from glm object.
+glm_protein <- data_glm$data
+
+#--------------------------------------------------------------------
+## Tidy-up glm statistical results.
+#--------------------------------------------------------------------
+
+# We are interested in the four mutant mouse model contrasts.
+glm_results <- glm_results[c((length(glm_results)-3):length(glm_results))]
+names(glm_results) <- c("Shank3","Syngap1","Ube3a","Shank2")
+glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")] # Sort.
+glm_results <- lapply(glm_results,as.data.table)
+
+# Summary of DA proteins.
+message(paste0("Summary of differentially abundant proteins at FDR <",
+	      alpha_threshold,":"))
+tab <- sapply(glm_results,function(x) sum(as.numeric(x$FDR) < alpha_threshold))
+knitr::kable(t(tab))
+
+# Check top gene in each condition.
+message("Top differentially abundant proteins:")
+glm_summary <- sapply(glm_results,function(x) {
+			      x %>% dplyr::select(Symbol) %>% head(3)
+		  })
+dt <- as.data.table(do.call(cbind,glm_summary))
+colnames(dt) <- gsub(".Symbol"," Top3:",colnames(dt))
+knitr::kable(dt)
+
+# Merge glm_results by shared column names:
+cols <- Reduce(intersect, lapply(glm_results,colnames))
+glm_stats <- lapply(glm_results, function(x) {
+			    as.data.table(x) %>% 
+				    dplyr::select(all_of(cols)) }) %>%
+				    bind_rows(.id="Genotype")
+
+# Annotate with tissue type.
+glm_stats <- tibble::add_column(glm_stats, Tissue = analysis_type,
+				.after="Genotype")
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
-# Stored in root/rdata/
+# * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
+# * [output_name]_norm_protein      - final preprocessed data.
+# * [output_name]_glm_stats.csv     - glm statistical results.
+# * [output_name]_glm_protein.csv   - glm fitted protein values.
+# * [output_name]_GLM_Results.xlsx  - glm statistical results.
+# * [output_name]_repro_prots.RData - potential marker proteins.
 
 ## Save key results.
-message("\nSaving data for downstream analysis...")
+message("\nSaving data for downstream analysis.")
 
-# 0. gene_map.RData - gene identifier map.
-myfile <- file.path(rdatdir,paste(output_name,"gene_map.RData",sep="_"))
-saveRDS(gene_map,myfile)
+# [output_name]_tidy_peptide.csv -- raw peptide data.
+myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
+fwrite(tidy_peptide,myfile)
 
-# 1. EdgeR statistical results.
+# [output_name]_norm_protein.csv -- final, normalized and regressed data.
+myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
+fwrite(norm_protein,myfile)
+
+# [output_name]_glm_stats.csv -- tidy statistical results.
+myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
+fwrite(glm_stats,myfile)
+
+# [output_name]_glm_protein.csv -- tidy glm fitted protein values.
+myfile <- file.path(rdatdir,paste(output_name,"glm_protein.csv",sep="_"))
+fwrite(glm_protein, myfile)
+
+# [output_name]_GLM_Results.xlsx -- statistical results.
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
 
-# 2. [output_name]_tidy_protein.csv -- tidy, final normalized data.
-myfile <- file.path(rdatdir,paste(output_name,"tidy_protein.csv",sep="_"))
-fwrite(final_tidy_prot, myfile)
-
-# 3. [output_name]_norm_protein.csv -- final normalized data matrix. 
-myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
-fwrite(norm_dt, myfile)
+# [output_name]_repro_prots.RData -- subset of highly reproducible prots.
+myfile <- file.path(rdatdir,paste0(output_name,"_repro_prots.RData"))
+saveRDS(reproducible_prots,myfile)
 
 message("\nDone!")

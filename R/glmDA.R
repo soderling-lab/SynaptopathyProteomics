@@ -1,5 +1,6 @@
-glmDA <- function(tp,comparisons=c("Genotype","Treatment"), 
-		  model, samples, gene_map, alpha = 0.1){
+glmDA <- function(tp,value.var="Abundance",
+		  comparisons=c("Genotype","Treatment"), 
+		  model){
 	# Asses Differential Abundance with EdgeR GLM.
 
 	# Imports.
@@ -23,21 +24,22 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 	dge <- calcNormFactors(dge,method="TMM")
 
 	# Create sample groupings given contrasts of interest.
-	groups <- as.character(interaction(samples %>% 
-					   dplyr::select(all_of(comparisons))))
-	names(groups) <- samples$Sample
+	all_groups <- tp_in %>% dplyr::select(all_of(comparisons)) %>% 
+		interaction() %>% as.character()
+	names(all_groups) <- tp_in$Sample
 
 	# Combine WTs.
-	groups[grep("WT",groups)] <- "WT"
+	message("\nCombining WT samples!")
+	all_groups[grep("WT",all_groups)] <- "WT"
 
 	# Annotate dge object with sample groups.
-	dge$samples$group <- as.factor(groups[rownames(dge$samples)])
+	dge$samples$group <- as.factor(all_groups[rownames(dge$samples)])
 
 	# Annotate dge object with genetic backgrounds.
-	backgrounds <- samples$Genotype
-	names(backgrounds) <- samples$Sample
+	all_backgrounds <- tp_in[["Genotype"]]
+	names(all_backgrounds) <- tp_in$Sample
 	group_order <- c("Shank2","Shank3","Syngap1","Ube3a")
-	dge$samples$background <- factor(backgrounds[rownames(dge$samples)],
+	dge$samples$background <- factor(all_backgrounds[rownames(dge$samples)],
 					 levels=group_order)
 
 	# Create a design matrix for GLM -- using blocking model with
@@ -51,16 +53,6 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 
 	# Fit a general linear model.
 	fit <- glmQLFit(dge, design, robust = TRUE)
-
-	# Extracted fitted values -- tidy.
-	dm_fit <- fit$fitted.values
-	dt_fit <- reshape2::melt(log2(dm_fit),value.name="Abundance")
-	colnames(dt_fit)[c(1,2)] <- c("Accession","Sample")
-	dt_fit$Accession <- as.character(dt_fit$Accession) # Fix columns.
-	dt_fit$Sample <- as.character(dt_fit$Sample)
-	tp_in$Accession <- as.character(tp_in$Accession)
-	tp_in$Sample <- as.character(tp_in$Sample)
-	tp_out <- left_join(tp_in,dt_fit,by=c("Accession","Sample"))
 
 	# Evaluate differences for contrasts specified by design by
 	# calling glmQLFTest(fit,coef=contrast)
@@ -89,24 +81,8 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 				      return(x)
 			  })
 
-	# Define a function to annotate results with gene ids.
-	add_ids <- function(x,gene_map) {
-		Uniprot <- x$Accession
-		idx <- match(Uniprot,gene_map$uniprot)
-		Symbol <- gene_map[["symbol"]][idx]
-		Entrez <- gene_map[["entrez"]][idx]
-		x <- tibble::add_column(x,Symbol,.after=1)
-		x <- tibble::add_column(x,Entrez,.after=2)
-		rownames(x) <- NULL
-		return(x)
-	}
-
-	# Annotate with gene ids.
-	glm_results <- lapply(glm_results,function(x) add_ids(x,gene_map))
-	glm_results <- lapply(glm_results,function(x) {
-				      x$Sig <- x$FDR < alpha
-				      return(x) })
+	# Add meta data from input tp.
 
 	# Return list of normalized data and results.
-	return(list(data=tp_out,results=glm_results))
+	return(glm_results)
 }
