@@ -7,10 +7,8 @@
 #' ---
 
 ## User defined parameters (you only need to change these two):
-# Tissue type for analysis:
-analysis_type = "Striatum"
-# Project root directory:
-root = "/mnt/d/projects/SynaptopathyProteomics"
+analysis_type = "Striatum" # Tissue type for analysis:
+root = "/mnt/d/projects/SynaptopathyProteomics" # Project root directory:
 
 ## Other optional parameters:
 alpha_threshold = 0.1 # FDR significance threshold.
@@ -31,9 +29,10 @@ input_data <- data_files[[analysis_type]]
 output_name = analysis_type # Prefix for naming output files.
 
 # Stored in root/rdata/
-# 0. [output_name]_gene_map.RData     - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv   - tidy, raw peptide data.
-# 2. [output_name]_preprocessed.RData - preprocessed data for TAMPOR.
+# 0. [output_name]_gene_map.RData   - gene identifier map.
+# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
+# 2. [output_name]_norm_protein.csv - final, normalized data matrix.
+# 3.
 
 ## Order of data processing operations:
 # * Load the data from PD.
