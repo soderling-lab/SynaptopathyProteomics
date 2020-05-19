@@ -1,9 +1,8 @@
-glmDA <- function(tp,value.var="Abundance",
+glmDA <- function(tp,treatment.ignore = "QC", value.var="Abundance",
 		  comparisons=c("Genotype","Treatment"), 
-		  model){
+		  combine.WT=FALSE){
 
-	# Asses Differential Abundance with EdgeR GLM.
-
+	# Assess Differential Abundance with EdgeR GLM.
 	# Imports.
 	suppressPackageStartupMessages({
 		library(data.table)
@@ -12,9 +11,91 @@ glmDA <- function(tp,value.var="Abundance",
 		library(tibble)
 	})
 
+	# Perform the analysis WITHOUT combining WT groups.
+	if (!combine.WT) {
+
+		# Cast tp into data matrix for EdgeR.
+		tp_in <- tp %>% as.data.table() %>% 
+			filter(Treatment != treatment.ignore) %>% as.data.table()
+		dm <- tp_in %>% 
+			dcast(Accession ~ Sample, value.var="Intensity") %>% 
+			as.matrix(rownames=TRUE)
+
+		# Create dge object.
+		dge <- DGEList(counts=dm)
+
+		# Perform TMM normalization.
+		dge <- calcNormFactors(dge,method="TMM")
+
+		# Create sample groupings given contrasts of interest.
+		all_groups <- tp_in %>% dplyr::select(all_of(comparisons)) %>% 
+			interaction() %>% as.character()
+		names(all_groups) <- tp_in$Sample
+
+		# Annotate dge object with sample groups.
+		dge$samples$group <- as.factor(all_groups[rownames(dge$samples)])
+
+		# Create a design matrix for GLM. Each group is seperate.
+		design <- model.matrix(~ 0 + group, data = dge$samples)
+
+		# Create all pairwise contrasts.
+		controls <- paste0("group",
+				   c("Shank2","Shank3","Syngap1","Ube3a"),".WT")
+		mutants <- setdiff(colnames(design),controls)
+
+		#pw_cont <- mapply(paste,  sep=" - ", mutants,controls,
+		#		  USE.NAMES=FALSE)
+
+		# makeContrasts doesn't work when passed pw_cond[i] when not run
+		# interactively.
+		contrasts <- list(
+		   Shank2 = makeContrasts('groupShank2.KO - groupShank2.WT', levels=design),
+		   Shank3 = makeContrasts('groupShank3.KO - groupShank3.WT', levels=design),
+		   Syngap1= makeContrasts('groupSyngap1.HET - groupSyngap1.WT',levels=design),
+		   Ube3a  = makeContrasts('groupUbe3a.KO - groupUbe3a.WT', levels=design)
+		) 
+
+		# Estimate dispersion.
+		dge <- estimateDisp(dge, design, robust = TRUE)
+
+		# Fit a general linear model.
+		fit <- glmQLFit(dge, design, robust = TRUE)
+
+		# Evaluate differences for contrasts specified by design by
+		qlf <- lapply(contrasts,function(x) glmQLFTest(fit,contrast=x))
+
+		# Extract the results.
+		getTopTags <- function(qlf) { topTags(qlf, n = Inf)[["table"]] }
+		glm_results <- lapply(qlf, getTopTags)
+
+		# Insure first column is Accession.
+		glm_results <- lapply(glm_results,function(x) {
+				      Accession <- rownames(x)
+				      x <- add_column(x,Accession,.before=1)
+				      rownames(x) <- NULL
+				      return(x)
+			  })
+
+		# Add percent WT and sort by pvalue.
+		glm_results <- lapply(glm_results,function(x) {
+					      x$logCPM <- 2^x$logFC
+					      idy <- grep("logCPM",colnames(x))
+					      colnames(x)[idy] <- "PercentWT"
+					      x <- x[order(x$PValue,
+							   decreasing=FALSE),]
+					      return(x)
+				  })
+		glm_results <- lapply(glm_results,as.data.table)
+		names(glm_results) <- c("Shank2","Shank3","Syngap1","Ube3a")
+
+	} else if (combine.WT) {
+	# Do analysis WITH combined WT samples.
+	combine.var = "WT"
+
 	# Cast tp into data matrix for EdgeR.
-	tp_in <- tp <- as.data.table(tp)
-	dm <- tp %>% 
+	tp_in <- tp %>% as.data.table() %>% 
+		filter(Treatment != treatment.ignore) %>% as.data.table()
+	dm <- tp_in %>% 
 		dcast(Accession ~ Sample, value.var="Intensity") %>% 
 		as.matrix(rownames=TRUE)
 
@@ -28,9 +109,8 @@ glmDA <- function(tp,value.var="Abundance",
 	all_groups <- tp_in %>% dplyr::select(all_of(comparisons)) %>% 
 		interaction() %>% as.character()
 	names(all_groups) <- tp_in$Sample
-
-	# Combine WTs.
-	all_groups[grep("WT",all_groups)] <- "WT"
+	message(paste("Combining",combine.var,"group!"))
+	all_groups[grep(combine.var,all_groups)] <- combine.var
 
 	# Annotate dge object with sample groups.
 	dge$samples$group <- as.factor(all_groups[rownames(dge$samples)])
@@ -44,9 +124,7 @@ glmDA <- function(tp,value.var="Abundance",
 
 	# Create a design matrix for GLM -- using blocking model with
 	# genetic background as covariate.
-	#design <- model.matrix(~background + group, data = dge$samples)
-	cmd <- paste0("model.matrix(",model, ", data = dge$samples)")
-	design <- eval(parse(text=cmd))
+	design <- model.matrix(~background + group, data = dge$samples)
 
 	# Estimate dispersion.
 	dge <- estimateDisp(dge, design, robust = TRUE)
@@ -57,8 +135,7 @@ glmDA <- function(tp,value.var="Abundance",
 	# Evaluate differences for contrasts specified by design by
 	# calling glmQLFTest(fit,coef=contrast)
 	contrasts <- colnames(design)
-	qlf <- lapply(contrasts,function(x) glmQLFTest(fit, coef=x))
-	names(qlf) <- contrasts
+	qlf <- lapply(contrasts,function(x) glmQLFTest(fit,coef=x))
 
 	# Extract the results.
 	getTopTags <- function(qlf) { topTags(qlf, n = Inf)[["table"]] }
@@ -81,6 +158,14 @@ glmDA <- function(tp,value.var="Abundance",
 				      return(x)
 			  })
 
+	# Final clean-up.
 	glm_results <- lapply(glm_results,as.data.table)
+	names(glm_results) <- contrasts
+	glm_results <- glm_results[c(5,6,7,8)]
+	names(glm_results) <- c("Shank3","Syngap1","Ube3a","Shank2")
+	glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")]
+
+	}
+
 	return(glm_results)
 }

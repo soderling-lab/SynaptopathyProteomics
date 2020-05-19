@@ -17,7 +17,7 @@ plot_protein <- function(norm_protein,glm_stats,protein,alpha=0.1) {
 	# Subset the data.
 	subdt <- norm_protein %>% filter(Accession == protein) %>%
 		as.data.table() %>% 
-		select(Accession,Tissue,Genotype,Treatment,Intensity)
+		dplyr::select(Accession,Tissue,Genotype,Treatment,Intensity)
 
 	# Collect FDR stats.
 	prot_stats <- glm_stats %>% filter(Accession == protein)

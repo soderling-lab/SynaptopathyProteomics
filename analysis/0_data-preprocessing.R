@@ -9,7 +9,7 @@
 ## Parse command line arguments:
 if (interactive()) {
 	# If interactive, then define analysis_type:
-	analysis_type = "Striatum" # Tissue type for analysis.
+	analysis_type = "Cortex" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
@@ -19,6 +19,11 @@ if (interactive()) {
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
 }
+
+## Optional parameters:
+group.WT = FALSE
+alpha_threshold = 0.1
+sample_connectivity_threshold = 2.5
 
 ## Input data in root/data/:
 # 1. TMT-samples.csv - sample meta data.
@@ -61,7 +66,6 @@ output_name = analysis_type # Prefix for naming output files.
 
 # Load renv -- use load NOT activate!
 root <- getrd() # See .Rprofile alias or TBmiscr::getrd().
-
 renv::load(root)
 
 # Load required packages and functions.
@@ -267,6 +271,7 @@ combat_protein <- all_combat(sl_protein,samples)
 
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
+sample_connectivity_threshold = 2.5
 zK <- sampleConnectivity(combat_protein %>% filter(Treatment == "QC"))
 
 qc_outliers <- c(names(zK)[zK < -sample_connectivity_threshold],
@@ -332,10 +337,11 @@ filt_protein <- tibble::add_column(filt_protein,Symbol,.after="Accession")
 filt_protein <- tibble::add_column(filt_protein,Entrez,.after="Symbol")
 
 #---------------------------------------------------------------------
+## Scale WT's to be ~equal.
 #---------------------------------------------------------------------
 
 # Scale WT.
-norm_protein <- normIRS(filt_protein,controls="WT",robust=TRUE)
+scale_protein <- normIRS(filt_protein,controls="WT",robust=TRUE)
 
 #---------------------------------------------------------------------
 ## Identify Sample outliers.
@@ -344,25 +350,39 @@ norm_protein <- normIRS(filt_protein,controls="WT",robust=TRUE)
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
 # This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
-zK <- sampleConnectivity(norm_protein %>% filter(Treatment != "QC"))
+i = 0
+outlier_samples <- NULL
+n_samples <- length(unique(scale_protein$Sample))
+message(paste("Initial number of samples:",n_samples))
 
-# Outliers:
-sample_connectivity_threshold = 2.5
-outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
-		     names(zK)[zK > sample_connectivity_threshold])
+while (i < 5) {
+	zk <- sampleConnectivity({
+		scale_protein %>% 
+			filter(Treatment != "QC") %>%
+			filter(Sample %notin% outlier_samples)
+	})
+	outlier_samples <- unique({
+		c(outlier_samples,
+		  names(zk)[zk < -sample_connectivity_threshold],
+		  names(zk)[zk > sample_connectivity_threshold])
+	})
+	if (length(outlier_samples) == 0) { continue }
+	i = i + 1
+}
 
 # Remove sample outliers.
-norm_protein <- norm_protein %>% filter(Sample %notin% outlier_samples)
+final_protein <- scale_protein %>% filter(Sample %notin% outlier_samples)
+n_samples <- length(unique(final_protein$Sample))
 
 # Status:
 if (length(outlier_samples) == 0) {
 	message(paste("\nFinal number of samples:",
-		      length(unique(norm_protein$Sample))))
+		      length(unique(final_protein$Sample))))
 } else {
 	message(paste0("\nRemoved outlier sample(s):\n",
 	       paste(outlier_samples,collapse="\n")))
 	message(paste("Final number of samples:",
-		      length(unique(norm_protein$Sample))))
+		      length(unique(final_protein$Sample))))
 }
 
 #--------------------------------------------------------------------
@@ -381,7 +401,7 @@ if (length(outlier_samples) == 0) {
 message(paste("\nChecking reproducibility of WT protein expression..."))
 
 # Split the data into a list of proteins.
-prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
+prot_list <- final_protein %>% group_by(Accession) %>% group_split()
 names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
 
 # Check protein reproducibility.
@@ -410,31 +430,33 @@ message(paste("Number of highly reproducible proteins (potential markers):",
 message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
-# Asses changes in protein abundance using a glm to account for
-# differences in genetic background (genotype).
-# NOTE: This script combines WTs!
-
-## Pick a model
-# model = "~0 + group"
-comparisons = c("Genotype","Treatment")
-model = "~background + group"
-glm_results <- glmDA(norm_protein, comparisons, model, value.var="Abundance")
-
-# Extract contrasts of interest.
-idx <- c((length(glm_results)-3):length(glm_results))
-glm_results <- glm_results[idx]
-names(glm_results) <-  c("Shank3","Syngap1","Ube3a","Shank2")
+if (group.WT) {
+	# Perform analysis without WT grouping. All contrasts are performed
+	# within a genotype.
+	comparisons = c("Genotype","Treatment")
+	glm_results <- glmDA(final_protein, treatment.ignore = "QC", 
+			     comparisons, value.var="Abundance",
+			     combine.WT = TRUE)
+} else {
+	# Perform analysis WITH WT grouping.
+	# Asses changes in protein abundance using a glm to account for
+	# differences in genetic background (genotype).
+	comparisons = c("Genotype","Treatment")
+	glm_results <- glmDA(final_protein, treatment.ignore = "QC", 
+			     comparisons, value.var="Abundance",
+			     combine.WT = FALSE)
+}
 
 #  Annotate with gene IDs.
 f <- function(x) {
-	Symbol <- norm_protein$Symbol[match(x$Accession,norm_protein$Accession)]
-	Entrez <- norm_protein$Entrez[match(x$Accession,norm_protein$Accession)]
+	idx <- match(x$Accession,final_protein$Accession)
+	Symbol <- final_protein$Symbol[idx]
+	Entrez <- final_protein$Entrez[idx]
 	x <-  tibble::add_column(x,Symbol,.after="Accession")
 	x <- tibble::add_column(x,Entrez,.after="Symbol")
 	return(x)
 }
 glm_results <- lapply(glm_results,f)
-glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")] # Sort
 
 # Summary of DA proteins.
 message(paste0("Summary of differentially abundant proteins at FDR <",
@@ -461,11 +483,11 @@ glm_stats <- bind_rows(glm_results,.id="Genotype")
 message("\nSaving data for downstream analysis.")
 
 # [output_name]_tidy_peptide.csv -- raw peptide data.
-myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
-fwrite(tidy_peptide,myfile)
+#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
+#fwrite(tidy_peptide,myfile)
 
 # [output_name]_norm_protein.csv -- final, normalized and regressed data.
-myfile <- file.path(rdatdir,paste(output_name,"filt_protein.csv",sep="_"))
-fwrite(filt_protein,myfile)
+#myfile <- file.path(rdatdir,paste(output_name,"filt_protein.csv",sep="_"))
+#fwrite(filt_protein,myfile)
 
 message("\nDone!")
