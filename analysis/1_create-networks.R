@@ -133,50 +133,48 @@ message(paste("\nScale free fit of PPI graph:", round(r2, 3)))
 
 # Randomly sample 10,000 edges drawn from interacting and 
 # non-interacting proteins.
-n <- 10000
+#n <- 10000
 
 # Seed seed for reproducibility.
-set.seed(0) 
-
+#set.seed(as.numeric(Sys.time()))
 
 # Get random samples.
-idx <- c(sample(which(df$ppi),n),sample(which(!df$ppi),n))
-subdat <- df[idx,]
-subdat$ppi <- factor(subdat$ppi,levels=c(FALSE,TRUE)) 
+#adjm_edges <- reshape2::melt(adjm,value.name="bicor") %>% as.data.table()
+#colnames(adjm_edges)[c(1,2)] <- c("ProtA","ProtB")
+#adjm_edges$ProtA <- as.character(adjm_edges$ProtA)
+#adjm_edges$ProtB <- as.character(adjm_edges$ProtB)
 
+# Fix names.
+#rownames(PPI_adjm) <- colnames(PPI_adjm)
+#ppi_edges <- reshape2::melt(PPI_adjm,value.name="ppi") %>% as.data.table()
+#colnames(ppi_edges)[c(1,2)] <- c("ProtA","ProtB")
+#ppi_edges$ProtA <- as.character(ppi_edges$ProtA)
+#ppi_edges$ProtB <- as.character(ppi_edges$ProtB)
+
+# Combine, yeah its big.
+#edges_dt <- left_join(adjm_edges,ppi_edges,by=c("ProtA","ProtB")) %>%
+#	as.data.table()
+#edges_dt$ppi[is.na(edges_dt$ppi)] <- 0 # Coerce NA to 0.
+
+# Get random sample.
+#df <- as.data.frame(edges_dt)
+#idx <- sample(nrow(df),n)
+#subdf <- df[idx,]
 # Check the mean of each group.
-subdat %>% group_by(ppi) %>% summarize(mean(weight))
+#subdf %>% group_by(ppi) %>% summarize(mean(bicor))
 
 # Calculate WRS p-value.
-# Refactor, test that TRUE > FALSE.
-WRS_test <- wilcox.test(subdat$weight ~ subdat$ppi, alternative = "less")
-WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
+# FIXME: Permutation test would be more robust.
+#WRS_test <- wilcox.test(subdf$bicor ~ subdf$ppi, alternative = "less")
+#message(paste("\nWRS P-value:",round(WRS_test$p.value,4)))
 
-# Generate a plot.
-  plot <- ggplot(subdat, aes(x = ppi, y = weight, fill = ppi)) +
-    geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
-    scale_x_discrete(labels = c("PPI = False", "PPI = True")) +
-    ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
-    scale_fill_manual(values = c("gray", "dark orange")) +
-    theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-      axis.text.x = element_text(color = "black", size = 11, face = "bold"),
-      legend.position = "none"
-    )
-  
-# Add Annotation.
-plot <- plot + 
-  annotate("text", x = 1.5, y = 1.0,
-           label = paste("p-value =",WRS_pval), size = 6, color = "black")
-
-# Save as tiff.
-myfile <- prefix_file(file.path(figsdir,"WRS_PPI_Bicor_Proteins.tiff"))
-ggsave(myfile, plot, height = 4, width = 4)
+# Save PPI adjm to file.
+myfile <- file.path(rdatdir,paste0(output_name,"_PPI_Adjm.csv"))
+PPI_adjm %>% as.data.table(keep.rownames="Accession") %>% 
+	fwrite(myfile)
 
 #--------------------------------------------------------------------
-## Save the data.
+## Save the ppi data.
 #--------------------------------------------------------------------
 
 # Subset PPIs.
