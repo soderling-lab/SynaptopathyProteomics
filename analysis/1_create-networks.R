@@ -21,9 +21,6 @@ if (interactive()) {
 	}
 }
 
-## DEFAULT project root.
-root = "/mnt/d/projects/SynaptopathyProteomics"
-
 # Input data should be in root/rdata/:
 input_data = list("Cortex" = "Cortex_norm_protein.csv",
 		  "Striatum" = "Striatum_norm_protein.csv")[[analysis_type]]
@@ -40,6 +37,7 @@ output_name = analysis_type
 #---------------------------------------------------------------------
 
 # Load renv.
+root <- getrd() # See .Rprofile alias or TBmiscr::getrd()
 renv::load(root)
 
 # Imports.
@@ -65,9 +63,6 @@ tabsdir <- file.path(root, "tables")
 # Load final normalized data.
 myfile <- file.path(rdatdir,input_data)
 prot_dt <- fread(myfile)
-
-# Log transform data.
-prot_dt$Abundance <- log2(prot_dt$Intensity)
 
 # Coerce to data matrix.
 dm <- prot_dt %>% 
@@ -100,12 +95,12 @@ adjm_ne %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
 ## Generate the PPI graph.
 #---------------------------------------------------------------------
 
-# Load mouse interactome.
+# Load saved mouse interactome from getPPIs.
 data("musInteractome")
 
 # Subset mouse interactome, keep data from mouse, human, and rat.
-orgs <- c(10090, 9606, 10116)
-ppis <- musInteractome %>% filter(Interactor_A_Taxonomy %in% orgs)
+keep <- c(10090, 9606, 10116) # Taxids
+ppis <- musInteractome %>% filter(Interactor_A_Taxonomy %in% keep)
 
 # Get entrez IDs for all proteins in co-expression networks.
 all_entrez <- unique(prot_dt$Entrez)

@@ -585,6 +585,13 @@
       "Repository": "CRAN",
       "Hash": "7146fea4685b4252ebf478978c75f597"
     },
+    "igraph": {
+      "Package": "igraph",
+      "Version": "1.2.5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "3878c30ce67cdb7f2d7f72554e37f476"
+    },
     "impute": {
       "Package": "impute",
       "Version": "1.62.0",

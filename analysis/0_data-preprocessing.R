@@ -8,8 +8,7 @@
 
 ## Parse command line arguments:
 if (interactive()) {
-	## If interactive:
-	# User defined parameters (you only need to change these two):
+	# If interactive, then define analysis_type:
 	analysis_type = "Striatum" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
@@ -338,6 +337,12 @@ outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 # Remove sample outliers.
 final_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
 
+# Annotate protein data with sample meta data.
+# Shared column names:
+cols <- intersect(colnames(final_protein),colnames(samples))
+final_protein <- left_join(final_protein,samples,by=cols) %>% 
+	as.data.table()
+
 # Status:
 if (length(outlier_samples) == 0) {
 	message(paste("\nFinal number of samples:",
@@ -348,6 +353,23 @@ if (length(outlier_samples) == 0) {
 	message(paste("Final number of samples:",
 		      length(unique(final_protein$Sample))))
 }
+
+#--------------------------------------------------------------------
+## Annotate final normalized data with additional sample meta data.
+#--------------------------------------------------------------------
+
+# Shared column names:
+cols <- intersect(colnames(final_protein),colnames(samples))
+final_protein$Sample <- as.character(final_protein$Sample)
+final_protein <- left_join(final_protein,samples,by=cols) %>% 
+	as.data.table()
+
+# Add entrez ids and gene symbols to data.
+idx <- match(final_protein$Accession,gene_map$uniprot)
+Symbol <- gene_map$symbol[idx]
+Entrez <- gene_map$entrez[idx]
+final_protein <- tibble::add_column(glm_protein,Symbol,.after="Accession")
+final_protein <- tibble::add_column(glm_protein,Entrez,.after="Symbol")
 
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
@@ -365,7 +387,6 @@ if (length(outlier_samples) == 0) {
 message(paste("\nChecking reproducibility of WT protein expression..."))
 
 check_protein <- final_protein
-#check_protein <- glm_protein
 
 # Split the data into a list of proteins.
 prot_list <- check_protein %>% group_by(Accession) %>% group_split()
@@ -441,16 +462,13 @@ data_in <- final_protein %>% filter(Treatment != "QC")
 # Asses changes in protein abundance using a glm to account for
 # differences in genetic background (genotype).
 data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
-		  samples, gene_map)
+	  samples, gene_map)
 
 # Extract statistical results from glm data.
 glm_results <- data_glm$results
 
 # Extract data from glm object.
-glm_protein <- data_glm$data %>% 
-	as.data.table(keep.rownames="Accession") %>% 
-	melt(id.vars="Accession",value.name="Intensity")
-colnames(glm_protein)[grep("variable",colnames(glm_protein))] <- "Sample"
+glm_protein <- data_glm$data
 
 # Annotate normalized protein data with sample meta data.
 # Shared column names:
@@ -470,7 +488,7 @@ glm_protein <- tibble::add_column(glm_protein,Entrez,.after="Symbol")
 ## Tidy-up glm statistical results.
 #--------------------------------------------------------------------
 
-# We are interested in the four genotype contrasts.
+# We are interested in the four mutant mouse model contrasts.
 glm_results <- glm_results[c((length(glm_results)-3):length(glm_results))]
 names(glm_results) <- c("Shank3","Syngap1","Ube3a","Shank2")
 glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")] # Sort.
@@ -493,8 +511,6 @@ knitr::kable(dt)
 
 # Merge glm_results by shared column names:
 cols <- Reduce(intersect, lapply(glm_results,colnames))
-
-# Stack results:
 glm_stats <- lapply(glm_results, function(x) {
 			    as.data.table(x) %>% 
 				    dplyr::select(all_of(cols)) }) %>%
@@ -510,9 +526,10 @@ glm_stats <- tibble::add_column(glm_stats, Tissue = analysis_type,
 
 ## Output for downstream analysis:
 # 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
-# 2. [output_name]_norm_protein     - preprocessed data for TAMPOR.
-# 3. [output_name]_glm_stats.csv    - tidy statistical results.
-# 4. [output_name]_GLM_Results.xlsx - glm results results.
+# 2. [output_name]_norm_protein     - final preprocessed data.
+# 3. [output_name]_glm_stats.csv    - glm statistical results.
+# 4. [output_name]_glm_protein.csv  - glm fitted protein values.
+# 5. [output_name]_GLM_Results.xlsx - glm statistical results.
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
@@ -523,13 +540,17 @@ fwrite(tidy_peptide,myfile)
 
 # 2. [output_name]_norm_protein.csv -- final, normalized and regressed data.
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
-fwrite(glm_protein,myfile)
+fwrite(final_protein,myfile)
 
 # 3. [output_name]_glm_stats.csv -- tidy statistical results.
 myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
 fwrite(glm_stats,myfile)
 
-# 4. [output_name]_GLM_Results.xlsx -- statistical results.
+# 4. [output_name]_glm_protein.csv -- tidy glm fitted protein values.
+myfile <- file.path(rdatdir,paste(output_name,"glm_protein.csv",sep="_"))
+fwrite(glm_protein, myfile)
+
+# 5. [output_name]_GLM_Results.xlsx -- statistical results.
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
 

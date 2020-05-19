@@ -10,6 +10,9 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 		library(tibble)
 	})
 
+
+
+
 	# Cast tp into data matrix for EdgeR.
 	tp_in <- tp <- as.data.table(tp)
 	dm <- tp %>% 
@@ -48,7 +51,8 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 	# Create a design matrix for GLM -- using sex as covariate.
 	#design <- model.matrix(~background + sex + group, data = dge$samples)
 
-	# Create a design matrix for GLM.
+	# Create a design matrix for GLM -- using blocking model with
+	# genetic background as covariate.
 	design <- model.matrix(~background + group, data = dge$samples)
 
 	# Estimate dispersion.
@@ -57,8 +61,15 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 	# Fit a general linear model.
 	fit <- glmQLFit(dge, design, robust = TRUE)
 
-	# Extracted fitted values.
+	# Extracted fitted values -- tidy.
 	dm_fit <- fit$fitted.values
+	dt_fit <- reshape2::melt(dm_fit,value.name="Abundance")
+	colnames(dt_fit)[c(1,2)] <- c("Accession","Sample")
+	dt_fit$Accession <- as.character(dt_fit$Accession) # Fix columns.
+	dt_fit$Sample <- as.character(dt_fit$Sample)
+	tp_in$Accession <- as.character(tp_in$Accession)
+	tp_in$Sample <- as.character(tp_in$Sample)
+	tp_out <- left_join(tp_in,dt_fit,by=c("Accession","Sample"))
 
 	# Evaluate differences for contrasts specified by design by
 	# calling glmQLFTest(fit,coef=contrast)
@@ -105,16 +116,6 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 				      x$Sig <- x$FDR < alpha
 				      return(x) })
 
-	# Add fitted values to results..
-	#for (i in 1:length(glm_results)){
-	#	df <- glm_results[[i]]
-	#	contrast <- contrasts[i]
-	#	keep <- names(which(design[,contrast] != 0))
-	#	dm <- log2(dge$counts[,keep])
-	#	dt <- as.data.table(dm,keep.rownames="Accession")
-	#	glm_results[[i]] <- left_join(df,dt,by="Accession")
-	#}
-
 	# Return list of normalized data and results.
-	return(list(data=dm_fit,results=glm_results))
+	return(list(data=tp_out,results=glm_results))
 }
