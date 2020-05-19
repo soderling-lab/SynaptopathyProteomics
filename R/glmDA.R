@@ -1,5 +1,7 @@
-glmDA <- function(tp,comparisons, samples, gene_map,
-		  samples_to_ignore, alpha=0.1){
+glmDA <- function(tp,value.var="Abundance",
+		  comparisons=c("Genotype","Treatment"), 
+		  model){
+
 	# Asses Differential Abundance with EdgeR GLM.
 
 	# Imports.
@@ -20,39 +22,31 @@ glmDA <- function(tp,comparisons, samples, gene_map,
 	dge <- DGEList(counts=dm)
 
 	# Perform TMM normalization.
-	dge <- calcNormFactors(dge)
-
-	# Extract normalized data from dge object.
-	dm_dge <- dge$counts %>% as.data.table(keep.rownames="Accession")
-	tp_dge <- melt(dm_dge,id.vars="Accession",
-		       variable.name="Sample",value.name="Intensity")
-	tp_dge$Sample <- as.character(tp_dge$Sample)
-
-	# Merge with meta data from input.
-	tp$Intensity <- NULL
-	tp_dge <- left_join(tp,tp_dge,by=c("Sample","Accession")) %>% 
-		as.data.table()
-
-	# Drop samples to ignore from dge object.
-	# We dont want to utilize QC when estimating dispersion or 
-	# performing statistical testing.
-	drop <- grepl(samples_to_ignore,rownames(dge$samples))
-	dge$samples <- dge$samples[!drop,]
-	drop <- grepl(samples_to_ignore,colnames(dge$counts))
-	dge$counts <- dge$counts[,!drop]
+	dge <- calcNormFactors(dge,method="TMM")
 
 	# Create sample groupings given contrasts of interest.
-	subsamples <- samples %>% filter(Sample %in% colnames(dge$counts))
-	contrasts <- unlist(strsplit(comparisons,"\\."))
-	subsamples$Group <- apply(subsamples[,contrasts],1,paste,collapse=".")
-	groups <- subsamples$Group
-	names(groups) <- subsamples$Sample
-	groups <- as.factor(groups[rownames(dge$samples)])
-	dge$samples$group <- groups
+	all_groups <- tp_in %>% dplyr::select(all_of(comparisons)) %>% 
+		interaction() %>% as.character()
+	names(all_groups) <- tp_in$Sample
 
-	# Create a design matrix for GLM.
-	design <- model.matrix(~ 0 + groups, data = dge$samples)
-	colnames(design) <- levels(dge$samples$group)
+	# Combine WTs.
+	all_groups[grep("WT",all_groups)] <- "WT"
+
+	# Annotate dge object with sample groups.
+	dge$samples$group <- as.factor(all_groups[rownames(dge$samples)])
+
+	# Annotate dge object with genetic backgrounds.
+	all_backgrounds <- tp_in[["Genotype"]]
+	names(all_backgrounds) <- tp_in$Sample
+	group_order <- c("Shank2","Shank3","Syngap1","Ube3a")
+	dge$samples$background <- factor(all_backgrounds[rownames(dge$samples)],
+					 levels=group_order)
+
+	# Create a design matrix for GLM -- using blocking model with
+	# genetic background as covariate.
+	#design <- model.matrix(~background + group, data = dge$samples)
+	cmd <- paste0("model.matrix(",model, ", data = dge$samples)")
+	design <- eval(parse(text=cmd))
 
 	# Estimate dispersion.
 	dge <- estimateDisp(dge, design, robust = TRUE)
@@ -60,29 +54,15 @@ glmDA <- function(tp,comparisons, samples, gene_map,
 	# Fit a general linear model.
 	fit <- glmQLFit(dge, design, robust = TRUE)
 
-	# Generate pairwise contrasts list.
-	g <- as.character(groups)
-	idx <- sapply(strsplit(g,"\\."),"[",1)
-	contrasts_list <- split(g,idx)
-	contrasts_list <- lapply(contrasts_list,unique)
-	contrasts_list <- lapply(contrasts_list,function(x) x[order(x)])
-	contrasts_list <- lapply(contrasts_list,function(x) { 
-					 paste(x,collapse="-") })
+	# Evaluate differences for contrasts specified by design by
+	# calling glmQLFTest(fit,coef=contrast)
+	contrasts <- colnames(design)
+	qlf <- lapply(contrasts,function(x) glmQLFTest(fit, coef=x))
+	names(qlf) <- contrasts
 
-	# Loop to generate contrasts for edgeR::glm.
-	for (i in 1:length(contrasts_list)) {
-		contrast <- contrasts_list[[i]]
-		cmd <- paste0("makeContrasts(",contrast,", levels = design)")
-		contrasts_list[[i]] <- eval(parse(text=cmd))
-	}
-
-	# Call glmQLFTest() to evaluate differences in contrasts.
-	qlf <- lapply(contrasts_list,function(x) glmQLFTest(fit, contrast = x))
-
-	# Call topTags to add FDR. Gather tabularized results.
-	glm_results <- lapply(qlf, function(x) {
-				      topTags(x, n = Inf, sort.by = "none")$table
-			  })
+	# Extract the results.
+	getTopTags <- function(qlf) { topTags(qlf, n = Inf)[["table"]] }
+	glm_results <- lapply(qlf, getTopTags)
 
 	# Insure first column is Accession.
 	glm_results <- lapply(glm_results,function(x) {
@@ -101,32 +81,6 @@ glmDA <- function(tp,comparisons, samples, gene_map,
 				      return(x)
 			  })
 
-	# Define a function to annotate results with gene ids.
-	add_ids <- function(x,gene_map) {
-		Uniprot <- x$Accession
-		idx <- match(Uniprot,gene_map$uniprot)
-		Symbol <- gene_map[["symbol"]][idx]
-		Entrez <- gene_map[["entrez"]][idx]
-		x <- tibble::add_column(x,Symbol,.after=1)
-		x <- tibble::add_column(x,Entrez,.after=2)
-		rownames(x) <- NULL
-		return(x)
-	}
-
-	# Annotate with gene ids.
-	glm_results <- lapply(glm_results,function(x) add_ids(x,gene_map))
-
-	# Add expression data to results.
-	for (i in 1:length(glm_results)){
-		df <- glm_results[[i]]
-		contrast <- contrasts_list[[i]]
-		idx <- dge$samples$group %in% names(which(contrast[,1] != 0))
-		keep <- rownames(dge$samples)[idx]
-		dm <- log2(dge$counts[,keep])
-		dt <- as.data.table(dm,keep.rownames="Accession")
-		glm_results[[i]] <- left_join(df,dt,by="Accession")
-	}
-
-	# Return list of normalized data and results.
-	return(list(data=tp_dge,results=glm_results))
+	glm_results <- lapply(glm_results,as.data.table)
+	return(glm_results)
 }

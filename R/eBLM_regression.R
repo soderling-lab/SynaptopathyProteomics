@@ -16,45 +16,62 @@
 #' @import
 #'
 #' @export
-#'
-#' @examples
-#' eBLM_regression(data_in, traits)
-eBLM_regression <- function(tp, traits, ignore = NULL) {
+eBLM_regression <- function(prot_dt, groups=c("Genotype","Treatment"),
+			    combine.group = "Treatment",combine.var="WT",
+			    batch="Genotype",fit.to="WT",
+		            value.var="Intensity",
+			    treatment.ignore = NULL){
+
+	suppressPackageStartupMessages({
+		library(dplyr)
+		library(WGCNA)
+		library(data.table)
+	})
+
 	# Prepare the expression data.
-	tp_in <- as.data.table(tp)
-	tp <- tp %>% filter(Treatment != ignore) %>% as.data.table()
-	dt <- tp %>% dcast(Accession ~ Sample, value.var="Intensity")
-	dm <- as.matrix(dt,rownames="Accession") %>% log2() %>% t()
+	tp_in <- as.data.table(prot_dt)
+	tp_filt <- tp_in %>% filter(Treatment != treatment.ignore) %>% 
+		as.data.table()
+	dm <- tp_filt %>% dcast(Accession ~ Sample, value.var=value.var) %>%
+		as.matrix(rownames="Accession") %>% log2()
+
 	# The data cannot contain any missing values.
 	n_missing <- sum(is.na(dm))
 	if (n_missing > 0) { stop("The data cannot contain missing values.") }
-	# Prepare the design df.
-	traits_sub <- traits %>% filter(Sample %in% rownames(dm))
-	sex <- as.factor(traits_sub$Sex)
-	age <- as.numeric(traits_sub$Age)
-	batch <- as.factor(traits_sub$PrepDate)
-	status <- traits_sub$Treatment
-	design <- as.data.frame(cbind(status, batch, sex, age))
-	# Define covariates to be removed. Which model to choose?
-	covariates <- cbind(design$batch, design$sex) # Batch + Sex
+
+	# Sample to batch mapping.
+	all_batches <- tp_filt %>% dplyr::select(all_of(batch)) %>% 
+		interaction() %>% as.character()
+	names(all_batches) <- tp_filt$Sample
+
+	# Sample to treatment group mapping.
+	all_groups <- tp_filt %>% dplyr::select(all_of(groups)) %>% 
+		interaction() %>% as.character()
+	names(all_groups) <- tp_filt$Sample
+
+	# Combine treatment groups?
+	all_groups <- tp_filt %>% dplyr::select(all_of(groups)) %>% 
+		interaction() %>% as.character()
+	names(all_groups) <- tp_filt$Sample
+	all_groups[grep(combine.var,all_groups)] <- combine.var
+
+	# Design dt.
+	design <- data.table(batch = as.factor(all_batches[colnames(dm)]),
+			     treatment = as.factor(all_groups[colnames(dm)]))
+
 	# Correct for the batch effect using empiricalBayesLM from WGCNA package.
-	fit_eblm <- empiricalBayesLM(dm, removedCovariates = covariates,
-				     fitToSamples = design$status == "WT")
-	data_eblm <- fit_eblm$adjustedData
-	# Return regressed data, un-logged.
-	data_out <- 2^(t(data_eblm))
-	tp_eblm <- as.data.table(data_out,keep.rownames="Accession") %>%
+	fit_eblm <- empiricalBayesLM(t(dm), removedCovariates = design$batch,
+				     fitToSamples = design$treatment == fit.to)
+
+	# Extract adjusted data.
+	data_eblm <- 2^(t(fit_eblm$adjustedData))
+
+	# Merge adjusted data with input data.
+	tp_eblm <- as.data.table(data_eblm,keep.rownames="Accession") %>%
 		reshape2::melt(id.var="Accession", variable.name="Sample",
-			       value.name="Intensity")
+			       value.name="Abundance")
 	tp_eblm$Sample <- as.character(tp_eblm$Sample)
-	# Merge regressed data with input data.
-	tp_result <- full_join(tp_in,tp_eblm,by=c("Sample","Accession"))
-	# Replace missing values.
-	idx <- is.na(tp_result$Intensity.y)
-	tp_result$Intensity.y[idx] <- tp_result$Intensity.x[idx]
-	tp_result$Intensity.x <- NULL
-	# Fix column names.
-	idy <- which(colnames(tp_result) == "Intensity.y")
-	colnames(tp_result)[idy] <- "Intensity"
+	tp_result <- left_join(tp_in,tp_eblm,by=c("Sample","Accession"))
+
 	return(tp_result)
 }

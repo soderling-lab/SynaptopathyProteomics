@@ -1,0 +1,102 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Analyzing Striatum...
+
+Creating gene identifier map.
+Warning message:
+In getPPIs::mgi_batch_query(uniprot, quiet = FALSE, download = FALSE) :
+  Unable to map 1 gene identifiers to entrez.
+Mapping missing IDs by hand.
+
+Loading raw peptide data from Proteome Discover.
+
+Performing sample loading normalization.
+
+Imputing a small number of missing peptide values...
+Imputing missing values in group: Shank2
+... Percent missing values: 0.029% (n=148).
+Imputing missing values in group: Shank3
+... Percent missing values: 0.014% (n=73).
+Imputing missing values in group: Syngap1
+... Percent missing values: 0.017% (n=86).
+Imputing missing values in group: Ube3a
+... Percent missing values: 0.02% (n=104).
+
+Removing peptides with irreproducible QC measurements...
+Total number of outlier QC peptides identified: 423
+
+Summarizing proteins as the sum of their peptides.
+
+Performing sample loading normalization between experiments.
+
+Performing ComBat to remove intra-batch batch effect...
+Performing ComBat for group: Shank2
+Initial coorelation between batch and samples: 0.588
+Final coorelation between batch and samples: 0.04 
+
+Warning messages:
+1: For group: Shank3 - Cannot perform ComBat with one batch! 
+2: For group: Syngap1 - Cannot perform ComBat with one batch! 
+3: For group: Ube3a - No detectable batch effect! Not applying ComBat. 
+
+Standardizing protein measurements between experiments by IRS normalization.
+
+Filtering proteins...
+Removed proteins identified by one peptide.....: 124
+Removed proteins with too many missing values..: 51
+Removed proteins with any missing QC values....: 605
+Removed proteins with outlier measurements.....: 72
+Final number of reproducibly quantified proteins: 2,786
+
+Final number of samples: 44
+
+Checking reproducibility of WT protein expression...
+Number of highly reproducible proteins (potential markers): 120
+
+Analyzing protein differential abundance with EdgeR GLM...
+Summary of differentially abundant proteins at FDR <0.1:
+
+
+| Shank2| Shank3| Syngap1| Ube3a|
+|------:|------:|-------:|-----:|
+|      2|      5|       1|     4|
+
+Saving data for downstream analysis.
+
+Done!
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Creating Striatum protein co-variation networks.
+
+Performing network enhancement.
+
+Done!
+Performing Leidenalg clustering of the Enhanced Striatum graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
+Recursively spliting 0 large module(s)...
+... Initial partition: Clustering with 2786 elements and 66 clusters.
+... Final partition: Clustering with 2786 elements and 66 clusters.
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+Evaluating self-preservation of Striatum modules in the Striatum network.
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+Criterion for module preservation/divergence: strong.
+
+Working on partition 1 of 1 ...
+... 62 of 66 modules are preserved.
+
+Done!
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Analyzing Striatum...
+Total number of modules: 61
+Percent proteins clustered: 97.88%.
+Median module coherence (PVE): 83.54%.
+Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
+Summary of Dunnett's test changes for significant modules:
+M19 M22 M24 M25 M28 M30 M42 M49 M53 M57 M59 
+  3   3   4   2   1   3   3   3   2   2   2 
+
+Done!

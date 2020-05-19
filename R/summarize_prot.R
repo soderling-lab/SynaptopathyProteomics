@@ -11,7 +11,7 @@ summarize_prot <- function(tp){
 	tp$Intensity[is.na(tp$Intensity)] <- 0
 	tp <- ungroup(tp)
 	# Sum to protein level.
-	proteins <- tp %>% group_by(Experiment,Sample,Channel,
+	proteins <- tp %>% group_by(Genotype,Sample,Channel,
 				    Treatment,Accession) %>%
 		summarize(Peptides = length(Intensity),
 			  Intensity = sum(Intensity,na.rm=TRUE))
