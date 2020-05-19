@@ -1,13 +1,27 @@
 #!/usr/bin/env Rscript
 
 #' ---
-#' title: Network Analysis
-#' description: Protein co-expression network analysis
+#' title:
+#' description:
 #' authors: Tyler W Bradshaw
 #' ---
 
-## User parameters to change:
-analysis_type = "Cortex"
+## Parse command line arguments:
+if (interactive()) {
+	## If interactive:
+	# User defined parameters (you only need to change these two):
+	analysis_type = "Striatum" # Tissue type for analysis.
+} else if (!interactive()) {
+	## If not interactive, check that only 1 arg is passed.
+	args <- commandArgs(trailingOnly=TRUE)
+	if (length(args) == 1) { 
+		analysis_type = commandArgs(trailingOnly=TRUE)[1]
+	} else { 
+		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
+	}
+}
+
+## Default parameters:
 root = "/mnt/d/projects/SynaptopathyProteomics" 
 
 ## Optional parameters:
