@@ -109,11 +109,6 @@ funcdir = os.path.join(root,"Py")
 sys.path.append(root)
 from Py.myfun import *
 
-# Get system variables.
-#myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
-#envars = {var:os.environ.get(var) for var in myvars}
-#jobID = xstr(envars['SLURM_JOBID'])
-
 #---------------------------------------------------------------------
 ## Load input adjacency matrix and create an igraph object.
 #---------------------------------------------------------------------

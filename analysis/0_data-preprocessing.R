@@ -35,15 +35,15 @@ input_data = list(Cortex = "Cortex_Peptides.csv",
 
 ## Output for downstream analysis, stored in root/rdata/
 output_name = analysis_type # Prefix for naming output files.
-# 1. [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
-# 2. [output_name]_norm_protein      - final preprocessed data.
-# 3. [output_name]_glm_stats.csv     - glm statistical results.
-# 4. [output_name]_glm_protein.csv   - glm fitted protein values.
-# 5. [output_name]_GLM_Results.xlsx  - glm statistical results.
-# 6. [output_name]_repro_prots.RData - potential marker proteins.
+# * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
+# * [output_name]_norm_protein      - final preprocessed data.
+# * [output_name]_glm_stats.csv     - glm statistical results.
+# * [output_name]_glm_protein.csv   - glm fitted protein values.
+# * [output_name]_GLM_Results.xlsx  - glm statistical results.
+# * [output_name]_repro_prots.RData - potential marker proteins.
 
 ## Final tables, stored in root/tables/
-# 5. [output_name]_GLM_Results.xlsx - glm results results.
+# * [output_name]_GLM_Results.xlsx - glm results results.
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -493,37 +493,37 @@ glm_stats <- tibble::add_column(glm_stats, Tissue = analysis_type,
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
-# 1. [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
-# 2. [output_name]_norm_protein      - final preprocessed data.
-# 3. [output_name]_glm_stats.csv     - glm statistical results.
-# 4. [output_name]_glm_protein.csv   - glm fitted protein values.
-# 5. [output_name]_GLM_Results.xlsx  - glm statistical results.
-# 6. [output_name]_repro_prots.RData - potential marker proteins.
+# * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
+# * [output_name]_norm_protein      - final preprocessed data.
+# * [output_name]_glm_stats.csv     - glm statistical results.
+# * [output_name]_glm_protein.csv   - glm fitted protein values.
+# * [output_name]_GLM_Results.xlsx  - glm statistical results.
+# * [output_name]_repro_prots.RData - potential marker proteins.
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
 
-# 1. [output_name]_tidy_peptide.csv -- raw peptide data.
+# [output_name]_tidy_peptide.csv -- raw peptide data.
 myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
 fwrite(tidy_peptide,myfile)
 
-# 2. [output_name]_norm_protein.csv -- final, normalized and regressed data.
+# [output_name]_norm_protein.csv -- final, normalized and regressed data.
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
 fwrite(norm_protein,myfile)
 
-# 3. [output_name]_glm_stats.csv -- tidy statistical results.
+# [output_name]_glm_stats.csv -- tidy statistical results.
 myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
 fwrite(glm_stats,myfile)
 
-# 4. [output_name]_glm_protein.csv -- tidy glm fitted protein values.
+# [output_name]_glm_protein.csv -- tidy glm fitted protein values.
 myfile <- file.path(rdatdir,paste(output_name,"glm_protein.csv",sep="_"))
 fwrite(glm_protein, myfile)
 
-# 5. [output_name]_GLM_Results.xlsx -- statistical results.
+# [output_name]_GLM_Results.xlsx -- statistical results.
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
 
-# 6. [output_name]_repro_prots.RData -- subset of highly reproducible prots.
+# [output_name]_repro_prots.RData -- subset of highly reproducible prots.
 myfile <- file.path(rdatdir,paste0(output_name,"_repro_prots.RData"))
 saveRDS(reproducible_prots,myfile)
 

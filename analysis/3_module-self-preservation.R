@@ -21,9 +21,6 @@ if (interactive()) {
 	}
 }
 
-## DEFAULT parameter:
-root = "/mnt/d/projects/SynaptopathyProteomics"
-
 ## Permutation test options:
 min_size = 5
 verbose = FALSE
@@ -79,6 +76,7 @@ input_data <- list("Cortex" = list(
 #---------------------------------------------------------------------
 
 # Load renv.
+root <- getrd()
 renv::load(root)
 
 # Global options and imports.
