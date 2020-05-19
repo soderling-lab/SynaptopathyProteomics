@@ -156,6 +156,8 @@ if (length(outlier_samples) == 0) {
 		      length(unique(norm_protein$Sample))))
 }
 
+quit()
+
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
 #--------------------------------------------------------------------

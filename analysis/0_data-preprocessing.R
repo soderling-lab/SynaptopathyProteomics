@@ -319,45 +319,50 @@ check <- sum(is.na(filt_protein$Intensity)) == 0
 if (!check) { stop("Why are there missing values!") }
 
 #---------------------------------------------------------------------
+## Annotate filtered protein data with sample information.
+#---------------------------------------------------------------------
+
+# Annotate protein data with sample meta data.
+# Shared column names:
+cols <- intersect(colnames(filt_protein),colnames(samples))
+filt_protein <- left_join(filt_protein,samples,by=cols) %>% 
+	as.data.table()
+
+# Add entrez ids and gene symbols to data.
+idx <- match(filt_protein$Accession,gene_map$uniprot)
+Symbol <- gene_map$symbol[idx]
+Entrez <- gene_map$entrez[idx]
+filt_protein <- tibble::add_column(filt_protein,Symbol,.after="Accession")
+filt_protein <- tibble::add_column(filt_protein,Entrez,.after="Symbol")
+
+#---------------------------------------------------------------------
 ## Identify Sample outliers.
 #---------------------------------------------------------------------
 
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
 # This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
-zK <- sampleConnectivity(filt_protein %>% filter(Treatment != "QC"))
-if (length(zK) != 32) { stop("Whoops, something went wrong.") }
+#zK <- sampleConnectivity(filt_protein %>% filter(Treatment != "QC"))
+#if (length(zK) != 32) { stop("Whoops, something went wrong.") }
 
 # Outliers:
-outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
-		     names(zK)[zK > sample_connectivity_threshold])
+#outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
+#		     names(zK)[zK > sample_connectivity_threshold])
 
 # Remove sample outliers.
-norm_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
+#norm_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
 
-# Annotate protein data with sample meta data.
-# Shared column names:
-cols <- intersect(colnames(norm_protein),colnames(samples))
-norm_protein <- left_join(norm_protein,samples,by=cols) %>% 
-	as.data.table()
-
-# Add entrez ids and gene symbols to data.
-idx <- match(norm_protein$Accession,gene_map$uniprot)
-Symbol <- gene_map$symbol[idx]
-Entrez <- gene_map$entrez[idx]
-norm_protein <- tibble::add_column(norm_protein,Symbol,.after="Accession")
-norm_protein <- tibble::add_column(norm_protein,Entrez,.after="Symbol")
 
 # Status:
-if (length(outlier_samples) == 0) {
-	message(paste("\nFinal number of samples:",
-		      length(unique(norm_protein$Sample))))
-} else {
-	message(paste0("\nRemoved outlier sample(s):\n",
-	       paste(outlier_samples,collapse="\n")))
-	message(paste("Final number of samples:",
-		      length(unique(norm_protein$Sample))))
-}
+#if (length(outlier_samples) == 0) {
+#	message(paste("\nFinal number of samples:",
+#		      length(unique(norm_protein$Sample))))
+#} else {
+#	message(paste0("\nRemoved outlier sample(s):\n",
+#	       paste(outlier_samples,collapse="\n")))
+#	message(paste("Final number of samples:",
+#		      length(unique(norm_protein$Sample))))
+#}
 
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
@@ -372,44 +377,11 @@ if (length(outlier_samples) == 0) {
 # Check reproducibility of WT protein expression after IRS normalization,
 # This can also be done after fitting the glm, but the number of 
 # reproducible proteins may be inflated.
-message(paste("\nChecking reproducibility of WT protein expression..."))
+#message(paste("\nChecking reproducibility of WT protein expression..."))
 
 # Split the data into a list of proteins.
-prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
+prot_list <- filt_protein %>% group_by(Accession) %>% group_split()
 names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
-
-# Define a function that checks reproducibility of a protein.
-check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
-				  fun="bicor",threshold=0.8) {
-	# Which proteins are highly reproducible between replicates.
-	# For a given protein, cast the data into a matrix: Fraction ~ Replicate.
-	dt <- prot_list[[protein]] %>% 
-		filter(Treatment == treatment.subset) %>%
-		as.data.table() 
-        dt_temp <- dcast(dt, Genotype ~ Treatment + Channel, 
-		      value.var="Intensity") 
-	value_cols <- grep("_",colnames(dt_temp))
-	dm <- dt_temp %>% dplyr::select(all_of(value_cols)) %>% 
-		as.matrix(rownames.value=dt_temp$Genotype)
-	# missing values can arise in dm if outlier sample was removed.
-	# Calculate the pairwise correlation between samples.
-	opts <- "pairwise.complete.obs"
-	if (fun == "bicor") { cormat <- WGCNA::bicor(log2(dm),
-						     use=opts) }
-	if (fun == "pearson") { cormat <- cor(log2(dm),method="pearson",
-					      use=opts) }
-	if (fun == "spearman") { cormat <- cor(log2(dm),method="spearman",
-					       use=opts) }
-	# Ignore self- and duplicate- comparisons.
-	diag(cormat) <- NA
-	cormat[cormat==0] <- NA
-	cormat[lower.tri(cormat)] <- NA
-	# Melt into a vector of correlation values.
-	x <- reshape2::melt(cormat,na.rm=TRUE,value.name="cor")[["cor"]]
-	# Check if all values are > threshold.
-	check <- sum(x > threshold)
-	return(check)
-}
 
 # Check protein reproducibility.
 check <- list()
@@ -427,16 +399,6 @@ reproducible_prots <- names(which(checks==n))
 message(paste("Number of highly reproducible proteins (potential markers):",
 	      length(reproducible_prots)))
 
-#--------------------------------------------------------------------
-## Regression of genetic background?
-#--------------------------------------------------------------------
-
-## Perform regression of genetic background.
-dt_eblm <- eBLM_regression(norm_protein,groups=c("Genotype","Treatment"),
-			  combine.group="Treatment",combine.var="WT",
-			  batch = "Genotype", fit.to = "WT",
-			  value.var = "Intensity",treatment.ignore="QC")
-
 #---------------------------------------------------------------------
 ## Evaluate protein differential abundance.
 #---------------------------------------------------------------------
@@ -444,61 +406,61 @@ dt_eblm <- eBLM_regression(norm_protein,groups=c("Genotype","Treatment"),
 # Compare WT v Mutant.
 
 # Status.
-message(paste("\nAnalyzing protein differential abundance",
-	      "with EdgeR GLM..."))
+#message(paste("\nAnalyzing protein differential abundance",
+#	      "with EdgeR GLM..."))
 
 # Drop QC samples before EdgeR analysis.
-data_in <- dt_eblm %>% filter(Treatment != "QC")
+#data_in <- dt_eblm %>% filter(Treatment != "QC")
 
 # Asses changes in protein abundance using a glm to account for
 # differences in genetic background (genotype).
 # NOTE: This script combines WTs!
 #data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
-#		  model="~background + group", samples, gene_map)
-data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
-		  model="~0 + group", samples, gene_map)
+#		  #model="~background + group", samples, gene_map)
+#data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
+		  #model="~0 + group", samples, gene_map)
 
 # Extract statistical results from glm data.
-glm_results <- data_glm$results
+#glm_results <- data_glm$results
 
 # Extract data from glm object.
-glm_protein <- data_glm$data
+#glm_protein <- data_glm$data
 
 #--------------------------------------------------------------------
 ## Tidy-up glm statistical results.
 #--------------------------------------------------------------------
 
 # We are interested in the four mutant mouse model contrasts.
-glm_results <- glm_results[c((length(glm_results)-3):length(glm_results))]
-names(glm_results) <- c("Shank3","Syngap1","Ube3a","Shank2")
-glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")] # Sort.
-glm_results <- lapply(glm_results,as.data.table)
+#glm_results <- glm_results[c((length(glm_results)-3):length(glm_results))]
+#names(glm_results) <- c("Shank3","Syngap1","Ube3a","Shank2")
+#glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")] # Sort.
+#glm_results <- lapply(glm_results,as.data.table)
 
 # Summary of DA proteins.
-message(paste0("Summary of differentially abundant proteins at FDR <",
-	      alpha_threshold,":"))
-tab <- sapply(glm_results,function(x) sum(as.numeric(x$FDR) < alpha_threshold))
-knitr::kable(t(tab))
+#message(paste0("Summary of differentially abundant proteins at FDR <",
+#	      alpha_threshold,":"))
+#tab <- sapply(glm_results,function(x) sum(as.numeric(x$FDR) < alpha_threshold))
+#knitr::kable(t(tab))
 
 # Check top gene in each condition.
-message("Top differentially abundant proteins:")
-glm_summary <- sapply(glm_results,function(x) {
-			      x %>% dplyr::select(Symbol) %>% head(3)
-		  })
-dt <- as.data.table(do.call(cbind,glm_summary))
-colnames(dt) <- gsub(".Symbol"," Top3:",colnames(dt))
-knitr::kable(dt)
+#message("Top differentially abundant proteins:")
+#glm_summary <- sapply(glm_results,function(x) {
+#			      x %>% dplyr::select(Symbol) %>% head(3)
+#		  })
+#dt <- as.data.table(do.call(cbind,glm_summary))
+#colnames(dt) <- gsub(".Symbol"," Top3:",colnames(dt))
+#knitr::kable(dt)
 
 # Merge glm_results by shared column names:
-cols <- Reduce(intersect, lapply(glm_results,colnames))
-glm_stats <- lapply(glm_results, function(x) {
-			    as.data.table(x) %>% 
-				    dplyr::select(all_of(cols)) }) %>%
-				    bind_rows(.id="Genotype")
+#cols <- Reduce(intersect, lapply(glm_results,colnames))
+#glm_stats <- lapply(glm_results, function(x) {
+#			    as.data.table(x) %>% 
+#				    dplyr::select(all_of(cols)) }) %>%
+#				    bind_rows(.id="Genotype")
 
 # Annotate with tissue type.
-glm_stats <- tibble::add_column(glm_stats, Tissue = analysis_type,
-				.after="Genotype")
+#glm_stats <- tibble::add_column(glm_stats, Tissue = analysis_type,
+#				.after="Genotype")
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
@@ -520,23 +482,27 @@ myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
 fwrite(tidy_peptide,myfile)
 
 # [output_name]_norm_protein.csv -- final, normalized and regressed data.
+#myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
+#fwrite(norm_protein,myfile)
+
+# [output_name]_norm_protein.csv -- final, normalized and regressed data.
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
-fwrite(norm_protein,myfile)
+fwrite(filt_protein,myfile)
 
 # [output_name]_glm_stats.csv -- tidy statistical results.
-myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
-fwrite(glm_stats,myfile)
+#myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
+#fwrite(glm_stats,myfile)
 
 # [output_name]_glm_protein.csv -- tidy glm fitted protein values.
-myfile <- file.path(rdatdir,paste(output_name,"glm_protein.csv",sep="_"))
-fwrite(glm_protein, myfile)
+#myfile <- file.path(rdatdir,paste(output_name,"glm_protein.csv",sep="_"))
+#fwrite(glm_protein, myfile)
 
 # [output_name]_GLM_Results.xlsx -- statistical results.
-myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
-write_excel(glm_results,myfile)
+#myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
+#write_excel(glm_results,myfile)
 
 # [output_name]_repro_prots.RData -- subset of highly reproducible prots.
-myfile <- file.path(rdatdir,paste0(output_name,"_repro_prots.RData"))
-saveRDS(reproducible_prots,myfile)
+#myfile <- file.path(rdatdir,paste0(output_name,"_repro_prots.RData"))
+#saveRDS(reproducible_prots,myfile)
 
 message("\nDone!")
