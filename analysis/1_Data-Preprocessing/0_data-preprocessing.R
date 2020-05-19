@@ -250,18 +250,6 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 # NOTE: The values of QC samples are not adjusted by ComBat
 # because QC samples were prepared as a seperate batch and
 # represent a single batch.
-x <- rep(c(0,1),each=4)
-names(x) <- c("37649","37648","37659","37653","37651","37654","37652","37655")
-
-x[sub_samples$AnimalID]
-
-sub_samples <- samples %>% filter(Genotype=="Syngap1", Treatment != "QC")
-sub_samples$Batch <- sample(rep(c(0,1),each=4))
-data_combat <- intrabatch_combat(sl_protein, sub_samples, 
-				 group="Syngap1", batch="Batch")
-
-idx <- match(sub_samples$Sample,samples$Sample)
-samples$PrepDate[idx] <- samples$PrepDate[idx] + sub_samples$Batch
 
 # Perform ComBat for each dataset.
 message("\nPerforming ComBat to remove intra-batch batch effect...")
