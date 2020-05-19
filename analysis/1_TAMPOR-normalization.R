@@ -233,7 +233,7 @@ n <- sapply(glm_results,function(x) sum(x$FDR < alpha_threshold))
 knitr::kable(as.data.table(n,keep.rownames="Genotype"))
 
 # Check top gene in each condition.
-message("Top differentially abundant proteins:")
+message("\nTop differentially abundant proteins:")
 knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
 
 #---------------------------------------------------------------------
@@ -243,10 +243,10 @@ knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
 ## Output for downstream analysis:
 
 ## Save key results.
-#message("\nSaving data for downstream analysis.")
+message("\nSaving data for downstream analysis.")
 
-# [output_name]_tidy_peptide.csv -- raw peptide data.
-#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
-#fwrite(tidy_peptide,myfile)
+# [output_name]_norm_protein.csv -- final, normalized data.
+myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
+fwrite(norm_protein,myfile)
 
 message("\nDone!")

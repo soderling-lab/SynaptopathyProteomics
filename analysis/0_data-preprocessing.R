@@ -48,12 +48,12 @@ output_name = analysis_type # Prefix for naming output files.
 # * Intra-batch ComBat.
 # * IRS normalization -- equalizes proteins quantified by different peptides.
 # * Protein level filtering -- remove proteins identified by a single peptide;
-# * remove proteins with too many missing values; remove proteins that are not 
-# * reproducible (exhibit high inter-experimental variablility across the 3x 
-# * biological replicates.
+#      remove proteins with too many missing values; remove proteins that are not 
+#      reproducible (exhibit high inter-experimental variablility across the 3x 
+#      biological replicates.
 # * TAMPOR normalization -- scales WT's to be equal.
-# * Remove sample outtliers.
-# * Fit a glm to assess DA. 
+# * Identify and remove sample outliers.
+# * Fit a glm to assess protein differential abundance. 
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.

@@ -60,26 +60,12 @@ rdatdir <- file.path(root, "rdata")
 # Load final normalized data.
 myfile <- file.path(rdatdir,input_data)
 prot_dt <- fread(myfile)
-head(prot_dt)
-
-# Coerce to data matrix.
-#prot_dt$Abundance <- log2(prot_dt$Intensity)
-#dm <- prot_dt %>% filter(Treatment != "QC") %>% as.data.table() %>%
-#	dcast(Accession ~ Sample, value.var="Abundance") %>%
-#	as.matrix(rownames="Accession")
-
-## Perform regression of genetic background.
-dt_eblm = eBLM_regression(prot_dt,groups=c("Genotype","Treatment"),
-			  combine.group="Treatment",combine.var="WT",
-			  batch = "Genotype", fit.to = "WT",
-			  value.var = "Intensity",treatment.ignore="QC")
 
 #---------------------------------------------------------------------
 ## Generate PCA plot.
 #---------------------------------------------------------------------
 
-plot <- ggplotPCA(dt_eblm,value.var = "Abundance", 
+plot <- ggplotPCA(prot_dt,value.var = "Abundance", 
 		  groups = c("Genotype","Treatment"),
 		  combine.group="Treatment",combine.var="WT",
 		  treatment.ignore = "QC")
-
