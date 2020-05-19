@@ -1,5 +1,5 @@
 glmDA <- function(tp,comparisons=c("Genotype","Treatment"), 
-		  samples, gene_map, alpha = 0.1){
+		  model, samples, gene_map, alpha = 0.1){
 	# Asses Differential Abundance with EdgeR GLM.
 
 	# Imports.
@@ -9,9 +9,6 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 		library(edgeR)
 		library(tibble)
 	})
-
-
-
 
 	# Cast tp into data matrix for EdgeR.
 	tp_in <- tp <- as.data.table(tp)
@@ -30,7 +27,7 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 					   dplyr::select(all_of(comparisons))))
 	names(groups) <- samples$Sample
 
-	# Combine WTs?
+	# Combine WTs.
 	groups[grep("WT",groups)] <- "WT"
 
 	# Annotate dge object with sample groups.
@@ -43,17 +40,11 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 	dge$samples$background <- factor(backgrounds[rownames(dge$samples)],
 					 levels=group_order)
 
-	# Annotate dge object with animal sex.
-	animal_sex <- samples$Sex
-	names(animal_sex) <- samples$Sample
-	dge$samples$sex <- as.factor(animal_sex[rownames(dge$samples)])
-
-	# Create a design matrix for GLM -- using sex as covariate.
-	#design <- model.matrix(~background + sex + group, data = dge$samples)
-
 	# Create a design matrix for GLM -- using blocking model with
 	# genetic background as covariate.
-	design <- model.matrix(~background + group, data = dge$samples)
+	#design <- model.matrix(~background + group, data = dge$samples)
+	cmd <- paste0("model.matrix(",model, ", data = dge$samples)")
+	design <- eval(parse(text=cmd))
 
 	# Estimate dispersion.
 	dge <- estimateDisp(dge, design, robust = TRUE)

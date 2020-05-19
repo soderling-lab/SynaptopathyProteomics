@@ -386,7 +386,6 @@ check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
 	dt <- prot_list[[protein]] %>% 
 		filter(Treatment == treatment.subset) %>%
 		as.data.table() 
-	#dt$Replicate <- as.numeric(as.factor(dt$Channel))
         dt_temp <- dcast(dt, Genotype ~ Treatment + Channel, 
 		      value.var="Intensity") 
 	value_cols <- grep("_",colnames(dt_temp))
@@ -428,6 +427,20 @@ reproducible_prots <- names(which(checks==n))
 message(paste("Number of highly reproducible proteins (potential markers):",
 	      length(reproducible_prots)))
 
+#--------------------------------------------------------------------
+## TAMPOR?
+#--------------------------------------------------------------------
+
+#--------------------------------------------------------------------
+## Regression of genetic background?
+#--------------------------------------------------------------------
+
+## Perform regression of genetic background.
+dt_eblm <- eBLM_regression(norm_protein,groups=c("Genotype","Treatment"),
+			  combine.group="Treatment",combine.var="WT",
+			  batch = "Genotype", fit.to = "WT",
+			  value.var = "Intensity",treatment.ignore="QC")
+
 #---------------------------------------------------------------------
 ## Evaluate protein differential abundance.
 #---------------------------------------------------------------------
@@ -439,12 +452,12 @@ message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
 # Drop QC samples before EdgeR analysis.
-data_in <- norm_protein %>% filter(Treatment != "QC")
+data_in <- dt_eblm %>% filter(Treatment != "QC")
 
 # Asses changes in protein abundance using a glm to account for
 # differences in genetic background (genotype).
 data_glm <- glmDA(data_in,comparisons=c("Genotype","Treatment"),
-	  samples, gene_map)
+		  model="~background + group", samples, gene_map)
 
 # Extract statistical results from glm data.
 glm_results <- data_glm$results

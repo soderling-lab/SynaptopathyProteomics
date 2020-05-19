@@ -286,7 +286,14 @@ results$"PVE" <- PVE[results$Module]
 results$"nSig DT" <- nSigDT[results$Module]
 
 # Sig?
-results$"SigKW & SigDT" <- results$KW.padj < KW_alpha & results$DT.pval < DT_alpha
+is_sig <- results$KW.padj < KW_alpha & results$DT.pval < DT_alpha
+results$"SigKW & SigDT" <- is_sig
+
+#--------------------------------------------------------------------
+##
+#--------------------------------------------------------------------
+save.image()
+quit()
 
 #--------------------------------------------------------------------
 ## Save results.
