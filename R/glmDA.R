@@ -1,6 +1,7 @@
 glmDA <- function(tp,value.var="Abundance",
 		  comparisons=c("Genotype","Treatment"), 
 		  model){
+
 	# Asses Differential Abundance with EdgeR GLM.
 
 	# Imports.
@@ -29,7 +30,7 @@ glmDA <- function(tp,value.var="Abundance",
 	names(all_groups) <- tp_in$Sample
 
 	# Combine WTs.
-	message("\nCombining WT samples!")
+	message("\nWarning: Combining WT samples!")
 	all_groups[grep("WT",all_groups)] <- "WT"
 
 	# Annotate dge object with sample groups.
@@ -81,9 +82,6 @@ glmDA <- function(tp,value.var="Abundance",
 				      return(x)
 			  })
 
-	# Add meta data from input tp.
-	colnames(glm_results)
-
-	# Return list of normalized data and results.
+	glm_results <- lapply(glm_results,as.data.table)
 	return(glm_results)
 }
