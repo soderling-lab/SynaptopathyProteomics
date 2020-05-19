@@ -2,7 +2,7 @@
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
 ## User parameters: the only thing you need to change.
-analysis_type = "Cortex" # Cortex or Striatum
+analysis_type = "Striatum" # Cortex or Striatum
 
 ## Optional parameters:
 rmin = 0

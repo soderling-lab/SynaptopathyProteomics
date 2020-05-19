@@ -11,8 +11,8 @@ analysis_type = "Cortex"
 root = "/mnt/d/projects/SynaptopathyProteomics" 
 
 ## Optional parameters:
-alpha_KW = 0.1
-alpha_DT = 0.05
+KW_alpha = 0.1
+DT_alpha = 0.1
 
 ## Input data in root/rdata:
 input_data <- list("Cortex" = list(
@@ -143,19 +143,20 @@ message(paste0("Percent proteins clustered: ",
 ## Explore changes in module summary expression.
 #---------------------------------------------------------------------
 
-# Calculate Module Eigengenes.
+## Calculate Module Eigengenes.
 # NOTE: Soft power does not influence MEs.
 # NOTE: Do not need to sort partition to be in the same order as dm!
-data_ME <- moduleEigengenes(dm, colors = partition, 
+MEdata_list <- moduleEigengenes(dm, colors = partition, 
 			    excludeGrey = TRUE, softPower = 1, impute = FALSE)
-MEs <- as.matrix(data_ME$eigengenes)
+ME_dm <- as.matrix(MEdata_list$eigengenes)
+
 
 # Create list of MEs.
-ME_list <- lapply(seq(ncol(MEs)), function(x) MEs[, x])
-names(ME_list) <- names(modules)
+ME_list <- setNames(object = lapply(seq(ncol(ME_dm)), function(x) ME_dm[, x]),
+		    nm = names(modules))
 
 # Module membership (KME).
-data_KME <- signedKME(dm, data_ME$eigengenes, 
+data_KME <- signedKME(dm, MEdata_list$eigengenes, 
 		      corFnc = "bicor", outputColumnName = "M")
 KME_list <- lapply(seq(ncol(data_KME)), function(x) {
   v <- vector("numeric", length = nrow(data_KME))
@@ -167,7 +168,7 @@ KME_list <- lapply(seq(ncol(data_KME)), function(x) {
 names(KME_list) <- colnames(data_KME)
 
 # Get Percent Variance explained (PVE).
-PVE <- as.numeric(data_ME$varExplained)
+PVE <- as.numeric(MEdata_list$varExplained)
 names(PVE) <- names(modules)
 medianPVE <- median(PVE)
 message(paste0(
@@ -179,15 +180,24 @@ message(paste0(
 all_groups <- as.character(interaction(samples$Genotype,
 				       samples$Treatment))
 names(all_groups) <- samples$Sample
-groups <- all_groups[rownames(MEs)]
+groups <- all_groups[rownames(ME_dm)]
+
+# Combine WT.
+groups[grep("WT",groups)] <- "WT"
+
+# Coerce to a factor.
+group_levels <- c("WT","Shank2.WT","Shank3.WT","Syngap1.HET","Ube3a.KO")
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
 KW_list <- lapply(ME_list, function(x) {
-  kruskal.test(x ~ groups[names(x)])
+			  # x <- ME_list[[1]]
+			  kruskal.test(x ~ as.factor(groups[names(x)]))
 })
+
+# Combine into a data.table.
 KW_dt <- as.data.table(do.call(rbind, KW_list),keep.rownames="Module") %>% 
-	select(c(1,2,3,4))
+	select(c(1,2,3,4)) # Drop 'method' and 'data.name'
 colnames(KW_dt)[4] <- "pval"
 
 # Correct p-values for n module comparisons.
@@ -198,13 +208,13 @@ KW_dt$padj[KW_dt$padj > 1.0] <- 1
 colnames(KW_dt)[c(-1)] <- paste0("KW.",colnames(KW_dt)[c(-1)])
 
 # Significant modules.
-sigKW_dt <- KW_dt %>% filter(KW.padj < alpha_KW)
-sigModules <- sigKW_dt[["Module"]]
+KWsig_dt <- KW_dt %>% filter(KW.padj < KW_alpha)
+sigModules <- KWsig_dt[["Module"]]
 nSigModules <- length(sigModules)
 
 # Status.
 message(paste0(
-  "Number of modules with significant (p.adj < ", alpha_KW, ")",
+  "Number of modules with significant (p.adj < ", KW_alpha, ")",
   " Kruskal-Wallis test: ", nSigModules, "."
 ))
 
@@ -213,35 +223,38 @@ message(paste0(
 # multiple comparisons!
 
 # Define control group and levels (order) for DunnettTest.
-group_order <- c("Shank2.WT", "Shank2.KO", "Shank3.WT", "Shank3.KO",
-		 "Syngap1.WT","Syngap1.HET","Ube3a.WT","Ube3a.HET")
-
-control_groups <- paste(c("Shank2","Shank3","Syngap1","Ube3a"),"WT", sep = ".")
+control_group <- "WT"
 
 # Loop to perform DTest. 
 # NOTE: This takes several seconds.
 DT_list <- lapply(ME_list, function(x) {
-
-  g <- factor(groups[names(x)], levels = group_order)
-
-  dt_res <- DescTools::DunnettTest(x ~ g, control = control_groups)
-
-  result <- as.data.table(dt_res[[control_group]],keep.rownames="Contrast")
-  return(result)
+  # x <- ME_list[[1]]
+  g <- as.factor(groups[names(x)])
+  levels(g) <- group_levels
+  return({ 
+	  DescTools::DunnettTest(x ~ g, control = control_group)[[control_group]] %>% 
+		  as.data.table(keep.rownames="Contrast") })
 })
 
 # Collect DT results as data.table.
 DT_dt <- bind_rows(DT_list,.id="Module")
-colnames(DT_dt)[c(-1)] <- paste0("DT.",colnames(DT_dt)[c(-1)])
+
+# For every column, add "DT." to its name, except for the column named `Module`.
+idx <- which(colnames(DT_dt) %notin% c("Module","Contrast"))
+colnames(DT_dt)[idx] <- paste0("DT.",colnames(DT_dt)[idx])
+
+# Summarize number of sig tests.
+DT_summary <- DT_dt %>% group_by(Module) %>% 
+	summarize(nSig = sum(DT.pval < KW_alpha)) %>%  as.data.table()
+#knitr::kable(DT_summary)
 
 # Number of modules with significant KW + DT changes.
-nSig_tests <- sapply(DT_list, function(x) sum(x$pval < alpha_DT))
+nSigDT <- sapply(DT_list, function(x) sum(x$pval < DT_alpha))
 message("Summary of Dunnett's test changes for significant modules:")
-nSig_tests[sigModules]
+nSigDT[sigModules]
 
 # Combine modules stats.
 results <- left_join(KW_dt,DT_dt,by="Module")
-colnames(results)
 
 # Module Size.
 results$"Size" <- module_sizes[results$Module]
@@ -249,8 +262,11 @@ results$"Size" <- module_sizes[results$Module]
 # PVE.
 results$"PVE" <- PVE[results$Module]
 
+# NSigDT
+results$"nSig DT" <- nSigDT[results$Module]
+
 # Sig?
-results$"Sig" <- results$KW.padj < alpha_KW & results$DT.pval < alpha_DT
+results$"SigKW & SigDT" <- results$KW.padj < KW_alpha & results$DT.pval < DT_alpha
 
 #--------------------------------------------------------------------
 ## Save results.
@@ -263,7 +279,7 @@ results$Proteins <- sapply(modules[results$Module], function(x) {
 				   paste(ids[names(x)],collapse=";") })
 
 # Save to file.
-myfile <- file.path(tabsdir)
+myfile <- file.path(tabsdir,paste0(analysis_type,"_Module_stats.csv"))
 results %>% as.data.table() %>% fwrite(myfile)
 
 message("\nDone!")

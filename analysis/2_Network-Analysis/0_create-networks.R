@@ -7,7 +7,7 @@
 #' ---
 
 ## User parameters:
-analysis_type = "Striatum"
+analysis_type = "Cortex"
 root = "/mnt/d/projects/SynaptopathyProteomics"
 
 # Input data should be in root/rdata/:
