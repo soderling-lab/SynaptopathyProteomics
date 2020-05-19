@@ -43,3 +43,57 @@ Warning messages:
 Standardizing protein measurements between experiments by IRS normalization.
 
 Filtering proteins...
+Removed proteins identified by one peptide.....: 124
+Removed proteins with too many missing values..: 51
+Removed proteins with any missing QC values....: 605
+Removed proteins with outlier measurements.....: 72
+Final number of reproducibly quantified proteins: 2,786
+
+Final number of samples: 44
+
+Checking reproducibility of WT protein expression...
+Number of highly reproducible proteins (potential markers): 120
+
+Analyzing protein differential abundance with EdgeR GLM...
+Summary of differentially abundant proteins at FDR <0.1:
+
+
+| Shank2| Shank3| Syngap1| Ube3a|
+|------:|------:|-------:|-----:|
+|      2|      5|       1|     4|
+
+Saving data for downstream analysis.
+
+Done!
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Creating Striatum protein co-variation networks.
+
+Performing network enhancement.
+
+Done!
+./3_run-all.sh: line 15: /mnt/d/projects/SynaptopathyProteomics/analysis/2_leidenalg-clustering.R: No such file or directory
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+Evaluating self-preservation of Striatum modules in the Striatum network.
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+Criterion for module preservation/divergence: strong.
+
+Working on partition 1 of 1 ...
+... 62 of 66 modules are preserved.
+
+Done!
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Analyzing Striatum...
+Total number of modules: 61
+Percent proteins clustered: 98.35%.
+Median module coherence (PVE): 83.54%.
+Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
+Summary of Dunnett's test changes for significant modules:
+M19 M22 M24 M25 M28 M30 M42 M49 M54 M58 M60 
+  3   3   4   2   1   3   3   3   2   2   2 
+
+Done!
