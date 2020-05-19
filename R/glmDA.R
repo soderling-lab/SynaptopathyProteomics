@@ -30,7 +30,6 @@ glmDA <- function(tp,value.var="Abundance",
 	names(all_groups) <- tp_in$Sample
 
 	# Combine WTs.
-	message("\nWarning: Combining WT samples!")
 	all_groups[grep("WT",all_groups)] <- "WT"
 
 	# Annotate dge object with sample groups.

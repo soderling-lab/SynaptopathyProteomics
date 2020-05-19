@@ -20,10 +20,6 @@ if (interactive()) {
 	}
 }
 
-## Other optional parameters:
-alpha_threshold = 0.1 # FDR significance threshold.
-sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
-
 ## Input data in root/data/:
 # 1. TMT-samples.csv - sample meta data.
 input_samples = list(Cortex = "Cortex_Samples.csv",
@@ -48,10 +44,11 @@ output_name = analysis_type # Prefix for naming output files.
 # * Intra-batch ComBat.
 # * IRS normalization -- equalizes proteins quantified by different peptides.
 # * Protein level filtering -- remove proteins identified by a single peptide;
-#      remove proteins with too many missing values; remove proteins that are not 
-#      reproducible (exhibit high inter-experimental variablility across the 3x 
+#      remove proteins with too many missing values; 
+#      remove proteins that are not reproducible 
+#      (exhibit high inter-experimental variablility across the 3x 
 #      biological replicates.
-# * TAMPOR normalization -- scales WT's to be equal.
+# * Perform TAMPOR normalization in order to scales WT's to be equal.
 # * Identify and remove sample outliers.
 # * Fit a glm to assess protein differential abundance. 
 

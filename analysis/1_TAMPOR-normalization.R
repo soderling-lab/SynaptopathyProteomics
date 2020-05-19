@@ -63,7 +63,7 @@ TBmiscr::load_all()
 rdatdir <- file.path(root, "rdata")
 
 #---------------------------------------------------------------------
-## Reformat the data for TAMPOR
+## Reformat the data for TAMPOR normalization.
 #---------------------------------------------------------------------
 
 # Collect cortex and striatum data in a list and then bind together.
@@ -107,9 +107,10 @@ rownames(traits) <- traits[,"ID"]
 controls <- unique(filter(combined_dt,Treatment=="WT")[["ID"]])
 
 #---------------------------------------------------------------------
-## TAMPOR Normalization.
+## Perform TAMPOR normalization.
 #---------------------------------------------------------------------
-# Perform TAMPOR normalization.
+
+message("\nPerforming TAMPOR normalization...")
 
 data_tampor <- TAMPOR(
   dat = combined_dm,
@@ -236,6 +237,9 @@ knitr::kable(as.data.table(n,keep.rownames="Genotype"))
 message("\nTop differentially abundant proteins:")
 knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
 
+# Collect stats in a single df.
+glm_stats <- bind_rows(glm_results,.id="Genotype")
+
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
 #---------------------------------------------------------------------
@@ -244,6 +248,10 @@ knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
+
+# [output_name]_glm_stats.csv -- glm stats
+myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
+fwrite(glm_stats,myfile)
 
 # [output_name]_norm_protein.csv -- final, normalized data.
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))

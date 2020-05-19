@@ -24,8 +24,6 @@ if (interactive()) {
 # Input data should be in root/rdata/:
 input_data = list("Cortex" = "Cortex_norm_protein.csv",
 		  "Striatum" = "Striatum_norm_protein.csv")[[analysis_type]]
-#input_data = list("Cortex" = "Cortex_glm_protein.csv",
-#		  "Striatum" = "Striatum_glm_protein.csv")[[analysis_type]]
 
 ## Output for downstream analysis:
 output_name = analysis_type
@@ -53,11 +51,7 @@ TBmiscr::load_all()
 # Directories.
 rdatdir <- file.path(root, "rdata")
 
-#---------------------------------------------------------------------
-## Prepare the data.
-#---------------------------------------------------------------------
-
-# Load final normalized data.
+# Load preprocessed data.
 myfile <- file.path(rdatdir,input_data)
 prot_dt <- fread(myfile)
 
