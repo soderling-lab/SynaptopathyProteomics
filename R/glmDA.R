@@ -63,7 +63,7 @@ glmDA <- function(tp,comparisons=c("Genotype","Treatment"),
 
 	# Extracted fitted values -- tidy.
 	dm_fit <- fit$fitted.values
-	dt_fit <- reshape2::melt(dm_fit,value.name="Abundance")
+	dt_fit <- reshape2::melt(log2(dm_fit),value.name="Abundance")
 	colnames(dt_fit)[c(1,2)] <- c("Accession","Sample")
 	dt_fit$Accession <- as.character(dt_fit$Accession) # Fix columns.
 	dt_fit$Sample <- as.character(dt_fit$Sample)

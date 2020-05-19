@@ -20,9 +20,6 @@ if (interactive()) {
 	}
 }
 
-## DEFAULT project root.
-root = "/mnt/d/projects/SynaptopathyProteomics"
-
 ## Other optional parameters:
 alpha_threshold = 0.1 # FDR significance threshold.
 sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
@@ -36,17 +33,17 @@ input_samples = list(Cortex = "Cortex_Samples.csv",
 input_data = list(Cortex = "Cortex_Peptides.csv",
 		  Striatum = "Striatum_Peptides.csv")[[analysis_type]]
 
-## Output for downstream analysis:
+## Output for downstream analysis, stored in root/rdata/
 output_name = analysis_type # Prefix for naming output files.
+# 1. [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
+# 2. [output_name]_norm_protein      - final preprocessed data.
+# 3. [output_name]_glm_stats.csv     - glm statistical results.
+# 4. [output_name]_glm_protein.csv   - glm fitted protein values.
+# 5. [output_name]_GLM_Results.xlsx  - glm statistical results.
+# 6. [output_name]_repro_prots.RData - potential marker proteins.
 
-# Stored in root/rdata/
-# 0. [output_name]_gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
-# 2. [output_name]_norm_protein     - preprocessed data for TAMPOR.
-# 3. [output_name]_glm_stats.csv    - tidy statistical results.
-
-# Stored in root/tables/
-# 4. [output_name]_GLM_Results.xlsx - glm results results.
+## Final tables, stored in root/tables/
+# 5. [output_name]_GLM_Results.xlsx - glm results results.
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -68,6 +65,7 @@ output_name = analysis_type # Prefix for naming output files.
 # Prepare the R workspace for the analysis. 
 
 # Load renv -- use load NOT activate!
+root <- getrd() # See .Rprofile alias or TBmiscr::getrd().
 renv::load(root)
 
 # Load required packages and functions.
@@ -335,41 +333,31 @@ outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
 		     names(zK)[zK > sample_connectivity_threshold])
 
 # Remove sample outliers.
-final_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
+norm_protein <- filt_protein %>% filter(Sample %notin% outlier_samples)
 
 # Annotate protein data with sample meta data.
 # Shared column names:
-cols <- intersect(colnames(final_protein),colnames(samples))
-final_protein <- left_join(final_protein,samples,by=cols) %>% 
+cols <- intersect(colnames(norm_protein),colnames(samples))
+norm_protein <- left_join(norm_protein,samples,by=cols) %>% 
 	as.data.table()
+
+# Add entrez ids and gene symbols to data.
+idx <- match(norm_protein$Accession,gene_map$uniprot)
+Symbol <- gene_map$symbol[idx]
+Entrez <- gene_map$entrez[idx]
+norm_protein <- tibble::add_column(norm_protein,Symbol,.after="Accession")
+norm_protein <- tibble::add_column(norm_protein,Entrez,.after="Symbol")
 
 # Status:
 if (length(outlier_samples) == 0) {
 	message(paste("\nFinal number of samples:",
-		      length(unique(final_protein$Sample))))
+		      length(unique(norm_protein$Sample))))
 } else {
 	message(paste0("\nRemoved outlier sample(s):\n",
 	       paste(outlier_samples,collapse="\n")))
 	message(paste("Final number of samples:",
-		      length(unique(final_protein$Sample))))
+		      length(unique(norm_protein$Sample))))
 }
-
-#--------------------------------------------------------------------
-## Annotate final normalized data with additional sample meta data.
-#--------------------------------------------------------------------
-
-# Shared column names:
-cols <- intersect(colnames(final_protein),colnames(samples))
-final_protein$Sample <- as.character(final_protein$Sample)
-final_protein <- left_join(final_protein,samples,by=cols) %>% 
-	as.data.table()
-
-# Add entrez ids and gene symbols to data.
-idx <- match(final_protein$Accession,gene_map$uniprot)
-Symbol <- gene_map$symbol[idx]
-Entrez <- gene_map$entrez[idx]
-final_protein <- tibble::add_column(glm_protein,Symbol,.after="Accession")
-final_protein <- tibble::add_column(glm_protein,Entrez,.after="Symbol")
 
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
@@ -386,10 +374,8 @@ final_protein <- tibble::add_column(glm_protein,Entrez,.after="Symbol")
 # reproducible proteins may be inflated.
 message(paste("\nChecking reproducibility of WT protein expression..."))
 
-check_protein <- final_protein
-
 # Split the data into a list of proteins.
-prot_list <- check_protein %>% group_by(Accession) %>% group_split()
+prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
 names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
 
 # Define a function that checks reproducibility of a protein.
@@ -442,10 +428,6 @@ reproducible_prots <- names(which(checks==n))
 message(paste("Number of highly reproducible proteins (potential markers):",
 	      length(reproducible_prots)))
 
-# Save these prots.
-myfile <- file.path(rdatdir,paste0(output_name,"_potential_markers.RData"))
-saveRDS(reproducible_prots,myfile)
-
 #---------------------------------------------------------------------
 ## Evaluate protein differential abundance.
 #---------------------------------------------------------------------
@@ -457,7 +439,7 @@ message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
 # Drop QC samples before EdgeR analysis.
-data_in <- final_protein %>% filter(Treatment != "QC")
+data_in <- norm_protein %>% filter(Treatment != "QC")
 
 # Asses changes in protein abundance using a glm to account for
 # differences in genetic background (genotype).
@@ -469,20 +451,6 @@ glm_results <- data_glm$results
 
 # Extract data from glm object.
 glm_protein <- data_glm$data
-
-# Annotate normalized protein data with sample meta data.
-# Shared column names:
-cols <- intersect(colnames(glm_protein),colnames(samples))
-glm_protein$Sample <- as.character(glm_protein$Sample)
-glm_protein <- left_join(glm_protein,samples,by=cols) %>% 
-	as.data.table()
-
-# Add entrez ids and gene symbols to data.
-idx <- match(glm_protein$Accession,gene_map$uniprot)
-Symbol <- gene_map$symbol[idx]
-Entrez <- gene_map$entrez[idx]
-glm_protein <- tibble::add_column(glm_protein,Symbol,.after="Accession")
-glm_protein <- tibble::add_column(glm_protein,Entrez,.after="Symbol")
 
 #--------------------------------------------------------------------
 ## Tidy-up glm statistical results.
@@ -525,11 +493,12 @@ glm_stats <- tibble::add_column(glm_stats, Tissue = analysis_type,
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
-# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
-# 2. [output_name]_norm_protein     - final preprocessed data.
-# 3. [output_name]_glm_stats.csv    - glm statistical results.
-# 4. [output_name]_glm_protein.csv  - glm fitted protein values.
-# 5. [output_name]_GLM_Results.xlsx - glm statistical results.
+# 1. [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
+# 2. [output_name]_norm_protein      - final preprocessed data.
+# 3. [output_name]_glm_stats.csv     - glm statistical results.
+# 4. [output_name]_glm_protein.csv   - glm fitted protein values.
+# 5. [output_name]_GLM_Results.xlsx  - glm statistical results.
+# 6. [output_name]_repro_prots.RData - potential marker proteins.
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
@@ -540,7 +509,7 @@ fwrite(tidy_peptide,myfile)
 
 # 2. [output_name]_norm_protein.csv -- final, normalized and regressed data.
 myfile <- file.path(rdatdir,paste(output_name,"norm_protein.csv",sep="_"))
-fwrite(final_protein,myfile)
+fwrite(norm_protein,myfile)
 
 # 3. [output_name]_glm_stats.csv -- tidy statistical results.
 myfile <- file.path(rdatdir,paste(output_name,"glm_stats.csv",sep="_"))
@@ -553,5 +522,9 @@ fwrite(glm_protein, myfile)
 # 5. [output_name]_GLM_Results.xlsx -- statistical results.
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
+
+# 6. [output_name]_repro_prots.RData -- subset of highly reproducible prots.
+myfile <- file.path(rdatdir,paste0(output_name,"_repro_prots.RData"))
+saveRDS(reproducible_prots,myfile)
 
 message("\nDone!")

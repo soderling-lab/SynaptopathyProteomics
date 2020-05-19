@@ -29,8 +29,10 @@ input_data = list("Cortex" = "Cortex_norm_protein.csv",
 output_name = analysis_type
 
 # Outputs stored in root/rdata/
-# * [output_name]_Adjm.csv
-# * [output_name]_NE_Adjm.csv
+# * [output_name]_Adjm.csv     - bicor correlation adjacency matrix.
+# * [output_name]_NE_Adjm.csv  - enhanced adjacency matrix (network).
+# * [output_name]_PPI_Adjm.csv - PPI adjacency matrix.
+# * [output_name]_PPI_data.csv - PPI data.
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -49,7 +51,7 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Additional functions.
+# Additional functions in root/R.
 TBmiscr::load_all()
 
 # Directories.
@@ -82,14 +84,6 @@ adjm <- WGCNA::bicor(t(dm))
 # Perform network enhancement.
 message("\nPerforming network enhancement.")
 adjm_ne <- neten(adjm)
-
-# Write correlation matrices to file.
-myfile <- file.path(rdatdir, paste0(output_name,"_Adjm.csv"))
-adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
-
-# Write enhanced networks to file.
-myfile <- file.path(rdatdir, paste0(output_name,"_NE_Adjm.csv"))
-adjm_ne %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
 
 #---------------------------------------------------------------------
 ## Generate the PPI graph.
@@ -163,15 +157,24 @@ message(paste("\nScale free fit of PPI graph:", round(r2, 3)))
 #WRS_test <- wilcox.test(subdf$bicor ~ subdf$ppi, alternative = "less")
 #message(paste("\nWRS P-value:",round(WRS_test$p.value,4)))
 
-# Save PPI adjm to file.
+#--------------------------------------------------------------------
+## Save data for downstream analysis.
+#--------------------------------------------------------------------
+
+## Write correlation matrices to file.
+myfile <- file.path(rdatdir, paste0(output_name,"_Adjm.csv"))
+adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+
+## Write enhanced networks to file.
+myfile <- file.path(rdatdir, paste0(output_name,"_NE_Adjm.csv"))
+adjm_ne %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+
+## Save PPI adjm to file.
 myfile <- file.path(rdatdir,paste0(output_name,"_PPI_Adjm.csv"))
 PPI_adjm %>% as.data.table(keep.rownames="Accession") %>% 
 	fwrite(myfile)
 
-#--------------------------------------------------------------------
-## Save the ppi data.
-#--------------------------------------------------------------------
-
+## Save PPI data.
 # Subset PPIs.
 idx_a <- ppis$osEntrezA %in% all_entrez
 idx_b <- ppis$osEntrezB %in% all_entrez
