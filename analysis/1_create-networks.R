@@ -118,53 +118,6 @@ r2 <- fit$Rsquared.SFT
 message(paste("\nScale free fit of PPI graph:", round(r2, 3)))
 
 #--------------------------------------------------------------------
-## Demonstrate that interacting proteins are highly co-expressed.
-#--------------------------------------------------------------------
-
-# Randomly sample 10,000 edges drawn from interacting and 
-# non-interacting proteins.
-n <- 10000
-
-# Seed seed for reproducibility.
-set.seed(as.numeric(Sys.time()))
-
-# Melt adjm to edge list.
-adjm_edges <- reshape2::melt(adjm,value.name="bicor") %>% as.data.table()
-colnames(adjm_edges)[c(1,2)] <- c("ProtA","ProtB")
-adjm_edges$ProtA <- as.character(adjm_edges$ProtA)
-adjm_edges$ProtB <- as.character(adjm_edges$ProtB)
-head(adjm_edges)
-
-# Melt PPI adjm to edge list.
-rownames(PPI_adjm) <- colnames(PPI_adjm)
-ppi_edges <- reshape2::melt(PPI_adjm,value.name="ppi") %>% as.data.table()
-colnames(ppi_edges)[c(1,2)] <- c("ProtA","ProtB")
-ppi_edges$ProtA <- as.character(ppi_edges$ProtA)
-ppi_edges$ProtB <- as.character(ppi_edges$ProtB)
-head(ppi_edges)
-
-# Combine, yeah its big.
-edges_dt <- left_join(adjm_edges,ppi_edges,by=c("ProtA","ProtB")) %>%
-	as.data.table()
-edges_dt$ppi[is.na(edges_dt$ppi)] <- 0 # Coerce NA to 0.
-head(edges_dt)
-
-# Get random sample.
-df <- as.data.frame(edges_dt)
-idx <- sample(nrow(df),n)
-subdf <- df[idx,]
-
-# Check the mean of each group.
-subdf %>% group_by(ppi) %>% summarize(mean(bicor))
-
-# Calculate WRS p-value.
-# FIXME: Permutation test would be more robust.
-WRS_test <- wilcox.test(subdf$bicor ~ subdf$ppi, alternative = "less")
-
-message(paste("\nWRS P-value:",
-	      formatC(WRS_test$p.value,format="e",digits=3)))
-
-#--------------------------------------------------------------------
 ## Save data for downstream analysis.
 #--------------------------------------------------------------------
 
