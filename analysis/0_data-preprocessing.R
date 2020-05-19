@@ -21,9 +21,10 @@ if (interactive()) {
 }
 
 ## Optional parameters:
-group.WT = FALSE
-scale.WT = FALSE
+group.WT = TRUE
+scale.WT = TRUE
 rand.batch = FALSE
+remove.protein.outliers = FALSE
 alpha_threshold = 0.1
 sample_connectivity_threshold = 2.5
 
@@ -333,7 +334,7 @@ names(uniprot_ignore) <- symbols_ignore
 # Filter proteins.
 filt_protein <- filtProt(irs_protein,
 			 controls="QC",
-			 remove.protein.outliers=TRUE,
+			 remove.protein.outliers=remove.protein.outliers,
 			 ignore = uniprot_ignore,
 			 nbins=5,nSD=4,
 			 summary=TRUE)
