@@ -6,9 +6,23 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## User defined parameters (you only need to change these two):
-analysis_type = "Striatum" # Tissue type for analysis.
-root = "/mnt/d/projects/SynaptopathyProteomics" # Project's root directory.
+## Parse command line arguments:
+if (interactive()) {
+	## If interactive:
+	# User defined parameters (you only need to change these two):
+	analysis_type = "Striatum" # Tissue type for analysis.
+} else if (!interactive()) {
+	## If not interactive, check that only 1 arg is passed.
+	args <- commandArgs(trailingOnly=TRUE)
+	if (length(args) == 1) { 
+		analysis_type = commandArgs(trailingOnly=TRUE)[1]
+	} else { 
+		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
+	}
+}
+
+## DEFAULT project root.
+root = "/mnt/d/projects/SynaptopathyProteomics"
 
 ## Other optional parameters:
 alpha_threshold = 0.1 # FDR significance threshold.

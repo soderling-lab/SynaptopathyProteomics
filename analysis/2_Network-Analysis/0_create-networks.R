@@ -1,13 +1,27 @@
-#!/usr/bin/env Rscript 
+#!/usr/bin/env Rscript
 
 #' ---
-#' title: 
-#' description: generate co-expresion adjacency matrices.
-#' authors: Tyler W. Bradshaw
+#' title:
+#' description:
+#' authors: Tyler W Bradshaw
 #' ---
 
-## User parameters:
-analysis_type = "Cortex"
+## Parse command line arguments:
+if (interactive()) {
+	## If interactive:
+	# User defined parameters (you only need to change these two):
+	analysis_type = "Striatum" # Tissue type for analysis.
+} else if (!interactive()) {
+	## If not interactive, check that only 1 arg is passed.
+	args <- commandArgs(trailingOnly=TRUE)
+	if (length(args) == 1) { 
+		analysis_type = commandArgs(trailingOnly=TRUE)[1]
+	} else { 
+		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
+	}
+}
+
+## DEFAULT project root.
 root = "/mnt/d/projects/SynaptopathyProteomics"
 
 # Input data should be in root/rdata/:

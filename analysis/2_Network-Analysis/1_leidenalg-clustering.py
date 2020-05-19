@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-' Clustering of the protein co-expression graph with Leidenalg.'
+' Clustering of the protein abundance co-variation graph with Leidenalg.'
 
-## User parameters: the only thing you need to change.
-analysis_type = "Striatum" # Cortex or Striatum
+## Parse user defined parameters: the only thing you need to change.
+import argparse
+ap = argparse.ArgumentParser(''' ./1_leidenalg-cluster.py [type] ''')
+ap.add_argument('type',type=str,help=''' The data type to ba analyzed. 
+        Specify either 'Cortex' or 'Striatum'.''')
+args = vars(ap.parse_args())
+analysis_type = args.get('type')
 
 ## Optional parameters:
 rmin = 0
