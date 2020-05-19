@@ -73,7 +73,10 @@ Creating Striatum protein co-variation networks.
 Performing network enhancement.
 
 Done!
-./3_run-all.sh: line 15: /mnt/d/projects/SynaptopathyProteomics/analysis/2_leidenalg-clustering.R: No such file or directory
+Performing Leidenalg clustering of the Enhanced Striatum graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
+Recursively spliting 0 large module(s)...
+... Initial partition: Clustering with 2786 elements and 66 clusters.
+... Final partition: Clustering with 2786 elements and 66 clusters.
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
 Loading functions in SynaptopathyProteomics/R
 Evaluating self-preservation of Striatum modules in the Striatum network.
@@ -89,11 +92,11 @@ Loading functions in SynaptopathyProteomics/R
 
 Analyzing Striatum...
 Total number of modules: 61
-Percent proteins clustered: 98.35%.
+Percent proteins clustered: 97.88%.
 Median module coherence (PVE): 83.54%.
 Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
 Summary of Dunnett's test changes for significant modules:
-M19 M22 M24 M25 M28 M30 M42 M49 M54 M58 M60 
+M19 M22 M24 M25 M28 M30 M42 M49 M53 M57 M59 
   3   3   4   2   1   3   3   3   2   2   2 
 
 Done!

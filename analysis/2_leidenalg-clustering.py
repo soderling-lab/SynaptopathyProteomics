@@ -101,7 +101,7 @@ from os.path import dirname
 
 # Directories.
 here = os.getcwd()
-root = dirname(dirname(here))
+root = dirname(here)
 datadir = os.path.join(root,"rdata")
 funcdir = os.path.join(root,"Py")
 

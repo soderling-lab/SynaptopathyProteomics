@@ -74,7 +74,10 @@ Creating Cortex protein co-variation networks.
 Performing network enhancement.
 
 Done!
-./3_run-all.sh: line 15: /mnt/d/projects/SynaptopathyProteomics/analysis/2_leidenalg-clustering.R: No such file or directory
+Performing Leidenalg clustering of the Enhanced Cortex graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
+Recursively spliting 3 large module(s)...
+... Initial partition: Clustering with 2829 elements and 58 clusters.
+... Final partition: Clustering with 2829 elements and 78 clusters.
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
 Loading functions in SynaptopathyProteomics/R
 Evaluating self-preservation of Cortex modules in the Cortex network.
@@ -82,19 +85,19 @@ Module statistic(s) used to evaluate module preservation: avg.weight, coherence,
 Criterion for module preservation/divergence: strong.
 
 Working on partition 1 of 1 ...
-... 61 of 68 modules are preserved.
+... 60 of 68 modules are preserved.
 
 Done!
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
 Loading functions in SynaptopathyProteomics/R
 
 Analyzing Cortex...
-Total number of modules: 60
-Percent proteins clustered: 96.32%.
-Median module coherence (PVE): 85.38%.
+Total number of modules: 59
+Percent proteins clustered: 95.19%.
+Median module coherence (PVE): 86.34%.
 Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
 Summary of Dunnett's test changes for significant modules:
- M3  M7  M8 M11 M16 M22 M23 M42 M47 M49 M60 
+ M3  M7  M8 M11 M16 M22 M23 M41 M46 M48 M59 
   2   4   2   2   2   2   1   2   2   3   3 
 
 Done!
