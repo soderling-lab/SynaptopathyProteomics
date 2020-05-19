@@ -1,0 +1,45 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading functions in SynaptopathyProteomics/R
+
+Analyzing Striatum...
+
+Creating gene identifier map.
+Warning message:
+In getPPIs::mgi_batch_query(uniprot, quiet = FALSE, download = FALSE) :
+  Unable to map 1 gene identifiers to entrez.
+Mapping missing IDs by hand.
+
+Loading raw peptide data from Proteome Discover.
+
+Performing sample loading normalization.
+
+Imputing a small number of missing peptide values...
+Imputing missing values in group: Shank2
+... Percent missing values: 0.029% (n=148).
+Imputing missing values in group: Shank3
+... Percent missing values: 0.014% (n=73).
+Imputing missing values in group: Syngap1
+... Percent missing values: 0.017% (n=86).
+Imputing missing values in group: Ube3a
+... Percent missing values: 0.02% (n=104).
+
+Removing peptides with irreproducible QC measurements...
+Total number of outlier QC peptides identified: 423
+
+Summarizing proteins as the sum of their peptides.
+
+Performing sample loading normalization between experiments.
+
+Performing ComBat to remove intra-batch batch effect...
+Performing ComBat for group: Shank2
+Initial coorelation between batch and samples: 0.588
+Final coorelation between batch and samples: 0.04 
+
+Warning messages:
+1: For group: Shank3 - Cannot perform ComBat with one batch! 
+2: For group: Syngap1 - Cannot perform ComBat with one batch! 
+3: For group: Ube3a - No detectable batch effect! Not applying ComBat. 
+
+Standardizing protein measurements between experiments by IRS normalization.
+
+Filtering proteins...
