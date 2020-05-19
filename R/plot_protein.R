@@ -24,7 +24,7 @@ plot_protein <- function(norm_protein,glm_stats,protein,alpha=0.1) {
 
 	# Combine data and stats.
 	dt <- left_join(subdt,prot_stats, 
-			by = c("Accession", "Tissue", "Genotype"))
+			by = c("Accession", "Genotype"))
 
 	# Annotate with significance stars.
 	dt$symbol <- ""

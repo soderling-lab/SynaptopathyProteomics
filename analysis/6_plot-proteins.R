@@ -24,6 +24,10 @@ if (interactive()) {
 # Input data should be in root/rdata/:
 input_data = list("Cortex" = "Cortex_norm_protein.csv",
 		  "Striatum" = "Striatum_norm_protein.csv")[[analysis_type]]
+input_stat = list("Cortex" = "Cortex_glm_stats.csv",
+		  "Striatum" = "Striatum_glm_stats.csv")[[analysis_type]]
+input_filt = list("Cortex" = "Cortex_filt_protein.csv",
+		  "Striatum" = "Striatum_filt_protein.csv")[[analysis_type]]
 
 ## Output for downstream analysis:
 output_name = analysis_type
@@ -51,9 +55,26 @@ TBmiscr::load_all()
 # Directories.
 rdatdir <- file.path(root, "rdata")
 
-# Load preprocessed data.
+# Load data before  TAMPOR.
+myfile <- file.path(rdatdir,input_filt)
+filt_dt <- fread(myfile) %>% filter(Treatment != "QC") %>%
+	as.data.table()
+
+# Load final normalized data.
 myfile <- file.path(rdatdir,input_data)
 prot_dt <- fread(myfile)
+
+# Load glm stats.
+myfile <- file.path(rdatdir,input_stat)
+glm_dt <- fread(myfile)
+
+# Generate protein plots.
+proteins <- unique(prot_dt$Accession)
+protein <- sample(proteins,1)
+
+p0 <- plot_protein(filt_dt,glm_dt,protein)
+p1 <- plot_protein(prot_dt,glm_dt,protein)
+cowplot::plot_grid(p0,p1)
 
 #---------------------------------------------------------------------
 ## Generate PCA plot.
