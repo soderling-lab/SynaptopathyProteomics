@@ -19,7 +19,7 @@ figs/
 presentations/
 code/4_WPCNA-Optimization/wtAdjm.csv
 rdata/
-tables/
+tables
 pydata
 figs/
 .Ruserdata

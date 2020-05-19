@@ -264,8 +264,12 @@ DT_summary <- DT_dt %>% group_by(Module) %>%
 
 # Number of modules with significant KW + DT changes.
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < DT_alpha))
-message("Summary of Dunnett's test changes for significant modules:")
-nSigDT[sigModules]
+#message("Summary of Dunnett's test changes for significant modules:")
+message(paste0(
+  "Number of significant (p.adj < ", DT_alpha, ")",
+  " Dunnett's test post-hoc test(s): ", nSigModules, "."
+))
+knitr::kable(t(nSigDT[sigModules]))
 
 # Combine modules stats.
 results <- left_join(KW_dt,DT_dt,by="Module")

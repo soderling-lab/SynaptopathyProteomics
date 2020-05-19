@@ -482,6 +482,15 @@ message(paste0("Summary of differentially abundant proteins at FDR <",
 tab <- sapply(glm_results,function(x) sum(as.numeric(x$FDR) < alpha_threshold))
 knitr::kable(t(tab))
 
+# Check top gene in each condition.
+message("Top differentially abundant proteins:")
+glm_summary <- sapply(glm_results,function(x) {
+			      x %>% dplyr::select(Symbol) %>% head(3)
+		  })
+dt <- as.data.table(do.call(cbind,glm_summary))
+colnames(dt) <- gsub(".Symbol"," Top3:",colnames(dt))
+knitr::kable(dt)
+
 # Merge glm_results by shared column names:
 cols <- Reduce(intersect, lapply(glm_results,colnames))
 
