@@ -82,6 +82,7 @@ glmDA <- function(tp,value.var="Abundance",
 			  })
 
 	# Add meta data from input tp.
+	colnames(glm_results)
 
 	# Return list of normalized data and results.
 	return(glm_results)
