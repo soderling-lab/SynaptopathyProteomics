@@ -6,15 +6,6 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-<<<<<<< HEAD:analysis/1_Data-Preprocessing/0_data-preprocessing.R
-## User defined parameters (you only need to change these two):
-analysis_type = "Striatum" # Tissue type for analysis:
-root = "/mnt/d/projects/SynaptopathyProteomics" # Project root directory:
-
-## Other optional parameters:
-alpha_threshold = 0.1 # FDR significance threshold.
-sample_connectivity_threshold = 2.5 # Sample level outlier threshold. 
-=======
 ## Parse command line arguments:
 if (interactive()) {
 	# If interactive, then define analysis_type:
@@ -28,7 +19,6 @@ if (interactive()) {
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
 }
->>>>>>> 24137d921daf153be0f9a635fbef3b2cdaf8efe6:analysis/0_data-preprocessing.R
 
 ## Input data in root/data/:
 # 1. TMT-samples.csv - sample meta data.
@@ -41,17 +31,10 @@ input_data = list(Cortex = "Cortex_Peptides.csv",
 
 ## Output for downstream analysis, stored in root/rdata/
 output_name = analysis_type # Prefix for naming output files.
-<<<<<<< HEAD:analysis/1_Data-Preprocessing/0_data-preprocessing.R
 
 # Stored in root/rdata/
-# 0. [output_name]_gene_map.RData   - gene identifier map.
-# 1. [output_name]_tidy_peptide.csv - tidy, raw peptide data.
-# 2. [output_name]_norm_protein.csv - final, normalized data matrix.
-# 3.
-=======
 # * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
 # * [output_name]_norm_protein      - final preprocessed data.
->>>>>>> 24137d921daf153be0f9a635fbef3b2cdaf8efe6:analysis/0_data-preprocessing.R
 
 ## Order of data processing operations:
 # * Load the data from PD.
@@ -78,6 +61,7 @@ output_name = analysis_type # Prefix for naming output files.
 
 # Load renv -- use load NOT activate!
 root <- getrd() # See .Rprofile alias or TBmiscr::getrd().
+
 renv::load(root)
 
 # Load required packages and functions.
@@ -346,6 +330,124 @@ Symbol <- gene_map$symbol[idx]
 Entrez <- gene_map$entrez[idx]
 filt_protein <- tibble::add_column(filt_protein,Symbol,.after="Accession")
 filt_protein <- tibble::add_column(filt_protein,Entrez,.after="Symbol")
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+
+# Scale WT.
+norm_protein <- normIRS(filt_protein,controls="WT",robust=TRUE)
+
+#---------------------------------------------------------------------
+## Identify Sample outliers.
+#---------------------------------------------------------------------
+
+# Calculate Oldham's normalized sample connectivity (zK) in order to 
+# identify outlier samples.
+# This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
+zK <- sampleConnectivity(norm_protein %>% filter(Treatment != "QC"))
+
+# Outliers:
+sample_connectivity_threshold = 2.5
+outlier_samples <- c(names(zK)[zK < -sample_connectivity_threshold],
+		     names(zK)[zK > sample_connectivity_threshold])
+
+# Remove sample outliers.
+norm_protein <- norm_protein %>% filter(Sample %notin% outlier_samples)
+
+# Status:
+if (length(outlier_samples) == 0) {
+	message(paste("\nFinal number of samples:",
+		      length(unique(norm_protein$Sample))))
+} else {
+	message(paste0("\nRemoved outlier sample(s):\n",
+	       paste(outlier_samples,collapse="\n")))
+	message(paste("Final number of samples:",
+		      length(unique(norm_protein$Sample))))
+}
+
+#--------------------------------------------------------------------
+## Identify subset of highly reproducible proteins
+#--------------------------------------------------------------------
+# NOTE: scaling WT's to be equal scrubs WT variability and consequently,
+# there are few to zero 'highly reproducible' proteins.
+
+# A 'highly reproducible' protein is a protein whose expression profile
+# is highly reproducible-- that is, any given WT sample is highly coorelated
+# with all other WT replicates.
+
+# Check reproducibility of WT protein expression after IRS normalization,
+# This can also be done after fitting the glm, but the number of 
+# reproducible proteins may be inflated.
+message(paste("\nChecking reproducibility of WT protein expression..."))
+
+# Split the data into a list of proteins.
+prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
+names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
+
+# Check protein reproducibility.
+check <- list()
+for (prot in names(prot_list)) {
+	check[[prot]] <- check_reproducibility(prot_list, prot,
+				       treatment.subset="WT",
+				       fun="pearson",
+				       threshold=0.8)
+}
+
+# Status.
+checks <- unlist(check)
+n <- max(checks)
+reproducible_prots <- names(which(checks==n))
+message(paste("Number of highly reproducible proteins (potential markers):",
+	      length(reproducible_prots)))
+
+#---------------------------------------------------------------------
+## Evaluate protein differential abundance.
+#---------------------------------------------------------------------
+# Use EdgeR glm to evaluate differential protein abundance.
+# Compare WT v Mutant.
+
+# Status.
+message(paste("\nAnalyzing protein differential abundance",
+	      "with EdgeR GLM..."))
+
+# Asses changes in protein abundance using a glm to account for
+# differences in genetic background (genotype).
+# NOTE: This script combines WTs!
+
+## Pick a model
+# model = "~0 + group"
+comparisons = c("Genotype","Treatment")
+model = "~background + group"
+glm_results <- glmDA(norm_protein, comparisons, model, value.var="Abundance")
+
+# Extract contrasts of interest.
+idx <- c((length(glm_results)-3):length(glm_results))
+glm_results <- glm_results[idx]
+names(glm_results) <-  c("Shank3","Syngap1","Ube3a","Shank2")
+
+#  Annotate with gene IDs.
+f <- function(x) {
+	Symbol <- norm_protein$Symbol[match(x$Accession,norm_protein$Accession)]
+	Entrez <- norm_protein$Entrez[match(x$Accession,norm_protein$Accession)]
+	x <-  tibble::add_column(x,Symbol,.after="Accession")
+	x <- tibble::add_column(x,Entrez,.after="Symbol")
+	return(x)
+}
+glm_results <- lapply(glm_results,f)
+glm_results <- glm_results[c("Shank2","Shank3","Syngap1","Ube3a")] # Sort
+
+# Summary of DA proteins.
+message(paste0("Summary of differentially abundant proteins at FDR <",
+	      alpha_threshold,":"))
+n <- sapply(glm_results,function(x) sum(x$FDR < alpha_threshold))
+knitr::kable(as.data.table(n,keep.rownames="Genotype"))
+
+# Check top gene in each condition.
+message("\nTop differentially abundant proteins:")
+knitr::kable(sapply(glm_results,function(x) head(x$Symbol,3)))
+
+# Collect stats in a single df.
+glm_stats <- bind_rows(glm_results,.id="Genotype")
 
 #---------------------------------------------------------------------
 ## Save output for downstream analysis.
