@@ -10,7 +10,7 @@
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):
-	analysis_type = "Striatum" # Tissue type for analysis.
+	analysis_type = "Cortex" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
@@ -22,8 +22,8 @@ if (interactive()) {
 }
 
 # Input data should be in root/rdata/:
-input_data = list("Cortex" = "Cortex_norm_protein.csv",
-		  "Striatum" = "Striatum_norm_protein.csv")[[analysis_type]]
+input_data = list("Cortex" = "Cortex_final_protein.csv",
+		  "Striatum" = "Striatum_final_protein.csv")[[analysis_type]]
 
 ## Output for downstream analysis:
 output_name = analysis_type

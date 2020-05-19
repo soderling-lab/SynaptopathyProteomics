@@ -1,4 +1,4 @@
-glmDA <- function(tp,treatment.ignore = "QC", value.var="Abundance",
+glmDA <- function(tp,treatment.ignore = "QC", value.var="Intensity",
 		  comparisons=c("Genotype","Treatment"), 
 		  combine.WT=FALSE){
 

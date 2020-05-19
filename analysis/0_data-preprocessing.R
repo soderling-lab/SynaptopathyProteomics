@@ -22,6 +22,8 @@ if (interactive()) {
 
 ## Optional parameters:
 group.WT = FALSE
+scale.WT = FALSE
+rand.batch = FALSE
 alpha_threshold = 0.1
 sample_connectivity_threshold = 2.5
 
@@ -35,7 +37,18 @@ input_data = list(Cortex = "Cortex_Peptides.csv",
 		  Striatum = "Striatum_Peptides.csv")[[analysis_type]]
 
 ## Output for downstream analysis, stored in root/rdata/
-output_name = analysis_type # Prefix for naming output files.
+if (group.WT) {
+	output_name = paste(analysis_type,"grouped_WT",sep="_")
+} else {
+	output_name = analysis_type # Prefix for naming output files.
+}
+
+if (scale.WT) {
+	output_name = paste(output_name,"scaled_WT",sep="_")
+} else {
+	# pass
+	output_name = output_name
+}
 
 # Stored in root/rdata/
 # * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
@@ -116,14 +129,15 @@ ig_prots <- c("P01631","P01646","P01665","P01680","P01746","P01750",
 	      "P01786","P01864","P01878","P03975","P06330","P03987")
 peptides <- peptides %>% filter(Accession %notin% ig_prots)
 
-# Collect all uniprot IDs.
-uniprot <- unique(peptides$Accession)
+# Collect all uniprot accession IDs.
+all_accession <- unique(peptides$Accession)
 
 # Map Uniprot IDs to entrez using MGI database.
-# This takes a couple minutes because the function currently
-# downloads the MGI data each time the function is called.
-entrez <- getPPIs::mgi_batch_query(uniprot,quiet=FALSE,download=FALSE)
-names(entrez) <- uniprot
+# This can take a couple minutes if download == TRUE, as 
+# the function currently downloads the MGI data each time it 
+# is function is called.
+entrez <- getPPIs::mgi_batch_query(all_accession,quiet=FALSE,download=FALSE)
+names(entrez) <- all_accession
 
 # Map any missing ids by hand.
 not_mapped <- is.na(entrez)
@@ -149,10 +163,10 @@ check <- sum(is.na(symbols)) == 0
 if (!check) { stop("Unable to map all Entrez IDs to gene Symbols!") }
 
 # Create mapping data.table.
-gene_map <- data.table(uniprot = names(entrez),
-                       entrez = entrez,
-	               symbol = symbols)
-gene_map$id <- paste(gene_map$symbol,gene_map$uniprot,sep="|")
+gene_map <- data.table(Accession = names(entrez),
+                       Entrez = entrez,
+	               Symbol = symbols)
+gene_map$ID <- paste(gene_map$Symbol,gene_map$Accession,sep="|")
 
 #---------------------------------------------------------------------
 ## Tidy-up the input data from Proteome Discover.
@@ -194,7 +208,7 @@ sl_peptide <- normSL(tidy_peptide, groupBy=c("Genotype","Sample"))
 message("\nImputing a small number of missing peptide values...")
 
 imputed_peptide <- imputeKNNpep(sl_peptide, groupBy="Genotype",
-				samples_to_ignore="QC",quiet=FALSE) 
+				ignore.samples="QC",quiet=FALSE) 
 
 #---------------------------------------------------------------------
 ## Examine reproducibility of QC measurements.
@@ -247,6 +261,15 @@ sl_protein <- normSL(proteins, groupBy="Sample")
 # NOTE: The values of QC samples are not adjusted by ComBat
 # because QC samples were prepared as a seperate batch and
 # represent a single batch.
+
+if (rand.batch){
+	idx <- grepl("Syngap1",samples$Sample) & !grepl("QC",samples$Treatment)
+	set.seed(as.numeric(Sys.time()))
+	samples$PrepDate[idx] <- sample(c(rep(0,4),rep(1,4)))
+	x = samples$PrepDate[idx]
+	names(x) <- samples$Sample[idx]
+	print(x)
+}
 
 # Perform ComBat for each dataset.
 message("\nPerforming ComBat to remove intra-batch batch effect...")
@@ -304,7 +327,7 @@ message(paste("\nFiltering proteins..."))
 
 # Ignore proteins encoded by manipulated genes.
 symbols_ignore = c("Shank2","Shank3","Syngap1","Ube3a")
-uniprot_ignore <- gene_map$uniprot[match(symbols_ignore,gene_map$symbol)]
+uniprot_ignore <- gene_map$Accession[match(symbols_ignore,gene_map$Symbol)]
 names(uniprot_ignore) <- symbols_ignore
 
 # Filter proteins.
@@ -320,28 +343,15 @@ check <- sum(is.na(filt_protein$Intensity)) == 0
 if (!check) { stop("Why are there missing values!") }
 
 #---------------------------------------------------------------------
-## Annotate filtered protein data with sample information.
-#---------------------------------------------------------------------
-
-# Annotate protein data with sample meta data.
-# Shared column names:
-cols <- intersect(colnames(filt_protein),colnames(samples))
-filt_protein <- left_join(filt_protein,samples,by=cols) %>% 
-	as.data.table()
-
-# Add entrez ids and gene symbols to data.
-idx <- match(filt_protein$Accession,gene_map$uniprot)
-Symbol <- gene_map$symbol[idx]
-Entrez <- gene_map$entrez[idx]
-filt_protein <- tibble::add_column(filt_protein,Symbol,.after="Accession")
-filt_protein <- tibble::add_column(filt_protein,Entrez,.after="Symbol")
-
-#---------------------------------------------------------------------
 ## Scale WT's to be ~equal.
 #---------------------------------------------------------------------
 
-# Scale WT.
-scale_protein <- normIRS(filt_protein,controls="WT",robust=TRUE)
+# Scale WT?
+if (scale.WT) {
+	scale_protein <- normIRS(filt_protein,controls="WT",robust=TRUE)
+} else {
+	scale_protein <- filt_protein
+}
 
 #---------------------------------------------------------------------
 ## Identify Sample outliers.
@@ -366,7 +376,6 @@ while (i < 5) {
 		  names(zk)[zk < -sample_connectivity_threshold],
 		  names(zk)[zk > sample_connectivity_threshold])
 	})
-	if (length(outlier_samples) == 0) { continue }
 	i = i + 1
 }
 
@@ -384,6 +393,23 @@ if (length(outlier_samples) == 0) {
 	message(paste("Final number of samples:",
 		      length(unique(final_protein$Sample))))
 }
+
+#---------------------------------------------------------------------
+## Annotate final protein data with sample information.
+#---------------------------------------------------------------------
+
+# Annotate protein data with sample meta data.
+# Shared column names:
+cols <- intersect(colnames(final_protein),colnames(samples))
+final_protein <- left_join(final_protein,samples,by=cols) %>% 
+	as.data.table()
+
+# Add entrez ids and gene symbols to data.
+idx <- match(final_protein$Accession,gene_map$Accession)
+Symbol <- gene_map$Symbol[idx]
+Entrez <- gene_map$Entrez[idx]
+final_protein <- tibble::add_column(final_protein,Symbol,.after="Accession")
+final_protein <- tibble::add_column(final_protein,Entrez,.after="Symbol")
 
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
@@ -435,7 +461,7 @@ if (group.WT) {
 	# within a genotype.
 	comparisons = c("Genotype","Treatment")
 	glm_results <- glmDA(final_protein, treatment.ignore = "QC", 
-			     comparisons, value.var="Abundance",
+			     comparisons, value.var="Intensity",
 			     combine.WT = TRUE)
 } else {
 	# Perform analysis WITH WT grouping.
@@ -443,23 +469,23 @@ if (group.WT) {
 	# differences in genetic background (genotype).
 	comparisons = c("Genotype","Treatment")
 	glm_results <- glmDA(final_protein, treatment.ignore = "QC", 
-			     comparisons, value.var="Abundance",
+			     comparisons, value.var="Intensity",
 			     combine.WT = FALSE)
 }
 
-#  Annotate with gene IDs.
-f <- function(x) {
-	idx <- match(x$Accession,final_protein$Accession)
-	Symbol <- final_protein$Symbol[idx]
-	Entrez <- final_protein$Entrez[idx]
+#  Annotate glm_results with gene identifiers.
+annotate_genes <- function(x) {
+	idx <- match(x$Accession,gene_map$Accession)
+	Symbol <- gene_map$Symbol[idx]
+	Entrez <- gene_map$Entrez[idx]
 	x <-  tibble::add_column(x,Symbol,.after="Accession")
 	x <- tibble::add_column(x,Entrez,.after="Symbol")
 	return(x)
 }
-glm_results <- lapply(glm_results,f)
+glm_results <- lapply(glm_results,annotate_genes)
 
 # Summary of DA proteins.
-message(paste0("Summary of differentially abundant proteins at FDR <",
+message(paste0("\nSummary of differentially abundant proteins at FDR <",
 	      alpha_threshold,":"))
 n <- sapply(glm_results,function(x) sum(x$FDR < alpha_threshold))
 knitr::kable(as.data.table(n,keep.rownames="Genotype"))
@@ -476,18 +502,16 @@ glm_stats <- bind_rows(glm_results,.id="Genotype")
 #---------------------------------------------------------------------
 
 ## Output for downstream analysis:
-# * [output_name]_tidy_peptide.csv  - tidy, raw peptide data.
-# * [output_name]_filt_protein      - final preprocessed data.
 
 ## Save key results.
 message("\nSaving data for downstream analysis.")
 
 # [output_name]_tidy_peptide.csv -- raw peptide data.
-#myfile <- file.path(rdatdir,paste(output_name,"tidy_peptide.csv",sep="_"))
-#fwrite(tidy_peptide,myfile)
+myfile <- file.path(rdatdir,paste(output_name,"final_protein.csv",sep="_"))
+fwrite(final_protein,myfile)
 
-# [output_name]_norm_protein.csv -- final, normalized and regressed data.
-#myfile <- file.path(rdatdir,paste(output_name,"filt_protein.csv",sep="_"))
-#fwrite(filt_protein,myfile)
+# [output_name]_GLM_Results.xlsx
+myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
+write_excel(glm_results,myfile)
 
 message("\nDone!")

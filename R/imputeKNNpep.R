@@ -1,5 +1,6 @@
-imputeKNNpep <- function(tp,groupBy=NULL, samples_to_ignore = NULL,
-		      colID="Abundance",max_percent_missing=0.5,
+imputeKNNpep <- function(tp,groupBy=NULL, ignore.samples = NULL,
+		      sample.col.id="Abundance",
+		      max_percent_missing=0.5,
 		      quiet=TRUE) {
 
 	# Imports.
@@ -49,13 +50,15 @@ imputeKNNpep <- function(tp,groupBy=NULL, samples_to_ignore = NULL,
 		opts <- paste(names(opts),opts,sep="=")
 		cmd <- paste0("dcast(tp_input, ", y, " ~ ", x,", ",opts,")")
 		df <- eval(parse(text=cmd))
-		idy <- grep(colID,colnames(df))
+		idy <- grep(sample.col.id,colnames(df))
+
 		dm <- df %>% dplyr::select(all_of(idy))
+
 		dm <- as.matrix(dm)
 
 		# Determine maximum allowable number of missing values.
 		N <- ncol(dm)
-		idy <- grep(samples_to_ignore,colnames(dm))
+		idy <- grep(ignore.samples,colnames(dm))
 		n <- N - length(idy)
 		limit <- n * max_percent_missing
 
