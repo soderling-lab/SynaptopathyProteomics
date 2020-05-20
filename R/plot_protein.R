@@ -1,4 +1,4 @@
-plot_protein <- function(norm_protein,glm_stats,protein,alpha=0.1) {
+plot_protein <- function(norm_protein,value.var="Abundance",protein,alpha=0.1) {
 
 	# Generate protein plot.
 	# Subset the data.
@@ -15,24 +15,27 @@ plot_protein <- function(norm_protein,glm_stats,protein,alpha=0.1) {
 			  "gray","green","gray","purple")
 	
 	# Subset the data.
-	subdt <- norm_protein %>% filter(Accession == protein) %>%
+	subdt <- norm_protein %>% filter(Treatment != "QC",
+					 Accession == protein) %>%
 		as.data.table() %>% 
-		dplyr::select(Accession,Tissue,Genotype,Treatment,Intensity)
+		dplyr::select(Accession,Symbol,Tissue,Genotype,
+			      Treatment,Intensity,Abundance)
+	dt <- subdt
 
 	# Collect FDR stats.
-	prot_stats <- glm_stats %>% filter(Accession == protein)
+	#prot_stats <- glm_stats %>% filter(Accession == protein)
 
 	# Combine data and stats.
-	dt <- left_join(subdt,prot_stats, 
-			by = c("Accession", "Genotype"))
+	#dt <- left_join(subdt,prot_stats, 
+	#		by = c("Accession", "Genotype"))
 
 	# Annotate with significance stars.
-	dt$symbol <- ""
-	dt$symbol[dt$FDR<0.1] <- "."
-	dt$symbol[dt$FDR<0.05] <- "*"
-	dt$symbol[dt$FDR<0.005] <- "**"
-	dt$symbol[dt$FDR<0.0005] <- "***"
-	dt$ypos <- 1.02*log2(dt$Intensity)
+	#dt$symbol <- ""
+	#dt$symbol[dt$FDR<0.1] <- "."
+	#dt$symbol[dt$FDR<0.05] <- "*"
+	#dt$symbol[dt$FDR<0.005] <- "**"
+	#dt$symbol[dt$FDR<0.0005] <- "***"
+	#dt$ypos <- 1.02*log2(dt$Intensity)
 
 	# Plot title: symbol|accession
 	mytitle <- unique(paste(dt$Symbol,dt$Accession,sep="|"))
@@ -42,7 +45,7 @@ plot_protein <- function(norm_protein,glm_stats,protein,alpha=0.1) {
 	dt$group <- factor(dt$group,levels=group_levels)
 
 	# Generate the box plot.
-	plot <- ggplot(dt, aes(x = group, y = log2(Intensity), fill = group)) + 
+	plot <- ggplot(dt, aes(x = group, y = log2(Abundance), fill = group)) + 
                 geom_boxplot() + ggtitle(mytitle) + 
 		ylab("Log2(Abundance)") + xlab("")
 

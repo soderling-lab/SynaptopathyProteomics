@@ -6,14 +6,14 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## Parse command line arguments:
+## If running interactively, define the tissue type to be analyzed:
 if (interactive()) {
-	# If interactive, then define analysis_type:
-	analysis_type = "Cortex" # Tissue type for analysis.
+	analysis_type = "Cortex"
+## Otherwise, parse command line arguments:
 } else if (!interactive()) {
-	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
 	if (length(args) == 1) { 
+		# Check that only 1 arg is passed.
 		analysis_type = commandArgs(trailingOnly=TRUE)[1]
 	} else { 
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
@@ -21,12 +21,15 @@ if (interactive()) {
 }
 
 ## Optional parameters:
+alpha_threshold = 0.1
+sample_connectivity_threshold = 2.5
+n_threads = parallel::detectCores()
+
+## Processing switches
 group.WT = FALSE
 scale.WT = FALSE
 rand.batch = FALSE
 remove.protein.outliers = FALSE
-alpha_threshold = 0.1
-sample_connectivity_threshold = 2.5
 
 ## Input data in root/data/:
 # 1. TMT-samples.csv - sample meta data.
@@ -275,6 +278,7 @@ if (rand.batch){
 # Perform ComBat for each dataset.
 message("\nPerforming ComBat to remove intra-batch batch effect...")
 all_combat <- function(sl_protein,samples) {
+	# intrabatch_combat returns the input data, adjusted for batch effect.
 	data_combat <- intrabatch_combat(sl_protein, samples, 
 					 group="Shank2", batch="PrepDate")
 	data_combat <- intrabatch_combat(data_combat, samples, 
@@ -297,11 +301,10 @@ combat_protein <- all_combat(sl_protein,samples)
 # identify outlier samples.
 sample_connectivity_threshold = 2.5
 zK <- sampleConnectivity(combat_protein %>% filter(Treatment == "QC"))
-
 qc_outliers <- c(names(zK)[zK < -sample_connectivity_threshold],
 		     names(zK)[zK > sample_connectivity_threshold])
 
-# There are no QC sample outliers.
+# Check, there should be no QC sample outliers.
 check <- length(qc_outliers) == 0
 if (!check) { stop("Why are there outlier samples?") }
 
@@ -355,17 +358,19 @@ if (scale.WT) {
 }
 
 #---------------------------------------------------------------------
-## Identify Sample outliers.
+## Check for sample outliers -- remove if found.
 #---------------------------------------------------------------------
 
 # Calculate Oldham's normalized sample connectivity (zK) in order to 
 # identify outlier samples.
 # This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
-i = 0
-outlier_samples <- NULL
+
 n_samples <- length(unique(scale_protein$Sample))
 message(paste("Initial number of samples:",n_samples))
 
+# Loop to iteratively remove outliers.
+i = 0
+outlier_samples <- NULL
 while (i < 5) {
 	zk <- sampleConnectivity({
 		scale_protein %>% 
@@ -412,6 +417,61 @@ Entrez <- gene_map$Entrez[idx]
 final_protein <- tibble::add_column(final_protein,Symbol,.after="Accession")
 final_protein <- tibble::add_column(final_protein,Entrez,.after="Symbol")
 
+#---------------------------------------------------------------------
+## DO TAMPOR HERE.
+#---------------------------------------------------------------------
+
+# Define experimental batches:
+batch <- interaction(final_protein$Tissue,final_protein$Genotype) %>% 
+	as.numeric()
+batch <- paste0("b",batch)
+
+# Annotate data with batch and batch.channel (ID).
+final_protein$batch <- batch
+final_protein$ID <- interaction(batch,final_protein$Channel) %>% 
+	as.character()
+
+# Cast into a data.matrix for TAMPOR.
+dm <- final_protein %>% dcast(Accession ~ ID, value.var="Intensity") %>% 
+	as.matrix(rownames="Accession")
+
+# Check: there should be no rows with missing values at this point.
+missing_vals <- apply(dm,1,function(x) any(is.na(x)))
+if (sum(missing_vals) > 0) {
+	message(paste("\nRemoving", sum(missing_vals),
+		      "rows that contain missing values."))
+	dm <- dm[!missing_vals,]
+}
+
+# Define traits df for TAMPOR.
+# Traits must include batch and ID columns.
+traits <- final_protein %>% dplyr::select(batch,ID) %>% unique()
+traits <- as.data.frame(traits)
+rownames(traits) <- traits[,"ID"] # rownames must be batch.channel.
+
+# Define controls or global internal standards (GIS) for 
+# TAMPOR normalization. Use all WT samples. 
+controls <- unique(filter(final_protein,Treatment=="WT")[["ID"]])
+
+# Define samples to be ignored -- QC samples.
+qc_samples <- unique(filter(final_protein,Treatment=="QC")[["ID"]])
+
+# Perform the normalization.
+data_tampor <- TAMPOR(dat = dm, traits = traits, batchPrefixInSampleNames = TRUE,
+		      samplesToIgnore = qc_samples, GISchannels = controls, parallelThreads = n_threads)
+
+# Collect normalized, relative abundance data post-TAMPOR.
+tampor_protein <- data_tampor$cleanRelAbun %>% 
+	reshape2::melt(value.name="Abundance")
+colnames(tampor_protein)[c(1,2)] <- c("Accession","ID")
+
+# Clean-up and merge with input data.
+tampor_protein$ID <- as.character(tampor_protein$ID)
+tampor_protein$Accession <- as.character(tampor_protein$Accession)
+norm_protein <- left_join(final_protein,tampor_protein,by=c("Accession","ID"))
+norm_protein$batch <- NULL
+norm_protein$ID <- NULL
+
 #--------------------------------------------------------------------
 ## Identify subset of highly reproducible proteins
 #--------------------------------------------------------------------
@@ -428,7 +488,7 @@ final_protein <- tibble::add_column(final_protein,Entrez,.after="Symbol")
 message(paste("\nChecking reproducibility of WT protein expression..."))
 
 # Split the data into a list of proteins.
-prot_list <- final_protein %>% group_by(Accession) %>% group_split()
+prot_list <- norm_protein %>% group_by(Accession) %>% group_split()
 names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
 
 # Check protein reproducibility.
@@ -457,20 +517,22 @@ message(paste("Number of highly reproducible proteins (potential markers):",
 message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
+group.WT = TRUE
+
 if (group.WT) {
 	# Perform analysis without WT grouping. All contrasts are performed
 	# within a genotype.
 	comparisons = c("Genotype","Treatment")
-	glm_results <- glmDA(final_protein, treatment.ignore = "QC", 
-			     comparisons, value.var="Intensity",
+	glm_results <- glmDA(norm_protein, treatment.ignore = "QC", 
+			     comparisons, value.var="Abundance",
 			     combine.WT = TRUE)
 } else {
 	# Perform analysis WITH WT grouping.
-	# Asses changes in protein abundance using a glm to account for
+	# Assess changes in protein abundance using a glm to account for
 	# differences in genetic background (genotype).
 	comparisons = c("Genotype","Treatment")
-	glm_results <- glmDA(final_protein, treatment.ignore = "QC", 
-			     comparisons, value.var="Intensity",
+	glm_results <- glmDA(norm_protein, treatment.ignore = "QC", 
+			     comparisons, value.var="Abundance",
 			     combine.WT = FALSE)
 }
 
