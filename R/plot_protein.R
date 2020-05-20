@@ -15,12 +15,10 @@ plot_protein <- function(norm_protein,value.var="Abundance",protein,alpha=0.1) {
 			  "gray","green","gray","purple")
 	
 	# Subset the data.
-	subdt <- norm_protein %>% filter(Treatment != "QC",
-					 Accession == protein) %>%
-		as.data.table() %>% 
-		dplyr::select(Accession,Symbol,Tissue,Genotype,
-			      Treatment,Intensity,Abundance)
-	dt <- subdt
+	dt <- norm_protein %>% 
+		filter(Treatment != "QC",Accession == protein) %>%
+		filter(Tissue == "Cortex") %>%
+		as.data.table()
 
 	# Collect FDR stats.
 	#prot_stats <- glm_stats %>% filter(Accession == protein)
@@ -41,8 +39,8 @@ plot_protein <- function(norm_protein,value.var="Abundance",protein,alpha=0.1) {
 	mytitle <- unique(paste(dt$Symbol,dt$Accession,sep="|"))
 
 	# Add groups.
-	dt$group <- paste(dt$Genotype,dt$Treatment,sep=".")
-	dt$group <- factor(dt$group,levels=group_levels)
+	dt$group <- interaction(dt$Tissue,dt$Genotype,dt$Treatment)
+	#dt$group <- factor(dt$group,levels=group_levels)
 
 	# Generate the box plot.
 	plot <- ggplot(dt, aes(x = group, y = log2(Abundance), fill = group)) + 
