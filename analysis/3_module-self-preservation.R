@@ -10,7 +10,7 @@
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):
-	analysis_type = "Striatum" # Tissue type for analysis.
+	analysis_type = "Cortex" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
@@ -35,12 +35,12 @@ n_threads = parallel::detectCores() - 1
 input_data <- list("Cortex" = list(
 				   adjm = "Cortex_Adjm.csv",
 				   netw = "Cortex_NE_Adjm.csv",
-			   	   data = "Cortex_norm_protein.csv",
+			   	   data = "Cortex_final_protein.csv",
 				   part = "Cortex_NE_SurpriseVertexPartition.csv"),
 		   "Striatum" = list(
 				     adjm = "Striatum_Adjm.csv",
 				     netw = "Striatum_NE_Adjm.csv",
-				     data = "Striatum_norm_protein.csv",
+				     data = "Striatum_final_protein.csv",
 				     part = "Striatum_NE_SurpriseVertexPartition.csv")
 		   )[[analysis_type]]
 

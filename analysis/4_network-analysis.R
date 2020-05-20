@@ -10,7 +10,7 @@
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):
-	analysis_type = "Striatum" # Tissue type for analysis.
+	analysis_type = "Cortex" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
@@ -20,9 +20,6 @@ if (interactive()) {
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
 }
-
-## Default parameters:
-root = "/mnt/d/projects/SynaptopathyProteomics" 
 
 ## Optional parameters:
 KW_alpha = 0.1
@@ -34,8 +31,7 @@ input_data <- list("Cortex" = list(
 				   netw = "Cortex_NE_Adjm.csv",
 				   ppis = "Cortex_PPI_Adjm.csv",
 				   stat = "Cortex_glm_stats.csv",
-				   gmap = "Cortex_gene_map.RData",
-			   	   data = "Cortex_norm_protein.csv",
+			   	   data = "Cortex_final_protein.csv",
 				   part = "Cortex_NE_SurpriseVertexPartition.csv",
 				   pres = "Cortex_partition_self_preservation_enforced.csv"),
 		   "Striatum" = list(
@@ -43,8 +39,7 @@ input_data <- list("Cortex" = list(
 				     netw = "Striatum_NE_Adjm.csv",
 				     ppis = "Striatum_PPI_Adjm.csv",
 				     stat = "Striatum_glm_stats.csv",
-				     gmap = "Striatum_gene_map.RData",
-				     data = "Striatum_norm_protein.csv",
+				     data = "Striatum_final_protein.csv",
 				     part = "Striatum_NE_SurpriseVertexPartition.csv",
 				     pres = "Striatum_partition_self_preservation_enforced.csv")
 		   )[[analysis_type]]
@@ -58,6 +53,7 @@ input_meta <- list("Cortex" = "Cortex_Samples.csv",
 #--------------------------------------------------------------------
 
 # Load renv.
+root <- getrd()
 renv::load(root)
 
 # Global imports.
@@ -86,7 +82,11 @@ message(paste0("\nAnalyzing ",analysis_type,"..."))
 # Log2 transform, and finally transpose such that rows = samples 
 # and columns = proteins.
 myfile <- file.path(rdatdir, input_data[['data']])
-dm <- fread(myfile) %>% filter(Treatment != "QC") %>% 
+
+# EXPLORATORY. SCALE WT SAMPLES.
+final_protein <- fread(myfile)
+scaled_protein <- normIRS(final_protein,controls="WT",robust=TRUE)
+dm <- scaled_protein %>% filter(Treatment != "QC") %>% 
 	as.data.table() %>%
 	dcast(Accession ~ Sample,value.var="Intensity") %>%
 	as.matrix(rownames="Accession") %>% log2() %>% t()
@@ -166,7 +166,6 @@ MEdata_list <- moduleEigengenes(dm, colors = partition,
 			    excludeGrey = TRUE, softPower = 1, impute = FALSE)
 ME_dm <- as.matrix(MEdata_list$eigengenes)
 
-
 # Create list of MEs.
 ME_list <- setNames(object = lapply(seq(ncol(ME_dm)), function(x) ME_dm[, x]),
 		    nm = names(modules))
@@ -200,9 +199,6 @@ groups <- all_groups[rownames(ME_dm)]
 
 # Combine WT.
 groups[grep("WT",groups)] <- "WT"
-
-# Coerce to a factor.
-group_levels <- c("WT","Shank2.WT","Shank3.WT","Syngap1.HET","Ube3a.KO")
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
@@ -239,16 +235,15 @@ message(paste0(
 # multiple comparisons!
 
 # Define control group and levels (order) for DunnettTest.
-control_group <- "WT"
+controls <- unique(groups[grep("WT",groups)])
 
 # Loop to perform DTest. 
 # NOTE: This takes several seconds.
 DT_list <- lapply(ME_list, function(x) {
   # x <- ME_list[[1]]
   g <- as.factor(groups[names(x)])
-  levels(g) <- group_levels
   return({ 
-	  DescTools::DunnettTest(x ~ g, control = control_group)[[control_group]] %>% 
+	  DescTools::DunnettTest(x ~ g, control = controls)[controls] %>% 
 		  as.data.table(keep.rownames="Contrast") })
 })
 
@@ -256,17 +251,21 @@ DT_list <- lapply(ME_list, function(x) {
 DT_dt <- bind_rows(DT_list,.id="Module")
 
 # For every column, add "DT." to its name, except for the column named `Module`.
+colnames(DT_dt) <- gsub("WT.","",colnames(DT_dt))
 idx <- which(colnames(DT_dt) %notin% c("Module","Contrast"))
 colnames(DT_dt)[idx] <- paste0("DT.",colnames(DT_dt)[idx])
 
 # Summarize number of sig tests.
 DT_summary <- DT_dt %>% group_by(Module) %>% 
 	summarize(nSig = sum(DT.pval < KW_alpha)) %>%  as.data.table()
+DT_summary <- DT_summary[order(DT_summary$nSig,decreasing=TRUE),]
+head(DT_summary)
+
 #knitr::kable(DT_summary)
 
 # Number of modules with significant KW + DT changes.
-nSigDT <- sapply(DT_list, function(x) sum(x$pval < DT_alpha))
-#message("Summary of Dunnett's test changes for significant modules:")
+nSigDT <- sapply(DT_list, function(x) sum(x$WT.pval < DT_alpha))
+
 message(paste0(
   "Number of significant (p.adj < ", DT_alpha, ")",
   " Dunnett's test post-hoc test(s): ", nSigModules, "."
@@ -288,12 +287,6 @@ results$"nSig DT" <- nSigDT[results$Module]
 # Sig?
 is_sig <- results$KW.padj < KW_alpha & results$DT.pval < DT_alpha
 results$"SigKW & SigDT" <- is_sig
-
-#--------------------------------------------------------------------
-##
-#--------------------------------------------------------------------
-save.image()
-quit()
 
 #--------------------------------------------------------------------
 ## Save results.
