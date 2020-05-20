@@ -21,8 +21,8 @@ if (interactive()) {
 }
 
 ## Optional parameters:
-group.WT = TRUE
-scale.WT = TRUE
+group.WT = FALSE
+scale.WT = FALSE
 rand.batch = FALSE
 remove.protein.outliers = FALSE
 alpha_threshold = 0.1
