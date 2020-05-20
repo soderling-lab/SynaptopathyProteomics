@@ -27,7 +27,8 @@ figs/
 reports/
 venv/
 pyenv/
-renv/
+renv/library
+renv/stagging
 packrat/lib*/
 
 # Ignore temporary files in radalib directory.

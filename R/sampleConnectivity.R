@@ -1,4 +1,4 @@
-sampleConnectivity <- function(tp, log = TRUE) {
+sampleConnectivity <- function(tp,value.var, log = FALSE) {
 	# Calculate Ki (standardized connectivity).
 	# The standardized connectivity (Z.K; Oldham et al.,) 
 	# is a quantity that describes the overall strength of 
@@ -13,7 +13,7 @@ sampleConnectivity <- function(tp, log = TRUE) {
 	})
 	# Cast tp into matix.
 	tp <- as.data.table(tp)
-	dm <- tp %>% dcast(Accession ~ Sample, value.var="Intensity") %>% 
+	dm <- tp %>% dcast(Accession ~ Sample, value.var=value.var) %>% 
 		as.matrix(rownames=TRUE)
 	# Evaluate correlations between samples.
 	if (log) {

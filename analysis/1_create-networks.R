@@ -22,8 +22,8 @@ if (interactive()) {
 }
 
 # Input data should be in root/rdata/:
-input_data = list("Cortex" = "Cortex_final_protein.csv",
-		  "Striatum" = "Striatum_final_protein.csv")[[analysis_type]]
+input_data = list("Cortex" = "Cortex_norm_protein.csv",
+		  "Striatum" = "Striatum_norm_protein.csv")[[analysis_type]]
 
 ## Output for downstream analysis:
 output_name = analysis_type
@@ -67,10 +67,10 @@ myfile <- file.path(rdatdir,input_data)
 prot_dt <- fread(myfile)
 
 # Coerce to data matrix.
-prot_dt$Abundance <- log2(prot_dt$Intensity)
+value.var <- "Obs.Intensity"
 dm <- prot_dt %>% filter(Treatment != "QC") %>% as.data.table() %>%
-	dcast(Accession ~ Sample, value.var="Abundance") %>%
-	as.matrix(rownames="Accession")
+	dcast(Accession ~ Sample, value.var=value.var) %>%
+	as.matrix(rownames="Accession") %>% log2()
 
 #---------------------------------------------------------------------
 ## Create co-expression networks.
@@ -85,6 +85,26 @@ adjm <- WGCNA::bicor(t(dm))
 # Perform network enhancement -- remoise noise from network.
 message("\nPerforming network enhancement.")
 adjm_ne <- neten(adjm)
+
+#---------------------------------------------------------------------
+## Reproducible proteins.
+#---------------------------------------------------------------------
+
+prots <- readRDS(file.path(rdatdir,"Cortex_reproducible_prots.RData"))
+
+subadjm <- adjm[prots,prots]
+diag(subadjm) <- NA
+subadjm[lower.tri(subadjm)] <- NA
+df <- setNames(reshape2::melt(subadjm,na.rm=TRUE),
+	       nm=c("ProtA","ProtB","bicor")) %>% 
+	as.data.table()
+idxA = match(df$ProtA,prot_dt$Accession)
+idxB = match(df$ProtB,prot_dt$Accession)
+df$SymbolA = prot_dt$Symbol[idxA]
+df$SymbolB = prot_dt$Symbol[idxB]
+df <- df[order(df$bicor,decreasing=TRUE),]
+
+df %>% filter(SymbolA == "Dlg4") %>% as.data.table()
 
 #---------------------------------------------------------------------
 ## Generate the PPI graph.

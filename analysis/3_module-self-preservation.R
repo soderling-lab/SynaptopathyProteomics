@@ -35,12 +35,12 @@ n_threads = parallel::detectCores() - 1
 input_data <- list("Cortex" = list(
 				   adjm = "Cortex_Adjm.csv",
 				   netw = "Cortex_NE_Adjm.csv",
-			   	   data = "Cortex_final_protein.csv",
+			   	   data = "Cortex_norm_protein.csv",
 				   part = "Cortex_NE_SurpriseVertexPartition.csv"),
 		   "Striatum" = list(
 				     adjm = "Striatum_Adjm.csv",
 				     netw = "Striatum_NE_Adjm.csv",
-				     data = "Striatum_final_protein.csv",
+				     data = "Striatum_norm_protein.csv",
 				     part = "Striatum_NE_SurpriseVertexPartition.csv")
 		   )[[analysis_type]]
 
@@ -98,7 +98,7 @@ rdatdir <- file.path(root, "rdata")
 # finally transpose such that rows = samples and columns = proteins.
 myfile <- file.path(rdatdir, input_data[['data']])
 dm <- fread(myfile) %>%
-	dcast(Accession ~ Sample,value.var="Intensity") %>%
+	dcast(Accession ~ Sample,value.var="Obs.Intensity") %>%
 	as.matrix(rownames="Accession") %>% log2() %>% t()
 
 # Load adjmatrix--coerce to a matrix.

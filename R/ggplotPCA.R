@@ -1,7 +1,7 @@
 #' ggplotPCA
 
-ggplotPCA <- function(tp,value.var="Abundance",groups=c("Genotype","Treatmet"),
-		      combine.group = NULL, combine.var = NULL, 
+ggplotPCA <- function(tp,value.var="Abundance",groups=c("Genotype","Treatment"),
+		      log=FALSE, combine.group = NULL, combine.var = NULL, 
 		      treatment.ignore = "QC", group.order=NULL) {
 
 	suppressPackageStartupMessages({
@@ -15,7 +15,7 @@ ggplotPCA <- function(tp,value.var="Abundance",groups=c("Genotype","Treatmet"),
 		as.matrix(rownames=TRUE)
 
 	# Create sample to group mapping.
-	all_groups <- tp %>% select(all_of(groups)) %>% 
+	all_groups <- tp %>% dplyr::select(all_of(groups)) %>% 
 		interaction() %>% as.character()
 	names(all_groups) <- tp$Sample
 
@@ -30,7 +30,11 @@ ggplotPCA <- function(tp,value.var="Abundance",groups=c("Genotype","Treatmet"),
 	if (missing_vals) { stop("Data contains missing values!") }
 
 	# Perform PCA.
-	pca <- prcomp(t(log2(dm)))[["x"]][,1:2]
+	if (log) {
+		pca <- prcomp(t(log2(dm)))[["x"]][,1:2]
+	} else {
+		pca <- prcomp(t(dm))[["x"]][,1:2]
+	}
 
 	# Data for plotting.
 	pca_dt <- as.data.table(pca,keep.rownames="Sample")

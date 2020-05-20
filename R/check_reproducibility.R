@@ -1,7 +1,8 @@
 #' check_reproducibility
 
 # Define a function that checks reproducibility of a protein.
-check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
+check_reproducibility <- function(prot_list,protein,value.var="Abundance",
+				  treatment.subset="WT",
 				  fun="bicor",threshold=0.8) {
 	# Which proteins are highly reproducible between replicates.
 	# For a given protein, cast the data into a matrix: Fraction ~ Replicate.
@@ -9,7 +10,7 @@ check_reproducibility <- function(prot_list,protein,treatment.subset="WT",
 		filter(Treatment == treatment.subset) %>%
 		as.data.table() 
         dt_temp <- dcast(dt, Genotype ~ Treatment + Channel, 
-		      value.var="Intensity") 
+		      value.var=value.var) 
 	value_cols <- grep("_",colnames(dt_temp))
 	dm <- dt_temp %>% dplyr::select(all_of(value_cols)) %>% 
 		as.matrix(rownames.value=dt_temp$Genotype)

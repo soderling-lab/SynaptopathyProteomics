@@ -39,20 +39,17 @@ glmDA <- function(tp,treatment.ignore = "QC", value.var="Intensity",
 		design <- model.matrix(~ 0 + group, data = dge$samples)
 
 		# Create all pairwise contrasts.
-		controls <- paste0("group",
-				   c("Shank2","Shank3","Syngap1","Ube3a"),".WT")
-		mutants <- setdiff(colnames(design),controls)
-
-		#pw_cont <- mapply(paste,  sep=" - ", mutants,controls,
-		#		  USE.NAMES=FALSE)
-
-		# makeContrasts doesn't work when passed pw_cond[i] when not run
-		# interactively.
+		# NOTE: makeContrasts doesn't work when passed env variables 
+		# when not run interactively.
 		contrasts <- list(
-		   Shank2 = makeContrasts('groupShank2.KO - groupShank2.WT', levels=design),
-		   Shank3 = makeContrasts('groupShank3.KO - groupShank3.WT', levels=design),
-		   Syngap1= makeContrasts('groupSyngap1.HET - groupSyngap1.WT',levels=design),
-		   Ube3a  = makeContrasts('groupUbe3a.KO - groupUbe3a.WT', levels=design)
+		   Shank2 = makeContrasts('groupShank2.KO - groupShank2.WT', 
+					  levels=design),
+		   Shank3 = makeContrasts('groupShank3.KO - groupShank3.WT', 
+					  levels=design),
+		   Syngap1= makeContrasts('groupSyngap1.HET - groupSyngap1.WT',
+					  levels=design),
+		   Ube3a  = makeContrasts('groupUbe3a.KO - groupUbe3a.WT', 
+					  levels=design)
 		) 
 
 		# Estimate dispersion.
@@ -60,6 +57,25 @@ glmDA <- function(tp,treatment.ignore = "QC", value.var="Intensity",
 
 		# Fit a general linear model.
 		fit <- glmQLFit(dge, design, robust = TRUE)
+
+		# Get observed values.
+		new.names <- c("Accession","Sample","Obs.Intensity")
+		suppressWarnings({
+			obs_dt <- cpm(dge, log=FALSE, 
+				      prior.count=fit$prior.count) %>%
+			reshape2::melt() %>% 
+			setNames(nm=new.names) %>%
+			left_join(tp_in,by=c("Accession","Sample")) %>%
+			as.data.table()
+		})
+		new.names <- c("Accession","Sample","Fit.Intensity")
+		suppressWarnings({
+			fit_dt <- cpm(fit, log=FALSE) %>%
+				reshape2::melt() %>% 
+				setNames(nm=new.names) %>%
+				left_join(tp_in,by=c("Accession","Sample")) %>%
+				as.data.table()
+		})
 
 		# Evaluate differences for contrasts specified by design by
 		qlf <- lapply(contrasts,function(x) glmQLFTest(fit,contrast=x))
@@ -89,6 +105,7 @@ glmDA <- function(tp,treatment.ignore = "QC", value.var="Intensity",
 		names(glm_results) <- c("Shank2","Shank3","Syngap1","Ube3a")
 
 	} else if (combine.WT) {
+
 	# Do analysis WITH combined WT samples.
 	combine.var = "WT"
 
@@ -132,6 +149,25 @@ glmDA <- function(tp,treatment.ignore = "QC", value.var="Intensity",
 	# Fit a general linear model.
 	fit <- glmQLFit(dge, design, robust = TRUE)
 
+	# Get observed data.
+	new.names <- c("Accession","Sample","Obs.Intensity")
+	suppressWarnings({
+		obs_dt <- cpm(dge, log=FALSE, prior.count=fit$prior.count) %>%
+			reshape2::melt() %>% 
+			setNames(nm=new.names) %>%
+			left_join(tp_in,by=c("Accession","Sample")) %>%
+			as.data.table()
+	})
+	# Get fitted data.
+	new.names <- c("Accession","Sample","Fit.Intensity")
+	suppressWarnings({
+	fit_dt <- cpm(fit, log=FALSE) %>%
+		reshape2::melt() %>% 
+		setNames(nm=new.names) %>%
+		left_join(tp_in,by=c("Accession","Sample")) %>%
+		as.data.table()
+	})
+
 	# Evaluate differences for contrasts specified by design by
 	# calling glmQLFTest(fit,coef=contrast)
 	contrasts <- colnames(design)
@@ -167,5 +203,5 @@ glmDA <- function(tp,treatment.ignore = "QC", value.var="Intensity",
 
 	}
 
-	return(glm_results)
+	return(list(results=glm_results,obs.vals=obs_dt,fit.vals=fit_dt))
 }

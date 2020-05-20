@@ -21,9 +21,8 @@ if (interactive()) {
 }
 
 ## Optional parameters:
-combine.WT = TRUE
 alpha_threshold = 0.1
-remove.protein.outliers = FALSE
+remove.protein.outliers = TRUE
 sample_connectivity_threshold = 2.5
 n_threads = parallel::detectCores()
 
@@ -92,7 +91,7 @@ tabsdir <- file.path(root, "tables")
 
 message(paste0("\nAnalyzing ",analysis_type,"..."))
 
-# Load the TMT data.
+# Load the raw TMT data.
 myfile <- file.path(datadir,input_data)
 peptides <- fread(myfile)
 
@@ -339,68 +338,6 @@ Entrez <- gene_map$Entrez[idx]
 final_protein <- tibble::add_column(final_protein,Symbol,.after="Accession")
 final_protein <- tibble::add_column(final_protein,Entrez,.after="Symbol")
 
-#---------------------------------------------------------------------
-## Perform TAMPOR normalization to scale WT samples.
-#---------------------------------------------------------------------
-
-# Data for tampor:
-temp_protein <- final_protein
-
-# Define experimental batches:
-batch <- interaction(temp_protein$Tissue,temp_protein$Genotype) %>% 
-	as.numeric()
-batch <- paste0("b",batch)
-
-# Annotate data with batch and batch.channel (ID).
-temp_protein$batch <- batch
-temp_protein$ID <- interaction(batch,temp_protein$Channel) %>% 
-	as.character()
-
-# Cast into a data.matrix for TAMPOR.
-dm <- temp_protein %>% dcast(Accession ~ ID, value.var="Intensity") %>% 
-	as.matrix(rownames="Accession")
-
-# Check: there should be no rows with missing values at this point.
-missing_vals <- apply(dm,1,function(x) any(is.na(x)))
-if (sum(missing_vals) > 0) {
-	message(paste("\nRemoving", sum(missing_vals),
-		      "rows that contain missing values."))
-	dm <- dm[!missing_vals,]
-}
-
-# Define traits df for TAMPOR.
-# Traits must include batch and ID columns.
-traits <- temp_protein %>% dplyr::select(batch,ID) %>% unique()
-traits <- as.data.frame(traits)
-rownames(traits) <- traits[,"ID"] # rownames must be batch.channel.
-
-# Define controls or global internal standards (GIS) for 
-# TAMPOR normalization. Use all WT samples. 
-controls <- unique(filter(temp_protein,Treatment=="WT")[["ID"]])
-
-# Define samples to be ignored -- QC samples.
-qc_samples <- unique(filter(temp_protein,Treatment=="QC")[["ID"]])
-
-# Perform the normalization.
-data_tampor <- TAMPOR(dat = dm, traits = traits, batchPrefixInSampleNames = TRUE,
-		      samplesToIgnore = qc_samples, GISchannels = controls, 
-		      parallelThreads = n_threads)
-
-# Collect normalized, relative abundance data post-TAMPOR.
-# NOTE: Abundance is the normalized data.
-suppressWarnings({ # Suppress warnings about coercing factors to characters.
-tampor_protein <- data_tampor$cleanRelAbun %>% 
-	reshape2::melt() %>%
-	setNames(c("Accession","ID","Abundance")) %>% 
-	as.data.table() %>%
-	left_join(temp_protein,by=c("Accession","ID")) %>%
-	as.data.table()
-})
-
-# Clean-up.
-tampor_protein$batch <- NULL
-tampor_protein$ID <- NULL
-
 #--------------------------------------------------------------------
 ## Identify and remove sample outliers.
 #--------------------------------------------------------------------
@@ -409,16 +346,17 @@ tampor_protein$ID <- NULL
 # identify outlier samples.
 # This approach was adapted from Oldham et al., 2012 (pmid: 22691535).
 
-n_samples <- length(unique(tampor_protein$Sample))
+n_samples <- length(unique(final_protein$Sample))
 message(paste("Initial number of samples:",n_samples))
 
 # Loop to iteratively remove outliers.
 i = 0
 outlier_samples <- NULL
+data_in <- final_protein
 while (i < 5) {
-	data_in <- tampor_protein %>% 
+	data_in <- data_in %>% 
 		filter(Sample %notin% outlier_samples)
-	zk <- sampleConnectivity(data_in,value.var="Abundance",log=TRUE)
+	zk <- sampleConnectivity(data_in,value.var="Intensity",log=TRUE)
 	outlier_samples <- unique({
 		c(outlier_samples,
 		  names(zk)[zk < -sample_connectivity_threshold],
@@ -428,18 +366,16 @@ while (i < 5) {
 }
 
 # Remove sample outliers.
-#final_protein <- tampor_protein %>% filter(Sample %notin% outlier_samples)
-#n_samples <- length(unique(final_protein$Sample))
+filt_final_protein <- final_protein %>% filter(Sample %notin% outlier_samples)
+n_samples <- length(unique(filt_final_protein$Sample))
 
 # Status:
 if (length(outlier_samples) == 0) {
-	message(paste("\nFinal number of samples:",
-		      length(unique(final_protein$Sample))))
+	message(paste("\nFinal number of samples:",n_samples))
 } else {
 	message(paste0("\nRemoved outlier sample(s):\n",
 	       paste(outlier_samples,collapse="\n")))
-	message(paste("Final number of samples:",
-		      length(unique(final_protein$Sample))))
+	message(paste("Final number of samples:",n_samples))
 }
 
 #---------------------------------------------------------------------
@@ -452,14 +388,11 @@ if (length(outlier_samples) == 0) {
 message(paste("\nAnalyzing protein differential abundance",
 	      "with EdgeR GLM..."))
 
-# Perform analysis WITH grouping of WT samples and fit a glm
-# to account for differences in genetic background..
-
-## FIXME: extract fitted data from glm object.
+# Params for glmDA
 comparisons = c("Genotype","Treatment")
 treatment.ignore = "QC"
-value.var = "Abundance"
-glm_data <- glmDA(final_protein, treatment.ignore, 
+value.var = "Intensity"
+glm_data <- glmDA(filt_final_protein, treatment.ignore, 
 		     value.var, comparisons,
 		     combine.WT = FALSE)
 glm_results <- glm_data$results
@@ -519,7 +452,7 @@ message(paste("\nChecking reproducibility of WT protein expression..."))
 prot_list <- glm_protein %>% group_by(Accession) %>% group_split()
 names(prot_list) <- sapply(prot_list,function(x) unique(x$Accession))
 
-ggplotPCA(glm_protein,value.var="Obs.Intensity",log=TRUE)
+#ggplotPCA(glm_protein,value.var="Intensity",log=TRUE)
 
 # Check protein reproducibility.
 check <- list()
@@ -562,5 +495,9 @@ write_excel(glm_results,myfile)
 # [output_name]_GLM_Results.xlsx
 myfile <- file.path(tabsdir,paste(output_name,"GLM_Results.xlsx",sep="_"))
 write_excel(glm_results,myfile)
+
+# [output_name]_reproducible_prots.RData
+myfile <- file.path(rdatdir,paste(output_name,"reproducible_prots.RData",sep="_"))
+saveRDS(reproducible_prots,myfile)
 
 message("\nDone!")
