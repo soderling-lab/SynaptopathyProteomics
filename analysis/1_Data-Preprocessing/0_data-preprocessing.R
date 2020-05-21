@@ -7,7 +7,7 @@
 #' ---
 
 ## Parameters:
-type = 1                # Analysis (tissue) type: cortex (1) or striatum(2).
+type = 2                # Analysis (tissue) type: cortex (1) or striatum(2).
 save_plots = FALSE      # Should plots be saved?
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 clean_figsdir = FALSE   # Remove existing figures?
@@ -48,7 +48,7 @@ image_format = ".pdf"   # Output figure format.
 # the project directory for saving output files.
 
 # Load the R env.
-renv::load(getrd())
+suppressWarnings({ renv::load(getrd()) })
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -60,6 +60,8 @@ suppressPackageStartupMessages({
   library(cowplot)
   library(ggplot2)
   library(gridExtra)
+  library(flashClust)
+  library(sva)
 })
 
 ## User parameters:
@@ -91,7 +93,7 @@ output_name <- tissue
 ggtheme()
 
 # Utilize arial font.
-set_font("Arial")
+#set_font("Arial") #FIXME: put font in project directory.
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
@@ -99,6 +101,8 @@ set_font("Arial")
 # The raw peptide intensity data were exported from ProteomeDiscover (PD)
 # version 2.2. Note that the default export from PD2.x is a unitless signal to
 # noise ratio, and it is not recommended to use ths for quantification.
+
+message(paste0("\nAnalyzing ",tissue,"..."))
 
 # Load the TMT data.
 datafile <- c(
@@ -141,7 +145,7 @@ if (save_plots) { ggsave(prefix_file(myfile),plot) }
 
 # Determine the total number of unique peptides:
 nPeptides <- format(length(unique(raw_peptide$Sequence)), big.mark = ",")
-message(paste("\nTotal number of unique peptides identified:",nPeptides)
+message(paste("\nTotal number of unique peptides identified:",nPeptides))
 
 # Determine the total number of unique proteins:
 nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
@@ -248,6 +252,7 @@ p2 <- p2 + scale_color_manual(values = colors)
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
 
 # Generate PCA plot.
+# FIXME: add percent to axes.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
@@ -287,13 +292,17 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 # Generate boxplot.
 title <- "SL Peptide"
 data_in <- SL_peptide
-colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
-p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title) + theme(legend.position = "none")
+colors <- c(rep("green", 11), rep("purple", 11), 
+	    rep("yellow", 11), rep("blue", 11))
+p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title) + 
+	theme(legend.position = "none")
 p1 <- p1 + theme(axis.text.x = element_blank())
 
 # Generate density plot.
-p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
-colors <- c(rep("yellow", 11), rep("blue", 11), rep("green", 11), rep("purple", 11))
+p2 <- ggplotDensity(data_in, colID = "Abundance", title) + 
+	theme(legend.position = "none")
+colors <- c(rep("yellow", 11), rep("blue", 11), 
+	    rep("green", 11), rep("purple", 11))
 p2 <- p2 + scale_color_manual(values = colors)
 
 # Generate meanSd plot.
@@ -307,7 +316,8 @@ p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
 # Save plots.
 if (save_plots) {
 	file_names <- paste0("SL_Peptide_",
-			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+			     c("Boxplot","Density_plot",
+			       "MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
 	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
 }
@@ -323,15 +333,16 @@ if (save_plots) {
 # removed.
 
 # Generate QC correlation scatter plots for all experimental groups.
-groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-plots <- ggplotCorQC(SL_peptide, groups, colID = "QC", nbins = 5)
+# FIXME: Error in min(xrange) : invalid 'type' (list) of argument
+#groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
+#plots <- ggplotCorQC(SL_peptide, groups, colID = "QC", nbins = 5)
 
 # Generate intensity bin histograms.
 # This will take a couple minutes.
-hist_list <- lapply(as.list(groups), function(x) {
-  ggplotQCHist(SL_peptide, x, nbins = 5, threshold = 4)
-})
-names(hist_list) <- groups
+#hist_list <- lapply(as.list(groups), function(x) {
+#  ggplotQCHist(SL_peptide, x, nbins = 5, threshold = 4)
+#})
+#names(hist_list) <- groups
 
 # Save plots.
 if (save_plots) {
@@ -356,7 +367,8 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
-out <- list(c(94, 78, 134, 59), c(182, 67, 73, 75))[[type]] # Cox and Str peps removed.
+# Summarize number of Cortex and Striatum peptides removed.
+out <- list(c(94, 78, 134, 59), c(182, 67, 73, 75))[[type]] 
 mytable <- data.frame(cbind(groups, out))
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
@@ -462,7 +474,8 @@ SL_protein <- normalize_SL(raw_protein, "Abundance", "Abundance")
 # 6/8 experiments. Here I will utilize the __ComBat()__ function from the `sva`
 # package to remove this batch effect before correcting for inter-batch batch
 # effects between batches with IRS normalization. Note that in
-# the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1),
+# the absence of evidence of a batch effect 
+# (not annotated or cor(PCA,batch)<0.1),
 # ComBat is not applied.
 
 # Define experimental groups and column ID for expression data.
@@ -480,6 +493,7 @@ data_in <- SL_protein
 data_out <- list() # ComBat data.
 plot_list <- list() # MDS plots.
 R <- list() # Bicor stats [bicor(batch,PC1)]
+
 
 # Loop:
 for (i in 1:length(groups)) {
@@ -587,7 +601,8 @@ for (i in 1:length(groups)) {
 } # Ends ComBat loop.
 
 # Merge the data frames with purrr::reduce()
-combat_protein <- data_out %>% purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
+combat_protein <- data_out %>% 
+	purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
 
 # Quantifying the batch effect.
 # Check bicor correlation with batch before and after ComBat.
@@ -628,12 +643,15 @@ if (save_plots) {
 # Generate boxplot.
 data_in <- combat_protein
 title <- "Normalized protein"
-colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
+colors <- c(rep("green", 11), rep("purple", 11), 
+	    rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 
 # Generate density plot.
-p2 <- ggplotDensity(data_in, colID = "Abundance", title) + theme(legend.position = "none")
-colors <- c(rep("yellow", 11), rep("blue", 11), rep("green", 11), rep("purple", 11))
+p2 <- ggplotDensity(data_in, colID = "Abundance", title) + 
+	theme(legend.position = "none")
+colors <- c(rep("yellow", 11), rep("blue", 11), 
+	    rep("green", 11), rep("purple", 11))
 p2 <- p2 + scale_color_manual(values = colors)
 
 # Generate meanSd plot.
@@ -682,6 +700,7 @@ sample_connectivity <- ggplotSampleConnectivity(data_in,
   colID = "QC",
   threshold = oldham_threshold
 )
+
 tab <- sample_connectivity$table
 df <- tibble::add_column(tab, SampleName = rownames(tab), .before = 1)
 rownames(df) <- NULL
@@ -841,11 +860,11 @@ colnames(data_out) <- col_names
 cleanDat <- data_out[, order(colnames(data_out))]
 
 # Save raw data as Rdata.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_raw_peptide.RData"))
+myfile <- file.path(rdatdir, paste0(output_name, "_raw_peptide.RData"))
 saveRDS(raw_peptide, myfile)
 
 # Save cleanDat as RData.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_cleanDat.RData"))
+myfile <- file.path(rdatdir, paste0(output_name, "_cleanDat.RData"))
 saveRDS(cleanDat, myfile)
 
 # Complete!

@@ -16,7 +16,7 @@ set_font <- function(font,font_path=NULL){
 	# Check if font is in available fonts.
 	if (!(font %in% fonts())){
 		suppressWarnings({
-			font_import(path=font_path,prompt=FALSE)
+			font_import(paths=font_path,prompt=FALSE)
 		})
 	}
 
