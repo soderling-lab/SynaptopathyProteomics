@@ -14,7 +14,7 @@
 # output files.
 
 # Load renv.
-renv::load(getrd())
+renv::load(getrd(),quiet=TRUE)
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -102,8 +102,8 @@ alltraits <- traits
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
 myfiles <- file.path(Rdatadir, c(
-  "1_Cortex_cleanDat.RData",
-  "1_Striatum_cleanDat.RData"
+  "Cortex_cleanDat.RData",
+  "Striatum_cleanDat.RData"
 ))
 data <- list(
   "Cortex"  = readRDS(myfiles[1]),
@@ -850,10 +850,10 @@ saveRDS(plot_list,myfile)
 
 # Load data.
 files <- list(
-  traits = paste(Rdatadir, "2_Combined_traits.RData", sep = "/"),
-  raw_cortex = paste(Rdatadir, "1_Cortex_raw_peptide.RData", sep = "/"),
-  raw_striatum = paste(Rdatadir, "1_Striatum_raw_peptide.RData", sep = "/"),
-  cleanDat = paste(Rdatadir, "2_Combined_cleanDat.RData", sep = "/")
+  traits = paste(Rdatadir, "Combined_traits.RData", sep = "/"),
+  raw_cortex = paste(Rdatadir, "Cortex_raw_peptide.RData", sep = "/"),
+  raw_striatum = paste(Rdatadir, "Striatum_raw_peptide.RData", sep = "/"),
+  cleanDat = paste(Rdatadir, "Combined_cleanDat.RData", sep = "/")
 )
 data <- lapply(files, function(x) readRDS(x))
 
