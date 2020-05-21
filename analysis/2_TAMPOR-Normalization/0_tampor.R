@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
   library(gridExtra)
   library(gtable)
   library(grid)
-  library(anRichment)
+  #library(anRichment)
   library(openxlsx)
   library(org.Mm.eg.db)
   library(AnnotationDbi)
