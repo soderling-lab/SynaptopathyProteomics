@@ -6,6 +6,12 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+## Parameters:
+type = 1
+clean_figsdir = FALSE
+clean_tabsdir = FALSE
+image_format = ".tiff"
+
 #---------------------------------------------------------------------
 ## Overview of Data Preprocssing:
 #---------------------------------------------------------------------
@@ -59,29 +65,29 @@ suppressPackageStartupMessages({
 
 ## User parameters:
 # Define tissue type for analysis: Cortex = 1; Striatum = 2.
-type <- 1
 tissue <- c("Cortex", "Striatum")[type]
-image_format <- ".tiff"
 
 # Directories:
 here <- getwd()
-subdir <- basename(here)
 rootdir <- dirname(dirname(here))
-funcdir <- file.path(rootdir, "R")
+figsdir <- file.path(rootdir, "figs")
 datadir <- file.path(rootdir, "data")
-Rdatadir <- file.path(rootdir, "rdata")
-figsdir <- file.path(rootdir, "figs",subdir,tissue)
-tabsdir <- file.path(rootdir, "tables",subdir,tissue)
+rdatdir <- file.path(rootdir, "rdata")
+tabsdir <- file.path(rootdir, "tables")
 
 # Remove any existing figures and tables.
-invisible(sapply(list.files(figsdir),unlink))
-invisible(sapply(list.files(tabsdir),unlink))
+if (clean_figsdir) {
+	invisible(sapply(list.files(figsdir),unlink))
+}
+if (clean_tabsdir) {
+	invisible(sapply(list.files(tabsdir),unlink))
+}
 
 # Load required custom functions.
 suppressWarnings({ devtools::load_all() })
 
 # Define prefix for output figures and tables.
-outputMatName <- paste0("1_", tissue)
+output_name <- 
 
 # Globally set ggplots theme.
 ggtheme()
