@@ -94,6 +94,9 @@ output_name <- tissue
 # Globally set ggplots theme.
 ggtheme()
 
+# Utilize arial font.
+set_font("Arial")
+
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
 #---------------------------------------------------------------------
