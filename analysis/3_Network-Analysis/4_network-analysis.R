@@ -961,4 +961,4 @@ if (data_type == "Combined") {
 write_excel(results,myfile)
 
 # Remove that pesky Rplots.
-unlink("Rplots.pdf")
+# unlink("Rplots.pdf")

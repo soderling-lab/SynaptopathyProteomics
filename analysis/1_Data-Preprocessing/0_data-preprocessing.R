@@ -146,7 +146,7 @@ message(paste("\nTotal number of unique peptides identified:",nPeptides)
 
 # Determine the total number of unique proteins:
 nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
-message(paste("\nTotal number of unique proteins identified:",nProteins)
+message(paste("\nTotal number of unique proteins identified:",nProteins))
 
 # Utilize gridExtra to create a table.
 tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
