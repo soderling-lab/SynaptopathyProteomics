@@ -958,6 +958,7 @@ if (data_type == "Combined") {
 	myfile <- file.path(tabsdir,
 			    paste0("3_",data_type,"_Module_Summary.xlsx"))
 }
+
 write_excel(results,myfile)
 
 # Remove that pesky Rplots.

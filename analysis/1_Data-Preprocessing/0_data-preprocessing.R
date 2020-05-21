@@ -7,7 +7,7 @@
 #' ---
 
 ## Parameters:
-type = 1                # Analysis type (tissue): cortex (1) or striatum(2).
+type = 1                # Analysis (tissue) type: cortex (1) or striatum(2).
 save_plots = FALSE      # Should plots be saved?
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 clean_figsdir = FALSE   # Remove existing figures?
@@ -60,9 +60,6 @@ suppressPackageStartupMessages({
   library(cowplot)
   library(ggplot2)
   library(gridExtra)
-  library(flashClust)
-  library(sva)
-  library(edgeR)
 })
 
 ## User parameters:
@@ -70,8 +67,7 @@ suppressPackageStartupMessages({
 tissue <- c("Cortex", "Striatum")[type]
 
 # Directories:
-here <- getwd()
-rootdir <- dirname(dirname(here))
+rootdir <- getrd()
 figsdir <- file.path(rootdir, "figs")
 datadir <- file.path(rootdir, "data")
 rdatdir <- file.path(rootdir, "rdata")
