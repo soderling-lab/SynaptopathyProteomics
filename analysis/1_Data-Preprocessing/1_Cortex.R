@@ -39,6 +39,9 @@
 # Prepare the R workspace for the analysis. Load custom functions and prepare
 # the project directory for saving output files.
 
+# Load the R env.
+renv::load(getrd())
+
 # Load required packages.
 suppressPackageStartupMessages({
   library(data.table)
