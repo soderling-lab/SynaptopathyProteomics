@@ -8,9 +8,10 @@
 
 ## Parameters:
 type = 1
+save_plots = FALSE
 clean_figsdir = FALSE
 clean_tabsdir = FALSE
-image_format = ".tiff"
+image_format = ".pdf"
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocssing:
@@ -50,17 +51,17 @@ renv::load(getrd())
 
 # Load required packages.
 suppressPackageStartupMessages({
-  library(data.table)
-  library(WGCNA)
   library(dplyr)
-  library(gridExtra)
+  library(WGCNA)
+  library(data.table)
   library(grid)
   library(gtable)
+  library(cowplot)
   library(ggplot2)
+  library(gridExtra)
   library(flashClust)
   library(sva)
   library(edgeR)
-  library(cowplot)
 })
 
 ## User parameters:
@@ -83,11 +84,11 @@ if (clean_tabsdir) {
 	invisible(sapply(list.files(tabsdir),unlink))
 }
 
-# Load required custom functions.
+# Load functions in root/R.
 suppressWarnings({ devtools::load_all() })
 
 # Define prefix for output figures and tables.
-output_name <- 
+output_name <- tissue
 
 # Globally set ggplots theme.
 ggtheme()
@@ -125,7 +126,7 @@ sample_info <- sample_info[order(sample_info$Order), ]
 # Generate a plot.
 plot <- ggplotPeptideBarPlot(raw_peptide)
 myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
-ggsave(prefix_file(myfile),plot)
+if (save_plots) { ggsave(prefix_file(myfile),plot) }
 
 #---------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
@@ -140,11 +141,11 @@ ggsave(prefix_file(myfile),plot)
 
 # Determine the total number of unique peptides:
 nPeptides <- format(length(unique(raw_peptide$Sequence)), big.mark = ",")
-message(paste(nPeptides, " unique peptides identified.", sep = ""))
+message(paste0(nPeptides, " unique peptides identified."))
 
 # Determine the total number of unique proteins:
 nProteins <- format(length(unique(raw_peptide$Accession)), big.mark = ",")
-message(paste(nProteins, " unique proteins identified.", sep = ""))
+message(paste0(nProteins, " unique proteins identified."))
 
 # Utilize gridExtra to create a table.
 tab1 <- tableGrob(data.frame(nPeptides = nPeptides, nProteins = nProteins),
@@ -196,25 +197,28 @@ plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) +
   labs(title = "Peptide Identification\nOverlap")
 
 # Save tables and plots.
-myfile <- prefix_file(file.path(figsdir,
-				paste0("Raw_Peptide_Identification",
-				       image_format)))
-ggsaveTable(tab1,myfile)
-
-myfile <- prefix_file(file.path(figsdir,
-				paste0("Peptide_Identification_Table",
-				       image_format)))
-ggsaveTable(tab2,myfile)
-
-myfile <- prefix_file(file.path(figsdir,
+if (save_plots) {
+	# Tab1.
+	myfile <- prefix_file(file.path(figsdir,
+					paste0("Raw_Peptide_Identification",
+					       image_format)))
+	ggsaveTable(tab1,myfile)
+	# Tab2.
+	myfile <- prefix_file(file.path(figsdir,
+					paste0("Peptide_Identification_Table",
+					       image_format)))
+	ggsaveTable(tab2,myfile)
+	# Plot1.
+	myfile <- prefix_file(file.path(figsdir,
 				paste0("Peptide_Histogram",
 				       image_format)))
-ggsave(myfile,plot1)
-
-myfile <- prefix_file(file.path(figsdir,
+	ggsave(myfile,plot1)
+	# Plot2.
+	myfile <- prefix_file(file.path(figsdir,
 				paste0("Peptide_Overlap",
 				       image_format)))
-ggsave(myfile,plot2)
+	ggsave(myfile,plot2)
+}
 
 #---------------------------------------------------------------------
 ## Examine the raw data.
@@ -249,11 +253,13 @@ p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
 # Save plots.
-file_names <- paste0("Raw_Peptide_",
-		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
-myfiles <- file.path(figsdir,paste0(file_names,image_format))
-plots <- list(p1,p2,p3,p4)
-ggsavePlots(plots,prefix_file(myfiles))
+if (save_plots) {
+	file_names <- paste0("Raw_Peptide_",
+			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+	plots <- list(p1,p2,p3,p4)
+	ggsavePlots(plots,prefix_file(myfiles))
+}
 
 #---------------------------------------------------------------------
 ## Sample loading normalization within experiments.
@@ -299,10 +305,12 @@ p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
 # Save plots.
-file_names <- paste0("SL_Peptide_",
-		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
-myfiles <- file.path(figsdir,paste0(file_names,image_format))
-ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+if (save_plots) {
+	file_names <- paste0("SL_Peptide_",
+			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+}
 
 #---------------------------------------------------------------------
 ## Illustrate the mean variance relationship of QC peptides.
@@ -326,11 +334,13 @@ hist_list <- lapply(as.list(groups), function(x) {
 names(hist_list) <- groups
 
 # Save plots.
-file_names <- paste(rep(names(hist_list),each=5),
-		    "QC_Hist",c(1,2,3,4,5),sep="_")
-myfiles <- file.path(figsdir,paste0(file_names,image_format))
-plots <- unlist(hist_list,recursive=FALSE)
-ggsavePlots(plots,prefix_file(myfiles))
+if (save_plots) {
+	file_names <- paste(rep(names(hist_list),each=5),
+			    "QC_Hist",c(1,2,3,4,5),sep="_")
+	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+	plots <- unlist(hist_list,recursive=FALSE)
+	ggsavePlots(plots,prefix_file(myfiles))
+}
 
 #---------------------------------------------------------------------
 ## Peptide level filtering based on QC samples.
@@ -351,9 +361,11 @@ mytable <- data.frame(cbind(groups, out))
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Save the table.
-myfile <- file.path(figsdir,
-		    paste0("N_Peptides_Removed_Table",image_format))
-ggsaveTable(mytable,prefix_file(myfile))
+if (save_plots) {
+	myfile <- file.path(figsdir,
+			    paste0("N_Peptides_Removed_Table",image_format))
+	ggsaveTable(mytable,prefix_file(myfile))
+}
 
 #---------------------------------------------------------------------
 ## Examine the nature of missing values.
@@ -388,9 +400,11 @@ p4 <- ggplotDetect(filter_peptide, groups[4]) #+ ggtitle(NULL)
 p4 <- p4 + theme(legend.position = "none")
 
 # Save plots.
-file_names <- paste0(groups,"_Protein_Missing_Value_Density")
-myfiles <- file.path(figsdir,paste0(file_names,image_format))
-ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+if (save_plots) {
+	file_names <- paste0(groups,"_Protein_Missing_Value_Density")
+	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+}
 
 #---------------------------------------------------------------------
 ## Impute missing peptide values within an experiment.
@@ -421,8 +435,10 @@ colnames(mytable) <- c("Experiment", "N Imputed")
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Save table.
-myfile <- file.path(figsdir,paste0("N_Imputed_Peptides",image_format))
-ggsaveTable(mytable,prefix_file(myfile))
+if (save_plots) {
+	myfile <- file.path(figsdir,paste0("N_Imputed_Peptides",image_format))
+	ggsaveTable(mytable,prefix_file(myfile))
+}
 
 #---------------------------------------------------------------------
 ## Protein level summarization and normalization across all batches.
@@ -583,9 +599,11 @@ colnames(df) <- c("Experiment", "preComBat", "postComBat")
 mytable <- tableGrob(df, rows = NULL)
 
 # Save table quantifying batch effects.
-myfile <- file.path(figsdir,
-		    paste0("Batch_Effect_Quant_Table",image_format))
-ggsaveTable(mytable,prefix_file(myfile))
+if (save_plots) {
+	myfile <- file.path(figsdir,
+			    paste0("Batch_Effect_Quant_Table",image_format))
+	ggsaveTable(mytable,prefix_file(myfile))
+}
 
 #---------------------------------------------------------------------
 ##  Examine protein identification overlap.
@@ -597,9 +615,11 @@ plot <- ggplotFreqOverlap(combat_protein, "Abundance", groups) +
   ggtitle("Protein Identification Overlap")
 
 # Save.
-myfile <- file.path(figsdir,
-		    paste0("Protein_Identification_Overlap",image_format))
-ggsave(prefix_file(myfile),plot)
+if (save_plots) {
+	myfile <- file.path(figsdir,
+			    paste0("Protein_Identification_Overlap",image_format))
+	ggsave(prefix_file(myfile),plot)
+}
 
 #---------------------------------------------------------------------
 ## Examine the Normalized protein level data.
@@ -625,10 +645,12 @@ p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
 
 # Save the plots.
-file_names <- paste0("Norm_Protein_",
-		     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
-myfiles <- file.path(figsdir,paste0(file_names,image_format))
-ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+if (save_plots) {
+	file_names <- paste0("Norm_Protein_",
+			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
+	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+}
 
 #---------------------------------------------------------------------
 ## IRS Normalization.

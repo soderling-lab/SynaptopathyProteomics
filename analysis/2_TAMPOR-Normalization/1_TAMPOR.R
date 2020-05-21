@@ -13,12 +13,8 @@
 # Load custom functions and prepare the project directory for saving 
 # output files.
 
-rm(list = ls())
-if (!is.null(dev.list())) {
-  dev.off()
-}
-cat("\f")
-options(stringsAsFactors = FALSE)
+# Load renv.
+renv::load(getrd())
 
 # Load required packages.
 suppressPackageStartupMessages({
