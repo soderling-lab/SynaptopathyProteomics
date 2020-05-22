@@ -350,7 +350,7 @@ y_DGE <- calcNormFactors(y_DGE)
 # Group WT Cortex samples and WT Striatum samples together.
 traits <- subset(alltraits, rownames(traits) %in% colnames(data_in))
 traits <- traits[match(colnames(data_in), rownames(traits)), ]
-all(traits$SampleID == colnames(data_in))
+if (!all(traits$SampleID == colnames(data_in))) { stop() }
 group <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
 group[grepl("Cortex.WT", group)] <- "Cortex.WT"
 group[grepl("Striatum.WT", group)] <- "Striatum.WT"
@@ -574,16 +574,22 @@ ggplotVolcanoPlot <- function(df) {
   df$Color <- as.factor(df$Color)
   y_int <- -1 * log10(max(df$PValue[df$FDR < 0.05]))
   plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) +
-    geom_point(size = 3, alpha = 0.5) + scale_color_manual(values = levels(df$Color)) +
-    geom_hline(yintercept = y_int, linetype = "dashed", color = "black", size = 0.6) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.6) +
-    # geom_vline(xintercept = -cutoff, linetype = "dashed", color = "black", size = 0.6) +
+    geom_point(size = 3, alpha = 0.5) + 
+    scale_color_manual(values = levels(df$Color)) +
+    geom_hline(yintercept = y_int, linetype = "dashed", 
+	       color = "black", size = 0.6) +
+    geom_vline(xintercept = 0, linetype = "dashed", 
+	       color = "black", size = 0.6) +
     xlab(expression(bold(Log[2](Fold ~ Change)))) +
     ylab(expression(bold(-Log[10](P - value)))) +
     theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 12, face = "bold"),
-      axis.title.y = element_text(color = "black", face = "bold", size = 11, angle = 90, vjust = 0.5),
-      axis.title.x = element_text(color = "black", face = "bold", size = 11, angle = 0, hjust = 0.5, vjust = 0.5),
+      plot.title = element_text(hjust = 0.5, color = "black", 
+				size = 12, face = "bold"),
+      axis.title.y = element_text(color = "black", face = "bold", 
+				  size = 11, angle = 90, vjust = 0.5),
+      axis.title.x = element_text(color = "black", face = "bold", 
+				  size = 11, angle = 0, 
+				  hjust = 0.5, vjust = 0.5),
       panel.border = element_rect(colour = "black", fill = NA, size = 1),
       legend.position = "none"
     )
@@ -872,6 +878,8 @@ plot_list <- plot_list[sigStriatum]
 #---------------------------------------------------------------------
 ## Write data to excel spreadsheet.
 #---------------------------------------------------------------------
+
+message("\nSaving data to file!")
 
 # Load data.
 files <- list(
