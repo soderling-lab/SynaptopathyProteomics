@@ -218,7 +218,7 @@ message(paste("Outlier samples removed:",
 
 # Save data with QC samples, but outliers removed to file.
 cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
-myfile <- file.path(Rdatadir, "Combined_cleanDat.RData")
+myfile <- file.path(rdatdir, "Combined_cleanDat.RData")
 saveRDS(cleanDat, myfile)
 
 #---------------------------------------------------------------------
@@ -496,7 +496,7 @@ f <- function(x) {
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
-myfile <- file.path(Rdatadir,"GLM_Results.RData")
+myfile <- file.path(rdatdir,"GLM_Results.RData")
 saveRDS(glm_results, myfile)
 
 # Save results to file as spreadsheet.
@@ -875,10 +875,10 @@ plot_list <- plot_list[sigStriatum]
 
 # Load data.
 files <- list(
-  traits = paste(Rdatadir, "Combined_traits.RData", sep = "/"),
-  raw_cortex = paste(Rdatadir, "Cortex_raw_peptide.RData", sep = "/"),
-  raw_striatum = paste(Rdatadir, "Striatum_raw_peptide.RData", sep = "/"),
-  cleanDat = paste(Rdatadir, "Combined_cleanDat.RData", sep = "/")
+  traits = paste(rdatdir, "Combined_traits.RData", sep = "/"),
+  raw_cortex = paste(rdatdir, "Cortex_raw_peptide.RData", sep = "/"),
+  raw_striatum = paste(rdatdir, "Striatum_raw_peptide.RData", sep = "/"),
+  cleanDat = paste(rdatdir, "Combined_cleanDat.RData", sep = "/")
 )
 data <- lapply(files, function(x) readRDS(x))
 
