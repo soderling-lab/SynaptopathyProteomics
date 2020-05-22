@@ -21,9 +21,9 @@
 ggplotScaleFreeFit <- function(connectivity, nBreaks = 10, truncated = FALSE,
                                removeFirst = FALSE, main = "", ...) {
   suppressPackageStartupMessages({
-    require(WGCNA)
-    require(normalp)
-    require(ggplot2)
+    library(WGCNA)
+    library(normalp)
+    library(ggplot2)
   })
   k <- connectivity
   discretized.k <- cut(k, nBreaks)

@@ -16,7 +16,7 @@
 
 write_excel <- function(data, file, rowNames = FALSE, colNames = TRUE, ...) {
   suppressPackageStartupMessages({
-    require(openxlsx, quietly = TRUE)
+    library(openxlsx, quietly = TRUE)
   })
   if (inherits(data, "list")) {
     data_list <- data
