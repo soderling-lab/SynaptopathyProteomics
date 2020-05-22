@@ -6,8 +6,19 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## Parameters:
-type = 2                # Analysis (tissue) type: cortex (1) or striatum(2).
+# Parse command line input:
+# Analysis (tissue) type: cortex (1) or striatum(2).
+args <- commandArgs(trailingOnly = TRUE)
+msg <- "Please specify tissue type. Either 'Cortex' or 'Striatum'."
+if (!length(args == 1)) { 
+	stop(msg) 
+} else { 
+	type <- match(args[1],c("Cortex","Striatum"))
+	tissue <- c("Cortex", "Striatum")[type]
+	message(paste0("\nAnalyzing ",tissue,"..."))
+}
+
+## Other Parameters:
 save_plots = FALSE      # Should plots be saved?
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 clean_figsdir = FALSE   # Remove existing figures?
@@ -64,10 +75,6 @@ suppressPackageStartupMessages({
   library(sva)
 })
 
-## User parameters:
-# Define tissue type for analysis: Cortex = 1; Striatum = 2.
-tissue <- c("Cortex", "Striatum")[type]
-
 # Directories:
 rootdir <- getrd()
 figsdir <- file.path(rootdir, "figs")
@@ -102,7 +109,6 @@ ggtheme()
 # version 2.2. Note that the default export from PD2.x is a unitless signal to
 # noise ratio, and it is not recommended to use ths for quantification.
 
-message(paste0("\nAnalyzing ",tissue,"..."))
 
 # Load the TMT data.
 datafile <- c(
