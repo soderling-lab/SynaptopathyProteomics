@@ -8,6 +8,7 @@
 
 ## Parameters
 save_plots = FALSE
+clear_plots = FALSE
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -49,17 +50,20 @@ rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
 
 # Remove any existing figures and tables.
-invisible(sapply(list.files(outputfigs),unlink))
-invisible(sapply(list.files(outputtabs),unlink))
+if (clear_plots) {
+	invisible(sapply(list.files(figsdir),unlink))
+	invisible(sapply(list.files(tabsdir),unlink))
+}
 
 # Load required custom functions.
 devtools::load_all()
 
 # Define prefix for output figures and tables.
-outputMatName <- paste0("2_", tissue)
+output_name <- tissue
 
 # Globally set ggplots theme.
 ggtheme()
+set_font("Arial")
 
 #---------------------------------------------------------------------
 ## Merge cortex and striatum data.
@@ -101,7 +105,7 @@ alltraits <- traits
 
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
-myfiles <- file.path(Rdatadir, c(
+myfiles <- file.path(rdatdir, c(
   "Cortex_cleanDat.RData",
   "Striatum_cleanDat.RData"
 ))
@@ -146,7 +150,7 @@ colnames(allDat) <- c(group1, group2)
 controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 
 # Save merged traits file.
-myfile <- file.path(Rdatadir, "2_Combined_traits.RData")
+myfile <- file.path(rdatdir, "Combined_traits.RData")
 saveRDS(alltraits, file = myfile)
 
 #---------------------------------------------------------------------
@@ -186,7 +190,7 @@ plot <- sample_connectivity$connectivityplot +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(outputfigs,"Sample_Outliers.tiff")
+	myfile <- file.path(figsdir,"Sample_Outliers.tiff")
 	ggsave(myfile,plot)
 }
 
@@ -209,11 +213,12 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-message(paste("Outlier samples:", traits$Sample.Model[rownames(traits) %in% bad_samples]))
+message(paste("Outlier samples removed:", 
+	      traits$Sample.Model[rownames(traits) %in% bad_samples]))
 
 # Save data with QC samples, but outliers removed to file.
 cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
-myfile <- file.path(Rdatadir, "2_Combined_cleanDat.RData")
+myfile <- file.path(Rdatadir, "Combined_cleanDat.RData")
 saveRDS(cleanDat, myfile)
 
 #---------------------------------------------------------------------
@@ -254,10 +259,12 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
 )
 
 # Save.
-myfile <- prefix_file(file.path(outputfigs,"Cortex_PCA.tiff"))
-ggsave(myfile,plot1)
-myfile <- prefix_file(file.path(outputfigs,"Striatum_PCA.tiff"))
-ggsave(myfile,plot2)
+if (save_plots) {
+	myfile <- file.path(figsdir,"Cortex_PCA.tiff")
+	ggsave(myfile,plot1)
+	myfile <- file.path(figsdir,"Striatum_PCA.tiff")
+	ggsave(myfile,plot2)
+}
 
 #---------------------------------------------------------------------
 ## Create protein identifier map.
@@ -302,7 +309,7 @@ suppressMessages({
   )
 })
 
-# Check
+# Check:
 if (sum(is.na(gene)) > 0) {
   stop("Not all genes mapped to symbols!")
 }
@@ -311,7 +318,7 @@ if (sum(is.na(gene)) > 0) {
 protmap <- data.frame(ids, uniprot, entrez, gene)
 
 # Save to Rdata.
-myfile <- file.path(Rdatadir, "2_Protein_ID_Map.RData")
+myfile <- file.path(rdatdir, "Protein_ID_Map.RData")
 saveRDS(protmap, myfile)
 
 #---------------------------------------------------------------------
@@ -323,13 +330,15 @@ saveRDS(protmap, myfile)
 # Prepare data for EdgeR.
 # Data should NOT be log2 transformed.
 # Remove QC samples prior to passing data to EdgeR.
-out <- alltraits$SampleType[match(colnames(cleanDat), rownames(alltraits))] == "QC"
+out <- alltraits$SampleType[match(colnames(cleanDat), 
+				  rownames(alltraits))] == "QC"
 data_in <- cleanDat[, !out]
 
 # Number of proteins...
-nprots <- dim(data_in)[1]
+nprots <- formatC(dim(data_in)[1],big.mark=",")
 nsamples <- dim(data_in)[2]
-message(paste(nprots, "proteins identified in", nsamples, "samples."))
+message(paste("Quantified", nprots, "proteins identified in", 
+	      nsamples, "samples."))
 
 # Create DGEList object...
 y_DGE <- DGEList(counts = data_in)
@@ -421,11 +430,14 @@ mytable <- gtable_add_grob(mytable,
 plot <- cowplot::plot_grid(mytable)
 
 # Save.
-myfile <- prefix_file(file.path(outputfigs,"Sig_Prots_Summary.tiff"))
-ggsaveTable(mytable,myfile)
+if (save_plots) {
+	myfile <- file.path(figsdir,"Sig_Prots_Summary.tiff")
+	ggsaveTable(mytable,myfile)
+}
 
 # Call topTags to add FDR. Gather tabularized results.
-glm_results <- lapply(qlf, function(x) topTags(x, n = Inf, sort.by = "none")$table)
+glm_results <- lapply(qlf, function(x){ 
+			      topTags(x, n = Inf, sort.by = "none")$table })
 
 # Convert logCPM column to percent WT and annotate with candidate column.
 glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
@@ -484,11 +496,11 @@ f <- function(x) {
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
-myfile <- file.path(Rdatadir, paste0(outputMatName, "_All_GLM_Results.RData"))
+myfile <- file.path(Rdatadir,"GLM_Results.RData")
 saveRDS(glm_results, myfile)
 
-# Save results to file.
-myfile <- file.path(outputtabs, paste0(outputMatName, "_GLM_Results.xlsx"))
+# Save results to file as spreadsheet.
+myfile <- file.path(tabsdir,"GLM_Results.xlsx")
 write_excel(glm_results, myfile)
 
 #---------------------------------------------------------------------
@@ -525,7 +537,7 @@ glm_stats <- lapply(glm_stats, function(x) {
 })
 
 # Save GLM stats.
-myfile <- file.path(Rdatadir, "2_GLM_Stats.RData")
+myfile <- file.path(rdatdir, "GLM_Stats.RData")
 saveRDS(glm_stats, myfile)
 
 #---------------------------------------------------------------------
@@ -587,23 +599,26 @@ ggplotVolcanoPlot <- function(df) {
 }
 
 # Generate plots.
-plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot(results[[x]]))
-names(plots) <- names(colors)
+# FIXME: not working!
+#plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot(results[[x]]))
+#names(plots) <- names(colors)
 
 # Add titles.
-for (i in 1:length(plots)) {
-  plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
-}
+#for (i in 1:length(plots)) {
+#  plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
+#}
 
 # Save.
-myfile <- prefix_file(file.path(outputfigs,"Shank2_Volcano.tiff"))
-ggsave(myfile,plots$Shank2)
-myfile <- prefix_file(file.path(outputfigs,"Shank3_Volcano.tiff"))
-ggsave(myfile,plots$Shank3)
-myfile <- prefix_file(file.path(outputfigs,"Syngap1_Volcano.tiff"))
-ggsave(myfile,plots$Syngap1)
-myfile <- prefix_file(file.path(outputfigs,"Ube3a_Volcano.tiff"))
-ggsave(myfile,plots$Ube3a)
+if (save_plots) {
+	myfile <- file.path(figsdir,"Shank2_Volcano.tiff")
+	ggsave(myfile,plots$Shank2)
+	myfile <- file.path(figsdir,"Shank3_Volcano.tiff")
+	ggsave(myfile,plots$Shank3)
+	myfile <- file.path(figsdir,"Syngap1_Volcano.tiff")
+	ggsave(myfile,plots$Syngap1)
+	myfile <- file.path(figsdir,"Ube3a_Volcano.tiff")
+	ggsave(myfile,plots$Ube3a)
+}
 
 #---------------------------------------------------------------------
 ## Condition overlap plot.
@@ -698,8 +713,10 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
   coord_fixed()
 
 # Save.
-myfile <- prefix_file(file.path(outputfigs,"Condition_Overlap_Plot.tiff"))
-ggsave(myfile,plot)
+if (save_plots) {
+	myfile <- file.path(figsdir,"Condition_Overlap_Plot.tiff")
+	ggsave(myfile,plot)
+}
 
 #---------------------------------------------------------------------
 ## Generate faceted protein boxplots.
@@ -708,7 +725,8 @@ ggsave(myfile,plot)
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
 traits <- alltraits[!out, ]
-traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+traits$Tissue.Sample.Model <- paste(traits$Tissue, 
+				    traits$Sample.Model, sep = ".")
 traits$Condition <- traits$Tissue.Sample.Model
 traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
 traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
@@ -748,9 +766,10 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 plot_list <- plot_list[all_sigProts]
 
 # Save sig plots.
-message("Saving plots, this will take several minutes...")
-myfile <- file.path(Rdatadir,"All_Faceted_SigProt_Boxplots.RData")
-saveRDS(plot_list,myfile)
+# FIXME: how to save plots?
+#message("Saving plots, this will take several minutes...")
+#myfile <- file.path(Rdatadir,"All_Faceted_SigProt_Boxplots.RData")
+#saveRDS(plot_list,myfile)
 
 #---------------------------------------------------------------------
 ## Save Cortex and striatum sigProt plots seperately.
@@ -759,7 +778,8 @@ saveRDS(plot_list,myfile)
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
 traits <- alltraits[!out, ]
-traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+traits$Tissue.Sample.Model <- paste(traits$Tissue, 
+				    traits$Sample.Model, sep = ".")
 traits$Condition <- traits$Tissue.Sample.Model
 traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
 traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
@@ -795,9 +815,10 @@ sigCortex <- unique(unlist(sigProts[grep("Cortex",names(sigProts))]))
 plot_list <- plot_list[sigCortex]
 
 # Save sig plots.
-message("Saving plots, this will take several minutes...")
-myfile <- file.path(Rdatadir,"All_Cortex_SigProt_Boxplots.RData")
-saveRDS(plot_list,myfile)
+# FIXME: how to save plots?
+#message("Saving plots, this will take several minutes...")
+#myfile <- file.path(Rdatadir,"All_Cortex_SigProt_Boxplots.RData")
+#saveRDS(plot_list,myfile)
 
 #---------------------------------------------------------------------
 ## Save  Striatum sigProt plots seperately.
@@ -806,7 +827,8 @@ saveRDS(plot_list,myfile)
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
 traits <- alltraits[!out, ]
-traits$Tissue.Sample.Model <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+traits$Tissue.Sample.Model <- paste(traits$Tissue, 
+				    traits$Sample.Model, sep = ".")
 traits$Condition <- traits$Tissue.Sample.Model
 traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
 traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
@@ -842,9 +864,10 @@ sigStriatum <- unique(unlist(sigProts[grep("Striatum",names(sigProts))]))
 plot_list <- plot_list[sigStriatum]
 
 # Save sig plots.
-message("Saving plots, this will take several minutes...")
-myfile <- file.path(Rdatadir,"All_Striatum_SigProt_Boxplots.RData")
-saveRDS(plot_list,myfile)
+# FIXME: how to save plots?
+#message("Saving plots, this will take several minutes...")
+#myfile <- file.path(Rdatadir,"All_Striatum_SigProt_Boxplots.RData")
+#saveRDS(plot_list,myfile)
 
 #---------------------------------------------------------------------
 ## Write data to excel spreadsheet.
@@ -871,15 +894,19 @@ colnames(traits)[2] <- "LongName"
 raw_cortex <- data$raw_cortex
 raw_striatum <- data$raw_striatum
 idx <- grepl("Abundance", colnames(raw_cortex))
-colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], "Cortex", sep = ", ")
+colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], 
+				   "Cortex", sep = ", ")
 idx <- grepl("Abundance", colnames(raw_striatum))
-colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], "Striatum", sep = ", ")
+colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx], 
+				     "Striatum", sep = ", ")
 
 # Gather normalized data.
 norm_data <- as.data.frame(log2(data$cleanDat))
 idx <- match(colnames(norm_data), traits$Batch.Channel)
-colnames(norm_data) <- paste(traits$LongName[idx], traits$Tissue[idx], sep = ", ")
-norm_data <- add_column(norm_data, "Gene|Uniprot" = rownames(norm_data), .before = 1)
+colnames(norm_data) <- paste(traits$LongName[idx], 
+			     traits$Tissue[idx], sep = ", ")
+norm_data <- add_column(norm_data, 
+			"Gene|Uniprot" = rownames(norm_data), .before = 1)
 rownames(norm_data) <- NULL
 
 # Write to excel workbook.
