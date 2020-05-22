@@ -213,7 +213,7 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-message(paste("Outlier samples removed:", 
+message(paste("\nOutlier samples removed:", 
 	      traits$Sample.Model[rownames(traits) %in% bad_samples]))
 
 # Save data with QC samples, but outliers removed to file.
@@ -337,7 +337,7 @@ data_in <- cleanDat[, !out]
 # Number of proteins...
 nprots <- formatC(dim(data_in)[1],big.mark=",")
 nsamples <- dim(data_in)[2]
-message(paste("Quantified", nprots, "proteins identified in", 
+message(paste("\nQuantified", nprots, "proteins identified in", 
 	      nsamples, "samples."))
 
 # Create DGEList object...
@@ -919,7 +919,7 @@ writeData(wb, sheet = 1, keepNA = TRUE, traits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
-myfile <- file.path(outputtabs, "2_Combined_TMT_Data.xlsx")
+myfile <- file.path(tabsdir, "Combined_TMT_Data.xlsx")
 saveWorkbook(wb, myfile, overwrite = TRUE)
 
-message("Done!")
+message("\nDone!")
