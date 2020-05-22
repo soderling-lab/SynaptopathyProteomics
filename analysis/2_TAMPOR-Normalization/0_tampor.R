@@ -6,6 +6,9 @@
 #' authors: Tyler W Bradshaw, Eric B Dammer.
 #' ---
 
+## Parameters
+save_plots = FALSE
+
 #---------------------------------------------------------------------
 ## Prepare the workspace.
 #---------------------------------------------------------------------
@@ -37,16 +40,13 @@ suppressPackageStartupMessages({
 tissue <- "Combined"
 
 # Set the working directory.
-here <- getwd()
-rootdir <- dirname(dirname(here))
-subdir <- basename(here)
 
 # Set any other directories.
-functiondir <- paste(rootdir, "R", sep = "/")
-datadir <- paste(rootdir, "data", sep = "/")
-Rdatadir <- paste(rootdir, "rdata", sep = "/")
-outputfigs <- paste(rootdir,"figs",subdir,tissue,sep="/")
-outputtabs <- paste(rootdir, "tables", subdir, sep = "/")
+root <- getrd()
+datadir <- file.path(root, "data")
+figsdir <- file.path(root, "figs")
+rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 # Remove any existing figures and tables.
 invisible(sapply(list.files(outputfigs),unlink))
@@ -185,8 +185,10 @@ plot <- sample_connectivity$connectivityplot +
   ggtitle("Sample Connectivity post-TAMPOR")
 
 # Save.
-myfile <- prefix_file(file.path(outputfigs,"Sample_Outliers.tiff"))
-ggsave(myfile,plot)
+if (save_plots) {
+	myfile <- file.path(outputfigs,"Sample_Outliers.tiff")
+	ggsave(myfile,plot)
+}
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5

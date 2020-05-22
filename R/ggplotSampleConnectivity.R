@@ -18,10 +18,15 @@
 #'
 #' @examples
 #' ggplotSampleConnectivity(data_in, log = TRUE, colID, threshold = -2.5)
-ggplotSampleConnectivity <- function(data_in, log = TRUE, colID, threshold = -2.5) {
-  require(ggdendro)
-  require(WGCNA)
-  require(ggrepel)
+ggplotSampleConnectivity <- function(data_in, log = TRUE, colID, 
+				     threshold = -2.5) {
+
+	suppressPackageStartupMessages({
+		library(ggdendro)
+		library(WGCNA)	  
+		library(ggrepel)
+	})
+
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
   if (log == TRUE) {
