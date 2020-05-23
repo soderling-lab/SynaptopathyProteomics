@@ -117,6 +117,13 @@
       "Repository": "CRAN",
       "Hash": "08588806cba69f04797dab50627428ed"
     },
+    "NetRep": {
+      "Package": "NetRep",
+      "Version": "1.2.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "2808a93b2e96171d1c2cc5a7c1b2db21"
+    },
     "R6": {
       "Package": "R6",
       "Version": "2.4.1",
@@ -151,6 +158,20 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "e652f23d8b1807cc975c51410d05b72f"
+    },
+    "RcppArmadillo": {
+      "Package": "RcppArmadillo",
+      "Version": "0.9.880.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "07a8bd218526e939d07fada5a950e5be"
+    },
+    "RhpcBLASctl": {
+      "Package": "RhpcBLASctl",
+      "Version": "0.20-137",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "fb135751ed3f00f33890826823ebe332"
     },
     "Rttf2pt1": {
       "Package": "Rttf2pt1",
@@ -190,6 +211,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "c1616606f097075542c12fb8a10a071e"
+    },
+    "abind": {
+      "Package": "abind",
+      "Version": "1.4-5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "4f57884290cc75ab22f4af9e9d4ca862"
     },
     "acepack": {
       "Package": "acepack",

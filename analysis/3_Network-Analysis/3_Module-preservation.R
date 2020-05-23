@@ -6,19 +6,11 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-
-#!/usr/bin/env Rscript
-
-#' ---
-#' title:
-#' description: Preprocessing of TMT data.
-#' authors: Tyler W Bradshaw
-#' ---
-
 # Parse command line input:
 # Analysis (tissue) type: cortex (1) or striatum(2).
 args <- commandArgs(trailingOnly = TRUE)
-msg <- "Please specify a tissue type to be analyzed: choose either 'Cortex' or 'Striatum'."
+msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "       Choose either 'Cortex' or 'Striatum'.")
 if (!length(args == 1)) { 
 	stop(msg) 
 } else { 
@@ -34,7 +26,7 @@ if (!length(args == 1)) {
 # User parameters to change:
 stats = c(1,2,6,7) # Module statistics to use for permutation testing.
 self = test = tissue
-strength = "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
+strength = "strong" # Criterion for preservation: strong or weak, see NOTE:.
 data_file = tissue # Which data to use?
 net_file = tissue # Which networks to test self preservation in?
 adjm_file = tissue # Which correlation (adjm) network to use?
@@ -43,6 +35,7 @@ replace_negative = "zero" # How should negative weights be handled?
 min_size = 5 # minimum allowable size for a module.
 verbose = FALSE
 nThreads = parallel::detectCores() - 1
+# NOTE: strong = all preservation statistics must be significant. Weak = any.
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -101,20 +94,16 @@ adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load network.
-myfile <- file.path(rdatdir, paste0(net_file, "_Adjm.RData"))
+myfile <- file.path(rdatdir, paste0(net_file, "_NE_Adjm.RData"))
 net <- as.matrix(readRDS(myfile))
 rownames(net) <- colnames(net)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = "147731383_Cortex_CPMVertexPartition_partitions.csv",
-	     "Cortex_MCL" = "3_Cortex_MCL_partitions.csv",
-	     "Striatum" = "148436673_Striatum_CPMVertexPartition_partitions.csv",
-	     "Striatum_MCL" = "3_Striatum_MCL_partitions.csv",
-	     "Cortex_Surprise" = "3_Cortex_SurpriseVertexPartition_partitions.csv",
-	     "Striatum_Surprise" = "3_Striatum_SurpriseVertexPartition_partitions.csv")
-partitions <- fread(file.path(rdatdir,myfiles[partition_file]), 
+myfiles <- c("Cortex" = "Cortex_SurpriseVertexPartition_partition.csv",
+	     "Striatum" = "Striatum_SurpriseVertexPartition_partition.csv")
+part_dt <- fread(file.path(rdatdir,myfiles[partition_file]), 
 		    header=TRUE,drop = 1)
-resolutions <- nrow(partitions)
+n_res <- nrow(part_dt)
 
 # Check that all columns in the data are in adjm and network.
 out1 <- colnames(data) %notin% colnames(adjm)
@@ -184,11 +173,11 @@ message(paste0(
 
 # Loop through partitions, evaluating self-preservation.
 results <- list()
-for (resolution in resolutions) {
+for (resolution in seq_along(n_res)) {
   message(paste("Working on partition", resolution, 
-		"of", length(resolutions), "..."))
+		"of", n_res, "..."))
   # Get partition.
-  partition <- as.integer(partitions[resolution, ]) 
+  partition <- as.integer(part_dt[resolution, ]) 
   # Add 1 so that all module assignments >0.
   if (min(partition)==0) { partition <- partition + 1 }
   partition <- reset_index(partition)
@@ -228,8 +217,7 @@ for (resolution in resolutions) {
   results[[resolution]] <- partition
   # Save to Rdata.
   if (resolution == length(resolutions)) {
-    output_name <- paste0(jobID, "_", partition_file, "_", net_file,
-			  "_Module_Self_Preservation.RData")
+    output_name <- paste0(tissue, "_Module_Self_Preservation.RData")
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }
