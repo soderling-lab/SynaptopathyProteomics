@@ -6,22 +6,43 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+
+#!/usr/bin/env Rscript
+
+#' ---
+#' title:
+#' description: Preprocessing of TMT data.
+#' authors: Tyler W Bradshaw
+#' ---
+
+# Parse command line input:
+# Analysis (tissue) type: cortex (1) or striatum(2).
+args <- commandArgs(trailingOnly = TRUE)
+msg <- "Please specify a tissue type to be analyzed: choose either 'Cortex' or 'Striatum'."
+if (!length(args == 1)) { 
+	stop(msg) 
+} else { 
+	type <- match(args[1],c("Cortex","Striatum"))
+	tissue <- c("Cortex", "Striatum")[type]
+	message(paste0("\nAnalyzing ",tissue,"..."))
+}
+
 #---------------------------------------------------------------------
 ## Set-up the workspace.
 #---------------------------------------------------------------------
 
 # User parameters to change:
-stats <- c(1,2,6,7) # Module statistics to use for permutation testing.
-self <- "Striatum"
-test <- "PPI"
-strength <- "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
-data_file <- "Striatum" # Which data to use?
-net_file <- "PPI" # Which networks to test self preservation in?
-adjm_file <- "Striatum" # Which correlation (adjm) network to use?
-partition_file <- "Striatum_Surprise" # Which partition file to use?
-replace_negative <- "zero" # How should negative weights be handled?
-min_size <- 5 # minimum allowable size for a module.
-verbose <- FALSE
+stats = c(1,2,6,7) # Module statistics to use for permutation testing.
+self = test = tissue
+strength = "strong" # Criterion for preservation: strong = ALL, weak = ANY sig stats.
+data_file = tissue # Which data to use?
+net_file = tissue # Which networks to test self preservation in?
+adjm_file = tissue # Which correlation (adjm) network to use?
+partition_file = tissue # Which partition file to use?
+replace_negative = "zero" # How should negative weights be handled?
+min_size = 5 # minimum allowable size for a module.
+verbose = FALSE
+nThreads = parallel::detectCores() - 1
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -50,52 +71,37 @@ verbose <- FALSE
 # 7. avg.contrib (average node contribution) - Quantifies how similar nodes are
 #    to summary profile.
 
-# Is this a slurm job?
-slurm <- any(grepl("SLURM", names(Sys.getenv())))
-if (slurm) {
-  # SLURM job notes - sent to job_*.info
-  nThreads <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK"))
-  jobID <- as.integer(Sys.getenv("SLURM_JOBID"))
-  info <- as.matrix(Sys.getenv())
-  idx <- grepl("SLURM", rownames(info))
-  myfile <- file.path("./out", paste0("job_", jobID, ".info"))
-  write.table(info[idx, ], myfile, col.names = FALSE, quote = FALSE, sep = "\t")
-} else {
-	nThreads <- parallel::detectCores() - 1
-  jobID <- Sys.Date()
-}
+# Load renv.
+root <- getrd()
+renv::load(root)
 
 # Global options and imports.
 suppressPackageStartupMessages({
-  library(data.table)
+  library(dplyr)
   library(NetRep)
+  library(data.table)
 })
 
 # Additional functions.
-suppressWarnings({
-	devtools::load_all()
-})
+devtools::load_all()
 
 # Directories.
-here <- getwd()
-root <- dirname(dirname(here))
 rdatdir <- file.path(root, "rdata")
-funcdir <- file.path(root, "R")
 
 # Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(rdatdir, paste0("3_", data_file, "_cleanDat.RData"))
+myfile <- file.path(rdatdir, paste0(data_file, "_cleanDat.RData"))
 data <- readRDS(myfile)
 colNames <- rownames(data)
 data <- t(data)
 colnames(data) <- colNames
 
 # Load adjmatrix.
-myfile <- file.path(rdatdir, paste0("3_", adjm_file, "_Adjm.RData"))
+myfile <- file.path(rdatdir, paste0(adjm_file, "_Adjm.RData"))
 adjm <- as.matrix(readRDS(myfile))
 rownames(adjm) <- colnames(adjm)
 
 # Load network.
-myfile <- file.path(rdatdir, paste0("3_", net_file, "_Adjm.RData"))
+myfile <- file.path(rdatdir, paste0(net_file, "_Adjm.RData"))
 net <- as.matrix(readRDS(myfile))
 rownames(net) <- colnames(net)
 
