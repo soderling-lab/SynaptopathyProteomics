@@ -190,7 +190,7 @@ plot <- sample_connectivity$connectivityplot +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Sample_Outliers.pdf")
+	myfile <- file.path(figsdir,"Sample-Outliers","Sample_Outliers.pdf")
 	ggsave(myfile,plot)
 }
 
@@ -260,9 +260,9 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Cortex_PCA.pdf")
+	myfile <- file.path(figsdir,"PCA","Cortex_PCA.pdf")
 	ggsave(myfile,plot1)
-	myfile <- file.path(figsdir,"Striatum_PCA.pdf")
+	myfile <- file.path(figsdir,"PCA","Striatum_PCA.pdf")
 	ggsave(myfile,plot2)
 }
 
@@ -437,7 +437,7 @@ plot <- cowplot::plot_grid(mytable)
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Sig_Prots_Summary.pdf")
+	myfile <- file.path(figsdir,"Tables","Sig_Prots_Summary.pdf")
 	ggsaveTable(mytable,myfile)
 }
 
@@ -625,13 +625,13 @@ for (i in 1:length(plots)) {
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Shank2_Volcano.pdf")
+	myfile <- file.path(figsdir,"Volcano-Plots","Shank2_Volcano.pdf")
 	ggsave(myfile,plots$Shank2)
-	myfile <- file.path(figsdir,"Shank3_Volcano.pdf")
+	myfile <- file.path(figsdir,"Volcano-Plots","Shank3_Volcano.pdf")
 	ggsave(myfile,plots$Shank3)
-	myfile <- file.path(figsdir,"Syngap1_Volcano.pdf")
+	myfile <- file.path(figsdir,"Volcano-Plots","Syngap1_Volcano.pdf")
 	ggsave(myfile,plots$Syngap1)
-	myfile <- file.path(figsdir,"Ube3a_Volcano.pdf")
+	myfile <- file.path(figsdir,"Volcano-Plots","Ube3a_Volcano.pdf")
 	ggsave(myfile,plots$Ube3a)
 }
 
@@ -737,7 +737,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Condition_Overlap_Plot.pdf")
+	myfile <- file.path(figsdir,"Tables","Condition_Overlap_Plot.pdf")
 	ggsave(myfile,plot)
 }
 
