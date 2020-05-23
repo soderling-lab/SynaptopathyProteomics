@@ -37,6 +37,9 @@ suppressPackageStartupMessages({
   library(AnnotationDbi)
 })
 
+# Load required custom functions.
+devtools::load_all()
+
 # Define tisue type:
 tissue <- "Combined"
 
@@ -52,9 +55,6 @@ if (clear_plots) {
 	invisible(sapply(list.files(figsdir),unlink))
 	invisible(sapply(list.files(tabsdir),unlink))
 }
-
-# Load required custom functions.
-devtools::load_all()
 
 # Define prefix for output figures and tables.
 output_name <- tissue
@@ -408,6 +408,9 @@ overall <- overall[, c(1, 3, 2, 4)]
 overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
 overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 
+# Pretty summary:
+knitr::kable(overall,row.names=FALSE)
+
 # Table of DA candidates.
 # Modify tables theme to change font size.
 # Cex is a scaling factor relative to the defaults.
@@ -577,6 +580,7 @@ ggplotVolcanoPlot <- function(df) {
   df$Color[!logic] <- "gray"
   df$Color <- as.factor(df$Color)
   y_int <- -1 * log10(max(df$PValue[df$FDR < 0.05]))
+  # Generate plot.
   plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) +
     geom_point(size = 3, alpha = 0.5) + 
     scale_color_manual(values = levels(df$Color)) +
@@ -599,7 +603,7 @@ ggplotVolcanoPlot <- function(df) {
     )
   # Add annotation.
   ypos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][8])
-  xpos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][1])
+  xpos <- range(plot$data$x,na.rm=TRUE)
   plot <- plot + annotate("text",
     x = xpos[1] + 0.3 * (xpos[2] - xpos[1]),
     y = y_int + 0.04 * (ypos[2] - ypos[1]),
@@ -610,13 +614,13 @@ ggplotVolcanoPlot <- function(df) {
 
 # Generate plots.
 # FIXME: not working!
-#plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot(results[[x]]))
-#names(plots) <- names(colors)
+plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot(results[[x]]))
+names(plots) <- names(colors)
 
 # Add titles.
-#for (i in 1:length(plots)) {
-#  plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
-#}
+for (i in 1:length(plots)) {
+  plots[[i]] <- plots[[i]] + ggtitle(names(plots)[i])
+}
 
 # Save.
 if (save_plots) {
@@ -660,6 +664,12 @@ for (i in c(2:ncol(df))) {
 }
 names(sigProts) <- names(stats)
 all_sigProts <- unique(unlist(sigProts))
+
+# sigProts by tissue type:
+idx <- grep("Cortex",names(sigProts))
+idy <- grep("Striatum",names(sigProts))
+tissue_sigProts <- list("Cortex" = unique(unlist(sigProts[idx])),
+			"Striatum" = unique(unlist(sigProts[idy])))
 
 # Build a matrix showing overlap.
 col_names <- names(stats)
@@ -759,7 +769,8 @@ box_order <- c(
   "Striatum.KO.Ube3a"
 )
 
-# Generate faceted plots.
+# Generate all faceted plots.
+# This takes a couple minutes.
 plot_list <- ggplotProteinBoxPlot(
   data_in = log2(cleanDat),
   interesting.proteins = rownames(cleanDat),
@@ -777,13 +788,20 @@ plot_list <- lapply(plot_list, function(x) x +
 plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 
 # Collect significant plots.
-plot_list <- plot_list[all_sigProts]
+# any significance in both tissues!
+prots <- Reduce(intersect,tissue_sigProts)
+plot_list <- plot_list[prots]
 
 # Save sig plots.
 # FIXME: how to save plots?
-#message("Saving plots, this will take several minutes...")
-#myfile <- file.path(Rdatadir,"All_Faceted_SigProt_Boxplots.RData")
-#saveRDS(plot_list,myfile)
+# FIXME: clean up figure style!!!
+message("\nSaving plots, this will take several minutes...")
+for (i in 1:length(plot_list)) {
+	plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
+	namen <- gsub("\\|","_",names(plot_list)[i])
+	myfile <- file.path(plotdir,paste0(namen,".pdf"))
+	ggsave(myfile,plot_list[[i]],height=7,width=7)
+}
 
 #---------------------------------------------------------------------
 ## Save Cortex and striatum sigProt plots seperately.
