@@ -21,6 +21,7 @@ recursive = True
 n_iterations = -1
 method = 'Surprise' 
 adjm_type = 'Enhanced Cortex' 
+output_name = 'Cortex'
 
 #--------------------------------------------------------------------
 ## Parse the user provided parameters.
@@ -30,13 +31,13 @@ import sys
 from sys import stderr
 
 ## Input adjacency matrix.
-adjms = {"Cortex" : "3_Cortex_Adjm.csv",
-        "Enhanced Cortex" : "3_Cortex_NE_Adjm.csv",
-        "Striatum" : "3_Striatum_Adjm.csv",
-        "Enhanced Striatum" : "3_Striatum_NE_Adjm.csv",
-        "Combined" : "3_Combined_Adjm.csv",
-        "PPI" : "3_PPI_Adjm.csv",
-        "GO" : "3_GO_Semantic_Similarity_RMS_Adjm.csv"}
+adjms = {"Cortex" : "Cortex_Adjm.csv",
+        "Enhanced Cortex" : "Cortex_NE_Adjm.csv",
+        "Striatum" : "Striatum_Adjm.csv",
+        "Enhanced Striatum" : "Striatum_NE_Adjm.csv",
+        "Combined" : "Combined_Adjm.csv",
+        "PPI" : "PPI_Adjm.csv"
+        }
 
 ## Leidenalg supports the following optimization methods:
 methods = {
@@ -98,11 +99,6 @@ funcdir = os.path.join(root,"Py")
 # Load functions.
 sys.path.append(root)
 from Py.myfun import *
-
-# Get system variables.
-myvars = ['SLURM_JOBID','SLURM_CPUS_PER_TASK']
-envars = {var:os.environ.get(var) for var in myvars}
-jobID = xstr(envars['SLURM_JOBID'])
 
 #---------------------------------------------------------------------
 ## Load input adjacency matrix and create an igraph object.
@@ -204,7 +200,7 @@ else:
 #------------------------------------------------------------------------------
 
 # Collect partition results and save as csv. 
-if len(profile) is 1:
+if len(profile) == 1:
     # Single resolution profile:
     results = {
             'Modularity' : [partition.modularity for partition in profile],
@@ -220,15 +216,8 @@ else:
 # Ends if/else
 
 # Save cluster membership vectors.
-output_name = input_adjm.split("_")[1]
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_partitions.csv")
+myfile = os.path.join(datadir, + output_name + "_" + 
+        method + "_partition.csv")
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
-df.to_csv(myfile)
-
-# Save partition profile summary data.
-df = DataFrame.from_dict(results)
-myfile = os.path.join(datadir, jobID + "3_" + output_name + "_" + 
-        method + "_profile.csv")
 df.to_csv(myfile)

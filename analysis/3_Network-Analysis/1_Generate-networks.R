@@ -76,7 +76,7 @@ adjm <- lapply(subDat, function(x) {
 })
 
 # Perform network enhancement.
-message("Performing network enhancement, this will take several minutes...")
+message("\nPerforming network enhancement, this will take several minutes...")
 adjm_ne <- lapply(adjm,neten)
 names(adjm_ne) <- paste(names(adjm_ne),"NE",sep="_")
 
@@ -123,7 +123,7 @@ fwrite(ppis,myfile)
 entrez <- prot_map$entrez
 
 # Build a ppi graph.
-message("Building PPI graph...")
+message("\nBuilding PPI graph...")
 g <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Get ppi adjacency matrix.
