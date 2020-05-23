@@ -40,8 +40,6 @@ suppressPackageStartupMessages({
 # Define tisue type:
 tissue <- "Combined"
 
-# Set the working directory.
-
 # Set any other directories.
 root <- getrd()
 datadir <- file.path(root, "data")
@@ -63,7 +61,7 @@ output_name <- tissue
 
 # Globally set ggplots theme.
 ggtheme()
-set_font("Arial")
+#set_font("Arial") # FIXME: move font to project repo.
 
 #---------------------------------------------------------------------
 ## Merge cortex and striatum data.
@@ -178,6 +176,8 @@ cleanDat <- results$cleanRelAbun
 ## Identify and remove any sample outliers.
 #---------------------------------------------------------------------
 
+message("\nExaming data for sample level outliers...")
+
 # Remove QC samples.
 out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
 data_in <- log2(cleanDat[, !out])
@@ -204,7 +204,7 @@ for (i in 1:n_iter) {
   data_temp <- data_in
   oldham <- ggplotSampleConnectivity(data_temp, log = TRUE, colID = "b", threshold = -3)
   bad_samples <- rownames(oldham$table)[oldham$table$Z.Ki < threshold]
-  print(paste(length(bad_samples), " outlier sample(s) identified in iteration ", i, ".", sep = ""))
+  message(paste(length(bad_samples), " outlier sample(s) identified in iteration ", i, ".", sep = ""))
   if (length(bad_samples) == 0) bad_samples <- "none"
   out_samples[[i]] <- bad_samples
   out <- grepl(paste(unlist(out_samples), collapse = "|"), colnames(data_in))
@@ -213,7 +213,7 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-message(paste("\nOutlier samples removed:", 
+message(paste("\nOutlier sample(s) removed:", 
 	      traits$Sample.Model[rownames(traits) %in% bad_samples]))
 
 # Save data with QC samples, but outliers removed to file.
@@ -325,6 +325,8 @@ saveRDS(protmap, myfile)
 ## EdgeR statistical comparisons post-TAMPOR.
 #---------------------------------------------------------------------
 
+message("\nPerforming statistical testing with EdgeR glm.")
+
 # Statistical comparisons are KO/HET versus all WT of a tissue type.
 
 # Prepare data for EdgeR.
@@ -337,7 +339,7 @@ data_in <- cleanDat[, !out]
 # Number of proteins...
 nprots <- formatC(dim(data_in)[1],big.mark=",")
 nsamples <- dim(data_in)[2]
-message(paste("\nQuantified", nprots, "proteins identified in", 
+message(paste("\nQuantified", nprots, "proteins from", 
 	      nsamples, "samples."))
 
 # Create DGEList object...
@@ -544,6 +546,8 @@ saveRDS(glm_stats, myfile)
 ## Volcano plots for each genotype.
 #---------------------------------------------------------------------
 
+message("\nGenerating volcano plots...")
+
 # Add column for genotype and unique ID to results in list.
 output <- list()
 for (i in 1:length(glm_results)) {
@@ -629,6 +633,8 @@ if (save_plots) {
 #---------------------------------------------------------------------
 ## Condition overlap plot.
 #---------------------------------------------------------------------
+
+message("\nGenerating condition overlap plot...")
 
 # Load statistical results..
 results <- glm_results
@@ -727,6 +733,8 @@ if (save_plots) {
 #---------------------------------------------------------------------
 ## Generate faceted protein boxplots.
 #---------------------------------------------------------------------
+
+message("\nGenerating faceted protein plots...")
 
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
