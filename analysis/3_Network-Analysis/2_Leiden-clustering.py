@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 ' Clustering of the protein co-expression graph with Leidenalg.'
 
+import sys
+analysis_type = sys.argv[1]
+
 ## User parameters: 
 # rmin - minimum resolution for multi-resolution methods.
 # rmax - maximum resolution for multi-resolution methods.
@@ -20,22 +23,20 @@ max_size = 100
 recursive = True
 n_iterations = -1
 method = 'Surprise' 
-adjm_type = 'Enhanced Cortex' 
-output_name = 'Cortex'
+adjm_type = analysis_type
+output_name = analysis_type
 
 #--------------------------------------------------------------------
 ## Parse the user provided parameters.
 #--------------------------------------------------------------------
 
-import sys
 from sys import stderr
 
 ## Input adjacency matrix.
-adjms = {"Cortex" : "Cortex_Adjm.csv",
-        "Enhanced Cortex" : "Cortex_NE_Adjm.csv",
-        "Striatum" : "Striatum_Adjm.csv",
-        "Enhanced Striatum" : "Striatum_NE_Adjm.csv",
-        "Combined" : "Combined_Adjm.csv",
+adjms = {
+        "Cortex" : "Cortex_NE_Adjm.csv",
+        "Striatum" : "Striatum_NE_Adjm.csv",
+        "Combined" : "Combined_NE_Adjm.csv",
         "PPI" : "PPI_Adjm.csv"
         }
 
