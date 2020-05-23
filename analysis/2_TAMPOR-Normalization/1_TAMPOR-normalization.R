@@ -7,8 +7,8 @@
 #' ---
 
 ## Parameters
-save_plots = FALSE
-clear_plots = FALSE
+save_plots = TRUE
+clear_plots = TRUE
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -46,9 +46,9 @@ tissue <- "Combined"
 # Set any other directories.
 root <- getrd()
 datadir <- file.path(root, "data")
-figsdir <- file.path(root, "figs")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
+figsdir <- file.path(root, "figs","TAMPOR")
 
 # Remove any existing figures and tables.
 if (clear_plots) {
@@ -190,7 +190,7 @@ plot <- sample_connectivity$connectivityplot +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Sample_Outliers.tiff")
+	myfile <- file.path(figsdir,"Sample_Outliers.pdf")
 	ggsave(myfile,plot)
 }
 
@@ -260,9 +260,9 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Cortex_PCA.tiff")
+	myfile <- file.path(figsdir,"Cortex_PCA.pdf")
 	ggsave(myfile,plot1)
-	myfile <- file.path(figsdir,"Striatum_PCA.tiff")
+	myfile <- file.path(figsdir,"Striatum_PCA.pdf")
 	ggsave(myfile,plot2)
 }
 
@@ -437,7 +437,7 @@ plot <- cowplot::plot_grid(mytable)
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Sig_Prots_Summary.tiff")
+	myfile <- file.path(figsdir,"Sig_Prots_Summary.pdf")
 	ggsaveTable(mytable,myfile)
 }
 
@@ -502,11 +502,11 @@ f <- function(x) {
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
-myfile <- file.path(rdatdir,"GLM_Results.RData")
+myfile <- file.path(rdatdir,"Combined_GLM_Results.RData")
 saveRDS(glm_results, myfile)
 
 # Save results to file as spreadsheet.
-myfile <- file.path(tabsdir,"GLM_Results.xlsx")
+myfile <- file.path(tabsdir,"Combined_GLM_Results.xlsx")
 write_excel(glm_results, myfile)
 
 #---------------------------------------------------------------------
@@ -625,13 +625,13 @@ for (i in 1:length(plots)) {
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Shank2_Volcano.tiff")
+	myfile <- file.path(figsdir,"Shank2_Volcano.pdf")
 	ggsave(myfile,plots$Shank2)
-	myfile <- file.path(figsdir,"Shank3_Volcano.tiff")
+	myfile <- file.path(figsdir,"Shank3_Volcano.pdf")
 	ggsave(myfile,plots$Shank3)
-	myfile <- file.path(figsdir,"Syngap1_Volcano.tiff")
+	myfile <- file.path(figsdir,"Syngap1_Volcano.pdf")
 	ggsave(myfile,plots$Syngap1)
-	myfile <- file.path(figsdir,"Ube3a_Volcano.tiff")
+	myfile <- file.path(figsdir,"Ube3a_Volcano.pdf")
 	ggsave(myfile,plots$Ube3a)
 }
 
@@ -737,7 +737,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Condition_Overlap_Plot.tiff")
+	myfile <- file.path(figsdir,"Condition_Overlap_Plot.pdf")
 	ggsave(myfile,plot)
 }
 
