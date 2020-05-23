@@ -79,18 +79,15 @@ message(paste0("\nAnalyzing ",analysis_type,"..."))
 
 # Load protein expression data:
 myfile <- file.path(rdatdir, input_data[['data']])
-norm_protein <- fread(myfile)
-dm <- norm_protein %>% 
-	dcast(Sample ~ Accession, value.var = "Obs.Intensity") %>%
-	as.matrix(rownames="Sample") %>% log2()
+norm_protein <- readRDS(myfile)
 
 # Load adjacency matrix--coerce to a data.matrix.
 myfile <- file.path(rdatdir, input_data[['adjm']])
-adjm <- fread(myfile) %>% as.matrix(rownames="Accession")
+adjm <- fread(myfile) %>% as.matrix(rownames="V1")
 
 # Load network--coerce to a matrix.
 myfile <- file.path(rdatdir, input_data[['netw']])
-netw <- fread(myfile) %>% as.matrix(rownames="Accession")
+netw <- fread(myfile) %>% as.matrix(rownames="V1")
 
 # Load Leidenalg graph partition.
 # This is the intial partition of the graph.
@@ -102,24 +99,14 @@ n_resolutions <- nrow(part_dt)
 
 # Load graph partition after enforcing module self-preservation.
 myfile <- file.path(rdatdir, input_data[['pres']])
-part_dt <- fread(myfile)
-partition <- as.numeric(part_dt)
-names(partition) <- colnames(part_dt)
+partition <- readRDS(myfile)[[1]]
 
 # Reset partition index for self-preserved modules.
 partition <- reset_index(partition)
 
-# Load gene identifier map.
-#myfile <- file.path(rdatdir, input_data[['gmap']])
-#gene_map <- readRDS(myfile)
-
 # Load glm statistical results.
 #myfile <- file.path(rdatdir, input_data[["stat"]])
 #glm_stats <- fread(myfile)
-
-# Load sample info.
-#myfile <- file.path(datadir, input_meta)
-#samples <- fread(myfile)
 
 #---------------------------------------------------------------------
 ## Collect all modules in a list.
