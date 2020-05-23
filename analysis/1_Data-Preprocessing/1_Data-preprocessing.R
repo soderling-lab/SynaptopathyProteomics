@@ -77,10 +77,10 @@ suppressPackageStartupMessages({
 
 # Directories:
 rootdir <- getrd()
-figsdir <- file.path(rootdir, "figs")
 datadir <- file.path(rootdir, "data")
 rdatdir <- file.path(rootdir, "rdata")
 tabsdir <- file.path(rootdir, "tables")
+figsdir <- file.path(rootdir, "figs","Data-preprocessing")
 
 # Remove any existing figures and tables.
 if (clean_figsdir) {
