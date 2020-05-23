@@ -165,6 +165,18 @@
       "Source": "Bioconductor",
       "Hash": "c252d04c13a3a6667d3cc140360780f1"
     },
+    "TBmiscr": {
+      "Package": "TBmiscr",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "twesleyb",
+      "RemoteRepo": "TBmiscr",
+      "RemoteRef": "master",
+      "RemoteSha": "e596fff925867fd11e6731c2bb63342ca7aa77e0",
+      "Hash": "9049d1a437e9afeff11f97ab1772a868"
+    },
     "WGCNA": {
       "Package": "WGCNA",
       "Version": "1.69",
@@ -517,6 +529,18 @@
       "Source": "Bioconductor",
       "Hash": "c6996ce5c3b99c23264e82bd635c7871"
     },
+    "getPPIs": {
+      "Package": "getPPIs",
+      "Version": "0.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "twesleyb",
+      "RemoteRepo": "getPPIS",
+      "RemoteRef": "master",
+      "RemoteSha": "d0f0808a64cb81b5b062b1182cd52ba173995f49",
+      "Hash": "2990280c90cd7d48dfffaa9a5e4599d7"
+    },
     "ggdendro": {
       "Package": "ggdendro",
       "Version": "0.1-20",
@@ -607,6 +631,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "7146fea4685b4252ebf478978c75f597"
+    },
+    "igraph": {
+      "Package": "igraph",
+      "Version": "1.2.5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "3878c30ce67cdb7f2d7f72554e37f476"
     },
     "impute": {
       "Package": "impute",
@@ -766,6 +797,18 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "6dfe8bf774944bd5595785e3229d8771"
+    },
+    "neten": {
+      "Package": "neten",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "twesleyb",
+      "RemoteRepo": "neten",
+      "RemoteRef": "master",
+      "RemoteSha": "bac0da47dca411c87160e846ccdcfdf050a8b33c",
+      "Hash": "cbfc072e7745f47856f031bc9ee13561"
     },
     "nlme": {
       "Package": "nlme",
