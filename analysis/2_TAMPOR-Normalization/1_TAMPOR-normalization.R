@@ -795,16 +795,18 @@ plot_list <- plot_list[prots]
 # Save sig plots.
 # FIXME: how to save plots?
 # FIXME: clean up figure style!!!
-message("\nSaving plots, this will take several minutes...")
-for (i in 1:length(plot_list)) {
-	plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
-	namen <- gsub("\\|","_",names(plot_list)[i])
-	myfile <- file.path(plotdir,paste0(namen,".pdf"))
-	ggsave(myfile,plot_list[[i]],height=7,width=7)
+if (save_plots) {
+	message("\nSaving plots, this will take several minutes...")
+	for (i in 1:length(plot_list)) {
+		plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
+		namen <- gsub("\\|","_",names(plot_list)[i])
+		myfile <- file.path(plotdir,paste0(namen,".pdf"))
+		ggsave(myfile,plot_list[[i]],height=7,width=7)
+	}
 }
 
 #---------------------------------------------------------------------
-## Save Cortex and striatum sigProt plots seperately.
+## Save Cortex and Striatum sigProt plots seperately.
 #---------------------------------------------------------------------
 
 # Remove QC from traits. Group WT cortex and WT striatum.
@@ -844,62 +846,33 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 
 # Collect significant plots.
 sigCortex <- unique(unlist(sigProts[grep("Cortex",names(sigProts))]))
-plot_list <- plot_list[sigCortex]
-
-# Save sig plots.
-# FIXME: how to save plots?
-#message("Saving plots, this will take several minutes...")
-#myfile <- file.path(Rdatadir,"All_Cortex_SigProt_Boxplots.RData")
-#saveRDS(plot_list,myfile)
-
-#---------------------------------------------------------------------
-## Save  Striatum sigProt plots seperately.
-#---------------------------------------------------------------------
-
-# Remove QC from traits. Group WT cortex and WT striatum.
-out <- alltraits$SampleType == "QC"
-traits <- alltraits[!out, ]
-traits$Tissue.Sample.Model <- paste(traits$Tissue, 
-				    traits$Sample.Model, sep = ".")
-traits$Condition <- traits$Tissue.Sample.Model
-traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
-traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
-
-# Levels for boxplots (order of the boxes):
-box_order <- c(
-  "Striatum.WT",
-  "Striatum.KO.Shank2",
-  "Striatum.KO.Shank3",
-  "Striatum.HET.Syngap1",
-  "Striatum.KO.Ube3a"
-)
-
-# Generate plots.
-plot_list <- ggplotProteinBoxPlot(
-  data_in = log2(cleanDat),
-  interesting.proteins = rownames(cleanDat),
-  traits = traits,
-  box_order,
-  scatter = TRUE
-)
-
-# Add custom colors.
-colors <- c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4")
-plot_list <- lapply(plot_list, function(x) x + 
-		    scale_fill_manual(values = colors))
-
-# Add significance stars, and reformat x.axis labels.
-plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
-
-# Collect significant plots.
 sigStriatum <- unique(unlist(sigProts[grep("Striatum",names(sigProts))]))
-plot_list <- plot_list[sigStriatum]
 
-# Save sig plots.
-# FIXME: how to save plots?
-#message("Saving plots, this will take several minutes...")
-#myfile <- file.path(Rdatadir,"All_Striatum_SigProt_Boxplots.RData")
-#saveRDS(plot_list,myfile)
+# Save sig cortex plots.
+if (save_plots) {
+	plotdir <- file.path(figsdir,"Cortex-Protein-Boxplots")
+	if (clear_plots) { unlink(list.files(plotdir,full.names=TRUE)) }
+	message("\nSaving plots, this will take several minutes...")
+	myplots <- plot_list[sigCortex]
+	for (i in 1:length(myplots)) {
+		namen <- gsub("\\|","_",names(myplots)[i])
+		myfile <- file.path(plotdir,paste0(namen,".pdf"))
+		ggsave(myfile,myplots[[i]],height=7,width=7)
+	}
+}
+
+# Save sig striatum plots.
+if (save_plots) {
+	plotdir <- file.path(figsdir,"Striatum-Protein-Boxplots")
+	if (clear_plots) { unlink(list.files(plotdir,full.names=TRUE)) }
+	message("\nSaving plots, this will take several minutes...")
+	myplots <- plot_list[sigStriatum]
+	for (i in 1:length(myplots)) {
+		namen <- gsub("\\|","_",names(myplots)[i])
+		myfile <- file.path(plotdir,paste0(namen,".pdf"))
+		ggsave(myfile,myplots[[i]],height=7,width=7)
+	}
+}
 
 #---------------------------------------------------------------------
 ## Write data to excel spreadsheet.
