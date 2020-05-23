@@ -216,7 +216,7 @@ else:
 # Ends if/else
 
 # Save cluster membership vectors.
-myfile = os.path.join(datadir, + output_name + "_" + 
+myfile = os.path.join(datadir, output_name + "_" + 
         method + "_partition.csv")
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
