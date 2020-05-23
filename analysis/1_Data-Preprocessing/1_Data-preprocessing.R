@@ -19,10 +19,10 @@ if (!length(args == 1)) {
 }
 
 ## Other Parameters:
-save_plots = FALSE      # Should plots be saved?
+save_plots = TRUE       # Should plots be saved?
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
-clean_figsdir = FALSE   # Remove existing figures?
-clean_tabsdir = FALSE   # Remove existing tables?
+clean_figsdir = TRUE   # Remove existing figures?
+clean_tabsdir = TRUE   # Remove existing tables?
 image_format = ".pdf"   # Output figure format.
 
 #---------------------------------------------------------------------
@@ -351,13 +351,13 @@ if (save_plots) {
 #names(hist_list) <- groups
 
 # Save plots.
-if (save_plots) {
-	file_names <- paste(rep(names(hist_list),each=5),
-			    "QC_Hist",c(1,2,3,4,5),sep="_")
-	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-	plots <- unlist(hist_list,recursive=FALSE)
-	ggsavePlots(plots,prefix_file(myfiles))
-}
+#if (save_plots) {
+#	file_names <- paste(rep(names(hist_list),each=5),
+#			    "QC_Hist",c(1,2,3,4,5),sep="_")
+#	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+#	plots <- unlist(hist_list,recursive=FALSE)
+#	ggsavePlots(plots,prefix_file(myfiles))
+#}
 
 #---------------------------------------------------------------------
 ## Peptide level filtering based on QC samples.
