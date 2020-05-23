@@ -119,10 +119,10 @@ check <- all(colnames(data) == colnames(adjm))
 if (!check) { message("Problem: data doesn't match correlation matrix!") }
 
 # Enforce consistent dimensions between data and partitions.
-idy <- match(colnames(data),colnames(partitions))
-partitions <- as.data.frame(partitions)[,idy]
-check <- all(colnames(data) == colnames(partitions))
-if (!check) { message("Problem: data doesn't match partitions!") }
+idy <- match(colnames(data),colnames(part_dt))
+part_dt <- as.data.frame(part_dt)[,idy]
+check <- all(colnames(data) == colnames(part_dt))
+if (!check) { message("Problem: data doesn't match part_dt!") }
 
 # Enforce consistent dimensions between data and network.
 idz <- match(colnames(data),colnames(net))
@@ -131,7 +131,7 @@ check <- all(colnames(data) == colnames(net))
 if (!check) { message("Problem: data doesn't match network!") }
 
 # Final check.
-check <- all(colnames(partitions) == colnames(data) & colnames(data) == colnames(net))
+check <- all(colnames(part_dt) == colnames(data) & colnames(data) == colnames(net))
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -173,7 +173,7 @@ message(paste0(
 
 # Loop through partitions, evaluating self-preservation.
 results <- list()
-for (resolution in seq_along(n_res)) {
+for (resolution in seq(n_res)) {
   message(paste("Working on partition", resolution, 
 		"of", n_res, "..."))
   # Get partition.
@@ -181,7 +181,7 @@ for (resolution in seq_along(n_res)) {
   # Add 1 so that all module assignments >0.
   if (min(partition)==0) { partition <- partition + 1 }
   partition <- reset_index(partition)
-  names(partition) <- colnames(partitions)
+  names(partition) <- colnames(part_dt)
   # Remove modules less than min size.
   too_small <- which(table(partition) < min_size)
   partition[partition %in% too_small] <- 0 
@@ -216,7 +216,7 @@ for (resolution in seq_along(n_res)) {
   # Return results.
   results[[resolution]] <- partition
   # Save to Rdata.
-  if (resolution == length(resolutions)) {
+  if (resolution == n_res) {
     output_name <- paste0(tissue, "_Module_Self_Preservation.RData")
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
