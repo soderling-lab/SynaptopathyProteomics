@@ -65,7 +65,7 @@ subDat <- lapply(subDat, function(x) {
 })
 
 # Save expression data to file.
-myfiles <- file.path(rdatadir, paste0(names(subDat), "_cleanDat.RData"))
+myfiles <- file.path(rdatdir, paste0(names(subDat), "_cleanDat.RData"))
 invisible(mapply(function(x, y) saveRDS(x, y), subDat, myfiles))
 
 # Create signed adjacency (correlation) matrices.
@@ -105,9 +105,9 @@ invisible(mapply(function(x, y) saveRDS(x, y), adjm, myfiles))
 #---------------------------------------------------------------------
 
 # Load protein identifier map.
-prot_map <- readRDS(file.path(rdatdir,"2_Protein_ID_Map.RData"))
+prot_map <- readRDS(file.path(rdatdir,"Protein_ID_Map.RData"))
 
-# Load mouse interactome.
+# Load mouse interactome from getPPIs.
 data("musInteractome")
 
 # Subset mouse interactome, keep data from mouse, human, and rat.
@@ -116,8 +116,8 @@ idx <- musInteractome$Interactor_A_Taxonomy %in% orgs
 ppis <- subset(musInteractome, idx)
 
 # Save PPIs data frame--this contains evidence information.
-myfile <- file.path(rdatdir,"All_PPIs.RData")
-saveRDS(ppis,myfile)
+myfile <- file.path(rdatdir,"PPI_Data.csv")
+fwrite(ppis,myfile)
 
 # Get entrez IDs for all proteins in co-expression networks.
 entrez <- prot_map$entrez
@@ -151,7 +151,7 @@ rownames(PPIadjm)[nrow(PPIadjm)] <- missing
 dc <- apply(PPIadjm,2,sum) # Node degree.
 fit <- WGCNA::scaleFreeFitIndex(dc,nBreaks=10,removeFirst=FALSE)
 r <- fit$Rsquared.SFT
-message(paste("Scale free fit of PPI graph:",round(r,3)))
+message(paste("\nScale free fit of PPI graph:",round(r,3)))
 
 # Write to file.
 myfile <- file.path(rdatdir,"PPI_Adjm.csv")
