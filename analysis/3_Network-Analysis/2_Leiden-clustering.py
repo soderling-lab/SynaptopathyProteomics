@@ -218,7 +218,7 @@ else:
 
 # Save cluster membership vectors.
 myfile = os.path.join(datadir, output_name + "_" + 
-        method + "_partition.csv")
+        method + ".csv")
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
 df.to_csv(myfile)

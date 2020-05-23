@@ -29,24 +29,24 @@ DT_alpha = 0.1
 input_data <- list("Cortex" = list(
 				   adjm = "Cortex_Adjm.csv",
 				   netw = "Cortex_NE_Adjm.csv",
-				   ppis = "Cortex_PPI_Adjm.csv",
-				   stat = "Cortex_glm_stats.csv",
-			   	   data = "Cortex_norm_protein.csv",
-				   part = "Cortex_NE_SurpriseVertexPartition.csv",
-				   pres = "Cortex_partition_self_preservation_enforced.csv"),
+				   ppis = "PPI_Adjm.csv",
+				   stat = "GLM_Stats.RData",
+			   	   data = "Cortex_cleanDat.RData",
+				   part = "Cortex_SurpriseVertexPartition.csv",
+				   pres = "Cortex_Self_Preservation.RData"),
 		   "Striatum" = list(
-				     adjm = "Striatum_Adjm.csv",
-				     netw = "Striatum_NE_Adjm.csv",
-				     ppis = "Striatum_PPI_Adjm.csv",
-				     stat = "Striatum_glm_stats.csv",
-				     data = "Striatum_norm_protein.csv",
-				     part = "Striatum_NE_SurpriseVertexPartition.csv",
-				     pres = "Striatum_partition_self_preservation_enforced.csv")
+				   adjm = "Striatum_Adjm.csv",
+				   netw = "Striatum_NE_Adjm.csv",
+				   ppis = "PPI_Adjm.csv",
+				   stat = "GLM_Stats.RData",
+			   	   data = "Striatum_cleanDat.RData",
+				   part = "Striatum_SurpriseVertexPartition.csv",
+				   pres = "Striatum_Self_Preservation.RData")
 		   )[[analysis_type]]
 
 ## Sample meta data in root/data:
-input_meta <- list("Cortex" = "Cortex_Samples.csv",
-		   "Striatum" = "Striatum_Samples.csv")[[analysis_type]]
+input_meta <- list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
+		   "Striatum" = "4227_TMT_Striatum_Combined_trait.csv")[[analysis_type]]
 
 #--------------------------------------------------------------------
 ## Set-up the workspace.
@@ -64,7 +64,7 @@ suppressPackageStartupMessages({
 })
 
 # Functions.
-TBmiscr::load_all()
+devtools::load_all()
 
 # Directories.
 datadir <- file.path(root, "data")

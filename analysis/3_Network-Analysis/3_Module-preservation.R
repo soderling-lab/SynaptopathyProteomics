@@ -99,8 +99,8 @@ net <- as.matrix(readRDS(myfile))
 rownames(net) <- colnames(net)
 
 # Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = "Cortex_SurpriseVertexPartition_partition.csv",
-	     "Striatum" = "Striatum_SurpriseVertexPartition_partition.csv")
+myfiles <- c("Cortex" = "Cortex_SurpriseVertexPartition.csv",
+	     "Striatum" = "Striatum_SurpriseVertexPartition.csv")
 part_dt <- fread(file.path(rdatdir,myfiles[partition_file]), 
 		    header=TRUE,drop = 1)
 n_res <- nrow(part_dt)
@@ -217,7 +217,7 @@ for (resolution in seq(n_res)) {
   results[[resolution]] <- partition
   # Save to Rdata.
   if (resolution == n_res) {
-    output_name <- paste0(tissue, "_Module_Self_Preservation.RData")
+    output_name <- paste0(tissue, "_Self_Preservation.RData")
     saveRDS(results, file.path(rdatdir, output_name))
     message("Done!")
   }
