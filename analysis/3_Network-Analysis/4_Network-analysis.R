@@ -77,9 +77,12 @@ tabsdir <- file.path(root, "tables")
 
 message(paste0("\nAnalyzing ",analysis_type,"..."))
 
-# Load protein expression data:
+# Load protein expression data as a matrix:
 myfile <- file.path(rdatdir, input_data[['data']])
-norm_protein <- readRDS(myfile)
+dm <- readRDS(myfile)
+
+# Load the sample meta data.
+samples <- fread(file.path(datadir,input_meta))
 
 # Load adjacency matrix--coerce to a data.matrix.
 myfile <- file.path(rdatdir, input_data[['adjm']])
@@ -105,8 +108,8 @@ partition <- readRDS(myfile)[[1]]
 partition <- reset_index(partition)
 
 # Load glm statistical results.
-#myfile <- file.path(rdatdir, input_data[["stat"]])
-#glm_stats <- fread(myfile)
+myfile <- file.path(rdatdir, input_data[["stat"]])
+glm_stats <- readRDS(myfile)
 
 #---------------------------------------------------------------------
 ## Collect all modules in a list.
@@ -142,7 +145,7 @@ message(paste0("Percent proteins clustered: ",
 ## Calculate Module Eigengenes.
 # NOTE: Soft power does not influence MEs.
 # NOTE: Do not need to sort partition to be in the same order as dm!
-MEdata_list <- moduleEigengenes(dm, colors = partition, 
+MEdata_list <- moduleEigengenes(t(dm), colors = partition, 
 			    excludeGrey = TRUE, softPower = 1, impute = FALSE)
 ME_dm <- as.matrix(MEdata_list$eigengenes)
 
@@ -151,7 +154,7 @@ ME_list <- setNames(object = lapply(seq(ncol(ME_dm)), function(x) ME_dm[, x]),
 		    nm = names(modules))
 
 # Module membership (KME).
-data_KME <- signedKME(dm, MEdata_list$eigengenes, 
+data_KME <- signedKME(t(dm), MEdata_list$eigengenes, 
 		      corFnc = "bicor", outputColumnName = "M")
 KME_list <- lapply(seq(ncol(data_KME)), function(x) {
   v <- vector("numeric", length = nrow(data_KME))
@@ -172,13 +175,13 @@ message(paste0(
 ))
 
 # Sample to group mapping for statistical testing.
-all_groups <- as.character(interaction(samples$Genotype,
-				       samples$Treatment))
-names(all_groups) <- samples$Sample
+all_groups <- as.character(interaction(samples$Model,
+				       samples$SampleType))
+names(all_groups) <- samples$SampleID
 groups <- all_groups[rownames(ME_dm)]
 
 # Combine WT.
-#groups[grep("WT",groups)] <- "WT"
+groups[grep("WT",groups)] <- "WT"
 
 # Perform Kruskal Wallis tests to identify modules whose summary
 # expression profile is changing.
@@ -215,25 +218,18 @@ message(paste0(
 # multiple comparisons!
 
 # Define control group and levels (order) for DunnettTest.
-controls <- unique(groups[grep("WT",groups)])
-
-# Function to extract genotype specific contrasts.
-get_genotype_contrast <- function(dt_result) {
-	comparisons <- strsplit(gsub(".WT|.KO|.HET","",rownames(dt_result)),"-")
-	idx <- which(sapply(comparisons,function(x) x[1] == x[2]))
-	contrast <- rownames(dt_result)[idx]
-	result <- setNames(list(dt_result[contrast,]),nm=contrast)
-	dt <- as.data.table(do.call(rbind,result),keep.rownames="Contrast")
-	return(dt)
-}
+control_group <- unique(groups[grep("WT",groups)])
 
 # Loop to perform DTest. 
 # NOTE: This takes several seconds.
 DT_list <- lapply(ME_list, function(x) {
   # x <- ME_list[[1]]
+  group_order <- c("WT","Shank2.KO","Shank3.KO","Syngap1.HET","Ube3a.KO")
   g <- as.factor(groups[names(x)])
-  DT_list <- DescTools::DunnettTest(x ~ g, control = controls)[controls]
-  DT_result <- do.call(rbind,lapply(DT_list,get_genotype_contrast))
+  levels(g) <- group_order
+  DT_test <- DescTools::DunnettTest(x ~ g, control = control_group)
+  DT_test$data.name <- NULL
+  DT_result <- as.data.table(do.call(rbind,DT_test),keep.rownames="Contrast")
   return(DT_result)
 })
 
