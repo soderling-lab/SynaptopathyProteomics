@@ -19,12 +19,12 @@ if (!length(args == 1)) {
 }
 
 ## Other Parameters:
-save_plots = FALSE       # Should plots be saved?
+save_plots = TRUE       # Should plots be saved?
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
-clean_figsdir = FALSE   # Remove existing figures?
-clean_tabsdir = FALSE   # Remove existing tables?
+clean_figsdir = TRUE   # Remove existing figures?
+clean_tabsdir = TRUE   # Remove existing tables?
 image_format = ".pdf"   # Output figure format.
-save_work = TRUE
+save_work = FALSE
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocssing:
@@ -76,6 +76,9 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
+# Load functions in root/R.
+suppressWarnings({ devtools::load_all() })
+
 # Directories:
 rootdir <- getrd()
 datadir <- file.path(rootdir, "data")
@@ -92,9 +95,6 @@ if (clean_tabsdir) {
 	invisible(sapply(list.files(tabsdir),unlink))
 }
 
-# Load functions in root/R.
-suppressWarnings({ devtools::load_all() })
-
 # Define prefix for output figures and tables.
 output_name <- tissue
 
@@ -102,7 +102,7 @@ output_name <- tissue
 ggtheme()
 
 # Utilize arial font.
-set_font("Arial",font_path = fontdir) #FIXME: put font in project directory.
+set_font("Arial", font_path = fontdir)
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
