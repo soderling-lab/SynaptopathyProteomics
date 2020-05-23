@@ -325,7 +325,7 @@ saveRDS(protmap, myfile)
 ## EdgeR statistical comparisons post-TAMPOR.
 #---------------------------------------------------------------------
 
-message("\nPerforming statistical testing with EdgeR glm.")
+message("\nPerforming statistical testing with EdgeR glm...")
 
 # Statistical comparisons are KO/HET versus all WT of a tissue type.
 
@@ -409,6 +409,7 @@ overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
 overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
 
 # Pretty summary:
+message("\nSummary of differentially abundant proteins (FDR<0.1):")
 knitr::kable(overall,row.names=FALSE)
 
 # Table of DA candidates.
@@ -806,8 +807,10 @@ if (save_plots) {
 }
 
 #---------------------------------------------------------------------
-## Save Cortex and Striatum sigProt plots seperately.
+## Save Cortex plots seperately.
 #---------------------------------------------------------------------
+
+message("\nGenerating Cortex protein plots...")
 
 # Remove QC from traits. Group WT cortex and WT striatum.
 out <- alltraits$SampleType == "QC"
@@ -846,7 +849,6 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 
 # Collect significant plots.
 sigCortex <- unique(unlist(sigProts[grep("Cortex",names(sigProts))]))
-sigStriatum <- unique(unlist(sigProts[grep("Striatum",names(sigProts))]))
 
 # Save sig cortex plots.
 if (save_plots) {
@@ -860,6 +862,50 @@ if (save_plots) {
 		ggsave(myfile,myplots[[i]],height=7,width=7)
 	}
 }
+
+#---------------------------------------------------------------------
+## Save Striatum plots seperately.
+#---------------------------------------------------------------------
+
+message("\nGenerating Striatum protein plots...")
+
+# Remove QC from traits. Group WT cortex and WT striatum.
+out <- alltraits$SampleType == "QC"
+traits <- alltraits[!out, ]
+traits$Tissue.Sample.Model <- paste(traits$Tissue, 
+				    traits$Sample.Model, sep = ".")
+traits$Condition <- traits$Tissue.Sample.Model
+traits$Condition[grepl("Cortex.WT", traits$Condition)] <- "Cortex.WT"
+traits$Condition[grepl("Striatum.WT", traits$Condition)] <- "Striatum.WT"
+
+# Levels for boxplots (order of the boxes):
+box_order <- c(
+  "Striatum.WT",
+  "Striatum.KO.Shank2",
+  "Striatum.KO.Shank3",
+  "Striatum.HET.Syngap1",
+  "Striatum.KO.Ube3a"
+)
+
+# Generate plots.
+plot_list <- ggplotProteinBoxPlot(
+  data_in = log2(cleanDat),
+  interesting.proteins = rownames(cleanDat),
+  traits = traits,
+  box_order,
+  scatter = TRUE
+)
+
+# Add custom colors.
+colors <- c("gray", "#FFF200", "#00A2E8", "#22B14C", "#A349A4")
+plot_list <- lapply(plot_list, function(x) x + 
+		    scale_fill_manual(values = colors))
+
+# Add significance stars, and reformat x.axis labels.
+plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
+
+# Collect significant plots.
+sigStriatum <- unique(unlist(sigProts[grep("Striatum",names(sigProts))]))
 
 # Save sig striatum plots.
 if (save_plots) {
