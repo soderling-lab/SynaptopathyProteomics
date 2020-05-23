@@ -9,7 +9,7 @@
 # Parse command line input:
 # Analysis (tissue) type: cortex (1) or striatum(2).
 args <- commandArgs(trailingOnly = TRUE)
-msg <- "Please specify tissue type. Either 'Cortex' or 'Striatum'."
+msg <- "Please specify a tissue type to be analyzed: choose either 'Cortex' or 'Striatum'."
 if (!length(args == 1)) { 
 	stop(msg) 
 } else { 
@@ -59,20 +59,20 @@ image_format = ".pdf"   # Output figure format.
 # the project directory for saving output files.
 
 # Load the R env.
-suppressWarnings({ renv::load(getrd()) })
+renv::load(getrd(),quiet=TRUE)
 
 # Load required packages.
 suppressPackageStartupMessages({
+  library(sva)
+  library(grid)
   library(dplyr)
   library(WGCNA)
-  library(data.table)
-  library(grid)
   library(gtable)
   library(cowplot)
   library(ggplot2)
   library(gridExtra)
   library(flashClust)
-  library(sva)
+  library(data.table)
 })
 
 # Directories:
@@ -370,6 +370,7 @@ if (save_plots) {
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Filter peptides based on QC precision.
+message("\nRemoving outlier QC peptides...")
 filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
@@ -434,6 +435,8 @@ if (save_plots) {
 # and will not be imputed. Peptides with more than 2 missing biological
 # replicates or any missing quality control (QC) replicates will be
 # censored and are not imputed.
+
+message("\nImputing missing peptide values...")
 
 # Define experimental groups for checking QC variability:
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
@@ -527,7 +530,7 @@ for (i in 1:length(groups)) {
   # There should be no negative values.
   if (min(data, na.rm = TRUE) < 1) {
     data[data < 1] <- 1
-    print("Warning: Expression values less than 1 will be replaced with 1.")
+    warning("Warning: Expression values less than 1 will be replaced with 1.")
   }
   # Check the correlation between batch and PC1.
   pc1 <- prcomp(t(log2(data)))$x[, 1]
@@ -539,7 +542,7 @@ for (i in 1:length(groups)) {
   }
   # Check, in matching order?
   if (!all(colnames(data) == CombatInfo$ColumnName)) {
-    print("Warning: Names of traits and expression data do not match.")
+    warning("Warning: Names of traits and expression data do not match.")
   }
   # Check MDS plot prior to ComBat.
   traits_sub$Sample.Model <- paste("b",
@@ -553,7 +556,7 @@ for (i in 1:length(groups)) {
   )$plot + theme(legend.position = "none")
   plot1 <- plot1 + scale_color_manual(values = unique(traits_sub$Color))
   # Apply ComBat.
-  cat(paste("Performing", groups[i], "ComBat...", "\n"))
+  message(paste("\nPerforming", groups[i], "ComBat..."))
   if (length(unique(CombatInfo$PrepDate)) > 1 & abs(r1) > 0.1) {
     # Create ComBat model.
     model <- model.matrix(~ as.factor(CombatInfo$SampleType),
@@ -566,17 +569,13 @@ for (i in 1:length(groups)) {
   } else {
     # No batch effect.
     if (abs(r1) < 0.1) {
-      cat(c(
-        "Error: No quantifiable batch effect!",
-        "\n", "The un-regressed data will be returned.", "\n"
-      ))
+      message(paste("Error: No quantifiable batch effect!",
+        "\n", "The un-regressed data will be returned."))
       data_ComBat <- log2(data)
     } else {
       # No batch effect.
-      cat(c(
-        "Error: ComBat can only be applied to factors with more than two levels!",
-        "\n", "The un-regressed data will be returned.", "\n"
-      ))
+      message(paste("Error: ComBat can only be applied to factors with more than two levels!",
+		    "\n", "The un-regressed data will be returned."))
       data_ComBat <- log2(data)
     }
   }
@@ -685,6 +684,8 @@ if (save_plots) {
 # identification/quantificaiton of proteins by different peptides in each
 # experiment. IRS normalization was first described by __Plubell et al., 2017__.
 
+message("\nPerforming IRS normalization...")
+
 # Perform IRS normalization.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
@@ -724,7 +725,7 @@ for (i in 1:n_iter) {
   plots[[i]] <- oldham$connectivityplot +
     ggtitle(paste("Sample Connectivity (Iteration = ", i, ")", sep = ""))
   bad_samples <- rownames(oldham$table)[oldham$table$Z.Ki < oldham_threshold]
-  print(paste(
+  message(paste(
     length(bad_samples), " outlier sample(s) identified in iteration ", i, ".",
     sep = ""
   ))
@@ -736,7 +737,7 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-message(paste("\nNumber of outlier QC samples:", sum(bad_samples != "none")))
+message(paste("\nTotal number of outlier QC samples identified:", sum(bad_samples != "none")))
 
 # Remove outliers from data.
 samples_out <- paste(bad_samples, collapse = "|")
@@ -807,6 +808,8 @@ if (save_plots) {
 # nature of the remaining missng values are examined by density plot and
 # imputed with the KNN algorithm for MNAR data.
 
+message("\nRemoving irroproducibly quantified proteins...")
+
 # Remove proteins that are identified by only 1 peptide as well as
 # proteins identified in less than 50% of samples.
 filter_protein <- filter_proteins(IRS_protein, "Abundance")
@@ -816,6 +819,7 @@ plot <- ggplotDetect(filter_protein, "Abundance") +
   ggtitle("Protein missing value distribution")
 
 # Impute the remaining number of missing values with KNN.
+message("\nImputing missing protein values...")
 impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 
 # Save plot.
