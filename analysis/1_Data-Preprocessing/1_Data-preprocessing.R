@@ -137,9 +137,14 @@ sample_info <- sample_info[order(sample_info$Order), ]
 
 # Generate a plot.
 plot <- ggplotPeptideBarPlot(raw_peptide)
+plot <- plot + theme(panel.background=element_blank())
+plot <- plot + theme(panel.border = element_blank(), axis.line = element_line())
+plot <- plot + scale_x_discrete(expand = c(0, 0))
+plot <- plot + scale_y_discrete(expand = c(0, 0)) 
+
+# Save.
 myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
 if (save_plots) { ggsave(prefix_file(myfile),plot) }
-# REMOVE top and right axis
 
 #---------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
@@ -177,10 +182,14 @@ nPep <- raw_peptide %>%
 # nPep <- nPep[!out, ]
 
 # Generate plot.
-plot1 <- ggplot(nPep, aes(nPeptides)) +
+p1 <- ggplot(nPep, aes(nPeptides)) +
   geom_histogram(bins = 100, fill = "black") +
   ggtitle("Peptides per Protein") +
   xlab("Peptides") + ylab("Frequency")
+p1 <- p1 + theme(panel.background=element_blank())
+p1 <- p1 + theme(panel.border = element_blank(), axis.line = element_line())
+p1 <- p1 + scale_x_continuous(expand = c(0, 0))
+p1 <- p1 + scale_y_continuous(expand = c(0, 0)) 
 
 # Peptide identification overlap per pairwise comparisons of experiments.
 contrasts <- combn(c("Shank2", "Shank3", "Syngap1", "Ube3a"), 2)
@@ -198,7 +207,8 @@ colnames(overlap) <- c(paste(c(1, 2, 3, 4, 5, 6), sep = " "), "All")
 # Create table showing pairwise comparisons.
 mytable <- as.data.frame(t(overlap))
 mytable <- tibble::add_column(mytable, rownames(mytable), .before = 1)
-mytable$Intersection <- formatC(as.numeric(mytable$Intersection), format = "d", big.mark = ",")
+mytable$Intersection <- formatC(as.numeric(mytable$Intersection), 
+				format = "d", big.mark = ",")
 mytable$Union <- formatC(as.numeric(mytable$Union), format = "d", big.mark = ",")
 mytable$Percent <- round(as.numeric(mytable$Percent), 2)
 colnames(mytable)[1] <- "Comparison"
@@ -206,8 +216,13 @@ tab2 <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
 # Plot peptide identification overlap.
 groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-plot2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) +
+p2 <- ggplotFreqOverlap(raw_peptide, "Abundance", groups) +
   labs(title = "Peptide Identification\nOverlap")
+p2 <- p2 + theme(panel.background=element_blank())
+p2 <- p2 + theme(panel.border = element_blank(), axis.line = element_line())
+p2 <- p2 + scale_x_discrete(expand = c(0, 0))
+p2 <- p2 + scale_y_discrete(expand = c(0, 0)) 
+
 
 # Save tables and plots.
 if (save_plots) {
@@ -243,13 +258,15 @@ if (save_plots) {
 # Prepare the data.
 data_in <- raw_peptide
 title <- "Raw Peptide"
-colors <- c(rep("green", 11), rep("purple", 11), rep("yellow", 11), rep("blue", 11))
+colors <- c(rep("green", 11), rep("purple", 11), 
+	    rep("yellow", 11), rep("blue", 11))
 
 # Generate boxplot
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
 l1 <- get_legend(p1)
 p1 <- p1 + theme(legend.position = "none")
 p1 <- p1 + theme(axis.text.x = element_blank())
+# FIXMEL STOPPED HERE
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) +
