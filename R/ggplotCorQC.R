@@ -20,14 +20,18 @@
 #' @examples
 #' ggplotCorQC(data_in, groups, colID, nbins, annotate = TRUE)
 ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
+
   plot_list <- list()
+
   for (i in 1:length(groups)) {
+
     cols <- grep(groups[i], colnames(data_in))
     data_sub <- data_in[, cols]
     QCcols <- grep(colID, colnames(data_sub))
     data_work <- na.omit(data_sub[, QCcols])
     contrasts <- combn(c(1:ncol(data_work)), 2) # QC comparisons.
     num_iter <- dim(contrasts)[2]
+
     data_list <- list()
     for (k in 1:num_iter) {
       x <- contrasts[1, k]
@@ -37,13 +41,19 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
       Ratio <- Log2QC1 - Log2QC2
       data_list[[k]] <- cbind(Log2QC1, Log2QC2, Ratio)
     }
+
     # merge data frames in list.
     data <- as.data.frame(do.call(rbind, data_list))
+
     # Bin by mean intensity.
     mu <- rowMeans(data_work)
-    data$bins <- rep(BurStMisc::ntile(mu, nbins, na.rm = TRUE, checkBleed = FALSE, result = "numeric"), num_iter)
+    bins <- BurStMisc::ntile(mu, nbins, na.rm = TRUE, 
+		     checkBleed = FALSE, result = "numeric")
+    data$bins <- rep(bins, num_iter)
+
     # Determine best fit line.
     fit <- lm(data$Log2QC1 ~ data$Log2QC2)
+
     # Calculate Pearson P-Value.
     corTest <- cor.test(~ data$Log2QC1 + data$Log2QC2,
       data = cbind(data$Log2QC1, data$Log2QC2),
@@ -51,10 +61,13 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
     )
     Slope <- paste("Slope =", round(coef(fit)[2], 4))
     R2 <- paste("R2 =", round(corTest$estimate, 4))
+
     # Generate scatter plot.
-    plot <- ggplot(data, aes(x = Log2QC1, y = Log2QC2, color = bins)) + geom_point() +
-      scale_color_continuous(name = "Intensity Bin") +
-      # geom_abline(intercept=coef(fit)[1],slope=coef(fit)[2], color = "black", linetype = "dashed") +
+    plot <- ggplot(data, aes(x = Log2QC1, y = Log2QC2, color = bins)) + 
+	    geom_point() +
+	    scale_color_continuous(name = "Intensity Bin") +
+	    geom_abline(intercept=coef(fit)[1],slope=coef(fit)[2], 
+			color = "black", linetype = "dashed") +
       ggtitle(groups[i]) +
       xlab(expression(Log[2] ~ QC1)) +
       ylab(expression(Log[2] ~ QC2)) +
@@ -63,28 +76,33 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
         axis.title.x = element_text(color = "black", size = 11, face = "bold"),
         axis.title.y = element_text(color = "black", size = 11, face = "bold")
       )
+
     # Add annotation layer.
     mytable <- rbind(R2, Slope)
-    xrange <- unlist(ggplot_build(plot)$layout$panel_params[[1]][1])
-    yrange <- unlist(ggplot_build(plot)$layout$panel_params[[1]][8])
+    build <- ggplot_build(plot)
+    yrange <- unlist(build$layout$panel_params[[1]][8])
+    xrange <- range(plot$data$Log2QC1)
     xmin <- min(xrange)
     xmax <- max(xrange)
     xdelta <- xmax - xmin
     ymin <- min(yrange)
     ymax <- max(yrange)
     ydelta <- ymax - ymin
-    tt <- ttheme_default(base_size = 11, core = list(bg_params = list(fill = "white")))
+    tt <- ttheme_default(base_size = 11, 
+			 core = list(bg_params = list(fill = "white")))
     tab <- tableGrob(mytable, rows = NULL, theme = tt)
     g <- gtable_add_grob(tab,
       grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
       t = 1, b = nrow(tab), l = 1, r = ncol(tab)
     )
+
     if (annotate == TRUE) {
       plot <- plot + annotation_custom(g,
         xmin = xmin - 0.65 * xdelta, xmax,
         ymin = ymin + 0.8 * ydelta, ymax
       )
     }
+
     plot_list[[i]] <- plot
     names(plot_list)[[i]] <- groups[[i]]
   }

@@ -1,7 +1,7 @@
 #' prefix_file
 #' add a prefix to filename
 prefix_file <- function(file_path, file_name = NULL, output_dir = NULL, 
-			width = 3,date=FALSE) {
+			width = 2,date=FALSE) {
   # Profide either a full path to a file,
   # or a directory.
   output_dir <- dirname(file_path)

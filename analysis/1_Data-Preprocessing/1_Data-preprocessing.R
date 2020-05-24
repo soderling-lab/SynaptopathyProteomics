@@ -10,24 +10,25 @@
 # Analysis (tissue) type: cortex (1) or striatum(2).
 args <- commandArgs(trailingOnly = TRUE)
 msg <- "Please specify a tissue type to be analyzed: choose either 'Cortex' or 'Striatum'."
-if (!length(args == 1)) { 
-	stop(msg) 
-} else { 
-	type <- match(args[1],c("Cortex","Striatum"))
-	tissue <- c("Cortex", "Striatum")[type]
+check <- !is.na(match(args[1], c("Cortex", "Striatum")))
+if (length(args == 1) & check) { 
+	tissue  <- args[1]
 	message(paste0("\nAnalyzing ",tissue,"..."))
+} else {
+	stop(msg) 
 }
 
 ## Other Parameters:
-save_plots = TRUE       # Should plots be saved?
+save_plots = TRUE # Should plots be saved?
+clean_figsdir = TRUE # Remove existing figures?
+clean_tabsdir = TRUE # Remove existing tables?
+image_format = ".pdf" # Output figure format.
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
-clean_figsdir = TRUE   # Remove existing figures?
-clean_tabsdir = TRUE   # Remove existing tables?
-image_format = ".pdf"   # Output figure format.
-save_work = FALSE
+save_work = TRUE # Save workspace at end?
+output_name = tissue
 
 #---------------------------------------------------------------------
-## Overview of Data Preprocssing:
+## Overview of Data Preprocessing:
 #---------------------------------------------------------------------
 
 # All done within an experiment...
@@ -89,14 +90,11 @@ figsdir <- file.path(rootdir, "figs","Data-preprocessing")
 
 # Remove any existing figures and tables.
 if (clean_figsdir) {
-	invisible(sapply(list.files(figsdir),unlink))
+	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
 }
 if (clean_tabsdir) {
-	invisible(sapply(list.files(tabsdir),unlink))
+	invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
 }
-
-# Define prefix for output figures and tables.
-output_name <- tissue
 
 # Globally set ggplots theme.
 ggtheme()
@@ -114,19 +112,19 @@ set_font("Arial", font_path = fontdir)
 
 # Load the TMT data.
 datafile <- c(
-  "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
-  "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
-)
+	      "Cortex" = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
+	      "Striatum" = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
+	      )
 
 # Load sample information.
 samplefile <- c(
-  "4227_TMT_Cortex_Combined_traits.csv",
-  "4227_TMT_Striatum_Combined_traits.csv"
-)
+		"Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
+		"Striatum" = "4227_TMT_Striatum_Combined_traits.csv"
+		)
 
 # Load the data from PD and sample info.
-raw_peptide <- fread(file = file.path(datadir, datafile[type]))
-sample_info <- fread(file = file.path(datadir, samplefile[type]))
+raw_peptide <- fread(file = file.path(datadir, datafile[tissue]))
+sample_info <- fread(file = file.path(datadir, samplefile[tissue]))
 
 # Insure traits are in matching order.
 sample_info <- sample_info[order(sample_info$Order), ]
@@ -140,11 +138,13 @@ plot <- ggplotPeptideBarPlot(raw_peptide)
 plot <- plot + theme(panel.background=element_blank())
 plot <- plot + theme(panel.border = element_blank(), axis.line = element_line())
 plot <- plot + scale_x_discrete(expand = c(0, 0))
-plot <- plot + scale_y_discrete(expand = c(0, 0)) 
+plot <- plot + scale_y_continuous(expand = c(0, 0)) 
 
 # Save.
 myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
-if (save_plots) { ggsave(prefix_file(myfile),plot) }
+if (save_plots) { 
+	ggsave(prefix_file(myfile,width=2), plot, height=5, width=5) 
+}
 
 #---------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
@@ -190,12 +190,13 @@ p1 <- p1 + theme(panel.background=element_blank())
 p1 <- p1 + theme(panel.border = element_blank(), axis.line = element_line())
 p1 <- p1 + scale_x_continuous(expand = c(0, 0))
 p1 <- p1 + scale_y_continuous(expand = c(0, 0)) 
+p1 <- p1 + geom_vline(xintercept = median(p1$data$nPeptides),colour='red',linetype="dotted")
+p1 <- p1 + annotate("text",x=median(p1$data$nPeptides)+20,y=600,label=paste("Median =",median(p1$data$nPeptides)))
 
 # Peptide identification overlap per pairwise comparisons of experiments.
 contrasts <- combn(c("Shank2", "Shank3", "Syngap1", "Ube3a"), 2)
 info_cols <- c(1, 2, 3, 4, 5)
 overlap <- peptide_overlap(raw_peptide, contrasts, info_cols)
-
 all <- c(
   "NaN", "NaN", dim(na.omit(raw_peptide))[1], dim(raw_peptide)[1],
   round(100 * dim(na.omit(raw_peptide))[1] / dim(raw_peptide)[1], 4)
@@ -223,7 +224,6 @@ p2 <- p2 + theme(panel.border = element_blank(), axis.line = element_line())
 p2 <- p2 + scale_x_discrete(expand = c(0, 0))
 p2 <- p2 + scale_y_discrete(expand = c(0, 0)) 
 
-
 # Save tables and plots.
 if (save_plots) {
 	# Tab1.
@@ -240,12 +240,12 @@ if (save_plots) {
 	myfile <- prefix_file(file.path(figsdir,
 				paste0("Peptide_Histogram",
 				       image_format)))
-	ggsave(myfile,plot1)
+	ggsave(myfile,p1,height=5,width=5)
 	# Plot2.
 	myfile <- prefix_file(file.path(figsdir,
 				paste0("Peptide_Overlap",
 				       image_format)))
-	ggsave(myfile,plot2)
+	ggsave(myfile,p2,height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -263,25 +263,42 @@ colors <- c(rep("green", 11), rep("purple", 11),
 
 # Generate boxplot
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
-l1 <- get_legend(p1)
+l1 <- get_legend(p1) # extracts legend.
 p1 <- p1 + theme(legend.position = "none")
 p1 <- p1 + theme(axis.text.x = element_blank())
-# FIXMEL STOPPED HERE
+p1 <- p1 + theme(panel.background=element_blank())
+p1 <- p1 + theme(panel.border = element_blank(), axis.line = element_line())
+p1 <- p1 + scale_x_discrete(expand = c(0, 0))
+p1 <- p1 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) +
   theme(legend.position = "none")
+p2 <- p2 + theme(panel.background=element_blank())
+p2 <- p2 + theme(panel.border = element_blank(), axis.line = element_line())
+p2 <- p2 + scale_x_continuous(expand = c(0, 0))
+p2 <- p2 + scale_y_continuous(expand = c(0, 0)) 
 
 # Genotype specific colors must be specified in column order.
-colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
-p2 <- p2 + scale_color_manual(values = colors)
+#colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
+#p2 <- p2 + scale_color_manual(values = colors)
+
+# Mean SD plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
+p3 <- p3 + theme(panel.background=element_blank())
+p3 <- p3 + theme(panel.border = element_blank(), axis.line = element_line())
+p3 <- p3 + scale_x_continuous(expand = c(0, 0))
+p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate PCA plot.
 # FIXME: add percent to axes.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
+p4 <- p4 + theme(panel.background=element_blank())
+p4 <- p4 + theme(panel.border = element_rect(fill=NA))
+p4 <- p4 + scale_x_continuous(expand = c(0, 0))
+p4 <- p4 + scale_y_continuous(expand = c(0, 0)) 
 
 # Save plots.
 if (save_plots) {
@@ -289,7 +306,7 @@ if (save_plots) {
 			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
 	plots <- list(p1,p2,p3,p4)
-	ggsavePlots(plots,prefix_file(myfiles))
+	ggsavePlots(plots,prefix_file(myfiles),height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -323,21 +340,39 @@ colors <- c(rep("green", 11), rep("purple", 11),
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title) + 
 	theme(legend.position = "none")
 p1 <- p1 + theme(axis.text.x = element_blank())
+p1 <- p1 + theme(legend.position = "none")
+p1 <- p1 + theme(axis.text.x = element_blank())
+p1 <- p1 + theme(panel.background=element_blank())
+p1 <- p1 + theme(panel.border = element_blank(), axis.line = element_line())
+p1 <- p1 + scale_x_discrete(expand = c(0, 0))
+p1 <- p1 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + 
 	theme(legend.position = "none")
-colors <- c(rep("yellow", 11), rep("blue", 11), 
-	    rep("green", 11), rep("purple", 11))
-p2 <- p2 + scale_color_manual(values = colors)
+#colors <- c(rep("yellow", 11), rep("blue", 11), 
+#	    rep("green", 11), rep("purple", 11))
+#p2 <- p2 + scale_color_manual(values = colors)
+p2 <- p2 + theme(panel.background=element_blank())
+p2 <- p2 + theme(panel.border = element_blank(), axis.line = element_line())
+p2 <- p2 + scale_x_continuous(expand = c(0, 0))
+p2 <- p2 + scale_y_continuous(expand = c(0, 0)) 
 
-# Generate meanSd plot.
+# Generate meanSD plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
+p3 <- p3 + theme(panel.background=element_blank())
+p3 <- p3 + theme(panel.border = element_blank(), axis.line = element_line())
+p3 <- p3 + scale_x_continuous(expand = c(0, 0))
+p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate PCA plot.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
+p4 <- p4 + theme(panel.background=element_blank())
+p4 <- p4 + theme(panel.border = element_rect(fill=NA))
+p4 <- p4 + scale_x_continuous(expand = c(0, 0))
+p4 <- p4 + scale_y_continuous(expand = c(0, 0)) 
 
 # Save plots.
 if (save_plots) {
@@ -360,24 +395,25 @@ if (save_plots) {
 
 # Generate QC correlation scatter plots for all experimental groups.
 # FIXME: Error in min(xrange) : invalid 'type' (list) of argument
-#groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-#plots <- ggplotCorQC(SL_peptide, groups, colID = "QC", nbins = 5)
+groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
+plots <- ggplotCorQC(SL_peptide, groups, colID = "QC", nbins = 5)
 
 # Generate intensity bin histograms.
 # This will take a couple minutes.
-#hist_list <- lapply(as.list(groups), function(x) {
-#  ggplotQCHist(SL_peptide, x, nbins = 5, threshold = 4)
-#})
-#names(hist_list) <- groups
+hist_list <- lapply(as.list(groups), function(x) {
+  ggplotQCHist(SL_peptide, x, nbins = 5, threshold = 4)
+})
+names(hist_list) <- groups
 
 # Save plots.
-#if (save_plots) {
-#	file_names <- paste(rep(names(hist_list),each=5),
-#			    "QC_Hist",c(1,2,3,4,5),sep="_")
-#	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-#	plots <- unlist(hist_list,recursive=FALSE)
-#	ggsavePlots(plots,prefix_file(myfiles))
-#}
+if (save_plots) {
+	file_names <- paste(rep(names(hist_list),each=5),
+			    "QC_Hist",c(1,2,3,4,5),sep="_")
+	myfiles <- file.path(figsdir,paste0(file_names,image_format))
+	plots <- unlist(hist_list,recursive=FALSE)
+	suppressWarnings({ggsavePlots(plots,prefix_file(myfiles),
+		height=5,width=5)})
+}
 
 #---------------------------------------------------------------------
 ## Peptide level filtering based on QC samples.
@@ -395,7 +431,8 @@ filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
 
 # Generate table.
 # Summarize number of Cortex and Striatum peptides removed.
-out <- list(c(94, 78, 134, 59), c(182, 67, 73, 75))[[type]] 
+out <- list("Cortex"=c(94, 78, 134, 59), 
+	    "Striatum"=c(182, 67, 73, 75))[[tissue]] 
 mytable <- data.frame(cbind(groups, out))
 mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 
@@ -428,21 +465,38 @@ groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 p1 <- ggplotDetect(filter_peptide, groups[1]) #+ ggtitle(NULL)
 l1 <- cowplot::get_legend(p1)
 p1 <- p1 + theme(legend.position = "none")
+p1 <- p1 + theme(panel.background=element_blank())
+p1 <- p1 + theme(panel.border = element_blank(), axis.line = element_line())
+p1 <- p1 + scale_x_continuous(expand = c(0, 0))
+p1 <- p1 + scale_y_continuous(expand = c(0, 0)) 
 
 p2 <- ggplotDetect(filter_peptide, groups[2]) #+ ggtitle(NULL)
 p2 <- p2 + theme(legend.position = "none")
+p2 <- p2 + theme(panel.background=element_blank())
+p2 <- p2 + theme(panel.border = element_blank(), axis.line = element_line())
+p2 <- p2 + scale_x_continuous(expand = c(0, 0))
+p2 <- p2 + scale_y_continuous(expand = c(0, 0)) 
 
 p3 <- ggplotDetect(filter_peptide, groups[3]) #+ ggtitle(NULL)
 p3 <- p3 + theme(legend.position = "none")
+p3 <- p3 + theme(panel.background=element_blank())
+p3 <- p3 + theme(panel.border = element_blank(), axis.line = element_line())
+p3 <- p3 + scale_x_continuous(expand = c(0, 0))
+p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 p4 <- ggplotDetect(filter_peptide, groups[4]) #+ ggtitle(NULL)
 p4 <- p4 + theme(legend.position = "none")
+p4 <- p4 + theme(panel.background=element_blank())
+p4 <- p4 + theme(panel.border = element_blank(), axis.line = element_line())
+p4 <- p4 + scale_x_continuous(expand = c(0, 0))
+p4 <- p4 + scale_y_continuous(expand = c(0, 0)) 
 
 # Save plots.
 if (save_plots) {
 	file_names <- paste0(groups,"_Protein_Missing_Value_Density")
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),
+		    height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -522,7 +576,6 @@ data_in <- SL_protein
 data_out <- list() # ComBat data.
 plot_list <- list() # MDS plots.
 R <- list() # Bicor stats [bicor(batch,PC1)]
-
 
 # Loop:
 for (i in 1:length(groups)) {
@@ -625,6 +678,9 @@ for (i in 1:length(groups)) {
   names(plot_list[[i]]) <- paste(groups[i], c("preComBat", "postComBat"))
 } # Ends ComBat loop.
 
+
+#FIXME: plots do not look correct!
+
 # Merge the data frames with purrr::reduce()
 combat_protein <- data_out %>% 
 	purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
@@ -653,12 +709,17 @@ if (save_plots) {
 # Inspect the overlap in protein identifcation.
 plot <- ggplotFreqOverlap(combat_protein, "Abundance", groups) +
   ggtitle("Protein Identification Overlap")
+plot <- plot + theme(legend.position = "none")
+plot <- plot + theme(panel.background=element_blank())
+plot <- plot + theme(panel.border = element_blank(), axis.line = element_line())
+plot <- plot + scale_x_discrete(expand = c(0, 0))
+plot <- plot + scale_y_continuous(expand = c(0, 0)) 
 
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,
 			    paste0("Protein_Identification_Overlap",image_format))
-	ggsave(prefix_file(myfile),plot)
+	ggsave(prefix_file(myfile),plot,height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -671,16 +732,30 @@ title <- "Normalized protein"
 colors <- c(rep("green", 11), rep("purple", 11), 
 	    rep("yellow", 11), rep("blue", 11))
 p1 <- ggplotBoxPlot(data_in, colID = "Abundance", colors, title)
+p1 <- p1 + theme(legend.position = "none")
+p1 <- p1 + theme(axis.text.x = element_blank())
+p1 <- p1 + theme(panel.background=element_blank())
+p1 <- p1 + theme(panel.border = element_blank(), axis.line = element_line())
+p1 <- p1 + scale_x_discrete(expand = c(0, 0))
+p1 <- p1 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate density plot.
 p2 <- ggplotDensity(data_in, colID = "Abundance", title) + 
 	theme(legend.position = "none")
-colors <- c(rep("yellow", 11), rep("blue", 11), 
-	    rep("green", 11), rep("purple", 11))
-p2 <- p2 + scale_color_manual(values = colors)
+#colors <- c(rep("yellow", 11), rep("blue", 11), 
+#	    rep("green", 11), rep("purple", 11))
+#p2 <- p2 + scale_color_manual(values = colors)
+p2 <- p2 + theme(panel.background=element_blank())
+p2 <- p2 + theme(panel.border = element_blank(), axis.line = element_line())
+p2 <- p2 + scale_x_continuous(expand = c(0, 0))
+p2 <- p2 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate meanSd plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
+p3 <- p3 + theme(panel.background=element_blank())
+p3 <- p3 + theme(panel.border = element_blank(), axis.line = element_line())
+p3 <- p3 + scale_x_continuous(expand = c(0, 0))
+p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate PCA plot.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
@@ -807,17 +882,25 @@ p2 <- p2 + scale_color_manual(values = colors)
 
 # Generate meanSd plot.
 p3 <- ggplotMeanSdPlot(data_in, colID = "Abundance", title, log = TRUE)
+p3 <- p3 + theme(panel.background=element_blank())
+p3 <- p3 + theme(panel.border = element_blank(), axis.line = element_line())
+p3 <- p3 + scale_x_continuous(expand = c(0, 0))
+p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate PCA plot.
 p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
   theme(legend.position = "none")
+p4 <- p4 + theme(panel.background=element_blank())
+p4 <- p4 + theme(panel.border = element_rect(fill=NA))
+p4 <- p4 + scale_x_continuous(expand = c(0, 0))
+p4 <- p4 + scale_y_continuous(expand = c(0, 0)) 
 
 # Save the plots.
 if (save_plots) {
 	file_names <- paste0("IRS_Protein_",
 			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -837,6 +920,7 @@ filter_protein <- filter_proteins(IRS_protein, "Abundance")
 # Generate plot to examine distribution of remaining missing values.
 plot <- ggplotDetect(filter_protein, "Abundance") +
   ggtitle("Protein missing value distribution")
+#FIXME: pickuphere
 
 # Impute the remaining number of missing values with KNN.
 message("\nImputing missing protein values...")

@@ -13,7 +13,7 @@
 #' @export
 #'
 #' @examples
-ggsavePlots <- function(plots,filenames = NULL){
+ggsavePlots <- function(plots,filenames = NULL,...){
 	suppressPackageStartupMessages({
 		library(ggplot2)
 	})
@@ -28,6 +28,6 @@ ggsavePlots <- function(plots,filenames = NULL){
 	}
 	# Loop to save plots.
 	for (i in c(1:length(plots))){
-		ggsave(filenames[i],plots[[i]])
+		ggsave(filenames[i],plots[[i]],...)
 	}
 }
