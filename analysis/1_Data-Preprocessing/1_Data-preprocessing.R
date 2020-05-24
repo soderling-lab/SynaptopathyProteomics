@@ -86,7 +86,7 @@ datadir <- file.path(rootdir, "data")
 fontdir <- file.path(rootdir, "fonts")
 rdatdir <- file.path(rootdir, "rdata")
 tabsdir <- file.path(rootdir, "tables")
-figsdir <- file.path(rootdir, "figs","Data-preprocessing")
+figsdir <- file.path(rootdir, "figs","Data-preprocessing",tissue)
 
 # Remove any existing figures and tables.
 if (clean_figsdir) {
@@ -920,7 +920,10 @@ filter_protein <- filter_proteins(IRS_protein, "Abundance")
 # Generate plot to examine distribution of remaining missing values.
 plot <- ggplotDetect(filter_protein, "Abundance") +
   ggtitle("Protein missing value distribution")
-#FIXME: pickuphere
+plot <- plot + theme(panel.background=element_blank())
+plot <- plot + theme(panel.border = element_blank(), axis.line = element_line())
+plot <- plot + scale_x_continuous(expand = c(0, 0))
+plot <- plot + scale_y_continuous(expand = c(0, 0)) 
 
 # Impute the remaining number of missing values with KNN.
 message("\nImputing missing protein values...")
@@ -930,7 +933,7 @@ impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 if (save_plots) {
 	myfile <- file.path(figsdir,paste0("Protein_Missing_Value_Density",
 					   image_format))
-	ggsave(prefix_file(myfile),plot)
+	ggsave(prefix_file(myfile),plot,height=5,width=5)
 }
 
 #---------------------------------------------------------------------
