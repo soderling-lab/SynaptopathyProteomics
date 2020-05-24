@@ -139,6 +139,7 @@ sample_info <- sample_info[order(sample_info$Order), ]
 plot <- ggplotPeptideBarPlot(raw_peptide)
 myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
 if (save_plots) { ggsave(prefix_file(myfile),plot) }
+# REMOVE top and right axis
 
 #---------------------------------------------------------------------
 ## Examine peptide and protein level identification overalap.
