@@ -1,0 +1,11 @@
+
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+Evaluating self-preservation of Cortex modules in the Cortex network.
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+Criterion for module preservation/divergence: strong.
+
+Working on partition 1 of 1 ...
+... 115 of 157 modules are preserved.
+Done!

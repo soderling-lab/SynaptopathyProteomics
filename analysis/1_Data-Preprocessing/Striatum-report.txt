@@ -1,0 +1,93 @@
+
+Analyzing Striatum...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Total number of unique peptides identified: 42,288
+
+Total number of unique proteins identified: 3,493
+Warning message:
+Removed 1041 rows containing non-finite values (stat_binhex). 
+Warning message:
+Removed 1041 rows containing non-finite values (stat_binhex). 
+Warning message:
+Removed 1041 rows containing non-finite values (stat_binhex). 
+Warning message:
+Removed 1041 rows containing non-finite values (stat_binhex). 
+There were 50 or more warnings (use warnings() to see the first 50)
+
+Removing outlier QC peptides...
+182 peptides will be removed from  Shank2  because of QC imprecision...
+67 peptides will be removed from  Shank3  because of QC imprecision...
+73 peptides will be removed from  Syngap1  because of QC imprecision...
+74 peptides will be removed from  Ube3a  because of QC imprecision...
+
+Imputing missing peptide values...
+115 values from Shank2 are missing and will be replaced by imputing.
+55 values from Shank3 are missing and will be replaced by imputing.
+66 values from Syngap1 are missing and will be replaced by imputing.
+89 values from Ube3a are missing and will be replaced by imputing.
+
+Performing Shank2 ComBat...
+Found2batches
+Adjusting for1covariate(s) or covariate level(s)
+Standardizing Data across genes
+Fitting L/S model and finding priors
+Finding parametric adjustments
+Adjusting the Data
+
+
+Performing Shank3 ComBat...
+Error: No quantifiable batch effect! 
+ The un-regressed data will be returned.
+
+Performing Syngap1 ComBat...
+Error: No quantifiable batch effect! 
+ The un-regressed data will be returned.
+
+Performing Ube3a ComBat...
+Found2batches
+Adjusting for1covariate(s) or covariate level(s)
+Standardizing Data across genes
+Fitting L/S model and finding priors
+Finding parametric adjustments
+Adjusting the Data
+
+
+Performing IRS normalization...
+Used robust (geometric) mean.
+Used robust (geometric) mean.
+0 outlier sample(s) identified in iteration 1.
+Used robust (geometric) mean.
+Used robust (geometric) mean.
+0 outlier sample(s) identified in iteration 2.
+Used robust (geometric) mean.
+Used robust (geometric) mean.
+0 outlier sample(s) identified in iteration 3.
+Used robust (geometric) mean.
+Used robust (geometric) mean.
+0 outlier sample(s) identified in iteration 4.
+Used robust (geometric) mean.
+Used robust (geometric) mean.
+0 outlier sample(s) identified in iteration 5.
+Used robust (geometric) mean.
+
+Total number of outlier QC samples identified: 0
+Used robust (geometric) mean.
+
+Removing irroproducibly quantified proteins...
+80 proteins are identified by only one peptide and will be removed.
+4 proteins are identified in less than 50% of samples and are removed.
+
+Imputing missing protein values...
+Cluster size 3271 broken into 853 2418 
+Done cluster 853 
+Cluster size 2418 broken into 894 1524 
+Done cluster 894 
+Cluster size 1524 broken into 831 693 
+Done cluster 831 
+Done cluster 693 
+Done cluster 1524 
+Done cluster 2418 
+
+Done!

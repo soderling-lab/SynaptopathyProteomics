@@ -1,0 +1,7 @@
+Performing Leidenalg clustering of the Cortex graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
+Traceback (most recent call last):
+  File "./2_Leiden-clustering.py", line 115, in <module>
+    adjm = adjm.set_index(keys=adjm.columns)
+  File "/home/twesleyb/anaconda3/envs/SynaptopathyProteomics/lib/python3.8/site-packages/pandas/core/frame.py", line 4346, in set_index
+    raise ValueError(
+ValueError: Length mismatch: Expected 1883 rows, received array of length 2918

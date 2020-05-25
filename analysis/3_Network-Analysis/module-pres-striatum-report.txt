@@ -1,0 +1,11 @@
+
+Analyzing Striatum...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+Evaluating self-preservation of Striatum modules in the Striatum network.
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+Criterion for module preservation/divergence: strong.
+
+Working on partition 1 of 1 ...
+... 96 of 129 modules are preserved.
+Done!
