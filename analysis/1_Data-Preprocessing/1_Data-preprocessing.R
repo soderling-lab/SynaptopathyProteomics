@@ -9,7 +9,8 @@
 # Parse command line input:
 # Analysis (tissue) type: cortex (1) or striatum(2).
 args <- commandArgs(trailingOnly = TRUE)
-msg <- "Please specify a tissue type to be analyzed: choose either 'Cortex' or 'Striatum'."
+msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "Choose either 'Cortex' or 'Striatum'.")
 check <- !is.na(match(args[1], c("Cortex", "Striatum")))
 if (length(args == 1) & check) { 
 	tissue  <- args[1]
@@ -21,7 +22,6 @@ if (length(args == 1) & check) {
 ## Other Parameters:
 save_plots = TRUE # Should plots be saved?
 clean_figsdir = TRUE # Remove existing figures?
-clean_tabsdir = TRUE # Remove existing tables?
 image_format = ".pdf" # Output figure format.
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 save_work = TRUE # Save workspace at end?
@@ -85,15 +85,11 @@ rootdir <- getrd()
 datadir <- file.path(rootdir, "data")
 fontdir <- file.path(rootdir, "fonts")
 rdatdir <- file.path(rootdir, "rdata")
-tabsdir <- file.path(rootdir, "tables")
 figsdir <- file.path(rootdir, "figs","Data-preprocessing",tissue)
 
 # Remove any existing figures and tables.
 if (clean_figsdir) {
 	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
-}
-if (clean_tabsdir) {
-	invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
 }
 
 # Globally set ggplots theme.

@@ -9,6 +9,11 @@
 ## Parameters
 save_plots = TRUE
 clear_plots = TRUE
+clear_figs = TRUE
+save_work = TRUE
+
+## Prefix for output files.
+output_name = "TAMPOR"
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -22,17 +27,16 @@ renv::load(getrd(),quiet=TRUE)
 
 # Load required packages.
 suppressPackageStartupMessages({
-  library(dplyr)
-  library(reshape2)
-  library(tibble)
-  library(ggplot2)
-  library(purrr)
-  library(edgeR)
-  library(gridExtra)
-  library(gtable)
   library(grid)
-  #library(anRichment)
+  library(dplyr)
+  library(edgeR)
+  library(purrr)
+  library(tibble)
+  library(gtable)
+  library(ggplot2)
   library(openxlsx)
+  library(reshape2)
+  library(gridExtra)
   library(org.Mm.eg.db)
   library(AnnotationDbi)
 })
@@ -40,28 +44,29 @@ suppressPackageStartupMessages({
 # Load required custom functions.
 devtools::load_all()
 
-# Define tisue type:
-tissue <- "Combined"
 
 # Set any other directories.
 root <- getrd()
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables")
+fontdir <- file.path(root, "fonts")
+tabsdir <- file.path(root, "tables","TAMPOR")
 figsdir <- file.path(root, "figs","TAMPOR")
 
 # Remove any existing figures and tables.
 if (clear_plots) {
 	invisible(sapply(list.files(figsdir),unlink))
+}
+if (clear_tabs) {
 	invisible(sapply(list.files(tabsdir),unlink))
 }
 
 # Define prefix for output figures and tables.
-output_name <- tissue
+output_name <- "Combined"
 
 # Globally set ggplots theme.
 ggtheme()
-#set_font("Arial") # FIXME: move font to project repo.
+set_font("Arial",font_path=fontdir)
 
 #---------------------------------------------------------------------
 ## Merge cortex and striatum data.
@@ -190,7 +195,7 @@ plot <- sample_connectivity$connectivityplot +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Sample-Outliers","Sample_Outliers.pdf")
+	myfile <- file.path(figsdir,"Sample_Outliers.pdf")
 	ggsave(myfile,plot)
 }
 
@@ -260,9 +265,9 @@ plot3 <- ggplotPCA(log2(data_in), traits, colors,
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"PCA","Cortex_PCA.pdf")
+	myfile <- file.path(figsdir,"Cortex_PCA.pdf")
 	ggsave(myfile,plot1)
-	myfile <- file.path(figsdir,"PCA","Striatum_PCA.pdf")
+	myfile <- file.path(figsdir,"Striatum_PCA.pdf")
 	ggsave(myfile,plot2)
 }
 
@@ -437,7 +442,7 @@ plot <- cowplot::plot_grid(mytable)
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Tables","Sig_Prots_Summary.pdf")
+	myfile <- file.path(figsdir,"Sig_Prots_Summary.pdf")
 	ggsaveTable(mytable,myfile)
 }
 
@@ -502,11 +507,11 @@ f <- function(x) {
 glm_results <- lapply(glm_results, f)
 
 # Save results to file.
-myfile <- file.path(rdatdir,"Combined_GLM_Results.RData")
+myfile <- file.path(rdatdir,paste0(output_name,"_GLM_Results.RData"))
 saveRDS(glm_results, myfile)
 
 # Save results to file as spreadsheet.
-myfile <- file.path(tabsdir,"Combined_GLM_Results.xlsx")
+myfile <- file.path(tabsdir,paste0(output_name,"_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
 
 #---------------------------------------------------------------------
@@ -625,13 +630,13 @@ for (i in 1:length(plots)) {
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Volcano-Plots","Shank2_Volcano.pdf")
+	myfile <- file.path(figsdir,"Shank2_Volcano.pdf")
 	ggsave(myfile,plots$Shank2)
-	myfile <- file.path(figsdir,"Volcano-Plots","Shank3_Volcano.pdf")
+	myfile <- file.path(figsdir,"Shank3_Volcano.pdf")
 	ggsave(myfile,plots$Shank3)
-	myfile <- file.path(figsdir,"Volcano-Plots","Syngap1_Volcano.pdf")
+	myfile <- file.path(figsdir,"Syngap1_Volcano.pdf")
 	ggsave(myfile,plots$Syngap1)
-	myfile <- file.path(figsdir,"Volcano-Plots","Ube3a_Volcano.pdf")
+	myfile <- file.path(figsdir,,"Ube3a_Volcano.pdf")
 	ggsave(myfile,plots$Ube3a)
 }
 
@@ -737,7 +742,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 
 # Save.
 if (save_plots) {
-	myfile <- file.path(figsdir,"Tables","Condition_Overlap_Plot.pdf")
+	myfile <- file.path(figsdir,"Condition_Overlap_Plot.pdf")
 	ggsave(myfile,plot)
 }
 
@@ -972,7 +977,14 @@ writeData(wb, sheet = 1, keepNA = TRUE, traits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
-myfile <- file.path(tabsdir, "Combined_TMT_Data.xlsx")
+myfile <- file.path(tabsdir, paste0(output_name,"_TMT_Data.xlsx"))
 saveWorkbook(wb, myfile, overwrite = TRUE)
 
+# Save the workspace?
+if (save_work) {
+	save(list = ls(all.names = TRUE), 
+	     file=paste0(tissue,".RData"), envir=.GlobalEnv)
+}
+
+# Complete!
 message("\nDone!")
