@@ -26,6 +26,8 @@ image_format = ".pdf" # Output figure format.
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 save_work = TRUE # Save workspace at end?
 output_name = tissue
+fig_width = 2.5
+fig_height = 2.5
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocessing:
@@ -142,7 +144,8 @@ plot <- plot + scale_y_continuous(expand = c(0, 0))
 # Save.
 myfile <- file.path(figsdir, paste0("Example_Peptide",image_format))
 if (save_plots) { 
-	ggsave(prefix_file(myfile,width=2), plot, height=5, width=5) 
+	ggsave(prefix_file(myfile,width=2), plot, 
+	       height=fig_height, width=fig_width) 
 }
 
 #---------------------------------------------------------------------
@@ -239,12 +242,12 @@ if (save_plots) {
 	myfile <- prefix_file(file.path(figsdir,
 				paste0("Peptide_Histogram",
 				       image_format)))
-	ggsave(myfile,p1,height=5,width=5)
+	ggsave(myfile,p1,height=fig_height,width=fig_width)
 	# Plot2.
 	myfile <- prefix_file(file.path(figsdir,
 				paste0("Peptide_Overlap",
 				       image_format)))
-	ggsave(myfile,p2,height=5,width=5)
+	ggsave(myfile,p2,height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -305,7 +308,8 @@ if (save_plots) {
 			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
 	plots <- list(p1,p2,p3,p4)
-	ggsavePlots(plots,prefix_file(myfiles),height=5,width=5)
+	ggsavePlots(plots,prefix_file(myfiles),
+		    height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -411,7 +415,7 @@ if (save_plots) {
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
 	plots <- unlist(hist_list,recursive=FALSE)
 	suppressWarnings({ggsavePlots(plots,prefix_file(myfiles),
-		height=5,width=5)})
+		height=fig_height,width=fig_width)})
 }
 
 #---------------------------------------------------------------------
@@ -495,7 +499,7 @@ if (save_plots) {
 	file_names <- paste0(groups,"_Protein_Missing_Value_Density")
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
 	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),
-		    height=5,width=5)
+		    height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -718,7 +722,8 @@ plot <- plot + scale_y_continuous(expand = c(0, 0))
 if (save_plots) {
 	myfile <- file.path(figsdir,
 			    paste0("Protein_Identification_Overlap",image_format))
-	ggsave(prefix_file(myfile),plot,height=5,width=5)
+	ggsave(prefix_file(myfile),plot,
+	       height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -899,7 +904,8 @@ if (save_plots) {
 	file_names <- paste0("IRS_Protein_",
 			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),height=5,width=5)
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),
+		    height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -932,7 +938,8 @@ impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 if (save_plots) {
 	myfile <- file.path(figsdir,paste0("Protein_Missing_Value_Density",
 					   image_format))
-	ggsave(prefix_file(myfile),plot,height=5,width=5)
+	ggsave(prefix_file(myfile),plot,
+	       height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
