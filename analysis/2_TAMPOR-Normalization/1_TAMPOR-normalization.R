@@ -54,10 +54,10 @@ figsdir <- file.path(root, "figs","TAMPOR")
 
 # Remove any existing figures and tables.
 if (clear_plots) {
-	invisible(sapply(list.files(figsdir),unlink))
+	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
 }
 if (clear_tabs) {
-	invisible(sapply(list.files(tabsdir),unlink))
+	invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
 }
 
 # Globally set ggplots theme.
@@ -776,21 +776,23 @@ plot_list <- lapply(plot_list, function(plot) {
 		    })
 
 # Save sig plots.
-# FIXME: how to save plots?
-# FIXME: clean up figure style!!!
 plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
 
+# Create directory if necessary.
 if (!dir.exists(plotdir)) { dir.create(plotdir) }
+
+# Remove existing plots.
 if (clear_plots) {
-	invisible(sapply(list.files(plotdir),unlink))
+	invisible(sapply(list.files(plotdir,full.names=TRUE),unlink))
 }
 
+# Loop to save plots.
 if (save_plots) {
 	message("\nSaving plots, this will take several minutes...")
 	for (i in 1:length(plot_list)) {
 		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
-		ggsave(myfile,plot_list[[i]],height=7,width=7)
+		ggsave(myfile,plot_list[[i]],height=5,width=5)
 	}
 }
 
@@ -837,17 +839,35 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 
 # Collect significant plots.
 sigCortex <- unique(unlist(sigProts[grep("Cortex",names(sigProts))]))
+plot_list <- plot_list[sigCortex]
+
+# Custumization.
+plot_list <- lapply(plot_list, function(plot) {
+	       plot <- plot + theme(panel.background=element_blank())
+	       plot <- plot + theme(panel.border =  element_blank(), 
+				    axis.line= element_line())
+	       return(plot)
+		    })
+
+
+# Save sig plots.
+plotdir <- file.path(figsdir,"Cortex-Protein-Boxplots")
+
+# Create directory if necessary.
+if (!dir.exists(plotdir)) { dir.create(plotdir) }
+
+# Remove existing plots.
+if (clear_plots) {
+	invisible(sapply(list.files(plotdir,full.names=TRUE),unlink))
+}
 
 # Save sig cortex plots.
 if (save_plots) {
-	plotdir <- file.path(figsdir,"Cortex-Protein-Boxplots")
-	if (clear_plots) { unlink(list.files(plotdir,full.names=TRUE)) }
 	message("\nSaving plots, this will take several minutes...")
-	myplots <- plot_list[sigCortex]
-	for (i in 1:length(myplots)) {
-		namen <- gsub("\\|","_",names(myplots)[i])
+	for (i in 1:length(plot_list)) {
+		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
-		ggsave(myfile,myplots[[i]],height=7,width=7)
+		ggsave(myfile,plot_list[[i]],height=5,width=5)
 	}
 }
 
@@ -894,17 +914,34 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 
 # Collect significant plots.
 sigStriatum <- unique(unlist(sigProts[grep("Striatum",names(sigProts))]))
+plot_list <- plot_list[sigStriatum]
+
+# Custumization.
+plot_list <- lapply(plot_list, function(plot) {
+	       plot <- plot + theme(panel.background=element_blank())
+	       plot <- plot + theme(panel.border =  element_blank(), 
+				    axis.line= element_line())
+	       return(plot)
+		    })
+
+# Save sig plots.
+plotdir <- file.path(figsdir,"Striatum-Protein-Boxplots")
+
+# Create directory if necessary.
+if (!dir.exists(plotdir)) { dir.create(plotdir) }
+
+# Remove existing plots.
+if (clear_plots) {
+	invisible(sapply(list.files(plotdir,full.names=TRUE),unlink))
+}
 
 # Save sig striatum plots.
 if (save_plots) {
-	plotdir <- file.path(figsdir,"Striatum-Protein-Boxplots")
-	if (clear_plots) { unlink(list.files(plotdir,full.names=TRUE)) }
 	message("\nSaving plots, this will take several minutes...")
-	myplots <- plot_list[sigStriatum]
-	for (i in 1:length(myplots)) {
-		namen <- gsub("\\|","_",names(myplots)[i])
+	for (i in 1:length(plot_list)) {
+		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
-		ggsave(myfile,myplots[[i]],height=7,width=7)
+		ggsave(myfile,plot_list[[i]],height=5,width=5)
 	}
 }
 
