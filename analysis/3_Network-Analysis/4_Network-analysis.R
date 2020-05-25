@@ -46,7 +46,7 @@ input_data <- list("Cortex" = list(
 
 ## Sample meta data in root/data:
 input_meta <- list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
-		   "Striatum" = "4227_TMT_Striatum_Combined_trait.csv")[[analysis_type]]
+		   "Striatum" = "4227_TMT_Striatum_Combined_traits.csv")[[analysis_type]]
 
 #--------------------------------------------------------------------
 ## Set-up the workspace.
@@ -271,29 +271,12 @@ results$"SigKW & SigDT" <- is_sig
 ## Save results.
 #--------------------------------------------------------------------
 
-save.image()
-quit()
-
 # Annotate results with proteins.
-ids <- paste(norm_protein$Symbol,norm_protein$Accession,sep="|")
-names(ids) <- norm_protein$Accession
-results$Proteins <- sapply(modules[results$Module], function(x) {
-				   paste(ids[names(x)],collapse=";") })
+results$Proteins <- sapply(modules[results$Module],function(x) {
+				   paste(names(x),collapse=";") })
 
 # Save to file.
 myfile <- file.path(tabsdir,paste0(analysis_type,"_Module_stats.csv"))
 results %>% as.data.table() %>% fwrite(myfile)
-
-
-df <- setNames(reshape2::melt(adjm),nm=c("ProtA","ProtB","bicor")) %>% 
-	as.data.table()
-idxA = match(df$ProtA,prot_dt$Accession)
-idxB = match(df$ProtB,prot_dt$Accession)
-df$SymbolA = prot_dt$Symbol[idxA]
-df$SymbolB = prot_dt$Symbol[idxB]
-df <- df[order(df$bicor,decreasing=TRUE),]
-
-df %>% filter(SymbolA == "Dlg4") %>% as.data.table()
-
 
 message("\nDone!")

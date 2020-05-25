@@ -1,0 +1,16 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Analyzing Cortex...
+Total number of modules: 114
+Percent proteins clustered: 79.27%.
+Median module coherence (PVE): 64.24%.
+Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
+Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 11.
+
+
+| M1| M4| M9| M14| M21| M35| M49| M99| M101| M102| M103|
+|--:|--:|--:|---:|---:|---:|---:|---:|----:|----:|----:|
+|  3|  2|  3|   2|   2|   2|   3|   2|    2|    2|    2|
+
+Done!
