@@ -383,7 +383,8 @@ if (save_plots) {
 			     c("Boxplot","Density_plot",
 			       "MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),
+		    width=fig_width,height=fig_height)
 }
 
 #---------------------------------------------------------------------
@@ -771,7 +772,8 @@ if (save_plots) {
 	file_names <- paste0("Norm_Protein_",
 			     c("Boxplot","Density_plot","MeanSD_plot","PCA_plot"))
 	myfiles <- file.path(figsdir,paste0(file_names,image_format))
-	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles))
+	ggsavePlots(list(p1,p2,p3,p4),prefix_file(myfiles),
+		    height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -859,7 +861,8 @@ if (save_plots) {
 		file_names <- file.path(figsdir,
 				paste0("Outlier_Sample_",c(1:length(plots))))
 		myfiles <- paste0(file_names,image_format)
-		ggsavePlots(plots,prefix_file(myfiles))
+		ggsavePlots(plots,prefix_file(myfiles),
+			    height=fig_height,width=fig_width)
 	}
 }
 
