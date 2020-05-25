@@ -52,6 +52,10 @@ fontdir <- file.path(root, "fonts")
 tabsdir <- file.path(root, "tables","TAMPOR")
 figsdir <- file.path(root, "figs","TAMPOR")
 
+# If necessary, create output directories for figs and tables.
+if (!dir.exists(figsdir)) { dir.create(figsdir) }
+if (!dir.exists(tabsdir)) { dir.create(tabsdir) }
+
 # Remove any existing figures and tables.
 if (clear_plots) {
 	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
