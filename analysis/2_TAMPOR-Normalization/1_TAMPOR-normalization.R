@@ -11,6 +11,8 @@ save_plots = TRUE
 clear_plots = TRUE
 clear_tabs = TRUE
 save_work = TRUE
+fig_width = 2.5
+fig_height = 2.5
 
 ## Prefix for output files.
 output_name = "TAMPOR"
@@ -200,7 +202,7 @@ plot <- plot + scale_y_continuous(expand=c(0,0))
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Sample_Outliers.pdf")
-	ggsave(myfile,plot,height=5,width=5)
+	ggsave(myfile,plot,height=fig_height,width=fig_width)
 }
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
@@ -275,11 +277,11 @@ plot3 <- plot3 + theme(panel.border =  element_rect(fill="NA"))
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Cortex_PCA.pdf")
-	ggsave(myfile,plot1,height=5,width=5)
+	ggsave(myfile,plot1,height=fig_height,width=fig_width)
 	myfile <- file.path(figsdir,"Striatum_PCA.pdf")
-	ggsave(myfile,plot2,height=5,width=5)
+	ggsave(myfile,plot2,height=fig_height,width=fig_width)
 	myfile <- file.path(figsdir,"Combined_PCA.pdf")
-	ggsave(myfile,plot3,height=5,width=5)
+	ggsave(myfile,plot3,height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -604,13 +606,13 @@ for (i in 1:length(plots)) {
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Shank2_Volcano.pdf")
-	ggsave(myfile,plots$Shank2,height=5,width=5)
+	ggsave(myfile,plots$Shank2,height=fig_height,width=fig_width)
 	myfile <- file.path(figsdir,"Shank3_Volcano.pdf")
-	ggsave(myfile,plots$Shank3,height=5,width=5)
+	ggsave(myfile,plots$Shank3,height=fig_height,width=fig_width)
 	myfile <- file.path(figsdir,"Syngap1_Volcano.pdf")
-	ggsave(myfile,plots$Syngap1,height=5,width=5)
+	ggsave(myfile,plots$Syngap1,height=fig_height,width=fig_width)
 	myfile <- file.path(figsdir,"Ube3a_Volcano.pdf")
-	ggsave(myfile,plots$Ube3a,height=5,width=5)
+	ggsave(myfile,plots$Ube3a,height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -716,7 +718,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Condition_Overlap_Plot.pdf")
-	ggsave(myfile,plot,height=5,width=5)
+	ggsave(myfile,plot,height=fig_height,width=fig_width)
 }
 
 #---------------------------------------------------------------------
@@ -771,7 +773,7 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 prots <- Reduce(intersect,tissue_sigProts)
 plot_list <- plot_list[prots]
 
-# Custumization.
+# Customization.
 plot_list <- lapply(plot_list, function(plot) {
 	       plot <- plot + theme(panel.background=element_blank())
 	       plot <- plot + theme(panel.border =  element_blank(), 
@@ -796,7 +798,8 @@ if (save_plots) {
 	for (i in 1:length(plot_list)) {
 		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
-		ggsave(myfile,plot_list[[i]],height=5,width=5)
+		ggsave(myfile,plot_list[[i]],
+		       height=fig_height,width=fig_width)
 	}
 }
 
@@ -845,14 +848,21 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 sigCortex <- unique(unlist(sigProts[grep("Cortex",names(sigProts))]))
 plot_list <- plot_list[sigCortex]
 
-# Custumization.
+# Additional customization.
 plot_list <- lapply(plot_list, function(plot) {
+		df <- plot$data
+		df <- plot$data %>% 
+			group_by(Group) %>% 
+			summarize(Median = median(Intensity))
+		wt_median <- df$Median[grepl("WT",df$Group)]
+		plot <- plot +
+			geom_hline(yintercept=wt_median,
+				   linetype="dotted",colour="black")
 	       plot <- plot + theme(panel.background=element_blank())
 	       plot <- plot + theme(panel.border =  element_blank(), 
 				    axis.line= element_line())
 	       return(plot)
 		    })
-
 
 # Save sig plots.
 plotdir <- file.path(figsdir,"Cortex-Protein-Boxplots")
@@ -871,7 +881,8 @@ if (save_plots) {
 	for (i in 1:length(plot_list)) {
 		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
-		ggsave(myfile,plot_list[[i]],height=5,width=5)
+		ggsave(myfile,plot_list[[i]],
+		       height=fig_height,width=fig_width)
 	}
 }
 
@@ -945,7 +956,8 @@ if (save_plots) {
 	for (i in 1:length(plot_list)) {
 		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
-		ggsave(myfile,plot_list[[i]],height=5,width=5)
+		ggsave(myfile,plot_list[[i]],
+		       height=fig_height,width=fig_width)
 	}
 }
 
