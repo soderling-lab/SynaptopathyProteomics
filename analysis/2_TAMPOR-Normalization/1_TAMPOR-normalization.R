@@ -9,7 +9,7 @@
 ## Parameters
 save_plots = TRUE
 clear_plots = TRUE
-clear_figs = TRUE
+clear_tabs = TRUE
 save_work = TRUE
 
 ## Prefix for output files.
@@ -41,9 +41,8 @@ suppressPackageStartupMessages({
   library(AnnotationDbi)
 })
 
-# Load required custom functions.
+# Load additional functions in root/R.
 devtools::load_all()
-
 
 # Set any other directories.
 root <- getrd()
@@ -60,9 +59,6 @@ if (clear_plots) {
 if (clear_tabs) {
 	invisible(sapply(list.files(tabsdir),unlink))
 }
-
-# Define prefix for output figures and tables.
-output_name <- "Combined"
 
 # Globally set ggplots theme.
 ggtheme()
@@ -183,7 +179,7 @@ cleanDat <- results$cleanRelAbun
 
 message("\nExaming data for sample level outliers...")
 
-# Remove QC samples.
+# Remove QC samples from the data.
 out <- colnames(cleanDat) %in% rownames(traits)[traits$SampleType == "QC"]
 data_in <- log2(cleanDat[, !out])
 
@@ -192,11 +188,15 @@ sample_connectivity <- ggplotSampleConnectivity(data_in,
 						log = TRUE, colID = "b.")
 plot <- sample_connectivity$connectivityplot +
   ggtitle("Sample Connectivity post-TAMPOR")
+plot <- plot + theme(panel.background=element_blank())
+plot <- plot + theme(panel.border =  element_blank(), axis.line= element_line())
+plot <- plot + scale_x_continuous(expand=c(0,0))
+plot <- plot + scale_y_continuous(expand=c(0,0))
 
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Sample_Outliers.pdf")
-	ggsave(myfile,plot)
+	ggsave(myfile,plot,height=5,width=5)
 }
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
@@ -250,25 +250,32 @@ traits$ColumnName <- rownames(traits)
 # Cortex and striatum.
 idx <- traits$Tissue == "Cortex"
 idy <- traits$Tissue == "Striatum"
-plot1 <- ggplotPCA(log2(data_in[, idx]), traits,
-  colID = "b.",
-  colors[idx], title = "Cortex"
-)
-plot2 <- ggplotPCA(log2(data_in[, idy]), traits,
-  colID = "b.",
-  colors[idy], title = "Striatum"
-)
-plot3 <- ggplotPCA(log2(data_in), traits, colors,
-  colID = "b.",
-  title = "Combined"
-)
+
+plot1 <- ggplotPCA(log2(data_in[, idx]), traits, colID = "b.",
+  colors[idx], title = "Cortex")
+plot1 <- plot1 + theme(panel.background=element_blank())
+plot1 <- plot1 + theme(panel.border =  element_rect(fill="NA"))
+#plot1 <- plot1 + scale_x_continuous(expand=c(0,0))
+#plot1 <- plot1 + scale_y_continuous(expand=c(0,0))
+
+plot2 <- ggplotPCA(log2(data_in[, idy]), traits, colID = "b.",
+  colors[idy], title = "Striatum")
+plot2 <- plot2 + theme(panel.background=element_blank())
+plot2 <- plot2 + theme(panel.border =  element_rect(fill="NA"))
+
+plot3 <- ggplotPCA(log2(data_in), traits, colors, colID = "b.",
+  title = "Combined")
+plot3 <- plot3 + theme(panel.background=element_blank())
+plot3 <- plot3 + theme(panel.border =  element_rect(fill="NA"))
 
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Cortex_PCA.pdf")
-	ggsave(myfile,plot1)
+	ggsave(myfile,plot1,height=5,width=5)
 	myfile <- file.path(figsdir,"Striatum_PCA.pdf")
-	ggsave(myfile,plot2)
+	ggsave(myfile,plot2,height=5,width=5)
+	myfile <- file.path(figsdir,"Combined_PCA.pdf")
+	ggsave(myfile,plot3,height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -364,7 +371,7 @@ group[grepl("Striatum.WT", group)] <- "Striatum.WT"
 traits$group <- group
 y_DGE$samples$group <- as.factor(group)
 
-# Basic design matrix for GLM.
+# Basic design matrix for GLM -- all groups treated seperately.
 design <- model.matrix(~ 0 + group, data = y_DGE$samples)
 colnames(design) <- levels(y_DGE$samples$group)
 
@@ -578,49 +585,11 @@ df$Color <- unlist(colors[sapply(strsplit(df$Experiment, "\\ "), "[", 1)])
 results <- split(df, df$Color)
 names(results) <- names(colors)[match(names(results), colors)]
 
-# Function for producing volcano plots.
-ggplotVolcanoPlot <- function(df) {
-  df$x <- df[, grep("FC", colnames(df))]
-  df$y <- -log10(df[, grep("PValue", colnames(df))])
-  logic <- df$FDR < 0.05
-  df$Color[!logic] <- "gray"
-  df$Color <- as.factor(df$Color)
-  y_int <- -1 * log10(max(df$PValue[df$FDR < 0.05]))
-  # Generate plot.
-  plot <- ggplot(data = df, aes(x = x, y = y, color = Color)) +
-    geom_point(size = 3, alpha = 0.5) + 
-    scale_color_manual(values = levels(df$Color)) +
-    geom_hline(yintercept = y_int, linetype = "dashed", 
-	       color = "black", size = 0.6) +
-    geom_vline(xintercept = 0, linetype = "dashed", 
-	       color = "black", size = 0.6) +
-    xlab(expression(bold(Log[2](Fold ~ Change)))) +
-    ylab(expression(bold(-Log[10](P - value)))) +
-    theme(
-      plot.title = element_text(hjust = 0.5, color = "black", 
-				size = 12, face = "bold"),
-      axis.title.y = element_text(color = "black", face = "bold", 
-				  size = 11, angle = 90, vjust = 0.5),
-      axis.title.x = element_text(color = "black", face = "bold", 
-				  size = 11, angle = 0, 
-				  hjust = 0.5, vjust = 0.5),
-      panel.border = element_rect(colour = "black", fill = NA, size = 1),
-      legend.position = "none"
-    )
-  # Add annotation.
-  ypos <- unlist(ggplot_build(plot)$layout$panel_params[[1]][8])
-  xpos <- range(plot$data$x,na.rm=TRUE)
-  plot <- plot + annotate("text",
-    x = xpos[1] + 0.3 * (xpos[2] - xpos[1]),
-    y = y_int + 0.04 * (ypos[2] - ypos[1]),
-    label = "FDR < 0.05", size = 4
-  )
-  return(plot)
-}
-
 # Generate plots.
 # FIXME: not working!
-plots <- lapply(as.list(names(colors)), function(x) ggplotVolcanoPlot(results[[x]]))
+plots <- lapply(as.list(names(colors)), function(x) { 
+			ggplotVolcanoPlot(results[[x]])
+})
 names(plots) <- names(colors)
 
 # Add titles.
@@ -631,13 +600,13 @@ for (i in 1:length(plots)) {
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Shank2_Volcano.pdf")
-	ggsave(myfile,plots$Shank2)
+	ggsave(myfile,plots$Shank2,height=5,width=5)
 	myfile <- file.path(figsdir,"Shank3_Volcano.pdf")
-	ggsave(myfile,plots$Shank3)
+	ggsave(myfile,plots$Shank3,height=5,width=5)
 	myfile <- file.path(figsdir,"Syngap1_Volcano.pdf")
-	ggsave(myfile,plots$Syngap1)
-	myfile <- file.path(figsdir,,"Ube3a_Volcano.pdf")
-	ggsave(myfile,plots$Ube3a)
+	ggsave(myfile,plots$Syngap1,height=5,width=5)
+	myfile <- file.path(figsdir,"Ube3a_Volcano.pdf")
+	ggsave(myfile,plots$Ube3a,height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -743,7 +712,7 @@ plot <- ggplot(df, aes(Var2, Var1, fill = percent)) +
 # Save.
 if (save_plots) {
 	myfile <- file.path(figsdir,"Condition_Overlap_Plot.pdf")
-	ggsave(myfile,plot)
+	ggsave(myfile,plot,height=5,width=5)
 }
 
 #---------------------------------------------------------------------
@@ -798,13 +767,27 @@ plot_list <- lapply(plot_list, function(x) annotate_plot(x, stats_df))
 prots <- Reduce(intersect,tissue_sigProts)
 plot_list <- plot_list[prots]
 
+# Custumization.
+plot_list <- lapply(plot_list, function(plot) {
+	       plot <- plot + theme(panel.background=element_blank())
+	       plot <- plot + theme(panel.border =  element_blank(), 
+				    axis.line= element_line())
+	       return(plot)
+		    })
+
 # Save sig plots.
 # FIXME: how to save plots?
 # FIXME: clean up figure style!!!
+plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
+
+if (!dir.exists(plotdir)) { dir.create(plotdir) }
+if (clear_plots) {
+	invisible(sapply(list.files(plotdir),unlink))
+}
+
 if (save_plots) {
 	message("\nSaving plots, this will take several minutes...")
 	for (i in 1:length(plot_list)) {
-		plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
 		namen <- gsub("\\|","_",names(plot_list)[i])
 		myfile <- file.path(plotdir,paste0(namen,".pdf"))
 		ggsave(myfile,plot_list[[i]],height=7,width=7)
@@ -969,10 +952,10 @@ rownames(norm_data) <- NULL
 
 # Write to excel workbook.
 wb <- createWorkbook()
-addWorksheet(wb, sheetName = "sample_info")
-addWorksheet(wb, sheetName = "raw_cortex")
-addWorksheet(wb, sheetName = "raw_striatum")
-addWorksheet(wb, sheetName = "combined_normalized_data")
+addWorksheet(wb, sheetName = "sample-info")
+addWorksheet(wb, sheetName = "raw-cortex-peptide")
+addWorksheet(wb, sheetName = "raw-striatum-peptide")
+addWorksheet(wb, sheetName = "combined-normalized-protein")
 writeData(wb, sheet = 1, keepNA = TRUE, traits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
@@ -983,7 +966,7 @@ saveWorkbook(wb, myfile, overwrite = TRUE)
 # Save the workspace?
 if (save_work) {
 	save(list = ls(all.names = TRUE), 
-	     file=paste0(tissue,".RData"), envir=.GlobalEnv)
+	     file=paste0(output_name,".RData"), envir=.GlobalEnv)
 }
 
 # Complete!
