@@ -87,6 +87,9 @@ fontdir <- file.path(rootdir, "fonts")
 rdatdir <- file.path(rootdir, "rdata")
 figsdir <- file.path(rootdir, "figs","Data-preprocessing",tissue)
 
+# Create directory for figures if it doesn't exist.
+if (!dir.exists(figsdir)) { dir.create(figsdir) }
+
 # Remove any existing figures and tables.
 if (clean_figsdir) {
 	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
