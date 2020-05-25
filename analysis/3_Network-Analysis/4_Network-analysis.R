@@ -271,6 +271,9 @@ results$"SigKW & SigDT" <- is_sig
 ## Save results.
 #--------------------------------------------------------------------
 
+save.image()
+quit()
+
 # Annotate results with proteins.
 ids <- paste(norm_protein$Symbol,norm_protein$Accession,sep="|")
 names(ids) <- norm_protein$Accession
