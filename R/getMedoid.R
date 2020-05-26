@@ -45,11 +45,11 @@ getMedoid <- function(adjm, k = NULL, h = NULL, method = "ward.D2") {
       idy <- which(col_sums == min(col_sums))
       if (length(idy) > 1) {
         idy <- idy[length(idy)]
-        }
+      }
       return(names(col_sums)[idy])
-      })
-  } else { 
-    rep_modules = NULL
+    })
+  } else {
+    rep_modules <- NULL
   }
   rep_branches <- c(removed, removed2, rep_modules)
   return(rep_branches[order(names(rep_branches))])

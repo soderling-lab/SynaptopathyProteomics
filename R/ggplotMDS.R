@@ -37,8 +37,11 @@ ggplotMDS <- function(data_in, colID, traits, title) {
   dm_MDS <- cbind(x, y)
   Condition <- rownames(dm_MDS)
   df_MDS <- as.data.frame(cbind(x, y))
-  plot <- ggplot(df_MDS, aes(x, y, color = Condition)) + geom_text(aes(label = Condition), size = 6) +
-    ggtitle(title) + xlab("Leading LogFC dim 1") + ylab("Leading LogFC dim 2") +
+  plot <- ggplot(df_MDS, aes(x, y, color = Condition)) +
+    geom_text(aes(label = Condition), size = 6) +
+    ggtitle(title) +
+    xlab("Leading LogFC dim 1") +
+    ylab("Leading LogFC dim 2") +
     theme(
       legend.position = "right",
       plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),

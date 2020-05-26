@@ -44,7 +44,8 @@ ggplotGOscatter <- function(GO_results, color, topN = 15) {
     x = x, y = y, colour = FDR,
     size = nGenes, label = label
   )) +
-    geom_point() + geom_text_repel(colour = "black", alpha = 0.85) +
+    geom_point() +
+    geom_text_repel(colour = "black", alpha = 0.85) +
     scale_colour_gradient(low = color, high = "white") +
     xlab("Fold Enrichment") +
     ylab("-Log(P-value)") +

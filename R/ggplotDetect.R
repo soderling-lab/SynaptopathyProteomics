@@ -46,7 +46,8 @@ ggplotDetect <- function(data_in, group, log = TRUE) {
   # df$Group[df$Group==0] <- "Missing"
   df$Group <- as.factor(df$Group)
   plot <- ggplot(df, aes(x = Avg, fill = Group, colour = Group)) +
-    geom_density(alpha = 0.1, size = 1) + ggtitle(paste(group, "missing values")) +
+    geom_density(alpha = 0.1, size = 1) +
+    ggtitle(paste(group, "missing values")) +
     scale_fill_discrete(name = "Missing Values") +
     scale_color_discrete(name = "Missing Values") +
     xlab(expression(Log[2] ~ Intensity)) +

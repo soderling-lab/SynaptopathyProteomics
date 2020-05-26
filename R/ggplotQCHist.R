@@ -19,7 +19,6 @@
 #' @examples
 #' ggplotQCHist(data_in, groups, nbins, threshold)
 ggplotQCHist <- function(data_in, group, nbins, threshold) {
-
   hist_list <- list()
 
   # Get the data for the specified group.
@@ -56,9 +55,11 @@ ggplotQCHist <- function(data_in, group, nbins, threshold) {
   # Calculate bins based on mean intensity of QC replicates.
   rows_ignore <- is.nan(data_work$avgQC)
   data_work$bins[!rows_ignore] <- BurStMisc::ntile(data_work$avgQC[!rows_ignore],
-						   nbins, na.rm = TRUE, 
-						   checkBleed = FALSE, 
-						   result = "numeric")
+    nbins,
+    na.rm = TRUE,
+    checkBleed = FALSE,
+    result = "numeric"
+  )
 
   # Calculate summary statistics of Intensity bins
   data_temp <- data_work[!rows_ignore, ]
@@ -105,25 +106,32 @@ ggplotQCHist <- function(data_in, group, nbins, threshold) {
   palette <- c("#132B43", "#22496C", "#336A98", "#448DC6", "#56B1F7")
 
   for (j in 1:nbins) {
-
     data_sub <- subset(data_work, bins == j)
     idy <- grep("ratio_avg", colnames(data_sub))
     dm <- as.matrix(data_sub[, idy])
     data_temp <- na.omit(melt(dm))
     mu <- mean(data_temp$value)
     stdev <- sd(data_temp$value)
-    plot <- ggplot(data = data_temp, aes(value)) + 
-	    geom_histogram(bins = 100, fill = palette[j]) +
+    plot <- ggplot(data = data_temp, aes(value)) +
+      geom_histogram(bins = 100, fill = palette[j]) +
       ggtitle(paste("Intensity bin =", j)) +
-      geom_vline(xintercept = mu + 4 * stdev, 
-		 linetype = "dashed", color = "red", size = 0.75) +
-      geom_vline(xintercept = mu - 4 * stdev, linetype = "dashed", 
-		 color = "red", size = 0.75) +
+      geom_vline(
+        xintercept = mu + 4 * stdev,
+        linetype = "dashed", color = "red", size = 0.75
+      ) +
+      geom_vline(
+        xintercept = mu - 4 * stdev, linetype = "dashed",
+        color = "red", size = 0.75
+      ) +
       theme(
-        plot.title = element_text(hjust = 0.5, color = "black", 
-				  size = 11, face = "bold"),
-        axis.title.x = element_text(color = "black", 
-				    size = 11, face = "bold"),
+        plot.title = element_text(
+          hjust = 0.5, color = "black",
+          size = 11, face = "bold"
+        ),
+        axis.title.x = element_text(
+          color = "black",
+          size = 11, face = "bold"
+        ),
         axis.title.y = element_text(color = "black", size = 11, face = "bold")
       )
     plot <- plot + xlim(c(-1.5, 1.5))
@@ -137,8 +145,10 @@ ggplotQCHist <- function(data_in, group, nbins, threshold) {
     ymin <- min(yrange)
     ymax <- max(yrange)
     ydelta <- ymax - ymin
-    tt <- ttheme_default(base_size = 11, 
-			 core = list(bg_params = list(fill = "white")))
+    tt <- ttheme_default(
+      base_size = 11,
+      core = list(bg_params = list(fill = "white"))
+    )
     mytable <- t(subset(data_QC2, bins == j))
     mytable <- round(mytable, 2)
     rownames(mytable) <- c("Bin", "Min", "Max", "Mean", "SD", "Nout")

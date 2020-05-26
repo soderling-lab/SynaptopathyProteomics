@@ -16,6 +16,8 @@ if (interactive()) {
 	args <- commandArgs(trailingOnly=TRUE)
 	if (length(args) == 1) { 
 		analysis_type = commandArgs(trailingOnly=TRUE)[1]
+		message(paste("\nAnalyzing",tissue,"..."))
+
 	} else { 
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
@@ -24,28 +26,6 @@ if (interactive()) {
 ## Optional parameters:
 KW_alpha = 0.1
 DT_alpha = 0.1
-
-## Input data in root/rdata:
-input_data <- list("Cortex" = list(
-				   adjm = "Cortex_Adjm.csv",
-				   netw = "Cortex_NE_Adjm.csv",
-				   ppis = "PPI_Adjm.csv",
-				   stat = "GLM_Stats.RData",
-			   	   data = "Cortex_cleanDat.RData",
-				   part = "Cortex_SurpriseVertexPartition.csv",
-				   pres = "Cortex_Self_Preservation.RData"),
-		   "Striatum" = list(
-				   adjm = "Striatum_Adjm.csv",
-				   netw = "Striatum_NE_Adjm.csv",
-				   ppis = "PPI_Adjm.csv",
-				   stat = "GLM_Stats.RData",
-			   	   data = "Striatum_cleanDat.RData",
-				   part = "Striatum_SurpriseVertexPartition.csv",
-				   pres = "Striatum_Self_Preservation.RData")
-		   )[[analysis_type]]
-
-## Sample meta data in root/rdata:
-input_meta <- "Combined_traits.RData"
 
 #--------------------------------------------------------------------
 ## Set-up the workspace.
@@ -63,7 +43,7 @@ suppressPackageStartupMessages({
 })
 
 # Functions.
-devtools::load_all()
+suppressWarnings({ devtools::load_all() })
 
 # Directories.
 datadir <- file.path(root, "data")
@@ -74,14 +54,19 @@ tabsdir <- file.path(root, "tables")
 ## Load the data.
 #--------------------------------------------------------------------
 
-message(paste0("\nAnalyzing ",analysis_type,"..."))
+# Load the cortex and striatum data.
+load(cortex_data)
+load(striatum_data)
 
-# Load protein expression data as a matrix:
-myfile <- file.path(rdatdir, input_data[['data']])
+# Grab the data for the tissue type we are analyzing.
+data_list <- list("Cortex"=cortex_data,
+		  "Striatum"=striatum_data)[[analysis_type]]
+
+dm <- data_list$Data
 dm <- log2(readRDS(myfile))
 
 # Load the sample meta data.
-samples <- readRDS(file.path(rdatdir,input_meta))
+samples <- data(samples)
 
 # Load adjacency matrix--coerce to a data.matrix.
 myfile <- file.path(rdatdir, input_data[['adjm']])

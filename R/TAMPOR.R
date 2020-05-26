@@ -180,7 +180,7 @@ TAMPOR <- function(dat,
   ## Finalize traits$GIS column and throw error message if one or more batch has no GIS
   if (!sum(table(unlist(lapply(GISindices, length)))) == length(batchIndex)) stop("ERROR: ONE OR MORE BATCH IS MISSING DENOMINATOR SAMPLE DESIGNATIONS.")
 
-  globalExperimentGISsamples <- as.vector(unlist(sapply(names(GISindices), function(x) rownames(traits)[which(traits$Batch == x)[ GISindices[[x]] ]])))
+  globalExperimentGISsamples <- as.vector(unlist(sapply(names(GISindices), function(x) rownames(traits)[which(traits$Batch == x)[GISindices[[x]]]])))
   traits$GIS <- rep(NA, nrow(traits))
   traits$GIS[match(globalExperimentGISsamples, rownames(traits))] <- "GIS"
 
@@ -239,14 +239,14 @@ TAMPOR <- function(dat,
     #  step1a <- foreach(batch=batchIndex, .combine='comb', .multicombine=TRUE, .init=list(list(), list(), list())) %dopar% {
     step1a <- foreach(batch = as.character(batchIndex)) %dopar% {
       tempForAvg <- matrix()
-      tempForAvg <- as.data.frame(as.matrix(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]] ], nrow = nrow(cleanDat), ncol = dim(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]] ])[2]))
+      tempForAvg <- as.data.frame(as.matrix(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]]], nrow = nrow(cleanDat), ncol = dim(cleanDat[, which(sampleIndex$batch == batch)][, GISindices[[batch]]])[2]))
       batchGISavgs <- apply(tempForAvg, 1, function(x) eval(parse(text = paste0(meanOrMedian, "(x,na.rm=TRUE)")))) # ADDED na.rm v04 ##MEAN/MEDIAN FUNCTION CHOICE***
       ratioedBatches <- cleanDat[, which(sampleIndex$batch == batch)] / batchGISavgs
 
       ## Below unnormed ratio data are only assembled for graphing purposes, for comparison to step 1b and final step 2 output
       ## If batches are randomized channels distributing cases and controls evenly across all batches, useAllNonGIS==TRUE
       if (useAllNonGIS) {
-        df3 <- as.data.frame(as.matrix(apply(ratioedBatches[, -GISindices[[batch]] ], 1, function(x) eval(parse(text = paste0("2^", meanOrMedian, "(log2(na.omit(x)))")))), ncol = dim(ratioedBatches)[2], nrow = dim(ratioedBatches)[1])) ## MEAN/MEDIAN FUNCTION CHOICE***
+        df3 <- as.data.frame(as.matrix(apply(ratioedBatches[, -GISindices[[batch]]], 1, function(x) eval(parse(text = paste0("2^", meanOrMedian, "(log2(na.omit(x)))")))), ncol = dim(ratioedBatches)[2], nrow = dim(ratioedBatches)[1])) ## MEAN/MEDIAN FUNCTION CHOICE***
         # as.matrix(), NOT matrix()
       } else {
         ## If we cannot rely on the robust assumption of batch-to-batch biological equivalence (with randomized sample order across all avalable channels in all batches), then use robust mean of GIS samples only

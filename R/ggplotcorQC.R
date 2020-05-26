@@ -20,11 +20,9 @@
 #' @examples
 #' ggplotCorQC(data_in, groups, colID, nbins, annotate = TRUE)
 ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
-
   plot_list <- list()
 
   for (i in 1:length(groups)) {
-
     cols <- grep(groups[i], colnames(data_in))
     data_sub <- data_in[, cols]
     QCcols <- grep(colID, colnames(data_sub))
@@ -47,8 +45,10 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
 
     # Bin by mean intensity.
     mu <- rowMeans(data_work)
-    bins <- BurStMisc::ntile(mu, nbins, na.rm = TRUE, 
-		     checkBleed = FALSE, result = "numeric")
+    bins <- BurStMisc::ntile(mu, nbins,
+      na.rm = TRUE,
+      checkBleed = FALSE, result = "numeric"
+    )
     data$bins <- rep(bins, num_iter)
 
     # Determine best fit line.
@@ -63,11 +63,13 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
     R2 <- paste("R2 =", round(corTest$estimate, 4))
 
     # Generate scatter plot.
-    plot <- ggplot(data, aes(x = Log2QC1, y = Log2QC2, color = bins)) + 
-	    geom_point() +
-	    scale_color_continuous(name = "Intensity Bin") +
-	    geom_abline(intercept=coef(fit)[1],slope=coef(fit)[2], 
-			color = "black", linetype = "dashed") +
+    plot <- ggplot(data, aes(x = Log2QC1, y = Log2QC2, color = bins)) +
+      geom_point() +
+      scale_color_continuous(name = "Intensity Bin") +
+      geom_abline(
+        intercept = coef(fit)[1], slope = coef(fit)[2],
+        color = "black", linetype = "dashed"
+      ) +
       ggtitle(groups[i]) +
       xlab(expression(Log[2] ~ QC1)) +
       ylab(expression(Log[2] ~ QC2)) +
@@ -88,8 +90,10 @@ ggplotCorQC <- function(data_in, groups, colID, nbins, annotate = TRUE) {
     ymin <- min(yrange)
     ymax <- max(yrange)
     ydelta <- ymax - ymin
-    tt <- ttheme_default(base_size = 11, 
-			 core = list(bg_params = list(fill = "white")))
+    tt <- ttheme_default(
+      base_size = 11,
+      core = list(bg_params = list(fill = "white"))
+    )
     tab <- tableGrob(mytable, rows = NULL, theme = tt)
     g <- gtable_add_grob(tab,
       grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),

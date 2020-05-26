@@ -39,7 +39,8 @@ ggplotPeptideBarPlot <- function(raw_peptide, seed = 1) {
   title <- paste0("Dlg4", " >", strsplit(rownames(dat)[n], "_")[[1]][2])
   plot <- ggplot(df, aes(x = Channel, y = log2(value), fill = Channel)) +
     geom_bar(stat = "identity", width = 0.9, position = position_dodge(width = 1)) +
-    xlab("TMT Channel") + ylab("Log2(Raw Intensity)") +
+    xlab("TMT Channel") +
+    ylab("Log2(Raw Intensity)") +
     ggtitle(title) +
     theme(legend.position = "none")
   return(plot)

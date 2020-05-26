@@ -18,14 +18,13 @@
 #'
 #' @examples
 #' ggplotSampleConnectivity(data_in, log = TRUE, colID, threshold = -2.5)
-ggplotSampleConnectivity <- function(data_in, log = TRUE, colID, 
-				     threshold = -2.5) {
-
-	suppressPackageStartupMessages({
-		library(ggdendro)
-		library(WGCNA)	  
-		library(ggrepel)
-	})
+ggplotSampleConnectivity <- function(data_in, log = TRUE, colID,
+                                     threshold = -2.5) {
+  suppressPackageStartupMessages({
+    library(ggdendro)
+    library(WGCNA)
+    library(ggrepel)
+  })
 
   cols <- grep(colID, colnames(data_in))
   dm <- as.matrix(data_in[, cols])
@@ -65,7 +64,9 @@ ggplotSampleConnectivity <- function(data_in, log = TRUE, colID,
   data$label <- rownames(data)
   data$label[!data$Z.Ki < threshold] <- ""
   # Plot Z.K
-  plot <- ggplot(data, aes(Sample, Z.Ki)) + geom_point(size = 2) + ggtitle("Sample Connectivity") +
+  plot <- ggplot(data, aes(Sample, Z.Ki)) +
+    geom_point(size = 2) +
+    ggtitle("Sample Connectivity") +
     geom_hline(yintercept = threshold, linetype = "dashed", color = "red", size = 0.25) +
     geom_label_repel(aes(label = label), nudge_y = 0.3, colour = "red", alpha = 0.85) +
     theme(

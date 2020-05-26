@@ -57,7 +57,8 @@ ggplotScaleFreeFit <- function(connectivity, nBreaks = 10, truncated = FALSE,
   )
   # Generate ggplot.
   df <- as.data.frame(cbind(log.dk, log.p.dk))
-  plot <- ggplot(df, aes(x = log.dk, y = log.p.dk)) + geom_point(size = 2) +
+  plot <- ggplot(df, aes(x = log.dk, y = log.p.dk)) +
+    geom_point(size = 2) +
     ggtitle(title) +
     geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], color = "black", linetype = "dashed") +
     labs(y = expression(Log[10](p(k)))) +

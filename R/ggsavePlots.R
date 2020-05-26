@@ -13,21 +13,23 @@
 #' @export
 #'
 #' @examples
-ggsavePlots <- function(plots,filenames = NULL,...){
-	suppressPackageStartupMessages({
-		library(ggplot2)
-	})
-	if (is.null(filenames)) {
-		# Insure that plot list has names.
-		if (is.null(names(plots))) { 
-			stop(paste("Please provide filenames as",
-				   "argument to function or as names",
-				   "of plots list."))
-		filenames <- names(plots)
-		}
-	}
-	# Loop to save plots.
-	for (i in c(1:length(plots))){
-		ggsave(filenames[i],plots[[i]],...)
-	}
+ggsavePlots <- function(plots, filenames = NULL, ...) {
+  suppressPackageStartupMessages({
+    library(ggplot2)
+  })
+  if (is.null(filenames)) {
+    # Insure that plot list has names.
+    if (is.null(names(plots))) {
+      stop(paste(
+        "Please provide filenames as",
+        "argument to function or as names",
+        "of plots list."
+      ))
+      filenames <- names(plots)
+    }
+  }
+  # Loop to save plots.
+  for (i in c(1:length(plots))) {
+    ggsave(filenames[i], plots[[i]], ...)
+  }
 }

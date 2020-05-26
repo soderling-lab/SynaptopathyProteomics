@@ -1,3 +1,5 @@
 #!/usr/bin/env Rscript
+#
 # Styles R files.
+renv::load(getrd())
 styler::style_dir("../R")

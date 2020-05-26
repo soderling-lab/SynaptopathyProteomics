@@ -1,9 +1,11 @@
 # Function to perform module self preservation:
-module_self_preservation <- function(partitions,resolution){
+module_self_preservation <- function(partitions, resolution) {
   # Get partition.
-  partition <- as.integer(partitions[resolution, ]) 
+  partition <- as.integer(partitions[resolution, ])
   # Add 1 so that all module assignments >0.
-  if (min(partition)==0) { partition <- partition + 1 }
+  if (min(partition) == 0) {
+    partition <- partition + 1
+  }
   partition <- reset_index(partition)
   names(partition) <- colnames(partitions)
   module_list <- list(self = partition)

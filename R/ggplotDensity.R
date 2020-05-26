@@ -31,7 +31,8 @@ ggplotDensity <- function(data_in, colID, title) {
   colnames(data_temp) <- c("Accession", "Run", "Intensity")
   data_temp$Run <- as.factor(data_temp$Run)
   data_temp <- na.omit(data_temp)
-  plot <- ggplot(data_temp, aes(x = Intensity, color = Run)) + geom_density() +
+  plot <- ggplot(data_temp, aes(x = Intensity, color = Run)) +
+    geom_density() +
     ggtitle(title) +
     xlab("Log2 Intensity") +
     ylab("Density") +

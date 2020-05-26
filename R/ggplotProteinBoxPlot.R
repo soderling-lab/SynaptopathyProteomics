@@ -50,7 +50,9 @@ ggplotProteinBoxPlot <- function(data_in,
         outlier.colour = "black",
         outlier.shape = 20, outlier.size = 1
       ) +
-      ggtitle(protein) + ylab("Log2(Relative Abundance)") + xlab("") +
+      ggtitle(protein) +
+      ylab("Log2(Relative Abundance)") +
+      xlab("") +
       theme(
         plot.title = element_text(
           hjust = 0.5, color = "black",

@@ -14,13 +14,13 @@
 #'
 #' @examples
 #' ggsaveTable(grob)
-ggsaveTable <- function(mytable,myfile) {
-	suppressPackageStartupMessages({
-	library(grid)
-	library(gridExtra)
-	library(ggplot2)
-	library(cowplot)
-	})
+ggsaveTable <- function(mytable, myfile) {
+  suppressPackageStartupMessages({
+    library(grid)
+    library(gridExtra)
+    library(ggplot2)
+    library(cowplot)
+  })
   # Function to get absolute size of a grob in inches.
   # Modified from: Hack-R's solution on Stackoverflow, see refernces.
   # Get height (h) and width (w) of table in inches.
@@ -32,5 +32,5 @@ ggsaveTable <- function(mytable,myfile) {
   unlink(f)
   # Save.
   plot <- plot_grid(mytable)
-  ggsave(myfile,plot,width=1.05*w,height=1.1*h,units="in")
+  ggsave(myfile, plot, width = 1.05 * w, height = 1.1 * h, units = "in")
 }
