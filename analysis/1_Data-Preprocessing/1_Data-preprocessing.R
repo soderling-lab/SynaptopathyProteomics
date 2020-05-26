@@ -113,14 +113,14 @@ set_font("Arial", font_path = fontdir)
 
 # Load the TMT data.
 datafile <- c(
-	      "Cortex" = "4227_TMT_Cortex_Combined_PD_Peptide_Intensity.csv",
-	      "Striatum" = "4227_TMT_Striatum_Combined_PD_Peptide_Intensity.csv"
+	      "Cortex" = "Cortex_Raw_Peptides.csv",
+	      "Striatum" = "Striatum_Raw_Peptides.csv"
 	      )
 
 # Load sample information.
 samplefile <- c(
-		"Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
-		"Striatum" = "4227_TMT_Striatum_Combined_traits.csv"
+		"Cortex" = "Cortex_Samples.csv",
+		"Striatum" = "Striatum_Samples.csv"
 		)
 
 # Load the data from PD and sample info.

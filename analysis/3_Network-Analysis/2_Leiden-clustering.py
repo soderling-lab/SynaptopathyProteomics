@@ -36,8 +36,6 @@ from sys import stderr
 adjms = {
         "Cortex" : "Cortex_NE_Adjm.csv",
         "Striatum" : "Striatum_NE_Adjm.csv",
-        "Combined" : "Combined_NE_Adjm.csv",
-        "PPI" : "PPI_Adjm.csv"
         }
 
 ## Leidenalg supports the following optimization methods:

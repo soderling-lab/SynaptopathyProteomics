@@ -16,18 +16,17 @@ if (!length(args == 1)) {
 } else { 
 	type <- match(args[1],c("Cortex","Striatum"))
 	tissue <- c("Cortex", "Striatum")[type]
-	message(paste0("\nAnalyzing self-preservation of ", tissue,"modules..."))
+	message(paste("\nAnalyzing tissue..."))
 }
 
 ## User parameters to change:
 stats = c(1,2,6,7) # Module statistics to use for permutation testing.
 strength = "strong" # Criterion for preservation: strong or weak.
-# NOTE: strong = all preservation statistics must be significant. Weak = any.
-
 min_size = 5 # minimum allowable size for a module.
-verbose = FALSE # supress verbosity?
+verbose = TRUE # supress verbosity?
 replace_negative = "zero" # How should negative weights be handled?
 nThreads = parallel::detectCores() - 1 # number of cores
+# NOTE: strong = all preservation statistics must be significant. Weak = any.
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -39,7 +38,7 @@ nThreads = parallel::detectCores() - 1 # number of cores
 # 6. avg.cor
 # 7. avg.contrib
 
-## Permutation Statistics:
+## Description of statistics:
 # 1. avg.weight (average edge weight) - Calculated from network. Assumes edge
 #    weights are positive.
 # 2. coherence - Calculated from the data. Quantifies the percent variance
@@ -60,13 +59,6 @@ nThreads = parallel::detectCores() - 1 # number of cores
 ## Set-up the workspace.
 #---------------------------------------------------------------------
 
-# Which data will be used?
-self = test = tissue
-data_file = tissue
-net_file = tissue 
-adjm_file = tissue 
-partition_file = tissue
-
 # Load renv.
 root <- getrd()
 renv::load(root)
@@ -85,13 +77,17 @@ devtools::load_all()
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 
+# Which data will be used?
+self = test = tissue
+
 # Load the data.
 data(cortex_data)
 data(striatum_data)
 data_list <- list("Cortex" = cortex_data,
 		  "Striatum" = striatum_data)[[tissue]]
 
-# Load expression data. Transpose -> rows = samples; columns = genes.
+# Load expression data. 
+# Transpose -> rows = samples; columns = genes.
 data <- t(data_list$Data)
 
 # Load adjmatrix.
@@ -100,11 +96,21 @@ adjm <- data_list$Adjm
 # Load network.
 netw <- data_list$Netw
 
-# Load Leidenalg graph partitions from 2_la-clustering.
-myfiles <- c("Cortex" = "Cortex_SurpriseVertexPartition.csv",
-	     "Striatum" = "Striatum_SurpriseVertexPartition.csv")
-part_dt <- fread(file.path(rdatdir,myfiles[partition_file]), 
-		    header=TRUE,drop = 1)
+# Load Leidenalg graph partition.
+# NOTE: 1 is added so that all module assignments > 0.
+myfile <- c(Cortex = "Cortex_SurpriseVertexPartition.csv",
+	     Striatum = "Striatum_SurpriseVertexPartition.csv")[tissue]
+part_dt <- fread(file.path(rdatdir, myfile), header=TRUE, drop = 1)
+partition <- as.integer(part_dt[1, ]) + 1
+
+# Reset index.
+partition <- reset_index(partition)
+names(partition) <- colnames(part_dt)
+
+# Remove modules less than min size.
+too_small <- which(table(partition) < min_size)
+partition[partition %in% too_small] <- 0 
+module_list <- list(self = partition)
 
 # Check that all columns in the data are in adjm and network.
 out1 <- colnames(data) %notin% colnames(adjm)
@@ -120,9 +126,9 @@ check <- all(colnames(data) == colnames(adjm))
 if (!check) { message("Problem: data doesn't match correlation matrix!") }
 
 # Enforce consistent dimensions between data and partitions.
-idy <- match(colnames(data),colnames(part_dt))
-part_dt <- as.data.frame(part_dt)[,idy]
-check <- all(colnames(data) == colnames(part_dt))
+idy <- match(colnames(data),names(partition))
+partition <- partition[idy]
+check <- all(colnames(data) == names(partition))
 if (!check) { message("Problem: data doesn't match part_dt!") }
 
 # Enforce consistent dimensions between data and network.
@@ -130,9 +136,6 @@ idz <- match(colnames(data),colnames(netw))
 netw <- netw[idz,idz]
 check <- all(colnames(data) == colnames(netw))
 if (!check) { message("Problem: data doesn't match network!") }
-
-# Final check.
-check <- all(colnames(part_dt) == colnames(data) & colnames(data) == colnames(netw))
 
 #-------------------------------------------------------------------------------
 ## Prepare the data for permutation testing.
@@ -147,6 +150,7 @@ data_list <- list(self = data)
 correlation_list <- list(self = adjm)
 
 # Networks (edges) should be positive...
+# NOTE: enhanced network should not contain negative values.
 if (replace_negative == "absolute value") {
 	# Replace negative edges as absolute value.
 	network_list <- list(self = abs(netw))
@@ -162,32 +166,19 @@ module_stats <- paste(c(
 )[stats], collapse = ", ")
 
 # Status report:
-message(paste("Evaluating self-preservation of",
+message(paste("\nEvaluating self-preservation of",
 		self, "modules in the",test,"network."))
 message(paste0(
-  "Module statistic(s) used to evaluate module preservation: ",
+  "\nModule statistic(s) used to evaluate module preservation: ",
   module_stats), ".")
 message(paste0(
-  "Criterion for module preservation/divergence: ",
+  "\nCriterion for module preservation/divergence: ",
   strength, ".", "\n"
 ))
 
 #-------------------------------------------------------------------------------
 ## Evaluate module self-preservation.
 #-------------------------------------------------------------------------------
-
-# Get partition.
-partition <- as.integer(part_dt[1, ]) 
-
-# Add 1 so that all module assignments >0.
-if (min(partition)==0) { partition <- partition + 1 }
-partition <- reset_index(partition)
-names(partition) <- colnames(part_dt)
-
-# Remove modules less than min size.
-too_small <- which(table(partition) < min_size)
-partition[partition %in% too_small] <- 0 
-module_list <- list(self = partition)
 
 # Perform permutation test for module self-preservation.
 suppressWarnings({
@@ -212,21 +203,24 @@ suppressWarnings({
 
 # Remove NS modules--set NS modules to 0.
 preservedParts <- check_modules(selfPreservation, strength, stats)
+
 nModules <- length(unique(partition))
 out <- names(preservedParts)[preservedParts == "ns"]
 partition[partition %in% out] <- 0
 nPreserved <- nModules - length(out)
-message(paste("...", nPreserved, "of", nModules, "modules are preserved."))
+message(paste0("\n",nPreserved, " of ", nModules, " modules are preserved."))
 
 # Save to Rdata.
 if (tissue == "Cortex") {
-  cortex_partition <- partition
-  myfile <- file.path(datadir,"cortex_partition.rda")
-  save(cortex_partition,file=myfile,version=2)
+	# Save Cortex partition.
+	cortex_partition <- partition
+	myfile <- file.path(datadir,"cortex_partition.rda")
+	save(cortex_partition,file=myfile,version=2)
 } else if (tissue == "Striatum") {
-  striatum_partition <- partition
-  myfile <- file.path(datadir,"striatum_partition.rda")
-  save(striatum_partition,file=myfile,version=2)
+	# Save Striatum partition.
+        striatum_partition <- partition
+	myfile <- file.path(datadir,"striatum_partition.rda")
+	save(striatum_partition,file=myfile,version=2)
 }
 
-message("Done!")
+message("\nDone!")

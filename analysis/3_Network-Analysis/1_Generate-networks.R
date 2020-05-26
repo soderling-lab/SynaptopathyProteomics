@@ -7,7 +7,7 @@
 #' ---
 
 #------------------------------------------------------------------------------
-## Generate protein correlation matrix.
+## Prepare the workspace.
 #------------------------------------------------------------------------------
 
 # Load renv.
@@ -24,12 +24,16 @@ suppressPackageStartupMessages({
 })
 
 # Load additional functions in root/R.
-TBmiscr::load_all()
+suppressWarnings({ devtools::load_all() })
 
 # Directories.
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 tabsdir <- file.path(root, "tables")
+
+#------------------------------------------------------------------------------
+## Generate protein correlation matrix.
+#------------------------------------------------------------------------------
 
 # Load the normalized expression data.
 # Combined and normalized data, sample level outliers removed.
@@ -64,7 +68,6 @@ data_list <- lapply(data_list, function(x) {
   rownames(x) <- rownames(data)
   return(x)
 })
-
 
 # Create signed adjacency (correlation) matrices.
 adjm_list <- lapply(data_list, function(x) {
@@ -140,9 +143,11 @@ message(paste("\nScale free fit of PPI graph:",round(r,3)))
 cortex_data <- list(Data = data_list$Cortex,
 		    Adjm = adjm_list$Cortex,
 		    Netw = netw_list$Cortex,
+		    Meta = samples %>% filter(Tissue == "Cortex"),
 		    Description = c("Final normalized protein data.",
-				    "Bicor correlation matrix.",
-				    "Enhanced correlation matrix."))
+		  		    "Bicor correlation matrix.",
+				    "Enhanced correlation matrix.",
+				    "Sample meta data."))
 myfile <- file.path(datadir, "cortex_data.rda")
 save(cortex_data, file = myfile, version = 2)
 
@@ -150,9 +155,11 @@ save(cortex_data, file = myfile, version = 2)
 striatum_data <- list(Data = data_list$Striatum,
 		      Adjm = adjm_list$Striatum,
 		      Netw = netw_list$Striatum,
+		      Meta = samples %>% filter(Tissue == "Striatum"),
 		      Description = c("Final normalized protein data.",
 		  		      "Bicor correlation matrix.",
-				      "Enhanced correlation matrix."))
+				      "Enhanced correlation matrix.",
+				      "Sample meta data."))
 myfile <- file.path(datadir, "striatum_data.rda")
 save(striatum_data, file = myfile, version = 2)
 
@@ -171,7 +178,7 @@ netw <- as.data.table(netw_list$Cortex,keep.rownames="Accession")
 fwrite(netw,myfile)
 
 myfile <- file.path(rdatdir,"Striatum_NE_Adjm.csv")
-netw <- as.data.table(adjm_list$Striatum,keep.rownames="Accession")
+netw <- as.data.table(netw_list$Striatum,keep.rownames="Accession")
 fwrite(netw,myfile)
 
 message("Done!\n")

@@ -9,7 +9,7 @@
 ## Parameters
 save_plots = FALSE
 clear_plots = FALSE
-save_work = FALSE
+save_work = TRUE
 fig_width = 2.5
 fig_height = 2.5
 
@@ -28,7 +28,8 @@ output_name = "Combined"
 # output files.
 
 # Load renv.
-renv::load(getrd(),quiet=TRUE)
+message("Combining data from cortex and striatum with TAMPOR...")
+renv::load(getrd())
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -47,7 +48,7 @@ suppressPackageStartupMessages({
 })
 
 # Load additional functions in root/R.
-devtools::load_all()
+suppressWarnings({ devtools::load_all() })
 
 # Set any other directories.
 root <- getrd()
@@ -80,8 +81,8 @@ set_font("Arial",font_path=fontdir)
 # Merge traits data.
 # Load the cortex and striatum traits files.
 inputTraitsCSV <- c(
-  "4227_TMT_Cortex_Combined_traits.csv",
-  "4227_TMT_Striatum_Combined_traits.csv"
+  "Cortex_Samples.csv",
+  "Striatum_Samples.csv"
 )
 
 # Load the sample info into a list, traits.
@@ -970,26 +971,14 @@ if (save_plots) {
 
 message("\nSaving data to file!")
 
-# Load data.
-files <- list(
-  traits = paste(rdatdir, "Combined_traits.RData", sep = "/"),
-  raw_cortex = paste(rdatdir, "Cortex_raw_peptide.RData", sep = "/"),
-  raw_striatum = paste(rdatdir, "Striatum_raw_peptide.RData", sep = "/"),
-  cleanDat = paste(rdatdir, "Combined_cleanDat.RData", sep = "/")
+# Load raw peptide data.
+myfiles <- list(
+  raw_cortex = file.path(rdatdir, "Cortex_raw_peptide.RData"),
+  raw_striatum = file.path(rdatdir, "Striatum_raw_peptide.RData")
 )
-data <- lapply(files, function(x) readRDS(x))
-
-# Clean up traits.
-traits <- data$traits
-rownames(traits) <- NULL
-colnames(traits)[1] <- "Batch.Channel"
-traits$Color <- NULL
-traits$Order <- NULL
-colnames(traits)[2] <- "LongName"
-
-# Gather raw data.
-raw_cortex <- data$raw_cortex
-raw_striatum <- data$raw_striatum
+raw_data <- lapply(myfiles, function(x) readRDS(x))
+raw_cortex <- raw_data$raw_cortex
+raw_striatum <- raw_data$raw_striatum
 idx <- grepl("Abundance", colnames(raw_cortex))
 colnames(raw_cortex)[idx] <- paste(colnames(raw_cortex)[idx], 
 				   "Cortex", sep = ", ")
@@ -998,12 +987,11 @@ colnames(raw_striatum)[idx] <- paste(colnames(raw_striatum)[idx],
 				     "Striatum", sep = ", ")
 
 # Gather normalized data.
-norm_data <- as.data.frame(log2(data$cleanDat))
+norm_data <- as.data.frame(log2(cleanDat))
 idx <- match(colnames(norm_data), traits$Batch.Channel)
 colnames(norm_data) <- paste(traits$LongName[idx], 
 			     traits$Tissue[idx], sep = ", ")
-norm_data <- add_column(norm_data, 
-			"Gene|Uniprot" = rownames(norm_data), .before = 1)
+norm_data <- data.table::as.data.table(norm_data,keep.rownames="Gene|Uniprot")
 rownames(norm_data) <- NULL
 
 # Write to excel workbook.
@@ -1012,7 +1000,7 @@ addWorksheet(wb, sheetName = "sample-info")
 addWorksheet(wb, sheetName = "raw-cortex-peptide")
 addWorksheet(wb, sheetName = "raw-striatum-peptide")
 addWorksheet(wb, sheetName = "combined-normalized-protein")
-writeData(wb, sheet = 1, keepNA = TRUE, traits)
+writeData(wb, sheet = 1, keepNA = TRUE, alltraits)
 writeData(wb, sheet = 2, keepNA = TRUE, raw_cortex)
 writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
