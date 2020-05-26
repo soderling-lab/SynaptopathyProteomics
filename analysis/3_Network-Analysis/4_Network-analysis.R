@@ -54,39 +54,29 @@ tabsdir <- file.path(root, "tables")
 ## Load the data.
 #--------------------------------------------------------------------
 
-# Load the cortex and striatum data.
-load(cortex_data)
-load(striatum_data)
+# Load the cortex and striatum data from root/data.
+data(cortex_data)
+data(cortex_partition)
+data(striatum_data)
+data(striatum_partition)
 
 # Grab the data for the tissue type we are analyzing.
 data_list <- list("Cortex"=cortex_data,
 		  "Striatum"=striatum_data)[[analysis_type]]
+partition <- list("Cortex"=cortex_partition,
+		  "Striatum"=striatum_partition)[[analysis_type]]
 
+# Data matrix:
 dm <- data_list$Data
-dm <- log2(readRDS(myfile))
 
 # Load the sample meta data.
 samples <- data(samples)
 
 # Load adjacency matrix--coerce to a data.matrix.
-myfile <- file.path(rdatdir, input_data[['adjm']])
-adjm <- fread(myfile) %>% as.matrix(rownames="V1")
+adjm <- data_list$Adjm
 
 # Load network--coerce to a matrix.
-myfile <- file.path(rdatdir, input_data[['netw']])
-netw <- fread(myfile) %>% as.matrix(rownames="V1")
-
-# Load Leidenalg graph partition.
-# This is the intial partition of the graph.
-myfile <- file.path(rdatdir, input_data[['part']])
-part_dt <- fread(myfile, drop=1)
-la_partition <- as.numeric(part_dt) + 1
-names(la_partition) <- colnames(part_dt)
-n_resolutions <- nrow(part_dt)
-
-# Load graph partition after enforcing module self-preservation.
-myfile <- file.path(rdatdir, input_data[['pres']])
-partition <- readRDS(myfile)[[1]]
+netw <- data_list$Netw
 
 # Reset partition index for self-preserved modules.
 partition <- reset_index(partition)
