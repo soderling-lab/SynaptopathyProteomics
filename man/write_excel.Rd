@@ -4,7 +4,7 @@
 \alias{write_excel}
 \title{write_excel}
 \usage{
-write_excel(data, file, ...)
+write_excel(data, file, rowNames = FALSE, colNames = TRUE, ...)
 }
 \arguments{
 \item{data}{(list, matrix, dataframe)}

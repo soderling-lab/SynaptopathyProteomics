@@ -4,8 +4,7 @@
 \alias{impute_peptides}
 \title{impute_peptides}
 \usage{
-impute_peptides(data_in, groups, method, qc_threshold = 0,
-  bio_threshold = 2)
+impute_peptides(data_in, groups, method, qc_threshold = 0, bio_threshold = 2)
 }
 \arguments{
 \item{data_in}{- expression data}

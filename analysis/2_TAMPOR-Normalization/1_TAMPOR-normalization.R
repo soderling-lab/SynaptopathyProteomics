@@ -7,14 +7,18 @@
 #' ---
 
 ## Parameters
-save_plots = TRUE
-clear_plots = TRUE
-save_work = TRUE
+save_plots = FALSE
+clear_plots = FALSE
+save_work = FALSE
 fig_width = 2.5
 fig_height = 2.5
 
 ## Prefix for output files.
 output_name = "Combined"
+
+## Key outputs saved in root/data:
+# * Combined_Traits.rda - sample meta data
+# * Combined_cleanDat.rda - final normalized protein data
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -152,8 +156,9 @@ colnames(allDat) <- c(group1, group2)
 controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 
 # Save merged traits file.
-myfile <- file.path(rdatdir, "Combined_traits.rda")
-save(alltraits, file = myfile,version =2)
+myfile <- file.path(datadir, "samples.rda")
+samples <- alltraits
+save(samples, file = myfile,version =2)
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
@@ -226,8 +231,9 @@ message(paste("\nOutlier sample(s) removed:",
 
 # Save data with QC samples, but outliers removed to file.
 cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
-myfile <- file.path(rdatdir, "Combined_cleanDat.RData")
-saveRDS(cleanDat, myfile)
+myfile <- file.path(datadir, "combined.rda")
+combined <- cleanDat
+save(combined, file = myfile, version = 2)
 
 #---------------------------------------------------------------------
 ## Examine sample clustering post-TAMPOR Normalization.

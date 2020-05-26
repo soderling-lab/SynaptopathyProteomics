@@ -4,8 +4,7 @@
 \alias{ggplotPCA}
 \title{ggplotPCA}
 \usage{
-ggplotPCA(data_in, traits, colors, colID = "Abundance",
-  title = "2D PCA Plot")
+ggplotPCA(data_in, traits, colors, colID = "Abundance", title = "2D PCA Plot")
 }
 \arguments{
 \item{data_in}{- the expression data}

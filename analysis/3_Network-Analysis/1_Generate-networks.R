@@ -23,26 +23,28 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Directories.
-rdatdir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables")
-
 # Functions.
 TBmiscr::load_all()
 
+# Directories.
+datadir <- file.path(root, "data")
+rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
+
 # Load the normalized expression data.
 # Combined and normalized data, sample level outliers removed.
-myfile <- file.path(rdatdir, "Combined_cleanDat.RData")
-cleanDat <- readRDS(myfile)
+myfile <- file.path(datadir, "combined.rda")
+load(myfile)
+cleanDat <- combined
 
 # Load sample traits.
-myfile <- file.path(rdatdir, "Combined_traits.RData")
-traits <- readRDS(myfile)
+myfile <- file.path(datadir, "samples.rda")
+load(myfile)
+traits <- samples
 
 # Remove QC data, log2 transform, and coerce to data.table.
 idx <- match(colnames(cleanDat), rownames(traits))
 out <- traits$SampleType[idx] == "QC"
-
 data <- as.data.table(log2(cleanDat[, !out]))
 rownames(data) <- rownames(cleanDat)
 
@@ -65,8 +67,8 @@ subDat <- lapply(subDat, function(x) {
 })
 
 # Save expression data to file.
-myfiles <- file.path(rdatdir, paste0(names(subDat), "_cleanDat.RData"))
-invisible(mapply(function(x, y) saveRDS(x, y), subDat, myfiles))
+myfiles <- file.path(datadir, paste0(tolower(names(subDat)), ".rda"))
+invisible(mapply(function(x, y) save(x, file=y,version=2), subDat, myfiles))
 
 # Create signed adjacency (correlation) matrices.
 adjm <- lapply(subDat, function(x) {
@@ -93,12 +95,12 @@ adjm <- lapply(adjm, function(x) {
 })
 
 # Write correlation matrices to .csv.
-myfiles <- file.path(rdatdir, paste0(names(adjm), "_Adjm.csv"))
-invisible(mapply(function(x, y) fwrite(x, y, row.names = TRUE), adjm, myfiles))
+myfiles <- file.path(datadir, paste0(tolower(names(adjm)), "_adjm.csv"))
+invisible(mapply(function(x, y) as.data.table(x,keep.rownames="Accession") %>% fwrite(y, row.names = TRUE), adjm, myfiles))
 
 # Save correlation matrices as RData.
-myfiles <- file.path(rdatdir, paste0(names(adjm), "_Adjm.RData"))
-invisible(mapply(function(x, y) saveRDS(x, y), adjm, myfiles))
+myfiles <- file.path(rdatdir, paste0(tolower(names(adjm)), "_adjm.rda"))
+invisible(mapply(function(x, y) save(x,file=y,version=2), adjm, myfiles))
 
 #---------------------------------------------------------------------
 ## Generate PPI graph.
