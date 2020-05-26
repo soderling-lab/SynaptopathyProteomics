@@ -66,9 +66,6 @@ subDat <- lapply(subDat, function(x) {
   return(x)
 })
 
-# Save expression data to file.
-myfiles <- file.path(datadir, paste0(tolower(names(subDat)), ".rda"))
-invisible(mapply(function(x, y) save(x, file=y,version=2), subDat, myfiles))
 
 # Create signed adjacency (correlation) matrices.
 adjm <- lapply(subDat, function(x) {
@@ -98,9 +95,6 @@ adjm <- lapply(adjm, function(x) {
 myfiles <- file.path(datadir, paste0(tolower(names(adjm)), "_adjm.csv"))
 invisible(mapply(function(x, y) as.data.table(x,keep.rownames="Accession") %>% fwrite(y, row.names = TRUE), adjm, myfiles))
 
-# Save correlation matrices as RData.
-myfiles <- file.path(rdatdir, paste0(tolower(names(adjm)), "_adjm.rda"))
-invisible(mapply(function(x, y) save(x,file=y,version=2), adjm, myfiles))
 
 #---------------------------------------------------------------------
 ## Generate PPI graph.
@@ -155,12 +149,28 @@ fit <- WGCNA::scaleFreeFitIndex(dc,nBreaks=10,removeFirst=FALSE)
 r <- fit$Rsquared.SFT
 message(paste("\nScale free fit of PPI graph:",round(r,3)))
 
+#--------------------------------------------------------------------
+## Save everything to file.
+#--------------------------------------------------------------------
+
+# Cortex and Striatum data will be saved as an R object in root/data.
+# Save expression data to file.
+
+cortex_data <- list("Data"=,"Adjm","Netw","Description"
+myfile <- file.path(datadir, "cortex_data.rda")
+save(
+#invisible(mapply(function(x, y) save(x, file=y,version=2), subDat, myfiles))
+
+# Save correlation matrices as RData.
+#myfiles <- file.path(rdatdir, paste0(tolower(names(adjm)), "_adjm.rda"))
+#invisible(mapply(function(x, y) save(x,file=y,version=2), adjm, myfiles))
+
 # Write to file.
-myfile <- file.path(rdatdir,"PPI_Adjm.csv")
-fwrite(as.data.table(PPIadjm),myfile,row.names=TRUE)
+#myfile <- file.path(rdatdir,"PPI_Adjm.csv")
+#fwrite(as.data.table(PPIadjm),myfile,row.names=TRUE)
 
 # Save as Rdata.
-myfile <- file.path(rdatdir,"PPI_Adjm.RData")
-saveRDS(PPIadjm,myfile)
+#myfile <- file.path(rdatdir,"PPI_Adjm.RData")
+#saveRDS(PPIadjm,myfile)
 
 message("Done!\n")

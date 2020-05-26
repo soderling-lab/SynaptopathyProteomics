@@ -158,7 +158,7 @@ controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 # Save merged traits file.
 myfile <- file.path(datadir, "samples.rda")
 samples <- alltraits
-save(samples, file = myfile,version =2)
+save(samples, file = myfile, version =2)
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
@@ -231,9 +231,9 @@ message(paste("\nOutlier sample(s) removed:",
 
 # Save data with QC samples, but outliers removed to file.
 cleanDat <- cleanDat[, !colnames(cleanDat) %in% bad_samples]
-myfile <- file.path(datadir, "combined.rda")
-combined <- cleanDat
-save(combined, file = myfile, version = 2)
+myfile <- file.path(datadir, "combined_protein.rda")
+combined_protein <- cleanDat
+save(combined_protein, file = myfile, version = 2)
 
 #---------------------------------------------------------------------
 ## Examine sample clustering post-TAMPOR Normalization.
