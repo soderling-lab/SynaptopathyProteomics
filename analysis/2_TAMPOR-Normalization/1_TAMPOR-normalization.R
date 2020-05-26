@@ -528,7 +528,7 @@ myfile <- file.path(rdatdir,paste0(output_name,"_GLM_Results.RData"))
 saveRDS(glm_results, myfile)
 
 # Save results to file as spreadsheet.
-myfile <- file.path(tabsdir,paste0(output_name,"_GLM_Results.xlsx"))
+myfile <- file.path(tabsdir,paste0(output_name,"_TMT_Results.xlsx"))
 write_excel(glm_results, myfile)
 
 #---------------------------------------------------------------------
@@ -1010,7 +1010,7 @@ saveWorkbook(wb, myfile, overwrite = TRUE)
 # Save the workspace?
 if (save_work) {
 	save(list = ls(all.names = TRUE), 
-	     file=paste0(output_name,".RData"), envir=.GlobalEnv)
+	     file="TAMPOR.RData", envir=.GlobalEnv)
 }
 
 # Complete!

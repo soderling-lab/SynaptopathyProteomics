@@ -37,35 +37,34 @@ tabsdir <- file.path(root, "tables")
 
 # Load the normalized expression data.
 # Combined and normalized data, sample level outliers removed.
-myfile <- file.path(datadir, "combined_protein.rda")
-load(myfile)
+data(combined_protein)
 
 # Load sample traits.
-myfile <- file.path(datadir, "samples.rda")
-load(myfile)
-traits <- samples
+data(samples)
 
 # Remove QC data, log2 transform, and coerce to data.table.
-idx <- match(colnames(combined_protein), rownames(traits))
-out <- traits$SampleType[idx] == "QC"
-data <- as.data.table(log2(combined_protein[, !out]))
-rownames(data) <- rownames(combined_protein)
+idx <- match(colnames(combined_protein), rownames(samples))
+out <- samples$SampleType[idx] == "QC"
+data_filt <- as.data.table(log2(combined_protein[, !out]))
+rownames(data_filt) <- rownames(combined_protein)
 
 # Drop any trait rows that are not in data == remove outlier samples.
-traits <- as.data.table(traits) %>% filter(SampleID %in% colnames(data))
+samples <- as.data.table(samples) %>% filter(SampleID %in% colnames(data_filt))
 
 # Cortex and Striatum samples.
-samples <- list(
-  "Cortex" = traits$SampleID[traits$Tissue == "Cortex"],
-  "Striatum" = traits$SampleID[traits$Tissue == "Striatum"]
+samples_list <- list(
+  "Cortex" = samples$SampleID[samples$Tissue == "Cortex"],
+  "Striatum" = samples$SampleID[samples$Tissue == "Striatum"]
 )
 
 # Subset data.
-data_list <- lapply(samples, function(x) as.matrix(data %>% select(all_of(x))))
+data_list <- lapply(samples_list, function(x) {
+			    as.matrix(data_filt %>% select(all_of(x)))
+})
 
 # Fix rownames.
 data_list <- lapply(data_list, function(x) {
-  rownames(x) <- rownames(data)
+  rownames(x) <- rownames(data_filt)
   return(x)
 })
 
@@ -95,7 +94,7 @@ orgs <- c(10090, 9606, 10116)
 idx <- musInteractome$Interactor_A_Taxonomy %in% orgs
 ppis <- subset(musInteractome, idx)
 
-# Save PPIs data frame--this contains evidence information.
+# Save PPIs data frame--this contains PPI evidence information.
 myfile <- file.path(rdatdir,"PPI_Data.csv")
 fwrite(ppis,myfile)
 
@@ -167,7 +166,6 @@ save(striatum_data, file = myfile, version = 2)
 myfile <- file.path(rdatdir,"Cortex_Adjm.csv")
 adjm <- as.data.table(adjm_list$Cortex,keep.rownames="Accession")
 fwrite(adjm,myfile)
-
 myfile <- file.path(rdatdir,"Striatum_Adjm.csv")
 adjm <- as.data.table(adjm_list$Striatum,keep.rownames="Accession")
 fwrite(adjm,myfile)
@@ -176,7 +174,6 @@ fwrite(adjm,myfile)
 myfile <- file.path(rdatdir,"Cortex_NE_Adjm.csv")
 netw <- as.data.table(netw_list$Cortex,keep.rownames="Accession")
 fwrite(netw,myfile)
-
 myfile <- file.path(rdatdir,"Striatum_NE_Adjm.csv")
 netw <- as.data.table(netw_list$Striatum,keep.rownames="Accession")
 fwrite(netw,myfile)
