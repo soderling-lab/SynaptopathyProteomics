@@ -16,7 +16,7 @@ if (interactive()) {
 	args <- commandArgs(trailingOnly=TRUE)
 	if (length(args) == 1) { 
 		analysis_type = commandArgs(trailingOnly=TRUE)[1]
-		message(paste("\nAnalyzing",tissue,"..."))
+		message(paste("\nAnalyzing",analysis_type,"..."))
 	} else { 
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
