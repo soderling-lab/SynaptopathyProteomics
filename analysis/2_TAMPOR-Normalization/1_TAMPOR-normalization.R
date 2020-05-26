@@ -9,13 +9,12 @@
 ## Parameters
 save_plots = TRUE
 clear_plots = TRUE
-clear_tabs = TRUE
 save_work = TRUE
 fig_width = 2.5
 fig_height = 2.5
 
 ## Prefix for output files.
-output_name = "TAMPOR"
+output_name = "Combined"
 
 #---------------------------------------------------------------------
 ## Prepare the workspace.
@@ -51,19 +50,16 @@ root <- getrd()
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 fontdir <- file.path(root, "fonts")
-tabsdir <- file.path(root, "tables","TAMPOR")
+tabsdir <- file.path(root, "tables")
 figsdir <- file.path(root, "figs","TAMPOR")
 
 # If necessary, create output directories for figs and tables.
 if (!dir.exists(figsdir)) { dir.create(figsdir) }
 if (!dir.exists(tabsdir)) { dir.create(tabsdir) }
 
-# Remove any existing figures and tables.
+# Remove any existing figures.
 if (clear_plots) {
 	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
-}
-if (clear_tabs) {
-	invisible(sapply(list.files(tabsdir,full.names=TRUE),unlink))
 }
 
 # Globally set ggplots theme.

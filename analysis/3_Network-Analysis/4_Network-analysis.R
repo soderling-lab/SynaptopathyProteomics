@@ -10,7 +10,7 @@
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):
-	analysis_type = "Cortex" # Tissue type for analysis.
+	analysis_type = "Striatum" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
@@ -44,9 +44,8 @@ input_data <- list("Cortex" = list(
 				   pres = "Striatum_Self_Preservation.RData")
 		   )[[analysis_type]]
 
-## Sample meta data in root/data:
-input_meta <- list("Cortex" = "4227_TMT_Cortex_Combined_traits.csv",
-		   "Striatum" = "4227_TMT_Striatum_Combined_traits.csv")[[analysis_type]]
+## Sample meta data in root/rdata:
+input_meta <- "Combined_traits.RData"
 
 #--------------------------------------------------------------------
 ## Set-up the workspace.
@@ -82,7 +81,7 @@ myfile <- file.path(rdatdir, input_data[['data']])
 dm <- readRDS(myfile)
 
 # Load the sample meta data.
-samples <- fread(file.path(datadir,input_meta))
+samples <- readRDS(file.path(rdatdir,input_meta))
 
 # Load adjacency matrix--coerce to a data.matrix.
 myfile <- file.path(rdatdir, input_data[['adjm']])
