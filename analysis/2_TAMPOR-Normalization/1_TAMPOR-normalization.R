@@ -51,6 +51,7 @@ datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
 fontdir <- file.path(root, "fonts")
 tabsdir <- file.path(root, "tables")
+rawddir <- file.path(root, "raw-data")
 figsdir <- file.path(root, "figs","TAMPOR")
 
 # If necessary, create output directories for figs and tables.
@@ -107,7 +108,7 @@ alltraits <- traits
 ## Merge expression data.
 # Load the Cortex and Striatum cleanDat.
 myfiles <- file.path(rdatdir, c(
-  "Cortex_cleanDat.RData",
+  "Cortex_cleanDat.RData", # Input for TAMPR
   "Striatum_cleanDat.RData"
 ))
 data <- list(
@@ -151,8 +152,8 @@ colnames(allDat) <- c(group1, group2)
 controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 
 # Save merged traits file.
-myfile <- file.path(rdatdir, "Combined_traits.RData")
-saveRDS(alltraits, file = myfile)
+myfile <- file.path(datadir, "Combined_traits.RData")
+save(alltraits, file = myfile)
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.

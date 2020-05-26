@@ -84,9 +84,9 @@ suppressWarnings({ devtools::load_all() })
 
 # Directories:
 rootdir <- getrd()
-datadir <- file.path(rootdir, "data")
 fontdir <- file.path(rootdir, "fonts")
 rdatdir <- file.path(rootdir, "rdata")
+rawddir <- file.path(rootdir, "raw-data")
 figsdir <- file.path(rootdir, "figs","Data-preprocessing",tissue)
 
 # Create directory for figures if it doesn't exist.
@@ -124,8 +124,8 @@ samplefile <- c(
 		)
 
 # Load the data from PD and sample info.
-raw_peptide <- fread(file = file.path(datadir, datafile[tissue]))
-sample_info <- fread(file = file.path(datadir, samplefile[tissue]))
+raw_peptide <- fread(file = file.path(rawddir, datafile[tissue]))
+sample_info <- fread(file = file.path(rawddir, samplefile[tissue]))
 
 # Insure traits are in matching order.
 sample_info <- sample_info[order(sample_info$Order), ]
