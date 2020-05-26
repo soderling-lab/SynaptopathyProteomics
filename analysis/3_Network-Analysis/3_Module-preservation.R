@@ -71,7 +71,7 @@ suppressPackageStartupMessages({
 })
 
 # Additional functions.
-devtools::load_all()
+suppressWarnings({ devtools::load_all() })
 
 # Directories.
 datadir <- file.path(root, "data")
