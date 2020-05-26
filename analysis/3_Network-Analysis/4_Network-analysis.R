@@ -78,7 +78,7 @@ message(paste0("\nAnalyzing ",analysis_type,"..."))
 
 # Load protein expression data as a matrix:
 myfile <- file.path(rdatdir, input_data[['data']])
-dm <- readRDS(myfile)
+dm <- log2(readRDS(myfile))
 
 # Load the sample meta data.
 samples <- readRDS(file.path(rdatdir,input_meta))
@@ -203,7 +203,9 @@ colnames(KW_dt)[c(-1)] <- paste0("KW.",colnames(KW_dt)[c(-1)])
 
 # Significant modules.
 KWsig_dt <- KW_dt %>% filter(KW.padj < KW_alpha)
+
 sigModules <- KWsig_dt[["Module"]]
+
 nSigModules <- length(sigModules)
 
 # Status.

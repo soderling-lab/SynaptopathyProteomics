@@ -81,7 +81,7 @@ inputTraitsCSV <- c(
 )
 
 # Load the sample info into a list, traits.
-files <- paste(datadir, inputTraitsCSV, sep = "/")
+files <- paste(rawddir, inputTraitsCSV, sep = "/")
 traits <- lapply(files, function(x) read.csv(file = x, header = TRUE))
 
 # Bind the elements of the list.
@@ -152,8 +152,8 @@ colnames(allDat) <- c(group1, group2)
 controls <- alltraits$SampleID[grepl("WT", alltraits$SampleType)]
 
 # Save merged traits file.
-myfile <- file.path(datadir, "Combined_traits.RData")
-save(alltraits, file = myfile)
+myfile <- file.path(rdatdir, "Combined_traits.rda")
+save(alltraits, file = myfile,version =2)
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
