@@ -193,18 +193,6 @@
       "Source": "Bioconductor",
       "Hash": "c252d04c13a3a6667d3cc140360780f1"
     },
-    "TBmiscr": {
-      "Package": "TBmiscr",
-      "Version": "0.0.0.9000",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "twesleyb",
-      "RemoteRepo": "TBmiscr",
-      "RemoteRef": "master",
-      "RemoteSha": "e596fff925867fd11e6731c2bb63342ca7aa77e0",
-      "Hash": "9049d1a437e9afeff11f97ab1772a868"
-    },
     "WGCNA": {
       "Package": "WGCNA",
       "Version": "1.69",
