@@ -17,7 +17,6 @@ if (interactive()) {
 	if (length(args) == 1) { 
 		analysis_type = commandArgs(trailingOnly=TRUE)[1]
 		message(paste("\nAnalyzing",tissue,"..."))
-
 	} else { 
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
@@ -56,8 +55,10 @@ tabsdir <- file.path(root, "tables")
 
 # Load the cortex and striatum data from root/data.
 data(cortex_data)
-data(cortex_partition)
 data(striatum_data)
+
+# Load the graph partitions:
+data(cortex_partition)
 data(striatum_partition)
 
 # Grab the data for the tissue type we are analyzing.
@@ -66,11 +67,14 @@ data_list <- list("Cortex"=cortex_data,
 partition <- list("Cortex"=cortex_partition,
 		  "Striatum"=striatum_partition)[[analysis_type]]
 
+# Reset partition index for self-preserved modules.
+partition <- reset_index(partition)
+
 # Data matrix:
 dm <- data_list$Data
 
 # Load the sample meta data.
-samples <- data(samples)
+data(samples)
 
 # Load adjacency matrix--coerce to a data.matrix.
 adjm <- data_list$Adjm
@@ -78,11 +82,8 @@ adjm <- data_list$Adjm
 # Load network--coerce to a matrix.
 netw <- data_list$Netw
 
-# Reset partition index for self-preserved modules.
-partition <- reset_index(partition)
-
 # Load glm statistical results.
-myfile <- file.path(rdatdir, input_data[["stat"]])
+myfile <- file.path(rdatdir, "GLM_Stats.RData")
 glm_stats <- readRDS(myfile)
 
 #---------------------------------------------------------------------
@@ -151,6 +152,7 @@ message(paste0(
 # Sample to group mapping for statistical testing.
 all_groups <- as.character(interaction(samples$Model,
 				       samples$SampleType))
+all_groups <- trimws(all_groups)
 names(all_groups) <- samples$SampleID
 groups <- all_groups[rownames(ME_dm)]
 
@@ -178,9 +180,7 @@ colnames(KW_dt)[c(-1)] <- paste0("KW.",colnames(KW_dt)[c(-1)])
 
 # Significant modules.
 KWsig_dt <- KW_dt %>% filter(KW.padj < KW_alpha)
-
 sigModules <- KWsig_dt[["Module"]]
-
 nSigModules <- length(sigModules)
 
 # Status.
