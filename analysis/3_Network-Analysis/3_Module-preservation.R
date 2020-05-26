@@ -25,17 +25,20 @@ if (!length(args == 1)) {
 
 # User parameters to change:
 stats = c(1,2,6,7) # Module statistics to use for permutation testing.
-self = test = tissue
-strength = "strong" # Criterion for preservation: strong or weak, see NOTE:.
-data_file = tissue # Which data to use?
-net_file = tissue # Which networks to test self preservation in?
-adjm_file = tissue # Which correlation (adjm) network to use?
-partition_file = tissue # Which partition file to use?
-replace_negative = "zero" # How should negative weights be handled?
-min_size = 5 # minimum allowable size for a module.
-verbose = FALSE
-nThreads = parallel::detectCores() - 1
+strength = "strong" # Criterion for preservation: strong or weak.
 # NOTE: strong = all preservation statistics must be significant. Weak = any.
+
+min_size = 5 # minimum allowable size for a module.
+verbose = FALSE # supress verbosity?
+replace_negative = "zero" # How should negative weights be handled?
+nThreads = parallel::detectCores() - 1 # number of cores
+
+# Which data will be used?
+self = test = tissue
+data_file = tissue
+net_file = tissue 
+adjm_file = tissue 
+partition_file = tissue
 
 ## Permutation Statistics:
 # 1. avg.weight
@@ -81,22 +84,20 @@ devtools::load_all()
 # Directories.
 rdatdir <- file.path(root, "rdata")
 
+# Load the data.
+data(cortex_data)
+data(striatum_data)
+data_list <- list("Cortex" = cortex_data,
+		  "Striatum" = striatum_data)[[tissue]]
+
 # Load expression data. Transpose -> rows = samples; columns = genes.
-myfile <- file.path(rdatdir, paste0(data_file, "_cleanDat.RData"))
-data <- readRDS(myfile)
-colNames <- rownames(data)
-data <- t(data)
-colnames(data) <- colNames
+data <- t(data_list$Data)
 
 # Load adjmatrix.
-myfile <- file.path(rdatdir, paste0(adjm_file, "_Adjm.RData"))
-adjm <- as.matrix(readRDS(myfile))
-rownames(adjm) <- colnames(adjm)
+adjm <- data_list$Adjm
 
 # Load network.
-myfile <- file.path(rdatdir, paste0(net_file, "_NE_Adjm.RData"))
-net <- as.matrix(readRDS(myfile))
-rownames(net) <- colnames(net)
+netw <- data_list$Netw
 
 # Load Leidenalg graph partitions from 2_la-clustering.
 myfiles <- c("Cortex" = "Cortex_SurpriseVertexPartition.csv",
@@ -107,7 +108,7 @@ n_res <- nrow(part_dt)
 
 # Check that all columns in the data are in adjm and network.
 out1 <- colnames(data) %notin% colnames(adjm)
-out2 <- colnames(data) %notin% colnames(net)
+out2 <- colnames(data) %notin% colnames(netw)
 if (sum(out1)>0 | sum(out2)>0) { 
 	message("Warning: removing columns from data that are not in network.") 
 }
@@ -125,13 +126,13 @@ check <- all(colnames(data) == colnames(part_dt))
 if (!check) { message("Problem: data doesn't match part_dt!") }
 
 # Enforce consistent dimensions between data and network.
-idz <- match(colnames(data),colnames(net))
-net <- net[idz,idz]
-check <- all(colnames(data) == colnames(net))
+idz <- match(colnames(data),colnames(netw))
+netw <- netw[idz,idz]
+check <- all(colnames(data) == colnames(netw))
 if (!check) { message("Problem: data doesn't match network!") }
 
 # Final check.
-check <- all(colnames(part_dt) == colnames(data) & colnames(data) == colnames(net))
+check <- all(colnames(part_dt) == colnames(data) & colnames(data) == colnames(netw))
 
 #-------------------------------------------------------------------------------
 ## Permutation testing.
@@ -148,10 +149,10 @@ correlation_list <- list(self = adjm)
 # Networks (edges) should be positive...
 if (replace_negative == "absolute value") {
 	# Replace negative edges as absolute value.
-	network_list <- list(self = abs(net))
+	network_list <- list(self = abs(netw))
 } else if (replace_negative == "zero") {
-	net[net<0] <- 0
-	network_list <- list(self = net)
+	netw[netw<0] <- 0
+	network_list <- list(self = netw)
 }
 
 # Module preservation stats.

@@ -23,7 +23,7 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Functions.
+# Load additional functions in root/R.
 TBmiscr::load_all()
 
 # Directories.
@@ -33,9 +33,8 @@ tabsdir <- file.path(root, "tables")
 
 # Load the normalized expression data.
 # Combined and normalized data, sample level outliers removed.
-myfile <- file.path(datadir, "combined.rda")
+myfile <- file.path(datadir, "combined_protein.rda")
 load(myfile)
-cleanDat <- combined
 
 # Load sample traits.
 myfile <- file.path(datadir, "samples.rda")
@@ -43,10 +42,10 @@ load(myfile)
 traits <- samples
 
 # Remove QC data, log2 transform, and coerce to data.table.
-idx <- match(colnames(cleanDat), rownames(traits))
+idx <- match(colnames(combined_protein), rownames(traits))
 out <- traits$SampleType[idx] == "QC"
-data <- as.data.table(log2(cleanDat[, !out]))
-rownames(data) <- rownames(cleanDat)
+data <- as.data.table(log2(combined_protein[, !out]))
+rownames(data) <- rownames(combined_protein)
 
 # Drop any trait rows that are not in data == remove outlier samples.
 traits <- as.data.table(traits) %>% filter(SampleID %in% colnames(data))
@@ -58,17 +57,17 @@ samples <- list(
 )
 
 # Subset data.
-subDat <- lapply(samples, function(x) as.matrix(data %>% select(all_of(x))))
+data_list <- lapply(samples, function(x) as.matrix(data %>% select(all_of(x))))
 
 # Fix rownames.
-subDat <- lapply(subDat, function(x) {
+data_list <- lapply(data_list, function(x) {
   rownames(x) <- rownames(data)
   return(x)
 })
 
 
 # Create signed adjacency (correlation) matrices.
-adjm <- lapply(subDat, function(x) {
+adjm_list <- lapply(data_list, function(x) {
   silently({
     WGCNA::bicor(t(x))
   })
@@ -76,25 +75,7 @@ adjm <- lapply(subDat, function(x) {
 
 # Perform network enhancement.
 message("\nPerforming network enhancement, this will take several minutes...")
-adjm_ne <- lapply(adjm,neten)
-names(adjm_ne) <- paste(names(adjm_ne),"NE",sep="_")
-
-# Combine with other networks.
-adjm <- c(adjm,adjm_ne)
-
-# Coerce adjm to data.tables.
-adjm <- lapply(adjm, as.data.table)
-
-# Fix names of adjmatrices.
-adjm <- lapply(adjm, function(x) {
-  rownames(x) <- colnames(x) <- rownames(data)
-  return(x)
-})
-
-# Write correlation matrices to .csv.
-myfiles <- file.path(datadir, paste0(tolower(names(adjm)), "_adjm.csv"))
-invisible(mapply(function(x, y) as.data.table(x,keep.rownames="Accession") %>% fwrite(y, row.names = TRUE), adjm, myfiles))
-
+netw_list <- lapply(adjm_list, neten)
 
 #---------------------------------------------------------------------
 ## Generate PPI graph.
@@ -154,23 +135,43 @@ message(paste("\nScale free fit of PPI graph:",round(r,3)))
 #--------------------------------------------------------------------
 
 # Cortex and Striatum data will be saved as an R object in root/data.
-# Save expression data to file.
 
-cortex_data <- list("Data"=,"Adjm","Netw","Description"
+# Save list containing cortex data, adjm, and network:
+cortex_data <- list(Data = data_list$Cortex,
+		    Adjm = adjm_list$Cortex,
+		    Netw = netw_list$Cortex,
+		    Description = c("Final normalized protein data.",
+				    "Bicor correlation matrix.",
+				    "Enhanced correlation matrix."))
 myfile <- file.path(datadir, "cortex_data.rda")
-save(
-#invisible(mapply(function(x, y) save(x, file=y,version=2), subDat, myfiles))
+save(cortex_data, file = myfile, version = 2)
 
-# Save correlation matrices as RData.
-#myfiles <- file.path(rdatdir, paste0(tolower(names(adjm)), "_adjm.rda"))
-#invisible(mapply(function(x, y) save(x,file=y,version=2), adjm, myfiles))
+# Save list containing striatum data, adjm, and network:
+striatum_data <- list(Data = data_list$Striatum,
+		      Adjm = adjm_list$Striatum,
+		      Netw = netw_list$Striatum,
+		      Description = c("Final normalized protein data.",
+		  		      "Bicor correlation matrix.",
+				      "Enhanced correlation matrix."))
+myfile <- file.path(datadir, "striatum_data.rda")
+save(striatum_data, file = myfile, version = 2)
 
-# Write to file.
-#myfile <- file.path(rdatdir,"PPI_Adjm.csv")
-#fwrite(as.data.table(PPIadjm),myfile,row.names=TRUE)
+# Save correlation matrices as csv.
+myfile <- file.path(rdatdir,"Cortex_Adjm.csv")
+adjm <- as.data.table(adjm_list$Cortex,keep.rownames="Accession")
+fwrite(adjm,myfile)
 
-# Save as Rdata.
-#myfile <- file.path(rdatdir,"PPI_Adjm.RData")
-#saveRDS(PPIadjm,myfile)
+myfile <- file.path(rdatdir,"Striatum_Adjm.csv")
+adjm <- as.data.table(adjm_list$Striatum,keep.rownames="Accession")
+fwrite(adjm,myfile)
+
+# Write enhanced coorelation matrices (networks) as csv.
+myfile <- file.path(rdatdir,"Cortex_NE_Adjm.csv")
+netw <- as.data.table(netw_list$Cortex,keep.rownames="Accession")
+fwrite(netw,myfile)
+
+myfile <- file.path(rdatdir,"Striatum_NE_Adjm.csv")
+netw <- as.data.table(adjm_list$Striatum,keep.rownames="Accession")
+fwrite(netw,myfile)
 
 message("Done!\n")
