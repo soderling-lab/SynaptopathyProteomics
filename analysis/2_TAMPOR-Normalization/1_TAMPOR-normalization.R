@@ -7,8 +7,8 @@
 #' ---
 
 ## Parameters
-save_plots = FALSE
-clear_plots = FALSE
+save_plots = TRUE
+clear_plots = TRUE
 save_work = TRUE
 fig_width = 2.5
 fig_height = 2.5
@@ -26,6 +26,8 @@ output_name = "Combined"
 # Prepare the R workspace for the analysis. 
 # Load custom functions and prepare the project directory for saving 
 # output files.
+start <- Sys.time()
+message(paste("Starting analysis at:", start))
 
 # Load renv.
 message("Combining data from cortex and striatum with TAMPOR...")
@@ -168,6 +170,7 @@ save(samples, file = myfile, version =2)
 # Insure than any samples that were removed from cleanDat are removed from
 # traits (any outliers identified in previous scripts).
 traits <- alltraits[rownames(alltraits) %in% colnames(allDat), ]
+
 
 # Perform TAMPOR.
 results <- TAMPOR(
@@ -1014,4 +1017,7 @@ if (save_work) {
 }
 
 # Complete!
-message("\nDone!")
+end <- Sys.time()
+message(paste("\nComplete analysis at:", end))
+message(paste("Elapsed time:",
+	      round(difftime(end,start,units="mins"),2),"minutes."))
