@@ -14,20 +14,22 @@ msg <- c("Please specify a tissue type to be analyzed:\n",
 check <- !is.na(match(args[1], c("Cortex", "Striatum")))
 if (length(args == 1) & check) { 
 	tissue  <- args[1]
-	message(paste0("\nAnalyzing ",tissue,"..."))
+	start <- Sys.time()
+	message(paste("Starting analysis at:", start))
+	message(paste0("Analyzing ", tissue,"..."))
 } else {
 	stop(msg) 
 }
 
 ## Other Parameters:
-save_plots = FALSE # Should plots be saved?
-clean_figsdir = FALSE # Remove existing figures?
+save_plots = TRUE # Should plots be saved?
+clean_figsdir = TRUE # Remove existing figures?
 image_format = ".pdf" # Output figure format.
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
-save_work = FALSE # Save workspace at end?
-output_name = tissue
-fig_width = 2.5
-fig_height = 2.5
+save_work = TRUE # Save workspace at end?
+fig_width = 2.5 # Width in inches of figures.
+fig_height = 2.5 # Height in inches of figures.
+output_name = tissue # Prefix of output files.
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocessing:
@@ -1000,4 +1002,7 @@ if (save_work) {
 }
 
 # Complete!
-message("\nDone!")
+end <- Sys.time()
+message(paste("\nCompleted analysis at:",end))
+message(paste("Elapsed time:",
+	      round(difftime(end,start,units="mins"),2),"minutes."))

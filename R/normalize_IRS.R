@@ -36,17 +36,18 @@ normalize_IRS <- function(data_in, IRS_ID, groups, robust = TRUE) {
   if (robust == TRUE) {
     # Calculate geometric rowMeans, ignore missing values.
     df_IRS$Avg <- apply(df_IRS, 1, function(x) exp(mean(log(x), na.rm = TRUE)))
-    message("Used robust (geometric) mean.")
+    #message("Used robust (geometric) mean.")
   } else {
     df_IRS$Avg <- apply(df_IRS, 1, function(x) mean(x, na.rm = TRUE))
-    message("Used arithmetic mean.")
+    #message("Used arithmetic mean.")
   }
   # Compute scaling factors for each experiment.
   factors_list <- list()
   for (j in 1:length(groups)) {
     factors_list[[j]] <- df_IRS$Avg / df_IRS[, j]
   }
-  # Loop through factors list and generate matrix of factors, store in a new list.
+  # Loop through factors list and generate matrix of factors, 
+  # store in a new list.
   new_list <- list()
   for (k in 1:length(groups)) {
     num_channels <- length(grep(groups[k], colnames(data_in)))

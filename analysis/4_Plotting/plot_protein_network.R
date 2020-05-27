@@ -8,12 +8,45 @@ root <- getrd()
 renv::load(root)
 
 # Imports:
-library(igraph)
-library(ggplot2)
+suppressPackageStartupMessages({
+	library(igraph)
+	library(ggplot2)
+})
 
 # Load functions in root/R.
-devtools::load_all()
+suppressWarnings({ devtools::load_all() })
 
+#--------------------------------------------------------------------
+## Protein PCA
+#--------------------------------------------------------------------
+
+# Load data and partition.
+data(cortex_data)
+data(striatum_data)
+data(cortex_partition)
+data(striatum_partition)
+
+# Get the data we are gonna analyze:
+data_list <- list(
+		  "Cortex" = list("data" = cortex_data, 
+				  "partition" = reset_index(cortex_partition)),
+		  "Striatum" = list("data" = striatum_data,
+				    "partition" = reset_index(striatum_partition))
+		  )[[analysis_type]]
+data <- data_list$data[["Data"]]
+partition <- data_list[["partition"]]
+data[1:5,1:5]
+
+# PCA of proteins.
+pca <- prcomp(data)
+pca_summary <- summary(pca)
+
+pca_summary$importance
+
+as.data.frame(pca_summary)
+
+
+#--------------------------------------------------------------------
 # Paths to input files:
 adjm_file <- c(Cortex="Cortex_Adjm.RData",Striatum="")[analysis_type]
 netw_file <- c(Cortex="Cortex_NE_Adjm.RData",Striatum="")[analysis_type]
