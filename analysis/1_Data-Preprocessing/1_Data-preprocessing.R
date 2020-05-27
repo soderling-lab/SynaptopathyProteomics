@@ -295,10 +295,10 @@ p3 <- p3 + scale_x_continuous(expand = c(0, 0))
 p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate PCA plot.
-# FIXME: add percent to axes.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
-p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
-  theme(legend.position = "none")
+p4 <- ggplotPCA(data_in, traits = sample_info, 
+		colors, title = "2D PCA Plot", log=TRUE) 
+p4 <- p4 + theme(legend.position = "none")
 p4 <- p4 + theme(panel.background=element_blank())
 p4 <- p4 + theme(panel.border = element_rect(fill=NA))
 p4 <- p4 + scale_x_continuous(expand = c(0, 0))
@@ -372,8 +372,9 @@ p3 <- p3 + scale_y_continuous(expand = c(0, 0))
 
 # Generate PCA plot.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
-p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
-  theme(legend.position = "none")
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, 
+		title = "2D PCA Plot", log=TRUE)
+p4 <- p4 + theme(legend.position = "none")
 p4 <- p4 + theme(panel.background=element_blank())
 p4 <- p4 + theme(panel.border = element_rect(fill=NA))
 p4 <- p4 + scale_x_continuous(expand = c(0, 0))
@@ -766,8 +767,13 @@ p3 <- p3 + scale_y_continuous(expand = c(0, 0))
 
 # Generate PCA plot.
 colors <- rep(c("yellow", "blue", "green", "purple"), each = 11)
-p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
-  theme(legend.position = "none")
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, 
+		title = "2D PCA Plot", log=TRUE)
+p4 <- p4 + theme(legend.position = "none")
+p4 <- p4 + theme(panel.background=element_blank())
+p4 <- p4 + theme(panel.border = element_rect(fill=NA))
+p4 <- p4 + scale_x_continuous(expand = c(0, 0))
+p4 <- p4 + scale_y_continuous(expand = c(0, 0)) 
 
 # Save the plots.
 if (save_plots) {
@@ -897,8 +903,9 @@ p3 <- p3 + scale_x_continuous(expand = c(0, 0))
 p3 <- p3 + scale_y_continuous(expand = c(0, 0)) 
 
 # Generate PCA plot.
-p4 <- ggplotPCA(data_in, traits = sample_info, colors, title = "2D PCA Plot") +
-  theme(legend.position = "none")
+p4 <- ggplotPCA(data_in, traits = sample_info, colors, 
+		title = "2D PCA Plot", log = TRUE)
+p4 <- p4 + theme(legend.position = "none")
 p4 <- p4 + theme(panel.background=element_blank())
 p4 <- p4 + theme(panel.border = element_rect(fill=NA))
 p4 <- p4 + scale_x_continuous(expand = c(0, 0))
@@ -1006,3 +1013,25 @@ end <- Sys.time()
 message(paste("\nCompleted analysis at:",end))
 message(paste("Elapsed time:",
 	      round(difftime(end,start,units="mins"),2),"minutes."))
+
+
+quit()
+
+# Protein pca
+# It doesn't look right. Its not the normalization, raw data is same.
+data_in <- raw_protein
+idy <- grep("Shank2",colnames(data_in))
+data_in <- data_in[,idy]
+dm <- data_in[,c(-2)] %>% 
+	as.data.table() %>% 
+	as.matrix(rownames="Accession") %>%
+	na.omit() %>% as.data.table()
+pca <- prcomp(log2(dm),center=TRUE,scale=TRUE)
+pca_summary <- as.data.frame(t(summary(pca)$importance))
+idx <- order(pca_summary[["Proportion of Variance"]],decreasing=TRUE)
+pca_summary <- pca_summary[idx,]
+top2_pc <- head(pca_summary[["Proportion of Variance"]],2)
+names(top2_pc) <- head(rownames(pca_summary),2)
+df <- as.data.frame(pca$x[,names(top2_pc)])
+colnames(df) <- c("x","y")
+ggplot(df,aes(x,y)) + geom_point()

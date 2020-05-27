@@ -13,16 +13,18 @@ suppressPackageStartupMessages({
 	library(ggplot2)
 })
 
-# Load functions in root/R.
+# Load functions in root/R and data in root/data.
 suppressWarnings({ devtools::load_all() })
 
 #--------------------------------------------------------------------
 ## Protein PCA
 #--------------------------------------------------------------------
 
-# Load data and partition.
+# Load protein data: 
 data(cortex_data)
 data(striatum_data)
+
+# Load graph partitions:
 data(cortex_partition)
 data(striatum_partition)
 
@@ -37,14 +39,22 @@ data <- data_list$data[["Data"]]
 partition <- data_list[["partition"]]
 data[1:5,1:5]
 
-# PCA of proteins.
-pca <- prcomp(data)
-pca_summary <- summary(pca)
+# Plot the data and unlogged-data.
+p1 <- ggplotPCAprot(data,scale=TRUE,center=TRUE)
+p2 <- ggplotPCAprot(2^data,scale=TRUE,center=TRUE)
 
-pca_summary$importance
+# Try scaling the rows.
+# NOTE: Apply is done row-wise (dim = 1), but the result is transposed.
+# See://stackoverflow.com/questions/9521260/
+dm_norm <- t(apply(data, 1, function(x) x/sum(x)))
+p3 <- ggplotPCAprot(dm_norm,scale=TRUE,center=TRUE)
 
-as.data.frame(pca_summary)
+# Try unlogging and also scaling rows.
+dm_norm <- t(apply(2^data, 1, function(x) x/sum(x)))
+p4 <- ggplotPCAprot(dm_norm,scale=TRUE,center=TRUE)
 
+# p4 is the way to go. NOTE pve is pretty low.
+cowplot::plot_grid(p1,p2,p3,p4)
 
 #--------------------------------------------------------------------
 # Paths to input files:
