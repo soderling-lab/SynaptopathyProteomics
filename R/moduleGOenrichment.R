@@ -17,7 +17,7 @@
 #'
 #' @examples
 #' moduleGOenrichment()
-moduleGOenrichment <- function(partition, gene_map, GOcollection, exclude = "0") {
+moduleGOenrichment <- function(partition, gene_map, GOcollection) {
 
   # Function to perform GO enrichment for all modules in a given partition.
   suppressPackageStartupMessages({
@@ -27,9 +27,8 @@ moduleGOenrichment <- function(partition, gene_map, GOcollection, exclude = "0")
 
   # Create a matrix of module labels to be passed to anRichment.
   modules <- split(partition, partition)
-  modules <- modules[names(modules)[names(modules) != exclude]]
-  names(modules) <- paste0("M",names(modules))
   classLabels <- sapply(names(modules), function(x) partition == x)
+  names(modules) <- paste0("M",names(modules))
   colnames(classLabels) <- names(modules)
   logic <- classLabels == TRUE
   for (i in 1:ncol(classLabels)) {
@@ -65,6 +64,7 @@ moduleGOenrichment <- function(partition, gene_map, GOcollection, exclude = "0")
     GO_results[[r]] <- GOenrichment$setResults[[r]]$enrichmentTable
   }
   names(GO_results) <- colnames(classLabels)
+
   # Return results.
   return(GO_results)
-} # Ends function.
+}
