@@ -1,5 +1,9 @@
 # Create geneSet object.
-createCollection <- function(genes, pathway_name, description, data_source, organism = "mouse") {
+createGeneSet <- function(genes, pathway_name, 
+			     description, data_source, organism = "mouse") {
+  suppressPackageStartupMessages({
+	library(anRichment)
+  })
   geneSet <- newGeneSet(
     geneEntrez = genes,
     geneEvidence = "IEA",
@@ -13,10 +17,5 @@ createCollection <- function(genes, pathway_name, description, data_source, orga
     groups = "myGroup",
     lastModified = Sys.Date()
   )
-  PLgroup <- newGroup(
-    name = "myGroup", description = description,
-    source = data_source
-  )
-  geneCollection <- newCollection(list(geneSet), list(PLgroup))
-  return(geneCollection)
+  return(geneSet)
 }
