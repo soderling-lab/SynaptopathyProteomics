@@ -350,7 +350,6 @@ saveRDS(protmap, myfile)
 myfile <- file.path(root,"data","gene_map.rda")
 gene_map <- protmap
 save(gene_map,file=myfile,version=2)
-quit()
 
 #---------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.

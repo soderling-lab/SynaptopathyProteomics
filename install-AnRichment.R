@@ -53,8 +53,11 @@ rip <- function(package, method = "utils", ...) {
 sapply(dependencies,function(x) rip(x, method = "BiocManager"))
 
 # Download AnRichment source code.
-urls <- c("https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichmentMethods_0.90-1.tar.gz",
-	  "https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichment_1.01-2.tar.gz")
+#urls <- c("https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichmentMethods_0.90-1.tar.gz",
+#	  "https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichment_1.01-2.tar.gz")
+# Updated urls:
+urls <- c("https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichmentMethods_0.91-94.tar.gz",
+	  "https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/GeneAnnotation/anRichment_1.10-1.tar.gz")
 
 download.file(urls[1], basename(urls[1]))
 download.file(urls[2], basename(urls[2]))
