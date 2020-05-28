@@ -346,6 +346,12 @@ protmap <- data.frame(ids, uniprot, entrez, gene)
 myfile <- file.path(rdatdir, "Protein_ID_Map.RData")
 saveRDS(protmap, myfile)
 
+# Save as rda.
+myfile <- file.path(root,"data","gene_map.rda")
+gene_map <- protmap
+save(gene_map,file=myfile,version=2)
+quit()
+
 #---------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
 #---------------------------------------------------------------------

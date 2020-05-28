@@ -17,19 +17,20 @@
 #'
 #' @examples
 #' moduleGOenrichment()
-moduleGOenrichment <- function(partitions, resolution, protmap, GOcollection,
-                               exclude = "0") {
+moduleGOenrichment <- function(partition, gene_map, GOcollection, exclude = "0") {
+
   # Function to perform GO enrichment for all modules in a given partition.
   suppressPackageStartupMessages({
     library(org.Mm.eg.db)
     library(anRichment)
   })
+
   # Create a matrix of module labels to be passed to anRichment.
-  part <- partitions[[resolution]]
-  modules <- split(part, part)
+  modules <- split(partition, partition)
   modules <- modules[names(modules)[names(modules) != exclude]]
-  classLabels <- sapply(names(modules), function(x) part == x)
-  colnames(classLabels) <- paste0("R", resolution, "-M", names(modules))
+  names(modules) <- paste0("M",names(modules))
+  classLabels <- sapply(names(modules), function(x) partition == x)
+  colnames(classLabels) <- names(modules)
   logic <- classLabels == TRUE
   for (i in 1:ncol(classLabels)) {
     col_header <- colnames(classLabels)[i]
@@ -37,9 +38,11 @@ moduleGOenrichment <- function(partitions, resolution, protmap, GOcollection,
     classLabels[!logic[, i], i] <- "NA"
   }
   classLabels <- classLabels[!duplicated(rownames(classLabels)), ]
+
   # Map protein ids to to entrez.
-  entrez <- protmap$entrez[match(rownames(classLabels), protmap$ids)]
+  entrez <- gene_map$entrez[match(rownames(classLabels), gene_map$ids)]
   rownames(classLabels) <- entrez
+
   # Perform GO enrichment.
   GOenrichment <- enrichmentAnalysis(
     classLabels,
@@ -55,6 +58,7 @@ moduleGOenrichment <- function(partitions, resolution, protmap, GOcollection,
     ignoreLabels = "NA",
     verbose = 0
   )
+
   # Collect the results.
   GO_results <- list()
   for (r in 1:length(GOenrichment$setResults)) {

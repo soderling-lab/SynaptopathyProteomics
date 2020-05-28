@@ -16,7 +16,9 @@ if (interactive()) {
 	args <- commandArgs(trailingOnly=TRUE)
 	if (length(args) == 1) { 
 		analysis_type = commandArgs(trailingOnly=TRUE)[1]
-		message(paste("\nAnalyzing",analysis_type,"..."))
+		start <- Sys.time()
+		message(paste("Starting analysis at:", start))
+		message(paste0("Analyzing ", analysis_type,"..."))
 	} else { 
 		stop("Specify either 'Cortex' or 'Striatum'.",call.=FALSE) 
 	}
@@ -103,14 +105,14 @@ module_sizes <- sapply(modules,length)
 # Total Number of modules.
 # P.values will be corrected for n comparisions.
 nModules <- length(modules)
-message(paste("Total number of modules:", nModules))
+message(paste("\nTotal number of modules:", nModules))
 
 # Drop proteins assigned to M0 from partition.
 part <- partition[!partition == 0]
 
 # Percent clustered.
 percent_clust <- length(part)/length(partition)
-message(paste0("Percent proteins clustered: ",
+message(paste0("\nPercent proteins clustered: ",
 	      round(100*percent_clust,2),"%."))
 
 #---------------------------------------------------------------------
@@ -145,7 +147,7 @@ PVE <- as.numeric(MEdata_list$varExplained)
 names(PVE) <- names(modules)
 medianPVE <- median(PVE)
 message(paste0(
-  "Median module coherence (PVE): ",
+  "\nMedian module coherence (PVE): ",
   round(100 * medianPVE, 2), "%."
 ))
 
@@ -185,7 +187,7 @@ nSigModules <- length(sigModules)
 
 # Status.
 message(paste0(
-  "Number of modules with significant (p.adj < ", KW_alpha, ")",
+  "\nNumber of modules with significant (p.adj < ", KW_alpha, ")",
   " Kruskal-Wallis test: ", nSigModules, "."
 ))
 
@@ -221,7 +223,7 @@ colnames(DT_dt)[idx] <- paste0("DT.",colnames(DT_dt)[idx])
 # Summarize number of sig tests.
 nSigDT <- sapply(DT_list, function(x) sum(x$pval < DT_alpha))
 message(paste0(
-  "Number of significant (p.adj < ", DT_alpha, ")",
+  "\nNumber of significant (p.adj < ", DT_alpha, ")",
   " Dunnett's test post-hoc test(s): ", nSigModules, "."
 ))
 idx <- nSigDT[sigModules] > 0
@@ -255,4 +257,8 @@ results$Proteins <- sapply(modules[results$Module],function(x) {
 myfile <- file.path(tabsdir,paste0(analysis_type,"_Module_stats.csv"))
 results %>% as.data.table() %>% fwrite(myfile)
 
-message("\nDone!")
+# Done!
+end <- Sys.time()
+message(paste("\nCompleted analysis at:", end))
+message(paste("Elapsed time:",
+	      round(difftime(end,start,units="secs"),2),"seconds."))
