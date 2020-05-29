@@ -56,16 +56,14 @@ tabsdir <- file.path(root, "tables")
 #--------------------------------------------------------------------
 
 # Load the data from root/data.
-data(list=tolower(paste0(analysis_type,"_data")))
+dataset <- tolower(paste0(analysis_type,"_data"))
+data(list=dataset)
+eval(parse(text=paste0("data_list=",dataset)))
 
 # Load the graph partitions:
-data(list=tolower(paste0(analysis_type,"partition")))
-
-# Grab the data for the tissue type we are analyzing.
-data_list <- list("Cortex"=cortex_data,
-		  "Striatum"=striatum_data)[[analysis_type]]
-partition <- list("Cortex"=cortex_partition,
-		  "Striatum"=striatum_partition)[[analysis_type]]
+dataset <- tolower(paste0(analysis_type,"_partition"))
+data(list=dataset)
+eval(parse(text=paste0("partition=",dataset)))
 
 # Reset partition index for self-preserved modules.
 partition <- reset_index(partition)
