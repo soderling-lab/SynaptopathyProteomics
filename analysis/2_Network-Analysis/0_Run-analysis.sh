@@ -41,10 +41,10 @@ echo "Generating "$TISSUE" protein networks."
 # Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Step 1 passed.
+	echo -e "\tStep 1 passed."
 else
-	echo Failed at step 1.
-	exit
+	echo -e "\tFailed at step 1."
+	exit 0
 fi
 
 # STEP 2.
@@ -54,10 +54,10 @@ echo "Clustering the "$TISSUE" protein co-variation network."
 # Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Step 2 passed.
+	echo -e "\tStep 2 passed."
 else
-	echo Failed at step 2.
-	exit
+	echo -e "\tFailed at step 2."
+	exit 0
 fi
 
 # STEP 3.
@@ -67,10 +67,10 @@ echo "Enforcing  "$TISSUE" module self-preservation."
 # Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Step 3 passed.
+	echo -e "\tStep 3 passed."
 else
-	echo Failed at step 3.
-	exit
+	echo -e "\tFailed at step 3."
+	exit 0
 fi
 
 # STEP 4.
@@ -80,10 +80,10 @@ echo "Checking "$TISSUE" modules for convergent changes." & spin
 # Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Step 4 passed.
+	echo -e "\tStep 4 passed."
 else
-	echo Failed at step 4.
-	exit
+	echo -e "\tFailed at step 4."
+	exit 0
 fi
 
 # STEP 5.
@@ -93,10 +93,10 @@ echo "Analyzing "$TISSUE" modules for GO enrichment."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Step 5 passed.
+	echo -e "\tStep 5 passed."
 else
-	echo Failed at step 5.
-	exit
+	echo -e "\tFailed at step 5."
+	exit 0
 fi
 
 # STEP 6.
@@ -106,8 +106,8 @@ echo "Testing "$TISSUE" modules for enrichment of DBD-associated genes."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Step 6 passed.
+	echo -e "\tNetwork analysis complete!"
 else
-	echo Failed at step 6.
-	exit
+	echo -e "\tFailed at step 6."
+	exit 0
 fi

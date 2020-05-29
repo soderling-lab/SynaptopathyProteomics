@@ -6,7 +6,10 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+#---------------------------------------------------------------------
 ## Parse command line input:
+#---------------------------------------------------------------------
+
 # Analysis (tissue) type: cortex (1) or striatum(2).
 args <- commandArgs(trailingOnly = TRUE)
 msg <- c("Please specify a tissue type to be analyzed:\n",

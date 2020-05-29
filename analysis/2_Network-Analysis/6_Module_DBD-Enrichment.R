@@ -6,7 +6,10 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+#---------------------------------------------------------------------
 ## Parse command line arguments:
+#---------------------------------------------------------------------
+
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):

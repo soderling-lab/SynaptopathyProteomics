@@ -6,7 +6,6 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-
 # What do we want to know about the modules with signicant changes?
 # Number of sigprots.
 # Size.
@@ -18,7 +17,10 @@
 # inspect module summary
 # inspect sigprots
 
+#---------------------------------------------------------------------
 ## Parse command line arguments:
+#---------------------------------------------------------------------
+
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):
