@@ -6,6 +6,18 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+
+# What do we want to know about the modules with signicant changes?
+# Number of sigprots.
+# Size.
+# up or down?
+# hubs
+# enriched go processes
+# enriched DBD association?
+# inspect correlations
+# inspect module summary
+# inspect sigprots
+
 ## Parse command line arguments:
 if (interactive()) {
 	## If interactive:
