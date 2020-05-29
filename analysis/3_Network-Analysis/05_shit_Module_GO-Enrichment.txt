@@ -1,0 +1,32 @@
+Starting analysis at: 2020-05-28 20:54:05
+Analyzing shit...
+
+Traceback (most recent calls last):
+24: renv::load(root)
+23: renv_load_switch(project)
+22: source("renv/activate.R")
+21: withVisible(eval(ei, envir))
+20: eval(ei, envir)
+19: eval(ei, envir)
+18: local(...)
+17: eval.parent(substitute(eval(quote(expr), envir)))
+16: eval(expr, p)
+15: eval(expr, p)
+14: eval(quote(...), new.env())
+13: eval(quote(...), new.env())
+12: renv_bootstrap_load(project, libpath, version)
+11: renv::load(project)
+10: renv_lockfile_load(project)
+ 9: renv_lockfile_read(path)
+ 8: catch(renv_json_read(text = contents))
+ 7: tryCatch(withCallingHandlers(expr, error = renv_error_capture), 
+        error = renv_error_tag)
+ 6: tryCatchList(expr, classes, parentenv, handlers)
+ 5: tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 4: doTryCatch(return(expr), name, parentenv, handler)
+ 3: withCallingHandlers(expr, error = renv_error_capture)
+ 2: renv_json_read(text = contents)
+ 1: mapply(function(string, replacement) {
+        replaced <<- sub(string, replacement, replaced, fixed = TRUE)
+    }, strings, replacements)
+Execution halted

@@ -1,0 +1,29 @@
+
+Analyzing tissue...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+
+Evaluating self-preservation of Cortex modules in the Cortex network.
+
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+
+Criterion for module preservation/divergence: strong.
+
+[2020-05-28 20:55:03 EDT] Validating user input...
+[2020-05-28 20:55:03 EDT]   Checking matrices for problems...
+[2020-05-28 20:55:04 EDT] Input ok!
+[2020-05-28 20:55:04 EDT] Calculating preservation of network subsets from
+                          dataset "self" in dataset "self".
+[2020-05-28 20:55:04 EDT]   Pre-computing network properties in dataset
+                            "self"...
+[2020-05-28 20:55:04 EDT]   Calculating observed test statistics...
+[2020-05-28 20:55:04 EDT]   Generating null distributions from 10000
+                            permutations using 7 threads...
+
+    0% completed.    1% completed.    2% completed.    3% completed.    4% completed.    4% completed.    5% completed.    6% completed.    7% completed.    8% completed.    9% completed.   10% completed.   11% completed.   11% completed.
+
+
+
+
+Execution halted
