@@ -3,6 +3,8 @@
 # 0_run-analysis.sh - execute this script to run the analysis.
 # Input: should be either 'Cortex' or 'Striatum'.
 
+
+
 # Check if an argument was passed.
 if [ $# -eq 0 ]
 then
@@ -103,10 +105,13 @@ fi
 #./7_Select_Module_Analysis.R "$TISSUE" &> 07_"$TISSUE"_Module-DBD-Enrichment.txt
 
 # Check if completed successfully?
-if [ $? -eq 0 ]
-then
-	echo Step 7 passed. Well done comrade.
-else
-	echo Failed at step 7.
-	exit
-fi
+#if [ $? -eq 0 ]
+#then
+#	echo Step 7 passed. Well done comrade.
+#else
+#	echo Failed at step 7.
+#	exit
+#fi
+
+# Combine reports.
+cat ./0[1-9]*.txt >> "$TISSUE"_Report.txt

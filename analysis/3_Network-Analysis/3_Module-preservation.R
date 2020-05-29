@@ -16,7 +16,7 @@ if (!length(args == 1)) {
 } else { 
 	type <- match(args[1],c("Cortex","Striatum"))
 	tissue <- c("Cortex", "Striatum")[type]
-	message(paste("\nAnalyzing tissue..."))
+	message(paste0("\nAnalyzing ", tissue,"..."))
 }
 
 ## User parameters to change:
@@ -81,10 +81,9 @@ rdatdir <- file.path(root, "rdata")
 self = test = tissue
 
 # Load the data.
-data(cortex_data)
-data(striatum_data)
-data_list <- list("Cortex" = cortex_data,
-		  "Striatum" = striatum_data)[[tissue]]
+dataset <- tolower(paste0(tissue,"_data"))
+data(list=dataset)
+data_list <- list(eval(parse(text=paste0("tissue=",dataset))))
 
 # Load expression data. 
 # Transpose -> rows = samples; columns = genes.

@@ -1,6 +1,0 @@
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-Performing network enhancement, this will take several minutes...
-
-Execution halted

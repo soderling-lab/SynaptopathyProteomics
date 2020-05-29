@@ -10,6 +10,21 @@
 ## Prepare the workspace.
 #------------------------------------------------------------------------------
 
+## Parse command line input:
+# Analysis (tissue) type: cortex (1) or striatum(2).
+args <- commandArgs(trailingOnly = TRUE)
+msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "       Choose either 'Cortex' or 'Striatum'.")
+if (!length(args == 1)) { 
+	stop(msg) 
+} else { 
+	type <- match(args[1],c("Cortex","Striatum"))
+	tissue <- c("Cortex", "Striatum")[type]
+	start <- Sys.time()
+	message(paste("\nStarting analysis at:", start))
+	message(paste0("Analyzing ", tissue, "..."))
+}
+
 # Load renv.
 root <- getrd()
 renv::load(root)
@@ -51,33 +66,19 @@ rownames(data_filt) <- rownames(combined_protein)
 # Drop any trait rows that are not in data == remove outlier samples.
 samples <- as.data.table(samples) %>% filter(SampleID %in% colnames(data_filt))
 
-# Cortex and Striatum samples.
-samples_list <- list(
-  "Cortex" = samples$SampleID[samples$Tissue == "Cortex"],
-  "Striatum" = samples$SampleID[samples$Tissue == "Striatum"]
-)
-
 # Subset data.
-data_list <- lapply(samples_list, function(x) {
-			    as.matrix(data_filt %>% select(all_of(x)))
-})
+sub_samples <- samples$SampleID[samples$Tissue == tissue]
+data <- as.matrix(data_filt %>% select(all_of(sub_samples)))
 
 # Fix rownames.
-data_list <- lapply(data_list, function(x) {
-  rownames(x) <- rownames(data_filt)
-  return(x)
-})
+rownames(data) <- rownames(data_filt)
 
 # Create signed adjacency (correlation) matrices.
-adjm_list <- lapply(data_list, function(x) {
-  silently({
-    WGCNA::bicor(t(x))
-  })
-})
+adjm <- silently({ WGCNA::bicor(t(data)) })
 
 # Perform network enhancement.
 message("\nPerforming network enhancement, this will take several minutes...")
-netw_list <- lapply(adjm_list, neten)
+netw <- neten(adjm)
 
 #---------------------------------------------------------------------
 ## Generate PPI graph.
@@ -95,39 +96,39 @@ idx <- musInteractome$Interactor_A_Taxonomy %in% orgs
 ppis <- subset(musInteractome, idx)
 
 # Save PPIs data frame--this contains PPI evidence information.
-myfile <- file.path(rdatdir,"PPI_Data.csv")
-fwrite(ppis,myfile)
+#myfile <- file.path(rdatdir,"PPI_Data.csv")
+#fwrite(ppis,myfile)
 
-# Get entrez IDs for all proteins in co-expression networks.
-entrez <- prot_map$entrez
+# Get entrez IDs for all proteins in the network.
+entrez <- prot_map$entrez[match(rownames(data),prot_map$ids)]
 
 # Build a ppi graph.
 message("\nBuilding PPI graph...")
 g <- buildNetwork(ppis, entrez, taxid = 10090)
 
 # Get ppi adjacency matrix.
-PPIadjm <- as.matrix(as_adjacency_matrix(g))
+PPI_adjm <- as.matrix(as_adjacency_matrix(g))
 
 # Map entrez back to protein ids.
-ids <- prot_map$ids[match(colnames(PPIadjm),prot_map$entrez)]
-colnames(PPIadjm) <- rownames(PPIadjm) <- ids
+ids <- prot_map$ids[match(colnames(PPI_adjm),prot_map$entrez)]
+colnames(PPI_adjm) <- rownames(PPI_adjm) <- ids
 
 # One protein is mapped to the same entrez id.
-missing <- prot_map$id[prot_map$ids %notin% colnames(PPIadjm)]
+missing <- prot_map$id[prot_map$ids %notin% colnames(PPI_adjm)]
 names(missing) <- prot_map$entrez[match(missing,prot_map$id)]
 duplicated <- prot_map$id[which(prot_map$entrez ==  names(missing))]
 
 # Add missing column and row. 
 # Just copy column and row for other protein.
-missing_col <- PPIadjm[,duplicated[duplicated %notin% missing]]
-PPIadjm <- cbind(PPIadjm,missing_col)
-colnames(PPIadjm)[ncol(PPIadjm)] <- missing
-missing_row <- PPIadjm[duplicated[duplicated %notin% missing],]
-PPIadjm <- rbind(PPIadjm,missing_row)
-rownames(PPIadjm)[nrow(PPIadjm)] <- missing
+missing_col <- PPI_adjm[,duplicated[duplicated %notin% missing]]
+PPI_adjm <- cbind(PPI_adjm,missing_col)
+colnames(PPI_adjm)[ncol(PPI_adjm)] <- missing
+missing_row <- PPI_adjm[duplicated[duplicated %notin% missing],]
+PPI_adjm <- rbind(PPI_adjm,missing_row)
+rownames(PPI_adjm)[nrow(PPI_adjm)] <- missing
 
 # Evaluate scale free fit.
-dc <- apply(PPIadjm,2,sum) # Node degree.
+dc <- apply(PPI_adjm,2,sum) # Node degree.
 fit <- WGCNA::scaleFreeFitIndex(dc,nBreaks=10,removeFirst=FALSE)
 r <- fit$Rsquared.SFT
 message(paste("\nScale free fit of PPI graph:",round(r,3)))
@@ -139,43 +140,31 @@ message(paste("\nScale free fit of PPI graph:",round(r,3)))
 # Cortex and Striatum data will be saved as an R object in root/data.
 
 # Save list containing cortex data, adjm, and network:
-cortex_data <- list(Data = data_list$Cortex,
-		    Adjm = adjm_list$Cortex,
-		    Netw = netw_list$Cortex,
-		    Meta = samples %>% filter(Tissue == "Cortex"),
-		    Description = c("Final normalized protein data.",
-		  		    "Bicor correlation matrix.",
-				    "Enhanced correlation matrix.",
-				    "Sample meta data."))
-myfile <- file.path(datadir, "cortex_data.rda")
-save(cortex_data, file = myfile, version = 2)
-
-# Save list containing striatum data, adjm, and network:
-striatum_data <- list(Data = data_list$Striatum,
-		      Adjm = adjm_list$Striatum,
-		      Netw = netw_list$Striatum,
-		      Meta = samples %>% filter(Tissue == "Striatum"),
-		      Description = c("Final normalized protein data.",
-		  		      "Bicor correlation matrix.",
-				      "Enhanced correlation matrix.",
-				      "Sample meta data."))
-myfile <- file.path(datadir, "striatum_data.rda")
-save(striatum_data, file = myfile, version = 2)
+data_list <- list(Data = data,
+		  Adjm = adjm,
+		  Netw = netw,
+		  Meta = samples %>% filter(Tissue == tissue),
+		  Description = c("Final normalized protein data.",
+		  		  "Bicor correlation matrix.",
+				  "Enhanced correlation matrix.",
+				  "Sample meta data."))
+myfile <- file.path(datadir, paste0(tissue,"_data.rda"))
+object <- tolower(paste0(tissue,"_data"))
+eval(parse(text=paste(object,"= data_list")))
+eval(parse(text=paste0("save(",object, ", file = myfile, version = 2)")))
 
 # Save correlation matrices as csv.
-myfile <- file.path(rdatdir,"Cortex_Adjm.csv")
-adjm <- as.data.table(adjm_list$Cortex,keep.rownames="Accession")
-fwrite(adjm,myfile)
-myfile <- file.path(rdatdir,"Striatum_Adjm.csv")
-adjm <- as.data.table(adjm_list$Striatum,keep.rownames="Accession")
+myfile <- file.path(rdatdir,paste0(tissue,"_Adjm.csv"))
+adjm <- as.data.table(adjm,keep.rownames="Accession")
 fwrite(adjm,myfile)
 
 # Write enhanced coorelation matrices (networks) as csv.
-myfile <- file.path(rdatdir,"Cortex_NE_Adjm.csv")
-netw <- as.data.table(netw_list$Cortex,keep.rownames="Accession")
-fwrite(netw,myfile)
-myfile <- file.path(rdatdir,"Striatum_NE_Adjm.csv")
-netw <- as.data.table(netw_list$Striatum,keep.rownames="Accession")
+myfile <- file.path(rdatdir,paste0(tissue,"_NE_Adjm.csv"))
+netw <- as.data.table(netw,keep.rownames="Accession")
 fwrite(netw,myfile)
 
-message("Done!\n")
+# Done!
+end <- Sys.time()
+message(paste("\nCompleted analysis at:", end))
+message(paste("Elapsed time:",
+	      round(difftime(end,start,units="secs"),2),"seconds."))
