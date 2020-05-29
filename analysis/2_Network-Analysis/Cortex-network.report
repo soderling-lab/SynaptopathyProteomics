@@ -1,0 +1,77 @@
+
+Starting analysis at: 2020-05-29 12:24:45
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Performing network enhancement, this will take several minutes...
+
+Building PPI graph...
+33,232 edges identified among 2,917 nodes!
+
+Scale free fit of PPI graph: 0.966
+
+Completed analysis at: 2020-05-29 12:25:57
+Elapsed time: 72.11 seconds.
+Performing Leidenalg clustering of the Cortex graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
+Recursively spliting 5 large module(s)...
+... Initial partition: Clustering with 2918 elements and 117 clusters.
+... Final partition: Clustering with 2918 elements and 196 clusters.
+
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+
+Evaluating self-preservation of Cortex modules in the Cortex network.
+
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+
+Criterion for module preservation/divergence: strong.
+
+[2020-05-29 12:27:33 EDT] Validating user input...
+[2020-05-29 12:27:33 EDT]   Checking matrices for problems...
+[2020-05-29 12:27:33 EDT] Input ok!
+[2020-05-29 12:27:33 EDT] Calculating preservation of network subsets from
+                          dataset "self" in dataset "self".
+[2020-05-29 12:27:33 EDT]   Pre-computing network properties in dataset
+                            "self"...
+[2020-05-29 12:27:33 EDT]   Calculating observed test statistics...
+[2020-05-29 12:27:33 EDT]   Generating null distributions from 10000
+                            permutations using 7 threads...
+
+    0% completed.    2% completed.    3% completed.    5% completed.    6% completed.    8% completed.    9% completed.   11% completed.   13% completed.   14% completed.   16% completed.   17% completed.   19% completed.   21% completed.   22% completed.   24% completed.   25% completed.   27% completed.   29% completed.   30% completed.   32% completed.   33% completed.   35% completed.   36% completed.   38% completed.   39% completed.   41% completed.   43% completed.   44% completed.   46% completed.   47% completed.   49% completed.   50% completed.   52% completed.   53% completed.   55% completed.   56% completed.   57% completed.   59% completed.   60% completed.   61% completed.   63% completed.   64% completed.   66% completed.   67% completed.   68% completed.   70% completed.   71% completed.   73% completed.   74% completed.   76% completed.   77% completed.   78% completed.   80% completed.   81% completed.   82% completed.   84% completed.   85% completed.   87% completed.   88% completed.   89% completed.   91% completed.   92% completed.   94% completed.   95% completed.   96% completed.   98% completed.   99% completed.  100% completed.
+
+[2020-05-29 12:28:42 EDT]   Calculating P-values...
+[2020-05-29 12:28:49 EDT]   Collating results...
+[2020-05-29 12:28:50 EDT] Done!
+
+118 of 157 modules are preserved.
+
+Done!
+Starting analysis at: 2020-05-29 12:28:53
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Total number of modules: 117
+
+Percent proteins clustered: 80.84%.
+
+Median module coherence (PVE): 61.76%.
+
+Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
+
+Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 11.
+
+
+| M1| M4| M9| M14| M21| M35| M51| M102| M104| M105| M106|
+|--:|--:|--:|---:|---:|---:|---:|----:|----:|----:|----:|
+|  3|  2|  3|   2|   2|   2|   3|    2|    2|    2|    2|
+
+Completed analysis at: 2020-05-29 12:29:36
+Elapsed time: 43.38 seconds.
+Starting analysis at: 2020-05-29 12:29:37
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics

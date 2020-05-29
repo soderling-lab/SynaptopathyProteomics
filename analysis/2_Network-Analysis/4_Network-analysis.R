@@ -68,9 +68,6 @@ dataset <- tolower(paste0(analysis_type,"_partition"))
 data(list=dataset)
 eval(parse(text=paste0("partition=",dataset)))
 
-# Reset partition index for self-preserved modules.
-partition <- reset_index(partition)
-
 # Data matrix:
 dm <- data_list$Data
 

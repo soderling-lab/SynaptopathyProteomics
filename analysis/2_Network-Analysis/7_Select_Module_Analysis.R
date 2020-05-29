@@ -84,9 +84,6 @@ data_list <- list("Cortex"=cortex_data,
 partition <- list("Cortex"=cortex_partition,
 		  "Striatum"=striatum_partition)[[analysis_type]]
 
-# Reset partition index for self-preserved modules.
-partition <- reset_index(partition)
-
 # Data matrix:
 dm <- data_list$Data
 

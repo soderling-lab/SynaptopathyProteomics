@@ -1,178 +1,0 @@
-
-Starting analysis at: 2020-05-29 11:52:11
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-Performing network enhancement, this will take several minutes...
-
-Building PPI graph...
-33,232 edges identified among 2,917 nodes!
-
-Scale free fit of PPI graph: 0.966
-
-Completed analysis at: 2020-05-29 11:53:11
-Elapsed time: 59.59 seconds.
-Performing Leidenalg clustering of the Cortex graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
-Recursively spliting 5 large module(s)...
-... Initial partition: Clustering with 2918 elements and 117 clusters.
-... Final partition: Clustering with 2918 elements and 196 clusters.
-
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-
-Evaluating self-preservation of Cortex modules in the Cortex network.
-
-Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
-
-Criterion for module preservation/divergence: strong.
-
-[2020-05-29 11:54:32 EDT] Validating user input...
-[2020-05-29 11:54:33 EDT]   Checking matrices for problems...
-[2020-05-29 11:54:33 EDT] Input ok!
-[2020-05-29 11:54:33 EDT] Calculating preservation of network subsets from
-                          dataset "self" in dataset "self".
-[2020-05-29 11:54:33 EDT]   Pre-computing network properties in dataset
-                            "self"...
-[2020-05-29 11:54:33 EDT]   Calculating observed test statistics...
-[2020-05-29 11:54:33 EDT]   Generating null distributions from 10000
-                            permutations using 7 threads...
-
-    0% completed.    2% completed.    3% completed.    5% completed.    7% completed.    9% completed.   10% completed.   12% completed.   14% completed.   16% completed.   17% completed.   19% completed.   21% completed.   22% completed.   24% completed.   26% completed.   28% completed.   29% completed.   31% completed.   33% completed.   34% completed.   36% completed.   37% completed.   39% completed.   41% completed.   43% completed.   44% completed.   46% completed.   48% completed.   49% completed.   51% completed.   53% completed.   55% completed.   56% completed.   58% completed.   60% completed.   61% completed.   63% completed.   65% completed.   66% completed.   68% completed.   70% completed.   72% completed.   73% completed.   75% completed.   77% completed.   78% completed.   80% completed.   82% completed.   83% completed.   85% completed.   87% completed.   88% completed.   90% completed.   92% completed.   93% completed.   95% completed.   97% completed.   98% completed.  100% completed.  100% completed.
-
-[2020-05-29 11:55:33 EDT]   Calculating P-values...
-[2020-05-29 11:55:38 EDT]   Collating results...
-[2020-05-29 11:55:39 EDT] Done!
-
-119 of 157 modules are preserved.
-
-Done!
-Starting analysis at: 2020-05-29 11:55:41
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-Total number of modules: 118
-
-Percent proteins clustered: 81.12%.
-
-Median module coherence (PVE): 61.36%.
-
-Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
-
-Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 11.
-
-
-| M1| M4| M9| M14| M21| M35| M50| M103| M105| M106| M107|
-|--:|--:|--:|---:|---:|---:|---:|----:|----:|----:|----:|
-|  3|  2|  3|   2|   2|   2|   3|    2|    2|    2|    2|
-
-Completed analysis at: 2020-05-29 11:56:17
-Elapsed time: 35.81 seconds.
-Starting analysis at: 2020-05-29 11:56:18
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-Loading mouse GO collection.
-
-Performing GO enrichment analysis for every module...
-
-Fraction of modules with any significant GO enrichment: 0.407
-
-Top GO term for modules with significant GO enrichment:
-
-
-|Module |TopGO                                                                       |
-|:------|:---------------------------------------------------------------------------|
-|M2     |presynaptic active zone cytoplasmic component                               |
-|M3     |NADH dehydrogenase complex assembly                                         |
-|M4     |intrinsic component of plasma membrane                                      |
-|M5     |proteasome complex                                                          |
-|M6     |metal ion transmembrane transporter activity                                |
-|M10    |zona pellucida receptor complex                                             |
-|M11    |intrinsic component of synaptic vesicle membrane                            |
-|M12    |filamin binding                                                             |
-|M13    |proteasome-activating ATPase activity                                       |
-|M14    |COPI-coated vesicle budding                                                 |
-|M16    |heterophilic cell-cell adhesion via plasma membrane cell adhesion molecules |
-|M18    |late endosome membrane                                                      |
-|M21    |exocyst                                                                     |
-|M22    |postsynaptic intermediate filament cytoskeleton                             |
-|M26    |endoplasmic reticulum chaperone complex                                     |
-|M27    |cytoplasmic ubiquitin ligase complex                                        |
-|M37    |substrate-specific channel activity                                         |
-|M39    |structural constituent of myelin sheath                                     |
-|M40    |PDZ domain binding                                                          |
-|M43    |telomeric DNA binding                                                       |
-|M46    |Arp2/3 protein complex                                                      |
-|M62    |AMPA glutamate receptor complex                                             |
-|M63    |porin activity                                                              |
-|M64    |lactate transport                                                           |
-|M113   |pyruvate dehydrogenase activity                                             |
-|M114   |tricarboxylic acid cycle                                                    |
-|M115   |cellular amino acid catabolic process                                       |
-|M116   |methylcrotonoyl-CoA carboxylase activity                                    |
-|M117   |protein lipoylation                                                         |
-|M118   |negative regulation of transcription by RNA polymerase III                  |
-|M119   |mitochondrial RNA 5'-end processing                                         |
-|M120   |hydrogen sulfide metabolic process                                          |
-|M132   |NADH dehydrogenase activity                                                 |
-|M133   |cristae formation                                                           |
-|M134   |adenine nucleotide transmembrane transporter activity                       |
-|M135   |mitochondrial transmembrane transport                                       |
-|M136   |mitochondrial membrane part                                                 |
-|M137   |mitochondrial inner membrane                                                |
-|M138   |inner mitochondrial membrane protein complex                                |
-|M148   |nucleoside diphosphate phosphorylation                                      |
-|M166   |cell-cell adhesion mediator activity                                        |
-|M169   |integral component of presynaptic membrane                                  |
-|M182   |cytosolic ribosome                                                          |
-|M183   |cytosolic ribosome                                                          |
-|M184   |oligosaccharyl transferase activity                                         |
-|M185   |cytosolic large ribosomal subunit                                           |
-|M187   |eukaryotic translation elongation factor 1 complex                          |
-|M188   |poly(A) binding                                                             |
-
-Saving data...
-
-Completed analysis at: 2020-05-29 11:57:13
-Elapsed time: 0.92 minutes.
-Starting analysis at: 2020-05-29 11:57:14
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-
-
-|Disorder |nGenes |
-|:--------|:------|
-|ADHD     |765    |
-|ASD      |2,146  |
-|BPD      |776    |
-|Epilepsy |1,101  |
-|ID       |1,995  |
-|SZ       |2,379  |
-
-Performing DBD enrichment analysis for every module...
-
-Number of modules with any significant DBD-gene enrichment: 6
-
-Top DBD-association for modules with significant DBD enrichment:
-
-
-|Module |TopDBD |
-|:------|:------|
-|M2     |ASD    |
-|M21    |ASD    |
-|M39    |ASD    |
-|M64    |BPD    |
-|M65    |SZ     |
-|M78    |ID     |
-
-Saving data...
-
-Completed analysis at: 2020-05-29 11:57:43
-Elapsed time: 0.49 minutes.

@@ -81,3 +81,73 @@ Combining data from cortex and striatum with TAMPOR...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
 Loading SynaptopathyProteomics
 
+NOTE: one or more samplesToIgnore do not match sample names (colnames) in input abundance data.
+      Not ignoring any samples.
+NOTE: Successfully checked that each batch has at least one sample designated as GIS control replicate.
+Starting # of Rows in data: 2918.
+[iter_1] No rows removed with >=50% missing values.     2.98 sec     iteration convergence tracking (Frobenius Norm Difference):  -107
+[iter_2] No rows removed with >=50% missing values.     2.11 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0444
+[iter_3] No rows removed with >=50% missing values.     1.87 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0227
+[iter_4] No rows removed with >=50% missing values.     1.72 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0077
+[iter_5] No rows removed with >=50% missing values.     1.73 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.00246
+[iter_6] No rows removed with >=50% missing values.     1.72 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000399
+[iter_7] No rows removed with >=50% missing values.     2 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000221
+[iter_8] No rows removed with >=50% missing values.     1.72 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.17e-05
+[iter_9] No rows removed with >=50% missing values.     1.8 sec     iteration convergence tracking (Frobenius Norm Difference):  1.62e-05
+[iter_10] No rows removed with >=50% missing values.     1.83 sec     iteration convergence tracking (Frobenius Norm Difference):  1.76e-05
+[iter_11] No rows removed with >=50% missing values.     1.84 sec     iteration convergence tracking (Frobenius Norm Difference):  1.17e-05
+[iter_12] No rows removed with >=50% missing values.     2.12 sec     iteration convergence tracking (Frobenius Norm Difference):  6.58e-06
+[iter_13] No rows removed with >=50% missing values.     1.72 sec     iteration convergence tracking (Frobenius Norm Difference):  4.1e-06
+[iter_14] No rows removed with >=50% missing values.     1.68 sec     iteration convergence tracking (Frobenius Norm Difference):  2.48e-06
+[iter_15] No rows removed with >=50% missing values.     1.97 sec     iteration convergence tracking (Frobenius Norm Difference):  1.42e-06
+[iter_16] No rows removed with >=50% missing values.     1.73 sec     iteration convergence tracking (Frobenius Norm Difference):  6.8e-07
+[iter_17] No rows removed with >=50% missing values.     1.84 sec     iteration convergence tracking (Frobenius Norm Difference):  3.56e-07
+[iter_18] No rows removed with >=50% missing values.     1.63 sec     iteration convergence tracking (Frobenius Norm Difference):  2.04e-07
+[iter_19] No rows removed with >=50% missing values.     1.66 sec     iteration convergence tracking (Frobenius Norm Difference):  1.16e-07
+[iter_20] No rows removed with >=50% missing values.     2.05 sec     iteration convergence tracking (Frobenius Norm Difference):  6.11e-08
+[iter_21] No rows removed with >=50% missing values.     1.69 sec     iteration convergence tracking (Frobenius Norm Difference):  2.94e-08
+[iter_22] No rows removed with >=50% missing values.     1.69 sec     iteration convergence tracking (Frobenius Norm Difference):  1.36e-08
+[iter_23] No rows removed with >=50% missing values.     1.71 sec     iteration convergence tracking (Frobenius Norm Difference):  6.71e-09
+...Reached convergence criterion (Frobenius Norm Difference)<1e-8!
+
+Examing data for sample level outliers...
+1 outlier sample(s) identified in iteration 1.
+0 outlier sample(s) identified in iteration 2.
+0 outlier sample(s) identified in iteration 3.
+0 outlier sample(s) identified in iteration 4.
+0 outlier sample(s) identified in iteration 5.
+
+Outlier sample(s) removed: HET.Syngap1
+
+Performing statistical testing with EdgeR glm...
+
+Quantified 2,918 proteins from 63 samples.
+
+Summary of differentially abundant proteins (FDR<0.1):
+
+
+|Experiment       |   NS| Down|  Up| Total Sig|
+|:----------------|----:|----:|---:|---------:|
+|Cortex Shank2    | 2839|   30|  49|        79|
+|Striatum Shank2  | 2911|    5|   2|         7|
+|Cortex Shank3    | 2290|  317| 311|       628|
+|Striatum Shank3  | 2814|   50|  54|       104|
+|Cortex Syngap1   | 2851|   20|  47|        67|
+|Striatum Syngap1 | 2883|   19|  16|        35|
+|Cortex Ube3a     | 2652|  105| 161|       266|
+|Striatum Ube3a   | 2612|  121| 185|       306|
+
+Generating volcano plots...
+
+Generating condition overlap plot...
+
+Generating faceted protein plots...
+
+Generating Cortex protein plots...
+
+Generating Striatum protein plots...
+
+Saving data to file!
+
+Complete analysis at: 2020-05-29 12:19:25
+Elapsed time: 4.2 minutes.
