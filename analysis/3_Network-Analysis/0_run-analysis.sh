@@ -1,32 +1,36 @@
 #!/usr/bin/env bash
 
 # 0_run-analysis.sh - execute this script to run the analysis.
+# Input: should be either 'Cortex' or 'Striatum'.
 
 # Check if an argument was passed.
 if [ $# -eq 0 ]
 then
-	echo "ERROR: Provide tissue type for analysis: 'Cortex' or 'Striatum'."
+	echo "Please specify the tissue for analysis: 'Cortex' or 'Striatum'."
+	exit 
+fi
+TISSUE="$1"
+	
+# Check if input was Cortex or Striatum.
+if [ "$TISSUE" != "Cortex" ] && [ "$TISSUE" != "Striatum" ]
+then
+	echo "Input should be either Cortex or Striatum (case-sensitive)."
 	exit
 fi
 
-# Input: should be either 'Cortex' or 'Striatum'.
-CORTEX="Cortex"
-STRIATUM="Striatum"
-TISSUE="$1"
-
-# Remove existing reports.
+# Remove any existing reports.
 rm -f ./0[1-7]*.txt
 
 # STEP 1.
-echo "Generating "$CORTEX" and "$STRIATUM" protein networks."
+echo "Generating Cortex and Striatum protein networks."
 ./1_Generate-networks.R &> 01_Generate-networks.txt
 
-# Check if completed successfully?
+# Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 1 passed.
 else
-	echo Failed.
+	echo Failed at step 1.
 	exit
 fi
 
@@ -34,12 +38,12 @@ fi
 echo "Clustering the "$TISSUE" protein co-variation network."
 ./2_Leiden-clustering.py "$TISSUE" &> 02_"$TISSUE"_Leiden-clustering.txt
 
-# Check if completed successfully?
+# Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 2 passed.
 else
-	echo Failed.
+	echo Failed at step 2.
 	exit
 fi
 
@@ -47,12 +51,12 @@ fi
 echo "Enforcing  "$TISSUE" module self-preservation."
 ./3_Module-preservation.R "$TISSUE" &> 03_"$TISSUE"_Module-preservation.txt
 
-# Check if completed successfully?
+# Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 3 passed.
 else
-	echo Failed.
+	echo Failed at step 3.
 	exit
 fi
 
@@ -60,12 +64,12 @@ fi
 echo "Checking "$TISSUE" modules for convergent changes."
 ./4_Network-analysis.R "$TISSUE" &> 04_"$TISSUE"_Network-analysis.txt
 
-# Check if completed successfully?
+# Check, did script run successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 4 passed.
 else
-	echo Failed.
+	echo Failed at step 4.
 	exit
 fi
 
@@ -76,9 +80,9 @@ echo "Analyzing "$TISSUE" modules for GO enrichment."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 5 passed.
 else
-	echo Failed.
+	echo Failed at step 5.
 	exit
 fi
 
@@ -89,9 +93,9 @@ echo "Testing "$TISSUE" modules for enrichment of DBD-associated genes."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 6 passed.
 else
-	echo Failed.
+	echo Failed at step 6.
 	exit
 fi
 
@@ -101,8 +105,8 @@ fi
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Passed.
+	echo Step 7 passed. Well done comrade.
 else
-	echo Failed.
+	echo Failed at step 7.
 	exit
 fi

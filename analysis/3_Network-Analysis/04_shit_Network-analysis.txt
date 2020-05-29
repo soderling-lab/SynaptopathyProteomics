@@ -1,7 +1,0 @@
-Starting analysis at: 2020-05-28 20:53:32
-Analyzing shit...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-
-Execution halted

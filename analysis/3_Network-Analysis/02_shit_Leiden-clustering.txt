@@ -1,9 +1,0 @@
-Performing Leidenalg clustering of the shit graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
-Traceback (most recent call last):
-  File "./2_Leiden-clustering.py", line 111, in <module>
-    myfile = os.path.join(datadir,input_adjm)
-  File "/home/twesleyb/.conda/envs/SynaptopathyProteomics/lib/python3.8/posixpath.py", line 90, in join
-    genericpath._check_arg_types('join', a, *p)
-  File "/home/twesleyb/.conda/envs/SynaptopathyProteomics/lib/python3.8/genericpath.py", line 152, in _check_arg_types
-    raise TypeError(f'{funcname}() argument must be str, bytes, or '
-TypeError: join() argument must be str, bytes, or os.PathLike object, not 'NoneType'
