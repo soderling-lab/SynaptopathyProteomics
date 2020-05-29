@@ -7,9 +7,9 @@
 #' ---
 
 ## Parameters
-save_plots = TRUE
-clear_plots = TRUE
-save_work = TRUE
+save_plots = FALSE
+clear_plots = FALSE
+save_work = FALSE
 fig_width = 2.5
 fig_height = 2.5
 
