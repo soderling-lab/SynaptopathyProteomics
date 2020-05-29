@@ -2,3 +2,171 @@
 Starting analysis at: 2020-05-29 12:05:20
 Analyzing Striatum...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Performing network enhancement, this will take several minutes...
+
+Building PPI graph...
+33,232 edges identified among 2,917 nodes!
+
+Scale free fit of PPI graph: 0.966
+
+Completed analysis at: 2020-05-29 12:06:23
+Elapsed time: 62.57 seconds.
+Performing Leidenalg clustering of the Striatum graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
+Recursively spliting 3 large module(s)...
+... Initial partition: Clustering with 2918 elements and 115 clusters.
+... Final partition: Clustering with 2918 elements and 158 clusters.
+
+Analyzing Striatum...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+
+Evaluating self-preservation of Striatum modules in the Striatum network.
+
+Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
+
+Criterion for module preservation/divergence: strong.
+
+[2020-05-29 12:07:58 EDT] Validating user input...
+[2020-05-29 12:07:58 EDT]   Checking matrices for problems...
+[2020-05-29 12:07:58 EDT] Input ok!
+[2020-05-29 12:07:58 EDT] Calculating preservation of network subsets from
+                          dataset "self" in dataset "self".
+[2020-05-29 12:07:58 EDT]   Pre-computing network properties in dataset
+                            "self"...
+[2020-05-29 12:07:58 EDT]   Calculating observed test statistics...
+[2020-05-29 12:07:58 EDT]   Generating null distributions from 10000
+                            permutations using 7 threads...
+
+    0% completed.    2% completed.    3% completed.    5% completed.    7% completed.    8% completed.   10% completed.   11% completed.   13% completed.   15% completed.   17% completed.   18% completed.   20% completed.   22% completed.   23% completed.   25% completed.   27% completed.   29% completed.   30% completed.   32% completed.   34% completed.   35% completed.   37% completed.   39% completed.   41% completed.   42% completed.   44% completed.   46% completed.   48% completed.   49% completed.   51% completed.   53% completed.   54% completed.   56% completed.   58% completed.   59% completed.   61% completed.   63% completed.   64% completed.   66% completed.   68% completed.   69% completed.   71% completed.   73% completed.   74% completed.   76% completed.   78% completed.   79% completed.   81% completed.   83% completed.   85% completed.   86% completed.   88% completed.   90% completed.   91% completed.   93% completed.   95% completed.   96% completed.   98% completed.  100% completed.  100% completed.
+
+[2020-05-29 12:08:59 EDT]   Calculating P-values...
+[2020-05-29 12:09:03 EDT]   Collating results...
+[2020-05-29 12:09:04 EDT] Done!
+
+98 of 129 modules are preserved.
+
+Done!
+Starting analysis at: 2020-05-29 12:09:06
+Analyzing Striatum...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Total number of modules: 97
+
+Percent proteins clustered: 86.26%.
+
+Median module coherence (PVE): 52.94%.
+
+Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 2.
+
+Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 2.
+
+
+| M19| M57|
+|---:|---:|
+|   1|   3|
+
+Completed analysis at: 2020-05-29 12:09:40
+Elapsed time: 34.4 seconds.
+Starting analysis at: 2020-05-29 12:09:41
+Analyzing Striatum...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Loading mouse GO collection.
+
+Performing GO enrichment analysis for every module...
+
+Fraction of modules with any significant GO enrichment: 0.412
+
+Top GO term for modules with significant GO enrichment:
+
+
+|Module |TopGO                                                         |
+|:------|:-------------------------------------------------------------|
+|M1     |response to superoxide                                        |
+|M2     |cytosolic proteasome complex                                  |
+|M3     |cytosolic ribosome                                            |
+|M4     |G protein-coupled receptor signaling pathway                  |
+|M6     |amino acid transmembrane transporter activity                 |
+|M9     |G protein-coupled serotonin receptor binding                  |
+|M10    |mitochondrial respiratory chain complex I                     |
+|M11    |postsynaptic intermediate filament cytoskeleton               |
+|M12    |purine ribonucleotide biosynthetic process                    |
+|M13    |nephron development                                           |
+|M14    |axon guidance                                                 |
+|M15    |endoplasmic reticulum chaperone complex                       |
+|M17    |'de novo' IMP biosynthetic process                            |
+|M18    |perineuronal net                                              |
+|M20    |receptor complex                                              |
+|M24    |regulation of cholesterol esterification                      |
+|M25    |macrophage chemotaxis                                         |
+|M27    |chaperone-mediated protein transport                          |
+|M28    |negative regulation of mRNA splicing, via spliceosome         |
+|M32    |COPI-coated vesicle budding                                   |
+|M34    |porin activity                                                |
+|M52    |polysomal ribosome                                            |
+|M65    |zona pellucida receptor complex                               |
+|M77    |negative regulation of sodium ion transmembrane transport     |
+|M113   |mitochondrial translational elongation                        |
+|M114   |mitochondrion                                                 |
+|M115   |mitochondrial matrix                                          |
+|M116   |pyruvate dehydrogenase activity                               |
+|M117   |negative regulation of mitochondrial RNA catabolic process    |
+|M118   |carnitine metabolic process, CoA-linked                       |
+|M129   |mitochondrial inner membrane                                  |
+|M130   |nucleotide transport                                          |
+|M131   |mitochondrial outer membrane                                  |
+|M132   |NADH dehydrogenase (ubiquinone) activity                      |
+|M133   |4 iron, 4 sulfur cluster binding                              |
+|M135   |malate transmembrane transporter activity                     |
+|M136   |mitochondrial respiratory chain                               |
+|M146   |regulation of postsynaptic neurotransmitter receptor activity |
+|M148   |AMPA glutamate receptor activity                              |
+|M149   |regulation of modification of postsynaptic structure          |
+
+Saving data...
+
+Completed analysis at: 2020-05-29 12:10:33
+Elapsed time: 0.87 minutes.
+Starting analysis at: 2020-05-29 12:10:34
+Analyzing Striatum...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+
+
+|Disorder |nGenes |
+|:--------|:------|
+|ADHD     |765    |
+|ASD      |2,146  |
+|BPD      |776    |
+|Epilepsy |1,101  |
+|ID       |1,995  |
+|SZ       |2,379  |
+
+Performing DBD enrichment analysis for every module...
+
+Number of modules with any significant DBD-gene enrichment: 8
+
+Top DBD-association for modules with significant DBD enrichment:
+
+
+|Module |TopDBD   |
+|:------|:--------|
+|M9     |ASD      |
+|M37    |Epilepsy |
+|M72    |BPD      |
+|M73    |Epilepsy |
+|M76    |ID       |
+|M91    |ASD      |
+|M92    |ASD      |
+|M93    |ID       |
+
+Saving data...
+
+Completed analysis at: 2020-05-29 12:11:06
+Elapsed time: 0.53 minutes.

@@ -16,12 +16,15 @@ spin() {
 }
 
 # Remove any existing reports.
-rm -f Cortex.report
-rm -f Striatum.report
+rm -f *.report
+
+# Output log files:
+CORTEX="Cortex-preprocessing.report"
+STRIATUM="Striatum-preprocessing.report"
 
 # STEP 1a.
 echo "Processing raw Cortex data."
-./1_data-preprocessing.R Cortex &> Cortex.report & spin
+./1_data-preprocessing.R Cortex &> "$CORTEX" & spin
 
 # Check if completed successfully?
 if [ $? -eq 0 ]
@@ -34,7 +37,7 @@ fi
 
 # STEP 1b.
 echo "Processing raw Striatum data."
-./1_data-preprocessing.R Striatum &> Striatum.report & spin
+./1_data-preprocessing.R Striatum &> "$STRIATUM" & spin
 
 # Check if completed successfully?
 if [ $? -eq 0 ]
@@ -47,7 +50,7 @@ fi
 
 # STEP 2.
 echo "Combing datasets with TAMPOR."
-./2_TAMPOR-normalization.R 2>&1 | tee --append Cortex.report Striatum.report > /dev/null & spin
+./2_TAMPOR-normalization.R 2>&1 | tee --append "$CORTEX" "$STRIATUM" > /dev/null & spin
 
 # Check if completed successfully?
 if [ $? -eq 0 ]
