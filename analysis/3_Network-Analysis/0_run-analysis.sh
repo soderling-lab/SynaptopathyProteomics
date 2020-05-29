@@ -3,8 +3,6 @@
 # 0_run-analysis.sh - execute this script to run the analysis.
 # Input: should be either 'Cortex' or 'Striatum'.
 
-
-
 # Check if an argument was passed.
 if [ $# -eq 0 ]
 then

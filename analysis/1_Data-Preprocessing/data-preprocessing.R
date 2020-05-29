@@ -22,11 +22,11 @@ if (length(args == 1) & check) {
 }
 
 ## Other Parameters:
-save_plots = TRUE # Should plots be saved?
-clean_figsdir = TRUE # Remove existing figures?
+save_plots = FALSE # Should plots be saved?
+clean_figsdir = FALSE # Remove existing figures?
 image_format = ".pdf" # Output figure format.
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
-save_work = TRUE # Save workspace at end?
+save_work = FALSE # Save workspace at end?
 fig_width = 2.5 # Width in inches of figures.
 fig_height = 2.5 # Height in inches of figures.
 output_name = tissue # Prefix of output files.
