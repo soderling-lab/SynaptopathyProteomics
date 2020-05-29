@@ -75,3 +75,104 @@ Starting analysis at: 2020-05-29 12:29:37
 Analyzing Cortex...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
 Loading SynaptopathyProteomics
+
+Loading mouse GO collection.
+
+Performing GO enrichment analysis for every module...
+
+Fraction of modules with any significant GO enrichment: 0.41
+
+Top GO term for modules with significant GO enrichment:
+
+
+|Module |TopGO                                                                       |
+|:------|:---------------------------------------------------------------------------|
+|M2     |presynaptic active zone cytoplasmic component                               |
+|M3     |NADH dehydrogenase complex assembly                                         |
+|M4     |intrinsic component of plasma membrane                                      |
+|M5     |proteasome complex                                                          |
+|M6     |metal ion transmembrane transporter activity                                |
+|M10    |zona pellucida receptor complex                                             |
+|M11    |intrinsic component of synaptic vesicle membrane                            |
+|M12    |filamin binding                                                             |
+|M13    |proteasome-activating ATPase activity                                       |
+|M14    |COPI-coated vesicle budding                                                 |
+|M16    |heterophilic cell-cell adhesion via plasma membrane cell adhesion molecules |
+|M18    |late endosome membrane                                                      |
+|M21    |exocyst                                                                     |
+|M22    |postsynaptic intermediate filament cytoskeleton                             |
+|M26    |endoplasmic reticulum chaperone complex                                     |
+|M27    |cytoplasmic ubiquitin ligase complex                                        |
+|M37    |substrate-specific channel activity                                         |
+|M39    |structural constituent of myelin sheath                                     |
+|M40    |PDZ domain binding                                                          |
+|M43    |telomeric DNA binding                                                       |
+|M46    |Arp2/3 protein complex                                                      |
+|M62    |AMPA glutamate receptor complex                                             |
+|M63    |porin activity                                                              |
+|M64    |lactate transport                                                           |
+|M113   |pyruvate dehydrogenase activity                                             |
+|M114   |tricarboxylic acid cycle                                                    |
+|M115   |cellular amino acid catabolic process                                       |
+|M116   |methylcrotonoyl-CoA carboxylase activity                                    |
+|M117   |protein lipoylation                                                         |
+|M118   |negative regulation of transcription by RNA polymerase III                  |
+|M119   |mitochondrial RNA 5'-end processing                                         |
+|M120   |hydrogen sulfide metabolic process                                          |
+|M132   |NADH dehydrogenase activity                                                 |
+|M133   |cristae formation                                                           |
+|M134   |adenine nucleotide transmembrane transporter activity                       |
+|M135   |mitochondrial transmembrane transport                                       |
+|M136   |mitochondrial membrane part                                                 |
+|M137   |mitochondrial inner membrane                                                |
+|M138   |inner mitochondrial membrane protein complex                                |
+|M148   |nucleoside diphosphate phosphorylation                                      |
+|M166   |cell-cell adhesion mediator activity                                        |
+|M169   |integral component of presynaptic membrane                                  |
+|M182   |cytosolic ribosome                                                          |
+|M183   |cytosolic ribosome                                                          |
+|M184   |oligosaccharyl transferase activity                                         |
+|M185   |cytosolic large ribosomal subunit                                           |
+|M187   |eukaryotic translation elongation factor 1 complex                          |
+|M188   |poly(A) binding                                                             |
+
+Saving data...
+
+Completed analysis at: 2020-05-29 12:30:44
+Elapsed time: 1.12 minutes.
+Starting analysis at: 2020-05-29 12:30:46
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+
+
+|Disorder |nGenes |
+|:--------|:------|
+|ADHD     |765    |
+|ASD      |2,146  |
+|BPD      |776    |
+|Epilepsy |1,101  |
+|ID       |1,995  |
+|SZ       |2,379  |
+
+Performing DBD enrichment analysis for every module...
+
+Number of modules with any significant DBD-gene enrichment: 6
+
+Top DBD-association for modules with significant DBD enrichment:
+
+
+|Module |TopDBD |
+|:------|:------|
+|M2     |ASD    |
+|M21    |ASD    |
+|M40    |ASD    |
+|M114   |BPD    |
+|M115   |SZ     |
+|M132   |ID     |
+
+Saving data...
+
+Completed analysis at: 2020-05-29 12:31:27
+Elapsed time: 0.69 minutes.
