@@ -1,0 +1,8 @@
+
+Analyzing tissue...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Error in t.default(data_list$Data) : argument is not a matrix
+Calls: t -> t.default
+Execution halted

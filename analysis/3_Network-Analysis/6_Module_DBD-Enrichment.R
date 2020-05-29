@@ -196,8 +196,8 @@ topTerm <- function(x) {
 }
 topDBD <- sapply(DBD_results,topTerm)
 
-# Top GO terms for significant modules:
-message("\nTop GO term for modules with significant GO enrichment:")
+# Top DBD categories for significant modules:
+message("\nTop DBD-association for modules with significant DBD enrichment:")
 df <- data.frame("Module" = sigModules, "TopDBD" = topDBD[sigModules])
 knitr::kable(df,row.names=FALSE)
 

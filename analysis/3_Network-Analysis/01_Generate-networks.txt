@@ -1,0 +1,11 @@
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+Loading SynaptopathyProteomics
+
+Performing network enhancement, this will take several minutes...
+
+Building PPI graph...
+33,232 edges identified among 2,917 nodes!
+
+Scale free fit of PPI graph: 0.966
+Done!
+
