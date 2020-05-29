@@ -148,7 +148,7 @@ data_list <- list(Data = data,
 		  		  "Bicor correlation matrix.",
 				  "Enhanced correlation matrix.",
 				  "Sample meta data."))
-myfile <- file.path(datadir, paste0(tissue,"_data.rda"))
+myfile <- file.path(datadir, tolower(paste0(tissue,"_data.rda")))
 object <- tolower(paste0(tissue,"_data"))
 eval(parse(text=paste(object,"= data_list")))
 eval(parse(text=paste0("save(",object, ", file = myfile, version = 2)")))

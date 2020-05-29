@@ -10,7 +10,7 @@
 if (interactive()) {
 	## If interactive:
 	# User defined parameters (you only need to change these two):
-	analysis_type = "Striatum" # Tissue type for analysis.
+	analysis_type = "Cortex" # Tissue type for analysis.
 } else if (!interactive()) {
 	## If not interactive, check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
@@ -55,13 +55,11 @@ tabsdir <- file.path(root, "tables")
 ## Load the data.
 #--------------------------------------------------------------------
 
-# Load the cortex and striatum data from root/data.
-data(cortex_data)
-data(striatum_data)
+# Load the data from root/data.
+data(list=tolower(paste0(analysis_type,"_data")))
 
 # Load the graph partitions:
-data(cortex_partition)
-data(striatum_partition)
+data(list=tolower(paste0(analysis_type,"partition")))
 
 # Grab the data for the tissue type we are analyzing.
 data_list <- list("Cortex"=cortex_data,

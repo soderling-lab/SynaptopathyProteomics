@@ -82,8 +82,8 @@ self = test = tissue
 
 # Load the data.
 dataset <- tolower(paste0(tissue,"_data"))
-data(list=dataset)
-data_list <- list(eval(parse(text=paste0("tissue=",dataset))))
+data(list=dataset) # load the data. 
+eval(parse(text=paste0("data_list=",dataset))) # Dynamically rename
 
 # Load expression data. 
 # Transpose -> rows = samples; columns = genes.

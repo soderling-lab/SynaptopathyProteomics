@@ -26,9 +26,9 @@ echo "Processing raw Cortex data."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Successfully processed Cortex data.
+	echo -e "\tSuccessfully processed Cortex data."
 else
-	echo Failed to process Cortex data.
+	echo -e "\tError: Failed to process Cortex data."
 	exit 0
 fi
 
@@ -39,9 +39,9 @@ echo "Processing raw Striatum data."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Successfully processed Striatum data.
+	echo -e "\tSuccessfully processed Striatum data."
 else
-	echo Failed to process Striatum data.
+	echo -e "\tError: Failed to process Striatum data."
 	exit 0
 fi
 
@@ -52,8 +52,8 @@ echo "Combing datasets with TAMPOR."
 # Check if completed successfully?
 if [ $? -eq 0 ]
 then
-	echo Data preprocessing is complete!
+	echo -e "\tData preprocessing is complete!"
 else
-	echo Failed to combine datasets with TAMPOR.
+	echo -e "\tFailed to combine datasets with TAMPOR."
 	exit
 fi
