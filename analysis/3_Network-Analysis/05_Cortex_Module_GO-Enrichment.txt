@@ -1,0 +1,66 @@
+Starting analysis at: 2020-05-28 20:56:30
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+
+Traceback (most recent calls last):
+45: renv::load(root)
+44: renv_load_switch(project)
+43: source("renv/activate.R")
+42: withVisible(eval(ei, envir))
+41: eval(ei, envir)
+40: eval(ei, envir)
+39: local(...)
+38: eval.parent(substitute(eval(quote(expr), envir)))
+37: eval(expr, p)
+36: eval(expr, p)
+35: eval(quote(...), new.env())
+34: eval(quote(...), new.env())
+33: renv_bootstrap_load(project, libpath, version)
+32: renv::load(project)
+31: renv_load_finish(project, lockfile)
+30: renv_load_report_synchronized(project, lockfile)
+29: renv_project_synchronized_check(project, lockfile)
+28: quietly({
+        libstate <- snapshot(project = project, library = library, 
+            lockfile = NULL, force = TRUE)
+        synchronized <- renv_status_check_synchronized(project = project, 
+            lockfile = lockfile, library = library, libstate = libstate)
+    })
+27: withCallingHandlers(expr, warning = function(c) invokeRestart("muffleWarning"), 
+        message = function(c) invokeRestart("muffleMessage"), packageStartupMessage = function(c) invokeRestart("muffleMessage"))
+26: snapshot(project = project, library = library, lockfile = NULL, 
+        force = TRUE)
+25: renv_lockfile_create(project, library, type)
+24: renv_snapshot_r_packages(library = library, project = project) %>% 
+        renv_snapshot_filter(project = project, type = type) %>% 
+        renv_snapshot_fixup()
+23: eval(call, envir = parent.frame())
+22: eval(call, envir = parent.frame())
+21: renv_snapshot_fixup(renv_snapshot_r_packages(library = library, 
+        project = project) %>% renv_snapshot_filter(project = project, 
+        type = type))
+20: renv_snapshot_fixup_renv(records)
+19: renv_snapshot_r_packages(library = library, project = project) %>% 
+        renv_snapshot_filter(project = project, type = type)
+18: eval(call, envir = parent.frame())
+17: eval(call, envir = parent.frame())
+16: renv_snapshot_filter(renv_snapshot_r_packages(library = library, 
+        project = project), project = project, type = type)
+15: renv_snapshot_filter_implicit(project, records)
+14: renv_snapshot_filter_impl(project, records, project)
+13: renv_package_dependencies(used, project = project)
+12: renv_package_dependencies_impl(package, visited, libpaths, fields)
+11: renv_dependencies_discover_description(location, fields)
+10: catch(renv_description_read(path))
+ 9: tryCatch(withCallingHandlers(expr, error = renv_error_capture), 
+        error = renv_error_tag)
+ 8: tryCatchList(expr, classes, parentenv, handlers)
+ 7: tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 6: doTryCatch(return(expr), name, parentenv, handler)
+ 5: withCallingHandlers(expr, error = renv_error_capture)
+ 4: renv_description_read(path)
+ 3: renv_filebacked("DESCRIPTION", path, renv_description_read_impl, 
+        subdir = subdir, ...)
+ 2: renv_filebacked_set(scope, path, result)
+ 1: stopifnot(renv_path_absolute(path))
+Execution halted
