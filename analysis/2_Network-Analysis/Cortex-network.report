@@ -92,4 +92,56 @@ Criterion for module preservation/divergence: strong.
 [2020-05-30 13:36:17 EDT]   Generating null distributions from 10000
                             permutations using 23 threads...
 
-    0% completed.    9% completed.   17% completed.   26% completed.   35% completed.   43% completed.   52% completed.   61% completed.   70% completed.   78% completed.   87% completed.   96% completed.
+    0% completed.    9% completed.   17% completed.   26% completed.   35% completed.   43% completed.   52% completed.   61% completed.   70% completed.   78% completed.   87% completed.   96% completed.  100% completed.
+
+[2020-05-30 13:36:29 EDT]   Calculating P-values...
+[2020-05-30 13:36:32 EDT]   Collating results...
+[2020-05-30 13:36:33 EDT] Done!
+
+116 of 157 modules are preserved.
+
+Done!
+Starting analysis at: 2020-05-30 13:36:34
+Analyzing Cortex...
+* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R
+-------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
+* The project and lockfile are out of sync -- use `renv::status()` for more details.
+Loading SynaptopathyProteomics
+
+Total number of modules: 115
+
+Percent proteins clustered: 79.75%.
+
+Median module coherence (PVE): 62.76%.
+
+Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
+
+Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 11.
+
+
+| M1| M4| M9| M14| M21| M35| M49| M100| M102| M103| M104|
+|--:|--:|--:|---:|---:|---:|---:|----:|----:|----:|----:|
+|  3|  2|  3|   2|   2|   2|   3|    2|    2|    2|    2|
+
+Completed analysis at: 2020-05-30 13:36:56
+Elapsed time: 21.94 seconds.
+./0_run-analysis.R: line 91: ./5_module_GO-enrichment.R: No such file or directory
+./0_run-analysis.R: line 104: ./6_module_DBD-enrichment.R: No such file or directory

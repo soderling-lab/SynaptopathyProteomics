@@ -1,7 +1,27 @@
 
-Starting analysis at: 2020-05-29 12:31:07
+Starting analysis at: 2020-05-30 13:37:27
 Analyzing Striatum...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R
+-------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
+* The project and lockfile are out of sync -- use `renv::status()` for more details.
 Loading SynaptopathyProteomics
 
 Performing network enhancement, this will take several minutes...
@@ -10,9 +30,21 @@ Building PPI graph...
 33,232 edges identified among 2,917 nodes!
 
 Scale free fit of PPI graph: 0.966
+               ProtA           ProtB       bicor
+2919  Arfgef2|A2A5R2    Tanc2|A2A690  0.50697041
+5837  Arfgef2|A2A5R2 Fam171a2|A2A699 -0.02960360
+5838    Tanc2|A2A690 Fam171a2|A2A699  0.13961946
+8755  Arfgef2|A2A5R2    Ptprf|A2A8L5 -0.01985296
+8756    Tanc2|A2A690    Ptprf|A2A8L5 -0.02260739
+8757 Fam171a2|A2A699    Ptprf|A2A8L5  0.12015654
+# A tibble: 2 x 2
+    PPI `median(bicor)`
+  <dbl>           <dbl>
+1     0        -0.00575
+2     1         0.0888 
 
-Completed analysis at: 2020-05-29 12:32:21
-Elapsed time: 74.53 seconds.
+Completed analysis at: 2020-05-30 13:38:31
+Elapsed time: 63.63 seconds.
 Performing Leidenalg clustering of the Striatum graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
 Recursively spliting 3 large module(s)...
 ... Initial partition: Clustering with 2918 elements and 115 clusters.
@@ -20,6 +52,26 @@ Recursively spliting 3 large module(s)...
 
 Analyzing Striatum...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R
+-------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
+* The project and lockfile are out of sync -- use `renv::status()` for more details.
 Loading SynaptopathyProteomics
 
 
@@ -29,144 +81,67 @@ Module statistic(s) used to evaluate module preservation: avg.weight, coherence,
 
 Criterion for module preservation/divergence: strong.
 
-[2020-05-29 12:34:12 EDT] Validating user input...
-[2020-05-29 12:34:13 EDT]   Checking matrices for problems...
-[2020-05-29 12:34:13 EDT] Input ok!
-[2020-05-29 12:34:13 EDT] Calculating preservation of network subsets from
+[2020-05-30 13:39:24 EDT] Validating user input...
+[2020-05-30 13:39:24 EDT]   Checking matrices for problems...
+[2020-05-30 13:39:24 EDT] Input ok!
+[2020-05-30 13:39:24 EDT] Calculating preservation of network subsets from
                           dataset "self" in dataset "self".
-[2020-05-29 12:34:13 EDT]   Pre-computing network properties in dataset
+[2020-05-30 13:39:24 EDT]   Pre-computing network properties in dataset
                             "self"...
-[2020-05-29 12:34:13 EDT]   Calculating observed test statistics...
-[2020-05-29 12:34:13 EDT]   Generating null distributions from 10000
-                            permutations using 7 threads...
+[2020-05-30 13:39:24 EDT]   Calculating observed test statistics...
+[2020-05-30 13:39:24 EDT]   Generating null distributions from 10000
+                            permutations using 23 threads...
 
-    0% completed.    1% completed.    3% completed.    4% completed.    6% completed.    7% completed.    8% completed.   10% completed.   11% completed.   13% completed.   14% completed.   15% completed.   17% completed.   18% completed.   20% completed.   21% completed.   22% completed.   24% completed.   25% completed.   27% completed.   28% completed.   29% completed.   31% completed.   32% completed.   33% completed.   35% completed.   36% completed.   38% completed.   39% completed.   40% completed.   42% completed.   43% completed.   44% completed.   46% completed.   47% completed.   48% completed.   50% completed.   51% completed.   53% completed.   54% completed.   56% completed.   58% completed.   59% completed.   61% completed.   62% completed.   64% completed.   65% completed.   66% completed.   68% completed.   69% completed.   70% completed.   72% completed.   73% completed.   75% completed.   76% completed.   78% completed.   79% completed.   80% completed.   82% completed.   83% completed.   85% completed.   86% completed.   88% completed.   89% completed.   91% completed.   92% completed.   94% completed.   95% completed.   97% completed.   98% completed.   99% completed.  100% completed.
+    0% completed.    9% completed.   17% completed.   26% completed.   35% completed.   43% completed.   52% completed.   61% completed.   70% completed.   78% completed.   87% completed.   96% completed.  100% completed.
 
-[2020-05-29 12:35:24 EDT]   Calculating P-values...
-[2020-05-29 12:35:29 EDT]   Collating results...
-[2020-05-29 12:35:31 EDT] Done!
+[2020-05-30 13:39:37 EDT]   Calculating P-values...
+[2020-05-30 13:39:39 EDT]   Collating results...
+[2020-05-30 13:39:39 EDT] Done!
 
-98 of 129 modules are preserved.
+97 of 129 modules are preserved.
 
 Done!
-Starting analysis at: 2020-05-29 12:35:33
+Starting analysis at: 2020-05-30 13:39:40
 Analyzing Striatum...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R
+-------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R:975:0: unexpected end of input
+973: # Remove that pesky Rplots.
+974: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
+* The project and lockfile are out of sync -- use `renv::status()` for more details.
 Loading SynaptopathyProteomics
 
-Total number of modules: 97
+Total number of modules: 96
 
-Percent proteins clustered: 86.19%.
+Percent proteins clustered: 85.47%.
 
-Median module coherence (PVE): 52.94%.
+Median module coherence (PVE): 53.19%.
 
 Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 2.
 
 Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 2.
 
 
-| M19| M57|
+| M19| M56|
 |---:|---:|
 |   1|   3|
 
-Completed analysis at: 2020-05-29 12:36:12
-Elapsed time: 39.69 seconds.
-Starting analysis at: 2020-05-29 12:36:13
-Analyzing Striatum...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-Loading mouse GO collection.
-
-Performing GO enrichment analysis for every module...
-
-Fraction of modules with any significant GO enrichment: 0.412
-
-Top GO term for modules with significant GO enrichment:
-
-
-|Module |TopGO                                                         |
-|:------|:-------------------------------------------------------------|
-|M1     |response to superoxide                                        |
-|M2     |cytosolic proteasome complex                                  |
-|M3     |cytosolic ribosome                                            |
-|M4     |G protein-coupled receptor signaling pathway                  |
-|M6     |amino acid transmembrane transporter activity                 |
-|M9     |G protein-coupled serotonin receptor binding                  |
-|M10    |mitochondrial respiratory chain complex I                     |
-|M11    |postsynaptic intermediate filament cytoskeleton               |
-|M12    |purine ribonucleotide biosynthetic process                    |
-|M13    |nephron development                                           |
-|M14    |axon guidance                                                 |
-|M15    |endoplasmic reticulum chaperone complex                       |
-|M17    |'de novo' IMP biosynthetic process                            |
-|M18    |perineuronal net                                              |
-|M20    |receptor complex                                              |
-|M24    |regulation of cholesterol esterification                      |
-|M25    |macrophage chemotaxis                                         |
-|M27    |chaperone-mediated protein transport                          |
-|M28    |negative regulation of mRNA splicing, via spliceosome         |
-|M32    |COPI-coated vesicle budding                                   |
-|M34    |porin activity                                                |
-|M50    |polysomal ribosome                                            |
-|M60    |zona pellucida receptor complex                               |
-|M68    |negative regulation of sodium ion transmembrane transport     |
-|M72    |mitochondrial translational elongation                        |
-|M73    |mitochondrion                                                 |
-|M74    |mitochondrial matrix                                          |
-|M75    |pyruvate dehydrogenase activity                               |
-|M76    |negative regulation of mitochondrial RNA catabolic process    |
-|M77    |carnitine metabolic process, CoA-linked                       |
-|M81    |mitochondrial inner membrane                                  |
-|M82    |nucleotide transport                                          |
-|M83    |mitochondrial outer membrane                                  |
-|M84    |NADH dehydrogenase (ubiquinone) activity                      |
-|M85    |4 iron, 4 sulfur cluster binding                              |
-|M87    |malate transmembrane transporter activity                     |
-|M88    |mitochondrial respiratory chain                               |
-|M91    |regulation of postsynaptic neurotransmitter receptor activity |
-|M93    |AMPA glutamate receptor activity                              |
-|M94    |regulation of modification of postsynaptic structure          |
-
-Saving data...
-
-Completed analysis at: 2020-05-29 12:37:13
-Elapsed time: 1 minutes.
-Starting analysis at: 2020-05-29 12:37:15
-Analyzing Striatum...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-
-
-|Disorder |nGenes |
-|:--------|:------|
-|ADHD     |765    |
-|ASD      |2,146  |
-|BPD      |776    |
-|Epilepsy |1,101  |
-|ID       |1,995  |
-|SZ       |2,379  |
-
-Performing DBD enrichment analysis for every module...
-
-Number of modules with any significant DBD-gene enrichment: 8
-
-Top DBD-association for modules with significant DBD enrichment:
-
-
-|Module |TopDBD   |
-|:------|:--------|
-|M9     |ASD      |
-|M36    |Epilepsy |
-|M72    |BPD      |
-|M73    |Epilepsy |
-|M76    |ID       |
-|M91    |ASD      |
-|M92    |ASD      |
-|M93    |ID       |
-
-Saving data...
-
-Completed analysis at: 2020-05-29 12:37:51
-Elapsed time: 0.61 minutes.
+Completed analysis at: 2020-05-30 13:40:01
+Elapsed time: 21.07 seconds.
+./0_run-analysis.R: line 91: ./5_module_GO-enrichment.R: No such file or directory
+./0_run-analysis.R: line 104: ./6_module_DBD-enrichment.R: No such file or directory
