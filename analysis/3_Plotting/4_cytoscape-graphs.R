@@ -27,12 +27,13 @@ if (!length(args == 1)) {
 
 # Load renv.
 root <- getrd()
-renv::load()
+renv::load(root,quiet=TRUE)
 
 # Global imports.
 suppressPackageStartupMessages({
   library(RCy3)
   library(dplyr)
+  library(igraph)
   library(data.table)
 })
 
@@ -47,123 +48,83 @@ netwdir <- file.path(root, "networks")
 suppressWarnings({ devtools::load_all() })
 
 # Load the data from root/data.
-dataset <- tolower(paste0(analysis_type,"_data"))
-data <- list(dataset)
+# Contains data, adjm, netw, and metadata.
+dataset <- tolower(paste0(tissue,"_data"))
+data(list=dataset)
 eval(parse(text=paste0("data_list=",dataset)))
 
 # Load the graph partition in root/data.
-dataset <- tolower(paste0(analysis_type,"_partition"))
+dataset <- tolower(paste0(tissue,"_partition"))
 data(list=dataset)
 eval(parse(text=paste0("partition=",dataset)))
 
 # Load gene map.
 data(gene_map)
 
-#---------------------------------------------------------------------
-## Generate PPI graph.
-#---------------------------------------------------------------------
-
-## NOTE: Coerce boolean attributes to integer to avoid warnings when
-# loading into cytoscape.
-
-# Create co-expression graph.
-exp_graph <- graph_from_adjacency_matrix(adjm,mode="undirected",
-				  weighted=TRUE, diag=FALSE)
-
-# Create PPI graph.
-ppi_graph <- graph_from_adjacency_matrix(adjm_ppi,mode="undirected",
-				  weighted=TRUE, diag=FALSE)
-
-# Remove NAs from PPI edges.
-E(ppi_graph)$weight[which(is.na(E(ppi_graph)$weight))] <- 0
-
-## Add attributes to igraph object.
-# Add Gene symbols.
-symbols <- protmap$gene[match(names(V(exp_graph)),protmap$ids)]
-exp_graph <- set_vertex_attr(exp_graph,"symbol",value = symbols)
-
-# Add sigProt vertex attribute.
-anySig <- as.numeric(sigProts[[data_type]][names(V(exp_graph))])
-exp_graph <- set_vertex_attr(exp_graph, "sigProt", 
-			 value = anySig)
-
-# Add any DBDprot vertex attribute.
-DBDnodes <- lapply(DBDprots,function(x) names(V(exp_graph)) %in% x)
-for (DBD in names(DBDnodes)){
-	exp_graph <- set_vertex_attr(exp_graph, name=DBD, 
-				 value = as.numeric(DBDnodes[[DBD]]))
-}
-
-# Collect PPI evidence.
-myfile <- file.path(rdatdir,"3_All_PPIs.RData")
-ppis <- readRDS(myfile)
-
-# Map mouse entrez to protein ids.
-ppis$ProteinA <- protmap$ids[match(ppis$osEntrezA,protmap$entrez)]
-ppis$ProteinB <- protmap$ids[match(ppis$osEntrezB,protmap$entrez)]
-out <- is.na(ppis$ProteinA) | is.na(ppis$ProteinB)
-ppis <- ppis[!out,]
-
-# Get the relevant columns.
-ppis <- ppis %>% select(ProteinA,ProteinB,osEntrezA,osEntrezB,
-			Interactor_A_Taxonomy,Interactor_B_Taxonomy,
-			Source_database,Confidence_score,
-			Publications,Methods)
-
-# Save to file..
-myfile <- file.path(tabsdir,paste0("3_All_PPIs.csv"))
-write_excel(list(PPIs=ppis),myfile)
+# Load PPI adjm.
+myfile <- file.path(rdatdir,"PPI_Adjm.csv")
+ppin <- fread(myfile,drop=1) %>% as.matrix()
+rownames(ppin) <- colnames(ppin)
 
 #---------------------------------------------------------------------
-## Generate cytoscape graphs.
+## Prepare the data.
 #---------------------------------------------------------------------
 
-# Prompt the user to open Cytoscape if it is not open.
-cytoscape_ping()
+# Extract adjm and network from data_list.
+adjm <- data_list$Adjm
+netw <- data_list$Netw
 
-# If working with Combined data, append graphs to tissue specific 
-# Cytoscape file.
+# Insure that matrices are in matching order.
+colNames <- colnames(adjm)
+netw <- netw[colNames,colNames]
+adjm <- netw[colNames,colNames]
+ppin <- netw[colNames,colNames]
 
-if (generate_cytoscape_graphs) {
+# Check:
+check <- all(colnames(netw) == colnames(adjm) & colnames(adjm) == colnames(ppin))
+if (!check) { stop() }
 
-	if (data_type == "Combined") {
+# Get modules from partition.
+modules <- split(names(partition),partition)
+names(modules) <- paste0("M",names(modules))
+modules <- modules[-which(names(modules)=="M0")]
 
-		cysfile <- file.path(netsdir,paste0(part_type,".cys"))
+# Create igraph graphs from adjacency matrices.
+adjm_g <- graph_from_adjacency_matrix(adjm,mode="undirected",diag=FALSE,weighted=TRUE)
+netw_g <- graph_from_adjacency_matrix(netw,mode="undirected",diag=FALSE,weighted=TRUE)
+ppin_g <- graph_from_adjacency_matrix(ppin,mode="undirected",diag=FALSE)
 
-		if (file.exists(cysfile)){
-			message(paste("Adding graphs to",part_type,"file!"))
-			winfile <- gsub("/mnt/d/","D:/",cysfile)
-			openSession(winfile)
-		} else {
+# We have three graphs:
+graphs <- list(adjm=adjm_g,
+	       netw=netw_g,
+	       ppin=ppin_g)
 
-			message(paste("Analyze",part_type,"data first.",
-			              "Combined graphs will be appended to",
-			              "this file."))
-	}
-}
+# Add gene symbols to graphs in list.
+graphs <- lapply(graphs, function(x) {
+			 symbols <- gene_map$gene[match(names(V(x)),gene_map$ids)]
+		         x <- set_vertex_attr(x,"symbol",value = symbols)
+		         return(x)
+	         })
 
-# Create graphs.
+#--------------------------------------------------------------------
+## Cytoscape
+#--------------------------------------------------------------------
 
-	for (i in c(1:length(modules))) {
+cytoscapePing()
 
-		module_name = names(modules)[i]
-		message(paste("Working on module", module_name,"..."))
+cysfile <- file.path(netwdir,paste0(tissue,"-network.cys"))
 
-		nodes = names(modules[[module_name]])
-		module_kme = KME_list[[module_name]]
+#winfile <- gsub("/mnt/d/","D:/",cysfile)
+#openSession(winfile)
 
-		network_layout = 'force-directed edgeAttribute=weight'
-		image_file = file.path(dirname(figsdir),"Networks",module_name)
-		image_format = "SVG"
+module <- modules[[1]]
+module_name <- names(modules)[1]
+nodes <- names(modules[[module_name]])
+network_layout = 'force-directed edgeAttribute=weight'
 
-		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
-			     module_kme,module_name,
-			     module_colors, network_layout,
-			     output_file, image_file,
-			     image_format)
 
-		# When done, save cytoscape session.
-		if (i == length(modules)) {
-			myfile <- file.path(netsdir,paste0(part_type,".cys"))
-			winfile <- gsub("/mnt/d/","D:/",myfile)
-			saveSession(winfile)
+# When done, save cytoscape session.
+if (i == length(modules)) {
+myfile <- file.path(netsdir,paste0(part_type,".cys"))
+winfile <- gsub("/mnt/d/","D:/",myfile)
+saveSession(winfile)
