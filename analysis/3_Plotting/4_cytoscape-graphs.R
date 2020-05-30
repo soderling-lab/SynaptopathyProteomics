@@ -6,71 +6,60 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
+# User parameters to change:
+generate_cytoscape_graphs <- FALSE
+
 #--------------------------------------------------------------------
 ## Set-up the workspace.
 #--------------------------------------------------------------------
 
-## User parameters to change:
-data_type <- "Combined" # Cortex, Striatum, or Combined...
-part_type <- "Cortex" # Specify part type when working with comb data.
-generate_cytoscape_graphs <- FALSE
 
-# Data files.
-input_files <- list(adjm_files = list(Cortex="3_Cortex_Adjm.RData",
-				      Striatum="3_Striatum_Adjm.RData",
-				      Combined="3_Combined_Adjm.RData"),
-		    data_files = list(Cortex="3_Cortex_cleanDat.RData",
-				      Striatum="3_Striatum_cleanDat.RData",
-				      Combined="3_Combined_cleanDat.RData"),
-		    part_files = list(Cortex=list(self="2020-02-10_Cortex_Surprise_Module_Self_Preservation.RData",
-						  ppi ="2020-02-13_Cortex_PPI_Module_Self_Preservation.RData",
-						  other="2020-02-18_Cortex_Striatum_Module_Self_Preservation.RData"),
-				      Striatum=list(self="2020-02-10_Striatum_Surprise_Module_Self_Preservation.RData",
-						    ppi = "2020-02-13_Striatum_PPI_Module_Self_Preservation.RData",
-						    other="2020-02-19_Striatum_Cortex_Module_Self_Preservation.RData"))
-		    )
+#!/usr/bin/env Rscript
+
+#' ---
+#' title:
+#' description: generate networks
+#' authors: Tyler W. Bradshaw
+#' ---
+
+#------------------------------------------------------------------------------
+## Prepare the workspace.
+#------------------------------------------------------------------------------
+
+# Parse command line input:
+args <- commandArgs(trailingOnly = TRUE)
+msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "       Choose either 'Cortex' or 'Striatum'.")
+if (!length(args == 1)) { 
+	stop(msg) 
+} else { 
+	type <- match(args[1],c("Cortex","Striatum"))
+	tissue <- c("Cortex", "Striatum")[type]
+	start <- Sys.time()
+	message(paste("\nStarting analysis at:", start))
+}
+
+# Load renv.
+root <- getrd()
+renv::load()
 
 # Global imports.
 suppressPackageStartupMessages({
-  library(data.table)
-  library(dplyr)
-  library(purrr)
-  library(WGCNA)
-  library(org.Mm.eg.db)
-  library(anRichment)
-  library(getPPIs)
-  library(DescTools)
-  library(igraph)
-  library(ggplot2)
-  library(gtable)
-  library(cowplot)
   library(RCy3)
+  library(dplyr)
+  library(data.table)
 })
 
 # Directories.
-here <- getwd()
-subdir <- basename(here)
-root <- dirname(dirname(here))
-funcdir <- file.path(root, "R")
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-netsdir <- file.path(root, "networks",part_type)
-figsdir <- file.path(root, "figs",subdir,data_type,part_type)
-tabsdir <- file.path(root, "tables", subdir,data_type)
+figsdir <- file.path(root, "figs")
+tabsdir <- file.path(root, "tables")
+netwdir <- file.path(root, "networks")
 
-# Remove any existing figures and tables.
-invisible(sapply(list.files(figsdir),unlink))
-invisible(sapply(list.files(tabsdir),unlink))
-
-# Functions.
+# Load project's functions.
 suppressWarnings({ devtools::load_all() })
 
-# Load protein identifier map.
-protmap <- readRDS(file.path(rdatdir, "2_Protein_ID_Map.RData"))
-
-# Load GLM stats.
-myfile <- file.path(rdatdir, "2_GLM_Stats.RData")
-glm_stats <- readRDS(myfile)
 
 # Get proteins with any significant change.
 idy <- lapply(c("Cortex","Striatum"),function(x) {
