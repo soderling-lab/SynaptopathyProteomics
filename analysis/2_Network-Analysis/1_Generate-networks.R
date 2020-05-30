@@ -133,6 +133,10 @@ fit <- WGCNA::scaleFreeFitIndex(dc,nBreaks=10,removeFirst=FALSE)
 r <- fit$Rsquared.SFT
 message(paste("\nScale free fit of PPI graph:",round(r,3)))
 
+#---------------------------------------------------------------------
+## Are interacting proteins more coorelated?
+#---------------------------------------------------------------------
+
 #--------------------------------------------------------------------
 ## Save everything to file.
 #--------------------------------------------------------------------

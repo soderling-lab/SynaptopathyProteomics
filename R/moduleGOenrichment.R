@@ -17,13 +17,18 @@
 #'
 #' @examples
 #' moduleGOenrichment()
-moduleGOenrichment <- function(partition, gene_map, GOcollection) {
+moduleGOenrichment <- function(partition, gene_map, GOcollection, 
+			       useBackground = NULL, p.adjust = "FDR",
+			       alpha=0.05,...) {
 
   # Function to perform GO enrichment for all modules in a given partition.
   suppressPackageStartupMessages({
     library(org.Mm.eg.db)
     library(anRichment)
   })
+
+  # Default background is all genes provided in partition
+  if (is.null(useBackground)) { useBackground = "given" }
 
   # Create a matrix of module labels to be passed to anRichment.
   modules <- split(partition, partition)
@@ -37,6 +42,7 @@ moduleGOenrichment <- function(partition, gene_map, GOcollection) {
     classLabels[!logic[, i], i] <- "NA"
   }
   classLabels <- classLabels[!duplicated(rownames(classLabels)), ]
+  classLabels <- classLabels[,-which(colnames(classLabels) == "M0")]
 
   # Map protein ids to to entrez.
   entrez <- gene_map$entrez[match(rownames(classLabels), gene_map$ids)]
@@ -49,11 +55,11 @@ moduleGOenrichment <- function(partition, gene_map, GOcollection) {
     refCollection = GOcollection,
     active = NULL,
     inactive = NULL,
-    useBackground = "given",
-    threshold = 0.05,
-    thresholdType = "Bonferroni",
+    useBackground = useBackground,
+    threshold = alpha,
+    thresholdType = p.adjust,
     getOverlapEntrez = TRUE,
-    getOverlapSymbols = FALSE,
+    getOverlapSymbols = TRUE,
     ignoreLabels = "NA",
     verbose = 0
   )

@@ -11,14 +11,15 @@
 #----------------------------------------------------------------------
 
 if (interactive()) {
-	## If interactive:
-	# User defined parameters (you only need to change these two):
-	analysis_type = "Cortex" # Tissue type for analysis.
+	# If interactive,
+	# define the tissue type to be analyzed:
+	analysis_type = "Cortex"
 } else if (!interactive()) {
-	## If not interactive, check that only 1 arg is passed.
+	# Otherwise,
+	# check that only 1 arg is passed.
 	args <- commandArgs(trailingOnly=TRUE)
 	if (length(args) == 1) { 
-		analysis_type = commandArgs(trailingOnly=TRUE)[1]
+		analysis_type <- args[1]
 		start <- Sys.time()
 		message(paste("Starting analysis at:", start))
 		message(paste0("Analyzing ", analysis_type,"..."))
@@ -68,7 +69,7 @@ dataset <- tolower(paste0(analysis_type,"_partition"))
 data(list=dataset)
 eval(parse(text=paste0("partition=",dataset)))
 
-# Data matrix:
+# Get the data as a matrix:
 dm <- data_list$Data
 
 # Load the sample meta data.
@@ -90,10 +91,7 @@ data(gene_map)
 # Create list of modules.
 modules <- split(partition,partition)
 names(modules) <- paste0("M",names(modules))
-
-# Remove M0.
-modules <- modules[-which(names(modules) == "M0")]
-nModules <- length(modules)
+nModules <- sum(names(modules) != "M0")
 
 # Load or build mouse gene ontology collection.
 myfile <- file.path(root,"data","musGO.rda")
@@ -108,35 +106,49 @@ if (file.exists(myfile)) {
 }
 
 # Perform GO enrichment.
+# Background for enrichment analysis defaults to all synaptosome
+# proteins passed to the function (background = "given").
+# moduleGOenrichment is just a wrapper around anRichment's 
+# enrichmentAnalysis() function.
 message("\nPerforming GO enrichment analysis for every module...")
-GO_results <- moduleGOenrichment(partition, gene_map, GOcollection=musGO)
-
+GO_results <- moduleGOenrichment(partition, gene_map, 
+				 GOcollection=musGO, 
+				 useBackground="given",
+				 alpha = alpha_GO)
 # Drop M0 from results.
-GO_results <- GO_results[-which(names(GO_results) == "M0")]
-
+#GO_results <- GO_results[-which(names(GO_results) == "M0")]
 # Number of significant terms per module.
-nSig <- sapply(GO_results, function(x) sum(x$FDR<0.05))
+nSig <- sapply(GO_results, function(x) sum(x$FDR < alpha_GO))
 
 # Modules with any sig terms:
 sigModules <- names(which(nSig > 0))
 nSig_Modules <- length(sigModules)
 
 # Status.
-message(paste("\nFraction of modules with any significant GO enrichment:",
-	      round(nSig_Modules/nModules,3)))
+message(paste0("\nFraction of modules with any significant GO enrichment: ",
+	      round(nSig_Modules/nModules,3),
+	      " (n=",nSig_Modules,"/",nModules,")."))
 
-# Top term for all modules.
-topTerm <- function(x) {
-	x$enrichmentScore <- x$enrichmentRatio * -log10(x$pValue)
-	x <- x[order(x$enrichmentScore,decreasing=TRUE),] # Sort.
-	return(x$shortDataSetName[1])
-}
-topGO <- sapply(GO_results,topTerm)
+# Collect list of dataframes.
+GO_dt <- bind_rows(GO_results,.id="Module")
 
-# Top GO terms for significant modules:
-message("\nTop GO term for modules with significant GO enrichment:")
-df <- data.frame("Module" = sigModules, "TopGO" = topGO[sigModules])
-knitr::kable(df,row.names=FALSE)
+# Calculate an enrichment score. 
+GO_dt$Enrichment_Score <- -log(GO_dt$pValue) * GO_dt$enrichmentRatio
+
+# Get top N terms for each module.
+topGO <- GO_dt %>% group_by(Module) %>%  
+	dplyr::top_n(3, Enrichment_Score)
+
+# Clean-up.
+df <- topGO %>% select(Module,nCommonGenes,
+		       shortDataSetName,pValue,FDR,
+		       enrichmentRatio,Enrichment_Score)
+colnames(df) <- c("Module","nGenes","Name","pValue","FDR","Ratio","Score")
+df$Sig <- df$FDR < alpha_GO 
+idx <- nchar(df$Name) > 25
+df$Name[idx] <- paste0(substr(df$Name[idx],1,25),"...")
+message("\nTop significant GO terms:")
+knitr::kable(df %>% filter(Sig), row.names=FALSE)
 
 #--------------------------------------------------------------------
 ## Save results.
