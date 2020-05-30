@@ -36,7 +36,7 @@ rm -f "$TISSUE.report"
 
 # STEP 1.
 echo "Generating "$TISSUE" protein networks."
-./1_Generate-networks.R "$TISSUE" &> "$TISSUE-network.report" & spin
+./1_generate-networks.R "$TISSUE" &> "$TISSUE-network.report" & spin
 
 # Check, did script run successfully?
 if [ $? -eq 0 ]
@@ -62,7 +62,7 @@ fi
 
 # STEP 3.
 echo "Enforcing  "$TISSUE" module self-preservation."
-./3_Module-preservation.R "$TISSUE" &>> "$TISSUE-network.report" & spin
+./3_module-preservation.R "$TISSUE" &>> "$TISSUE-network.report" & spin
 
 # Check, did script run successfully?
 if [ $? -eq 0 ]
@@ -75,7 +75,7 @@ fi
 
 # STEP 4.
 echo "Checking "$TISSUE" modules for convergent changes." & spin
-./4_Network-analysis.R "$TISSUE" &>> "$TISSUE-network.report"
+./4_network-analysis.R "$TISSUE" &>> "$TISSUE-network.report"
 
 # Check, did script run successfully?
 if [ $? -eq 0 ]
@@ -88,7 +88,7 @@ fi
 
 # STEP 5.
 echo "Analyzing "$TISSUE" modules for GO enrichment."
-./5_Module_GO-Enrichment.R "$TISSUE" &>> "$TISSUE-network.report" & spin
+./5_module_GO-enrichment.R "$TISSUE" &>> "$TISSUE-network.report" & spin
 
 # Check if completed successfully?
 if [ $? -eq 0 ]
@@ -101,7 +101,7 @@ fi
 
 # STEP 6.
 echo "Testing "$TISSUE" modules for enrichment of DBD-associated genes."
-./6_Module_DBD-Enrichment.R "$TISSUE" &>> "$TISSUE-network.report" & spin
+./6_module_DBD-enrichment.R "$TISSUE" &>> "$TISSUE-network.report" & spin
 
 # Check if completed successfully?
 if [ $? -eq 0 ]
