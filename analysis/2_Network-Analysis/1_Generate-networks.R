@@ -137,53 +137,43 @@ message(paste("\nScale free fit of PPI graph:",round(r,3)))
 ## Demonstrate that interacting proteins co-vary together.
 #--------------------------------------------------------------------
 
-# Merge PPI and co-expression graphs, and create a data.table.
-df <- as.data.table(as_long_data_frame(union(g0,g1)))
-df <- df %>% dplyr::select(c(from_name,weight,ppi))
-df$ppi[is.na(df$ppi)] <- FALSE # Convert na to FALSE.
+## FIXME: clean up plot, save. option to skip WRS since it is time 
+# consuming.
 
-# Randomly sample 10,000 edges drawn from interacting and 
-# non-interacting proteins.
-n <- 10000
+# Get PPI edge list.
+diag(PPI_adjm) <- NA
+PPI_adjm[lower.tri(PPI_adjm)] <- NA
+PPI_df <- reshape2::melt(PPI_adjm,value.name="PPI",na.rm=TRUE)
+colnames(PPI_df)[c(1,2)] <- c("ProtA","ProtB")
 
-# Seed seed for reproducibility.
-set.seed(0) 
+# Get bicor edge list.
+dm <- adjm
+diag(dm) <- NA
+dm[lower.tri(dm)] <- NA
+adjm_df <- reshape2::melt(dm,value.name="bicor",na.rm=TRUE)
+colnames(adjm_df)[c(1,2)] <- c("ProtA","ProtB")
+head(adjm_df)
 
-# Get random samples.
-idx <- c(sample(which(df$ppi),n),sample(which(!df$ppi),n))
-subdat <- df[idx,]
-subdat$ppi <- factor(subdat$ppi,levels=c(FALSE,TRUE)) 
+# Merge edge lists.
+adjm_df$ProtA <- as.character(adjm_df$ProtA)
+adjm_df$ProtB <- as.character(adjm_df$ProtB)
+PPI_df$ProtA <- as.character(PPI_df$ProtA)
+PPI_df$ProtB <- as.character(PPI_df$ProtB)
+df <- left_join(adjm_df,PPI_df,by=c("ProtA","ProtB"))
+
+# Coerce NA to 0.
+df$PPI[is.na(df$PPI)] <- 0
 
 # Check the mean of each group.
-subdat %>% group_by(ppi) %>% summarize(mean(weight))
+df %>% group_by(PPI) %>% summarize(median(bicor))
 
-# Calculate WRS p-value.
-# Refactor, test that TRUE > FALSE.
-WRS_test <- wilcox.test(subdat$weight ~ subdat$ppi, alternative = "less")
-WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
+# Perform WRS test. This takes a little time.
+WRS_test <- wilcox.test(df$bicor ~ df$PPI, alternative = "less")
 
 # Generate a plot.
-  plot <- ggplot(subdat, aes(x = ppi, y = weight, fill = ppi)) +
-    geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
-    scale_x_discrete(labels = c("PPI = False", "PPI = True")) +
-    ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
-    scale_fill_manual(values = c("gray", "dark orange")) +
-    theme(
-      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
-      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
-      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
-      axis.text.x = element_text(color = "black", size = 11, face = "bold"),
-      legend.position = "none"
-    )
-  
-# Add Annotation.
-plot <- plot + 
-  annotate("text", x = 1.5, y = 1.0,
-           label = paste("p-value =",WRS_pval), size = 6, color = "black")
-
-# Save as tiff.
-myfile <- prefix_file(file.path(figsdir,"WRS_PPI_Bicor_Proteins.tiff"))
-ggsave(myfile, plot, height = 4, width = 4)
+plot <- ggplot(df, aes(x = PPI, y = bicor, fill = PPI, group=PPI)) + 
+	geom_boxplot(outlier.colour = "black", 
+ 		     outlier.shape = 20, outlier.size = 1)
 
 #--------------------------------------------------------------------
 ## Save everything to file.

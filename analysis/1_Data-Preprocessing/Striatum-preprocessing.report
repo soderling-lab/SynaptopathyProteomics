@@ -174,3 +174,18 @@ Summary of differentially abundant proteins (FDR<0.1):
 |Striatum Syngap1 | 2883|   19|  16|        35|
 |Cortex Ube3a     | 2652|  105| 161|       266|
 |Striatum Ube3a   | 2612|  121| 185|       306|
+
+Generating volcano plots...
+
+Generating condition overlap plot...
+
+Generating faceted protein plots...
+
+Generating Cortex protein plots...
+
+Generating Striatum protein plots...
+
+Saving data to file!
+
+Complete analysis at: 2020-05-30 11:36:02
+Elapsed time: 3.95 minutes.
