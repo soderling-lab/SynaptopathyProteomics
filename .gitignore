@@ -9,6 +9,9 @@
 __pycache__/
 *tempnet.csv # files staring with temp
 
+# ignore reports.
+*.report
+
 # Other files to ignore.
 downloads/
 networks/
