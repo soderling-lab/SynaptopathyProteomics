@@ -50,7 +50,7 @@ tabsdir <- file.path(root, "tables")
 ## Generate protein correlation matrix.
 #------------------------------------------------------------------------------
 
-# Load the normalized expression data.
+# Load the combined, normalized protein data.
 # Combined and normalized data, sample level outliers removed.
 data(combined_protein)
 
@@ -133,9 +133,57 @@ fit <- WGCNA::scaleFreeFitIndex(dc,nBreaks=10,removeFirst=FALSE)
 r <- fit$Rsquared.SFT
 message(paste("\nScale free fit of PPI graph:",round(r,3)))
 
-#---------------------------------------------------------------------
-## Are interacting proteins more coorelated?
-#---------------------------------------------------------------------
+#--------------------------------------------------------------------
+## Demonstrate that interacting proteins co-vary together.
+#--------------------------------------------------------------------
+
+# Merge PPI and co-expression graphs, and create a data.table.
+df <- as.data.table(as_long_data_frame(union(g0,g1)))
+df <- df %>% dplyr::select(c(from_name,weight,ppi))
+df$ppi[is.na(df$ppi)] <- FALSE # Convert na to FALSE.
+
+# Randomly sample 10,000 edges drawn from interacting and 
+# non-interacting proteins.
+n <- 10000
+
+# Seed seed for reproducibility.
+set.seed(0) 
+
+# Get random samples.
+idx <- c(sample(which(df$ppi),n),sample(which(!df$ppi),n))
+subdat <- df[idx,]
+subdat$ppi <- factor(subdat$ppi,levels=c(FALSE,TRUE)) 
+
+# Check the mean of each group.
+subdat %>% group_by(ppi) %>% summarize(mean(weight))
+
+# Calculate WRS p-value.
+# Refactor, test that TRUE > FALSE.
+WRS_test <- wilcox.test(subdat$weight ~ subdat$ppi, alternative = "less")
+WRS_pval <- formatC(WRS_test$p.value,digits=2,format="e")
+
+# Generate a plot.
+  plot <- ggplot(subdat, aes(x = ppi, y = weight, fill = ppi)) +
+    geom_boxplot(outlier.colour = "black", outlier.shape = 20, outlier.size = 1) +
+    scale_x_discrete(labels = c("PPI = False", "PPI = True")) +
+    ylab("Protein co-expression\n(bicor correlation)") + xlab(NULL) +
+    scale_fill_manual(values = c("gray", "dark orange")) +
+    theme(
+      plot.title = element_text(hjust = 0.5, color = "black", size = 11, face = "bold"),
+      axis.title.x = element_text(color = "black", size = 11, face = "bold"),
+      axis.title.y = element_text(color = "black", size = 11, face = "bold"),
+      axis.text.x = element_text(color = "black", size = 11, face = "bold"),
+      legend.position = "none"
+    )
+  
+# Add Annotation.
+plot <- plot + 
+  annotate("text", x = 1.5, y = 1.0,
+           label = paste("p-value =",WRS_pval), size = 6, color = "black")
+
+# Save as tiff.
+myfile <- prefix_file(file.path(figsdir,"WRS_PPI_Bicor_Proteins.tiff"))
+ggsave(myfile, plot, height = 4, width = 4)
 
 #--------------------------------------------------------------------
 ## Save everything to file.
