@@ -123,14 +123,19 @@ cytoscape_ping()
 
 # If working with Combined data, append graphs to tissue specific 
 # Cytoscape file.
+
 if (generate_cytoscape_graphs) {
+
 	if (data_type == "Combined") {
+
 		cysfile <- file.path(netsdir,paste0(part_type,".cys"))
+
 		if (file.exists(cysfile)){
 			message(paste("Adding graphs to",part_type,"file!"))
 			winfile <- gsub("/mnt/d/","D:/",cysfile)
 			openSession(winfile)
 		} else {
+
 			message(paste("Analyze",part_type,"data first.",
 			              "Combined graphs will be appended to",
 			              "this file."))
@@ -138,25 +143,27 @@ if (generate_cytoscape_graphs) {
 }
 
 # Create graphs.
-if (generate_cytoscape_graphs) {
+
 	for (i in c(1:length(modules))) {
+
 		module_name = names(modules)[i]
 		message(paste("Working on module", module_name,"..."))
+
 		nodes = names(modules[[module_name]])
 		module_kme = KME_list[[module_name]]
+
 		network_layout = 'force-directed edgeAttribute=weight'
 		image_file = file.path(dirname(figsdir),"Networks",module_name)
 		image_format = "SVG"
+
 		createCytoscapeGraph(exp_graph,ppi_graph,nodes,
 			     module_kme,module_name,
 			     module_colors, network_layout,
 			     output_file, image_file,
 			     image_format)
+
 		# When done, save cytoscape session.
 		if (i == length(modules)) {
 			myfile <- file.path(netsdir,paste0(part_type,".cys"))
 			winfile <- gsub("/mnt/d/","D:/",myfile)
 			saveSession(winfile)
-		}
-	}
-} # Ends loop to create graphs.

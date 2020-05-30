@@ -3,3 +3,6 @@ R_LIBS=~/renv/lib
 
 ## Windows
 #R_LIBS=C:/R/library
+
+# Don't check if renv is synchronized or not!
+RENV_CONFIG_SYNCHRONIZED_CHECK = FALSE

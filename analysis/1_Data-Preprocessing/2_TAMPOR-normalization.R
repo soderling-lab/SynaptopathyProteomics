@@ -7,9 +7,7 @@
 #' ---
 
 ## Parameters
-save_plots = FALSE
-clear_plots = FALSE
-save_work = FALSE
+save_plots = TRUE
 fig_width = 2.5
 fig_height = 2.5
 
@@ -64,11 +62,6 @@ figsdir <- file.path(root, "figs","TAMPOR")
 # If necessary, create output directories for figs and tables.
 if (!dir.exists(figsdir)) { dir.create(figsdir) }
 if (!dir.exists(tabsdir)) { dir.create(tabsdir) }
-
-# Remove any existing figures.
-if (clear_plots) {
-	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
-}
 
 # Globally set ggplots theme.
 ggtheme()
@@ -799,11 +792,6 @@ plotdir <- file.path(figsdir,"Faceted-Protein-Boxplots")
 # Create directory if necessary.
 if (!dir.exists(plotdir)) { dir.create(plotdir) }
 
-# Remove existing plots.
-if (clear_plots) {
-	invisible(sapply(list.files(plotdir,full.names=TRUE),unlink))
-}
-
 # Loop to save plots.
 if (save_plots) {
 	message("\nSaving plots, this will take several minutes...")
@@ -882,11 +870,6 @@ plotdir <- file.path(figsdir,"Cortex-Protein-Boxplots")
 # Create directory if necessary.
 if (!dir.exists(plotdir)) { dir.create(plotdir) }
 
-# Remove existing plots.
-if (clear_plots) {
-	invisible(sapply(list.files(plotdir,full.names=TRUE),unlink))
-}
-
 # Save sig cortex plots.
 if (save_plots) {
 	message("\nSaving plots, this will take several minutes...")
@@ -957,11 +940,6 @@ plotdir <- file.path(figsdir,"Striatum-Protein-Boxplots")
 # Create directory if necessary.
 if (!dir.exists(plotdir)) { dir.create(plotdir) }
 
-# Remove existing plots.
-if (clear_plots) {
-	invisible(sapply(list.files(plotdir,full.names=TRUE),unlink))
-}
-
 # Save sig striatum plots.
 if (save_plots) {
 	message("\nSaving plots, this will take several minutes...")
@@ -1014,12 +992,6 @@ writeData(wb, sheet = 3, keepNA = TRUE, raw_striatum)
 writeData(wb, sheet = 4, keepNA = TRUE, norm_data)
 myfile <- file.path(tabsdir, paste0(output_name,"_TMT_Data.xlsx"))
 saveWorkbook(wb, myfile, overwrite = TRUE)
-
-# Save the workspace?
-if (save_work) {
-	save(list = ls(all.names = TRUE), 
-	     file="TAMPOR.RData", envir=.GlobalEnv)
-}
 
 # Complete!
 end <- Sys.time()
