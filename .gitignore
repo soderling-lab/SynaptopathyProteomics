@@ -34,4 +34,3 @@ ARCHIVE/
 
 # Ignore temporary files in radalib directory.
 bin/radalib/file*
-data/

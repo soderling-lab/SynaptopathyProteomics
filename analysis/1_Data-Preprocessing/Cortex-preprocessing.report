@@ -1,6 +1,17 @@
-Starting analysis at: 2020-05-30 11:03:25
+Starting analysis at: 2020-05-30 11:24:52
 Analyzing Cortex...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
+----------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
 Loading SynaptopathyProteomics
 
 Total number of unique peptides identified: 43,651
@@ -76,80 +87,27 @@ Done cluster 563
 Done cluster 1197 
 Done cluster 1760 
 
-Completed analysis at: 2020-05-30 11:04:22
-Elapsed time: 0.95 minutes.
-Starting analysis at: 2020-05-30 11:05:20
+Completed analysis at: 2020-05-30 11:25:50
+Elapsed time: 0.98 minutes.
+Starting analysis at: 2020-05-30 11:26:56
 Combining data from cortex and striatum with TAMPOR...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
+----------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
 Loading SynaptopathyProteomics
 
-NOTE: one or more samplesToIgnore do not match sample names (colnames) in input abundance data.
-      Not ignoring any samples.
-NOTE: Successfully checked that each batch has at least one sample designated as GIS control replicate.
-Starting # of Rows in data: 2918.
-[iter_1] No rows removed with >=50% missing values.     2.48 sec     iteration convergence tracking (Frobenius Norm Difference):  -107
-[iter_2] No rows removed with >=50% missing values.     1.89 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0444
-[iter_3] No rows removed with >=50% missing values.     1.64 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0227
-[iter_4] No rows removed with >=50% missing values.     1.57 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.0077
-[iter_5] No rows removed with >=50% missing values.     1.85 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.00246
-[iter_6] No rows removed with >=50% missing values.     1.59 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000399
-[iter_7] No rows removed with >=50% missing values.     1.96 sec     iteration convergence tracking (Frobenius Norm Difference):  -0.000221
-[iter_8] No rows removed with >=50% missing values.     1.76 sec     iteration convergence tracking (Frobenius Norm Difference):  -3.17e-05
-[iter_9] No rows removed with >=50% missing values.     1.95 sec     iteration convergence tracking (Frobenius Norm Difference):  1.62e-05
-[iter_10] No rows removed with >=50% missing values.     1.55 sec     iteration convergence tracking (Frobenius Norm Difference):  1.76e-05
-[iter_11] No rows removed with >=50% missing values.     1.62 sec     iteration convergence tracking (Frobenius Norm Difference):  1.17e-05
-[iter_12] No rows removed with >=50% missing values.     1.91 sec     iteration convergence tracking (Frobenius Norm Difference):  6.58e-06
-[iter_13] No rows removed with >=50% missing values.     1.61 sec     iteration convergence tracking (Frobenius Norm Difference):  4.1e-06
-[iter_14] No rows removed with >=50% missing values.     1.6 sec     iteration convergence tracking (Frobenius Norm Difference):  2.48e-06
-[iter_15] No rows removed with >=50% missing values.     1.55 sec     iteration convergence tracking (Frobenius Norm Difference):  1.42e-06
-[iter_16] No rows removed with >=50% missing values.     1.92 sec     iteration convergence tracking (Frobenius Norm Difference):  6.8e-07
-[iter_17] No rows removed with >=50% missing values.     1.73 sec     iteration convergence tracking (Frobenius Norm Difference):  3.56e-07
-[iter_18] No rows removed with >=50% missing values.     1.51 sec     iteration convergence tracking (Frobenius Norm Difference):  2.04e-07
-[iter_19] No rows removed with >=50% missing values.     2.1 sec     iteration convergence tracking (Frobenius Norm Difference):  1.16e-07
-[iter_20] No rows removed with >=50% missing values.     1.53 sec     iteration convergence tracking (Frobenius Norm Difference):  6.11e-08
-[iter_21] No rows removed with >=50% missing values.     1.55 sec     iteration convergence tracking (Frobenius Norm Difference):  2.94e-08
-[iter_22] No rows removed with >=50% missing values.     1.88 sec     iteration convergence tracking (Frobenius Norm Difference):  1.36e-08
-[iter_23] No rows removed with >=50% missing values.     1.56 sec     iteration convergence tracking (Frobenius Norm Difference):  6.71e-09
-...Reached convergence criterion (Frobenius Norm Difference)<1e-8!
-
-Examing data for sample level outliers...
-1 outlier sample(s) identified in iteration 1.
-0 outlier sample(s) identified in iteration 2.
-0 outlier sample(s) identified in iteration 3.
-0 outlier sample(s) identified in iteration 4.
-0 outlier sample(s) identified in iteration 5.
-
-Outlier sample(s) removed: HET.Syngap1
-
-Performing statistical testing with EdgeR glm...
-
-Quantified 2,918 proteins from 63 samples.
-
-Summary of differentially abundant proteins (FDR<0.1):
-
-
-|Experiment       |   NS| Down|  Up| Total Sig|
-|:----------------|----:|----:|---:|---------:|
-|Cortex Shank2    | 2839|   30|  49|        79|
-|Striatum Shank2  | 2911|    5|   2|         7|
-|Cortex Shank3    | 2290|  317| 311|       628|
-|Striatum Shank3  | 2814|   50|  54|       104|
-|Cortex Syngap1   | 2851|   20|  47|        67|
-|Striatum Syngap1 | 2883|   19|  16|        35|
-|Cortex Ube3a     | 2652|  105| 161|       266|
-|Striatum Ube3a   | 2612|  121| 185|       306|
-
-Generating volcano plots...
-
-Generating condition overlap plot...
-
-Generating faceted protein plots...
-
-Generating Cortex protein plots...
-
-Generating Striatum protein plots...
-
-Saving data to file!
-
-Complete analysis at: 2020-05-30 11:09:27
-Elapsed time: 4.11 minutes.
+Error in gzfile(file, "wb") : cannot open the connection
+Calls: save -> gzfile
+In addition: Warning message:
+In gzfile(file, "wb") :
+  cannot open compressed file '/mnt/d/projects/SynaptopathyProteomics/data/samples.rda', probable reason 'No such file or directory'
+Execution halted
