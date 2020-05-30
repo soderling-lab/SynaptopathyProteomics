@@ -112,19 +112,20 @@ graphs <- lapply(graphs, function(x) {
 
 cytoscapePing()
 
-cysfile <- file.path(netwdir,paste0(tissue,"-network.cys"))
+## INPUTS
+output_name = tissue # name of graph?
+cysdir = netwdir # Where to save the graph?
+network_layout = 'force-directed edgeAttribute=weight'
 
 #winfile <- gsub("/mnt/d/","D:/",cysfile)
 #openSession(winfile)
 
 module <- modules[[1]]
 module_name <- names(modules)[1]
-nodes <- names(modules[[module_name]])
-network_layout = 'force-directed edgeAttribute=weight'
+nodes <- modules[[module_name]]
 
 
 # When done, save cytoscape session.
-if (i == length(modules)) {
-myfile <- file.path(netsdir,paste0(part_type,".cys"))
-winfile <- gsub("/mnt/d/","D:/",myfile)
-saveSession(winfile)
+#myfile <- file.path(netsdir,paste0(part_type,".cys"))
+#winfile <- gsub("/mnt/d/","D:/",myfile)
+#saveSession(winfile)
