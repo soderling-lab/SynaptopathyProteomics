@@ -1,7 +1,34 @@
 
-Starting analysis at: 2020-05-29 12:24:45
+Starting analysis at: 2020-06-01 07:15:09
 Analyzing Cortex...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/1_Plot-protein-pca.R
+-------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/1_Plot-protein-pca.R:32:39: unexpected string constant
+33: 
+34: dataset <- paste0(tissue,"
+                                          ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
+----------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
 Loading SynaptopathyProteomics
 
 Performing network enhancement, this will take several minutes...
@@ -10,9 +37,21 @@ Building PPI graph...
 33,232 edges identified among 2,917 nodes!
 
 Scale free fit of PPI graph: 0.966
+               ProtA           ProtB       bicor
+2919  Arfgef2|A2A5R2    Tanc2|A2A690 -0.20272630
+5837  Arfgef2|A2A5R2 Fam171a2|A2A699 -0.01846445
+5838    Tanc2|A2A690 Fam171a2|A2A699  0.39098378
+8755  Arfgef2|A2A5R2    Ptprf|A2A8L5  0.02212161
+8756    Tanc2|A2A690    Ptprf|A2A8L5  0.43236558
+8757 Fam171a2|A2A699    Ptprf|A2A8L5  0.33843720
+# A tibble: 2 x 2
+    PPI `median(bicor)`
+  <dbl>           <dbl>
+1     0        -0.00814
+2     1         0.103  
 
-Completed analysis at: 2020-05-29 12:25:57
-Elapsed time: 72.11 seconds.
+Completed analysis at: 2020-06-01 07:18:15
+Elapsed time: 185.49 seconds.
 Performing Leidenalg clustering of the Cortex graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
 Recursively spliting 5 large module(s)...
 ... Initial partition: Clustering with 2918 elements and 117 clusters.
@@ -20,6 +59,25 @@ Recursively spliting 5 large module(s)...
 
 Analyzing Cortex...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
+----------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
 Loading SynaptopathyProteomics
 
 
@@ -29,34 +87,53 @@ Module statistic(s) used to evaluate module preservation: avg.weight, coherence,
 
 Criterion for module preservation/divergence: strong.
 
-[2020-05-29 12:27:33 EDT] Validating user input...
-[2020-05-29 12:27:33 EDT]   Checking matrices for problems...
-[2020-05-29 12:27:33 EDT] Input ok!
-[2020-05-29 12:27:33 EDT] Calculating preservation of network subsets from
+[2020-06-01 07:20:56 EDT] Validating user input...
+[2020-06-01 07:20:56 EDT]   Checking matrices for problems...
+[2020-06-01 07:20:56 EDT] Input ok!
+[2020-06-01 07:20:56 EDT] Calculating preservation of network subsets from
                           dataset "self" in dataset "self".
-[2020-05-29 12:27:33 EDT]   Pre-computing network properties in dataset
+[2020-06-01 07:20:56 EDT]   Pre-computing network properties in dataset
                             "self"...
-[2020-05-29 12:27:33 EDT]   Calculating observed test statistics...
-[2020-05-29 12:27:33 EDT]   Generating null distributions from 10000
+[2020-06-01 07:20:56 EDT]   Calculating observed test statistics...
+[2020-06-01 07:20:57 EDT]   Generating null distributions from 10000
                             permutations using 7 threads...
 
-    0% completed.    2% completed.    3% completed.    5% completed.    6% completed.    8% completed.    9% completed.   11% completed.   13% completed.   14% completed.   16% completed.   17% completed.   19% completed.   21% completed.   22% completed.   24% completed.   25% completed.   27% completed.   29% completed.   30% completed.   32% completed.   33% completed.   35% completed.   36% completed.   38% completed.   39% completed.   41% completed.   43% completed.   44% completed.   46% completed.   47% completed.   49% completed.   50% completed.   52% completed.   53% completed.   55% completed.   56% completed.   57% completed.   59% completed.   60% completed.   61% completed.   63% completed.   64% completed.   66% completed.   67% completed.   68% completed.   70% completed.   71% completed.   73% completed.   74% completed.   76% completed.   77% completed.   78% completed.   80% completed.   81% completed.   82% completed.   84% completed.   85% completed.   87% completed.   88% completed.   89% completed.   91% completed.   92% completed.   94% completed.   95% completed.   96% completed.   98% completed.   99% completed.  100% completed.
+    0% completed.    1% completed.    2% completed.    3% completed.    3% completed.    4% completed.    5% completed.    6% completed.    7% completed.    8% completed.    9% completed.   10% completed.   10% completed.   11% completed.   12% completed.   13% completed.   14% completed.   15% completed.   16% completed.   17% completed.   18% completed.   18% completed.   19% completed.   20% completed.   21% completed.   22% completed.   23% completed.   24% completed.   25% completed.   26% completed.   26% completed.   27% completed.   28% completed.   29% completed.   30% completed.   31% completed.   32% completed.   33% completed.   33% completed.   34% completed.   35% completed.   36% completed.   36% completed.   37% completed.   38% completed.   39% completed.   39% completed.   40% completed.   41% completed.   42% completed.   42% completed.   43% completed.   44% completed.   45% completed.   45% completed.   46% completed.   47% completed.   48% completed.   49% completed.   49% completed.   50% completed.   51% completed.   52% completed.   52% completed.   53% completed.   54% completed.   55% completed.   55% completed.   56% completed.   57% completed.   58% completed.   59% completed.   59% completed.   60% completed.   61% completed.   62% completed.   63% completed.   64% completed.   65% completed.   66% completed.   66% completed.   67% completed.   68% completed.   69% completed.   70% completed.   71% completed.   71% completed.   72% completed.   73% completed.   74% completed.   75% completed.   76% completed.   77% completed.   77% completed.   78% completed.   79% completed.   80% completed.   80% completed.   81% completed.   82% completed.   83% completed.   83% completed.   84% completed.   85% completed.   86% completed.   87% completed.   88% completed.   89% completed.   89% completed.   90% completed.   91% completed.   92% completed.   93% completed.   94% completed.   95% completed.   96% completed.   96% completed.   97% completed.   98% completed.   98% completed.   99% completed.   99% completed.  100% completed.  100% completed.
 
-[2020-05-29 12:28:42 EDT]   Calculating P-values...
-[2020-05-29 12:28:49 EDT]   Collating results...
-[2020-05-29 12:28:50 EDT] Done!
+[2020-06-01 07:23:01 EDT]   Calculating P-values...
+[2020-06-01 07:23:10 EDT]   Collating results...
+[2020-06-01 07:23:11 EDT] Done!
 
 118 of 157 modules are preserved.
 
 Done!
-Starting analysis at: 2020-05-29 12:28:53
+Starting analysis at: 2020-06-01 07:23:14
 Analyzing Cortex...
 * Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
+WARNING: One or more problems were discovered while enumerating dependencies.
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
+-----------------------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
+5: # Check if an argument was passed.
+6: if [
+      ^
+
+/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
+----------------------------------------------------------------------
+
+ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
+964: # Remove that pesky Rplots.
+965: # unlink("Rplots.pdf")
+    ^
+
+Please see `?renv::dependencies` for more information.
 Loading SynaptopathyProteomics
 
 Total number of modules: 117
 
-Percent proteins clustered: 80.84%.
+Percent proteins clustered: 80.67%.
 
 Median module coherence (PVE): 61.76%.
 
@@ -65,114 +142,11 @@ Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
 Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 11.
 
 
-| M1| M4| M9| M14| M21| M35| M51| M102| M104| M105| M106|
+| M1| M4| M9| M14| M21| M35| M50| M102| M104| M105| M106|
 |--:|--:|--:|---:|---:|---:|---:|----:|----:|----:|----:|
 |  3|  2|  3|   2|   2|   2|   3|    2|    2|    2|    2|
 
-Completed analysis at: 2020-05-29 12:29:36
-Elapsed time: 43.38 seconds.
-Starting analysis at: 2020-05-29 12:29:37
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-Loading mouse GO collection.
-
-Performing GO enrichment analysis for every module...
-
-Fraction of modules with any significant GO enrichment: 0.41
-
-Top GO term for modules with significant GO enrichment:
-
-
-|Module |TopGO                                                                       |
-|:------|:---------------------------------------------------------------------------|
-|M2     |presynaptic active zone cytoplasmic component                               |
-|M3     |NADH dehydrogenase complex assembly                                         |
-|M4     |intrinsic component of plasma membrane                                      |
-|M5     |proteasome complex                                                          |
-|M6     |metal ion transmembrane transporter activity                                |
-|M10    |zona pellucida receptor complex                                             |
-|M11    |intrinsic component of synaptic vesicle membrane                            |
-|M12    |filamin binding                                                             |
-|M13    |proteasome-activating ATPase activity                                       |
-|M14    |COPI-coated vesicle budding                                                 |
-|M16    |heterophilic cell-cell adhesion via plasma membrane cell adhesion molecules |
-|M18    |late endosome membrane                                                      |
-|M21    |exocyst                                                                     |
-|M22    |postsynaptic intermediate filament cytoskeleton                             |
-|M26    |endoplasmic reticulum chaperone complex                                     |
-|M27    |cytoplasmic ubiquitin ligase complex                                        |
-|M37    |substrate-specific channel activity                                         |
-|M39    |structural constituent of myelin sheath                                     |
-|M40    |PDZ domain binding                                                          |
-|M43    |telomeric DNA binding                                                       |
-|M46    |Arp2/3 protein complex                                                      |
-|M62    |AMPA glutamate receptor complex                                             |
-|M63    |porin activity                                                              |
-|M64    |lactate transport                                                           |
-|M113   |pyruvate dehydrogenase activity                                             |
-|M114   |tricarboxylic acid cycle                                                    |
-|M115   |cellular amino acid catabolic process                                       |
-|M116   |methylcrotonoyl-CoA carboxylase activity                                    |
-|M117   |protein lipoylation                                                         |
-|M118   |negative regulation of transcription by RNA polymerase III                  |
-|M119   |mitochondrial RNA 5'-end processing                                         |
-|M120   |hydrogen sulfide metabolic process                                          |
-|M132   |NADH dehydrogenase activity                                                 |
-|M133   |cristae formation                                                           |
-|M134   |adenine nucleotide transmembrane transporter activity                       |
-|M135   |mitochondrial transmembrane transport                                       |
-|M136   |mitochondrial membrane part                                                 |
-|M137   |mitochondrial inner membrane                                                |
-|M138   |inner mitochondrial membrane protein complex                                |
-|M148   |nucleoside diphosphate phosphorylation                                      |
-|M166   |cell-cell adhesion mediator activity                                        |
-|M169   |integral component of presynaptic membrane                                  |
-|M182   |cytosolic ribosome                                                          |
-|M183   |cytosolic ribosome                                                          |
-|M184   |oligosaccharyl transferase activity                                         |
-|M185   |cytosolic large ribosomal subunit                                           |
-|M187   |eukaryotic translation elongation factor 1 complex                          |
-|M188   |poly(A) binding                                                             |
-
-Saving data...
-
-Completed analysis at: 2020-05-29 12:30:44
-Elapsed time: 1.12 minutes.
-Starting analysis at: 2020-05-29 12:30:46
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-Loading SynaptopathyProteomics
-
-
-
-|Disorder |nGenes |
-|:--------|:------|
-|ADHD     |765    |
-|ASD      |2,146  |
-|BPD      |776    |
-|Epilepsy |1,101  |
-|ID       |1,995  |
-|SZ       |2,379  |
-
-Performing DBD enrichment analysis for every module...
-
-Number of modules with any significant DBD-gene enrichment: 6
-
-Top DBD-association for modules with significant DBD enrichment:
-
-
-|Module |TopDBD |
-|:------|:------|
-|M2     |ASD    |
-|M21    |ASD    |
-|M40    |ASD    |
-|M114   |BPD    |
-|M115   |SZ     |
-|M132   |ID     |
-
-Saving data...
-
-Completed analysis at: 2020-05-29 12:31:27
-Elapsed time: 0.69 minutes.
+Completed analysis at: 2020-06-01 07:24:18
+Elapsed time: 64.09 seconds.
+./0_run-analysis.R: line 91: ./5_module_GO-enrichment.R: No such file or directory
+./0_run-analysis.R: line 104: ./6_module_DBD-enrichment.R: No such file or directory
