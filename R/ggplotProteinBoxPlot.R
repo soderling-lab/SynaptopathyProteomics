@@ -65,7 +65,9 @@ ggplotProteinBoxPlot <- function(data_in,
       )
     # Add scatter
     if (scatter == TRUE) {
-      plot <- plot + geom_point(aes(x = Group, y = Intensity), color = "white", size = 2, pch = 21, fill = "black")
+      plot <- plot + geom_point(aes(x = Group, y = Intensity), 
+				color = "white", size = 1, pch = 21, 
+				fill = "black")
     }
     # facet wrap.
     # plot <- plot + facet_grid(. ~ tissue, scales = "free", space = "free")
