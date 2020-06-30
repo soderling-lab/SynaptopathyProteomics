@@ -4,41 +4,66 @@
 import sys
 analysis_type = sys.argv[1]
 
-## User parameters: 
-# rmin - minimum resolution for multi-resolution methods.
-# rmax - maximum resolution for multi-resolution methods.
-# adjm_type - string specifying input adjacency matrix.
-# max_size - number of steps to take between rmin and rmax.
-# recursive - boolean indicating whehter or not large modules will be
-#    recursively split.
-# n_iterations - number indicating the number of iterations to run Leidenalg
-#    optimizer. If -1, then it will be run until there is no further 
-#    improvement in the partition of the graph.
-# method - string specifying the optimization method to be used.
-# adjm_type - string specifying the input adjacency matrix, see below.
-rmin = 0
-rmax = 1
-nsteps = 100
-max_size = 100
-recursive = True
-n_iterations = -1
-method = 'Surprise' 
-adjm_type = analysis_type
-output_name = analysis_type
+#analysis_type = "Cortex"
 
-#--------------------------------------------------------------------
-## Parse the user provided parameters.
-#--------------------------------------------------------------------
+## Parameters for multiresolution methods:
+rmin = 0 # Min resolution for multi-resolution methods.
+rmax = 1 # Max resolution for multi-resolution methods.
+nsteps = 100 # Number of steps to take between rmin and rmax.
+max_size = 100 # Maximum allowable size of a module.
 
-from sys import stderr
+## General optimization methods:
+optimization_method = 'Modularity'
+n_iterations = -1  # Not the number of recursive iterations, but optimization.
+
+## Recursive option:
+recursive = True # If module_size > max_size, then cluster recursively.
+recursive_method = 'Surprise'
+n_recursive_iter = 1 # total number of recursive iterations.
 
 ## Input adjacency matrix.
 adjms = {
         "Cortex" : "Cortex_NE_Adjm.csv",
         "Striatum" : "Striatum_NE_Adjm.csv",
         }
+adjm_file = adjms.get(analysis_type)
 
-## Leidenalg supports the following optimization methods:
+## Output:
+# Saved in root/rdata/
+# [output_name]_partitions.csv
+output_name = analysis_type
+
+#------------------------------------------------------------------------------
+## Prepare the workspace.
+#------------------------------------------------------------------------------
+
+# Imports.
+import os
+import sys
+import glob
+from sys import stderr
+from os.path import dirname
+
+import numpy as np
+from numpy import linspace
+from importlib import import_module
+from progressbar import ProgressBar
+from leidenalg import Optimiser, find_partition
+
+from igraph import Graph
+from pandas import read_csv, DataFrame
+
+# Directories.
+here = os.getcwd()
+root = dirname(dirname(here))
+rdatdir = os.path.join(root,"rdata")
+funcdir = os.path.join(root,"Py")
+
+# Load user defined functions.
+sys.path.append(root)
+from Py.myfun import *
+
+# Leidenalg supports the following optimization methods:
 methods = {
         # Modularity
         "Modularity": {'partition_type' : 'ModularityVertexPartition', 
@@ -72,94 +97,80 @@ methods = {
             'n_iterations' : n_iterations}
         }
 
-# Parameters for clustering.
-parameters = methods.get(method)
+# Get method specific parameters for clustering.
+parameters = methods.get(optimization_method)
 method = parameters.get('partition_type')
 
 # Status report.
-print("Performing Leidenalg clustering of the {}".format(adjm_type),
-        "graph utilizing the {}".format(method),
+print("Performing Leidenalg clustering utilizing the {}".format(method),
         "method to find optimal partition(s)...", file=stderr)
-
-#------------------------------------------------------------------------------
-## Prepare the workspace.
-#------------------------------------------------------------------------------
-
-import os
-import glob
-from os.path import dirname
-
-# Directories.
-here = os.getcwd()
-root = dirname(dirname(here))
-datadir = os.path.join(root,"rdata")
-funcdir = os.path.join(root,"Py")
-
-# Load functions.
-sys.path.append(root)
-from Py.myfun import *
 
 #---------------------------------------------------------------------
 ## Load input adjacency matrix and create an igraph object.
 #---------------------------------------------------------------------
 
-from igraph import Graph
-from pandas import read_csv, DataFrame
+# Load graph adjacency matrix.
+myfile = os.path.join(rdatdir,adjm_file) 
+adjm = read_csv(myfile, header = 0, index_col = 0) 
 
-# Load adjacency matrix.
-input_adjm = adjms.get(adjm_type)
-myfile = os.path.join(datadir,input_adjm)
-adjm = read_csv(myfile, header = 0, index_col = 0)
-adjm = adjm.set_index(keys=adjm.columns)
-
-# Create igraph graph. Note, this takes several moments.
+# Create igraph graph object and add to parameters dictionary. 
+# Note, this can take several minutes.
 if parameters.get('weights') is not None:
     # Create a weighted graph.
     g = graph_from_adjm(adjm,weighted=True,signed=parameters.pop('signed'))
     parameters['weights'] = 'weight'
+    parameters['graph'] = g
 else:
     # Create an unweighted graph.
     g = graph_from_adjm(adjm,weighted=False,signed=parameters.pop('signed'))
-
-# Add graph to input parameters for clustering.
-parameters['graph'] = g
+    parameters['graph'] = g
 
 #--------------------------------------------------------------------
 ## Community detection with the Leiden algorithm.
 #--------------------------------------------------------------------
 
-import numpy as np
-from numpy import linspace
-from importlib import import_module
-from progressbar import ProgressBar
-from leidenalg import Optimiser, find_partition
-
 # Update partition type parameter.
-# Dynamically load the partition_type class. This is the method to be used for
-# clusering optimization.
+# Dynamically load the partition_type class. 
+# This is the method to be used to optimize the clustering.
 parameters['partition_type'] = getattr(import_module('leidenalg'),method)
 
 # Remove any None type parameters.
 out = [key for key in parameters if parameters.get(key) is None]
 for key in out: del parameters[key]
 
-# Perform Leidenalg community detection. 
+# Perform Leidenalg module detection. 
 if parameters.get('resolution_parameter') is None:
-    # Single resolution methods.
+
+    # Single resolution methods + first iteration if recursive.
     profile = list()
     partition = find_partition(**parameters)
     optimiser = Optimiser()
     diff = optimiser.optimise_partition(partition,n_iterations=-1)
     profile.append(partition)
+    if not recursive:
+        print("... Final partition: " + partition.summary() + ".", file=stderr)
+
+    # Recursively split modules that are too big.
     if recursive:
-        # Recursively split modules that are too big.
+        print("... Initial partition: " + partition.summary() + ".", file=stderr)
+
+        # Update optimization method.
+        method = methods.get(recursive_method).get('partition_type')
+        if type(method) is str:
+                parameters['partition_type'] = getattr(import_module('leidenalg'),method)
+        elif type(method) == 'type':
+                parameters['partition_type'] = method
+
+        # Initial module membership.
+        initial_membership = partition.membership
         subgraphs = partition.subgraphs()
         too_big = [subg.vcount() > max_size for subg in subgraphs]
         n_big = sum(too_big)
-        print("Recursively spliting {} large module(s)...".format(n_big),
-                file=stderr)
-        print("... Initial partition: " + partition.summary() + ".",file=stderr)
-        while any(too_big):
+        n_iter = 0
+        msg = "\nSplitting {} modules that contain more than {} nodes using the {} method."
+        print(msg.format(n_big,max_size,recursive_method),file=stderr)
+
+        while any(too_big) and n_iter < n_recursive_iter:
             # Perform clustering for any subgraphs that are too big.
             idx = [i for i, too_big in enumerate(too_big) if too_big] 
             parameters['graph'] = subgraphs.pop(idx[0])
@@ -169,34 +180,49 @@ if parameters.get('resolution_parameter') is None:
             # Add to list.
             subgraphs.extend(part.subgraphs())
             too_big = [subg.vcount() > max_size for subg in subgraphs]
+            n_iter += 1
+            
         # Collect subgraph membership as a single partition.
         nodes = [subg.vs['name'] for subg in subgraphs]
         parts = [dict(zip(n,[i]*len(n))) for i, n in enumerate(nodes)]
-        new_partition = {k: v for d in parts for k, v in d.items()}
+        new_part = {k: v for d in parts for k, v in d.items()}
+
         # Set membership of initial graph.
-        new_membership = [new_partition.get(node) for node in partition.graph.vs['name']]
-        partition.set_membership(new_membership)
+        membership = [new_part.get(node) for node in partition.graph.vs['name']]
+        partition.set_membership(membership)
+
         # Replace partition in profile list.
         profile[0] = partition
-        print("... Final partition: " + partition.summary() + ".",file=stderr)
-else:
-    # Loop to perform multi-resolution clustering methods.
-    pbar = ProgressBar()
-    profile = list()
-    resolution_range = linspace(**parameters.get('resolution_parameter'))
-    for resolution in pbar(resolution_range):
-        # Update resolution parameter.
-        parameters['resolution_parameter'] = resolution
-        partition = find_partition(**parameters)
-        optimiser = Optimiser()
-        diff = optimiser.optimise_partition(partition,n_iterations=-1)
-        profile.append(partition)
+        print("... Final partition: " + partition.summary() + ".", file=stderr)
+
+    else:
+
+        # Multi-resolution methods:
+        pbar = ProgressBar()
+        profile = list()
+        resolution_range = linspace(**parameters.get('resolution_parameter'))
+
+        for resolution in pbar(resolution_range):
+            # Update resolution parameter.
+            parameters['resolution_parameter'] = resolution
+            partition = find_partition(**parameters)
+            optimiser = Optimiser()
+            diff = optimiser.optimise_partition(partition,n_iterations=-1)
+            profile.append(partition)
         # Ends loop.
+
 # Ends If/else.
 
 #------------------------------------------------------------------------------
 ## Save Leidenalg clustering results.
 #------------------------------------------------------------------------------
+
+if recursive:
+    # Save initial partition.
+    df = DataFrame(columns = profile[0].graph.vs['name'])
+    df.loc['Membership'] = initial_membership
+    myfile = os.path.join(rdatdir, output_name + "_initial_partition.csv")
+    df.to_csv(myfile)
 
 # Collect partition results and save as csv. 
 if len(profile) == 1:
@@ -215,8 +241,7 @@ else:
 # Ends if/else
 
 # Save cluster membership vectors.
-myfile = os.path.join(datadir, output_name + "_" + 
-        method + ".csv")
+myfile = os.path.join(rdatdir, output_name + "_partition.csv")
 df = DataFrame(results['Membership'])
 df.columns = profile[0].graph.vs['name']
 df.to_csv(myfile)

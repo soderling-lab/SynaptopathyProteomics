@@ -26,7 +26,8 @@ summarize_protein <- function(peptide_data) {
   temp_data <- temp_data[, c(2, 6, tmt_cols)]
   prot_data <- temp_data %>%
     group_by(Accession) %>%
-    dplyr::summarise_all(funs(sum), na.rm = TRUE)
+    dplyr::summarise_all(.funs=(sum=sum), na.rm = TRUE)
+    #dplyr::summarise_all(funs(sum), na.rm = TRUE)
   # Replace 0 with NA
   prot_data[prot_data == 0] <- NA
   prot_data <- as.data.frame(prot_data)
