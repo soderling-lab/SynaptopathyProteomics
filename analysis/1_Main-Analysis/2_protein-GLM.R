@@ -85,6 +85,26 @@ dm <- tidy_prot %>%
 	dcast(Accession ~ Sample, value.var="Intensity") %>% 
 	as.matrix(rownames=TRUE)
 
+#---------------------------------------------------------------------
+## Create protein identifier map.
+#---------------------------------------------------------------------
+
+# Create gene map.
+uniprot <- rownames(dm)
+entrez <- mgi_batch_query(ids=uniprot)
+
+symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
+gene_map <- as.data.table(keep.rownames="uniprot",entrez)
+gene_map$symbol <- symbols[as.character(gene_map$entrez)]
+
+# Save as rda.
+myfile <- file.path(root,"data","gene_map.rda")
+gene_map <- protmap
+save(gene_map,file=myfile,version=2)
+
+#--------------------------------------------------------------------
+
+
 # Create dge object.
 dge <- DGEList(counts=dm)
 
@@ -129,12 +149,6 @@ glm_results <- lapply(glm_results,function(x) {
 			      x[["Percent Control"]] <- 2^x$logFC
 			      return(x) })
 
-# Create gene map.
-uniprot <- unique(glm_results[[1]]$Accession)
-entrez <- mgi_batch_query(ids=uniprot)
-symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
-gene_map <- as.data.table(keep.rownames="uniprot",entrez)
-gene_map$symbol <- symbols[as.character(gene_map$entrez)]
 
 # Add gene annotations.
 results_list <- list()
@@ -153,3 +167,191 @@ names(results_list) <- gsub("\\(|\\)","",colnames(design))
 # Save.
 myfile <- file.path(root,"tables",paste0(tissue,"_GLM_Results.xlsx"))
 write_excel(results_list,file=myfile)
+
+#---------------------------------------------------------------------
+## EdgeR statistical comparisons post-TAMPOR.
+#---------------------------------------------------------------------
+
+message("\nPerforming statistical testing with EdgeR glm...")
+
+# Statistical comparisons are KO/HET versus all WT of a tissue type.
+
+# Prepare data for EdgeR.
+# Data should NOT be log2 transformed.
+# Remove QC samples prior to passing data to EdgeR.
+out <- alltraits$SampleType[match(colnames(cleanDat), 
+				  rownames(alltraits))] == "QC"
+data_in <- cleanDat[, !out]
+
+# Number of proteins...
+nprots <- formatC(dim(data_in)[1],big.mark=",")
+nsamples <- dim(data_in)[2]
+message(paste("\nQuantified", nprots, "proteins from", 
+	      nsamples, "samples."))
+
+# Create DGEList object...
+y_DGE <- DGEList(counts = data_in)
+
+# TMM Normalization.
+y_DGE <- calcNormFactors(y_DGE)
+
+# Create sample mapping to Tissue.Genotype.
+# Group WT Cortex samples and WT Striatum samples together.
+traits <- subset(alltraits, rownames(traits) %in% colnames(data_in))
+traits <- traits[match(colnames(data_in), rownames(traits)), ]
+if (!all(traits$SampleID == colnames(data_in))) { stop() }
+group <- paste(traits$Tissue, traits$Sample.Model, sep = ".")
+group[grepl("Cortex.WT", group)] <- "Cortex.WT"
+group[grepl("Striatum.WT", group)] <- "Striatum.WT"
+traits$group <- group
+y_DGE$samples$group <- as.factor(group)
+
+# Basic design matrix for GLM -- all groups treated seperately.
+design <- model.matrix(~ 0 + group, data = y_DGE$samples)
+colnames(design) <- levels(y_DGE$samples$group)
+
+# Estimate dispersion:
+y_DGE <- estimateDisp(y_DGE, design, robust = TRUE)
+
+# Fit a general linear model.
+fit <- glmQLFit(y_DGE, design, robust = TRUE)
+
+# Generate contrasts.
+g1 <- colnames(design)[grepl("Cortex", colnames(design))][-5]
+g2 <- colnames(design)[grepl("Striatum", colnames(design))][-5]
+cont1 <- makePairwiseContrasts(list(g1), list("Cortex.WT"))
+cont2 <- makePairwiseContrasts(list(g2), list("Striatum.WT"))
+
+# Make contrasts for EdgeR.
+# For some reason loops or lapply dont work with the makeContrasts function.
+contrasts <- list(
+  makeContrasts(cont1[1], levels = design),
+  makeContrasts(cont1[2], levels = design),
+  makeContrasts(cont1[3], levels = design),
+  makeContrasts(cont1[4], levels = design),
+  makeContrasts(cont2[1], levels = design),
+  makeContrasts(cont2[2], levels = design),
+  makeContrasts(cont2[3], levels = design),
+  makeContrasts(cont2[4], levels = design)
+)
+names(contrasts) <- unlist({
+  lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
+})
+
+# Call glmQLFTest() to evaluate differences in contrasts.
+qlf <- lapply(contrasts, function(x) glmQLFTest(fit, contrast = x))
+names(qlf) <- names(contrasts)
+
+## Determine number of significant results with decideTests().
+summary_table <- lapply(qlf, function(x) summary(decideTests(x)))
+overall <- t(matrix(unlist(summary_table), nrow = 3, ncol = 8))
+rownames(overall) <- unlist(lapply(contrasts, function(x) colnames(x)))
+colnames(overall) <- c("Down", "NS", "Up")
+overall <- as.data.frame(overall)
+row_names <- sapply(strsplit(rownames(overall), " - "), "[", 1)
+row_names <- gsub(".KO.|.HET.", " ", row_names)
+overall <- add_column(overall, Experiment = row_names, .before = 1)
+overall <- overall[, c(1, 3, 2, 4)]
+overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
+overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
+
+# Pretty summary:
+message("\nSummary of differentially abundant proteins (FDR<0.1):")
+knitr::kable(overall,row.names=FALSE)
+
+# Table of DA candidates.
+# Modify tables theme to change font size.
+# Cex is a scaling factor relative to the defaults.
+mytheme <- gridExtra::ttheme_default(
+  core = list(fg_params = list(cex = 0.75)),
+  colhead = list(fg_params = list(cex = 0.75)),
+  rowhead = list(fg_params = list(cex = 0.75))
+)
+
+# Create table and add borders.
+mytable <- tableGrob(overall, rows = NULL, theme = mytheme)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 2, b = nrow(mytable), l = 1, r = ncol(mytable)
+)
+mytable <- gtable_add_grob(mytable,
+  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
+  t = 1, l = 1, r = ncol(mytable)
+)
+
+# Check the table.
+plot <- cowplot::plot_grid(mytable)
+
+# Save.
+if (save_plots) {
+	myfile <- file.path(figsdir,"Sig_Prots_Summary.pdf")
+	ggsaveTable(mytable,myfile)
+}
+
+# Call topTags to add FDR. Gather tabularized results.
+glm_results <- lapply(qlf, function(x){ 
+			      topTags(x, n = Inf, sort.by = "none")$table })
+
+# Convert logCPM column to percent WT and annotate with candidate column.
+glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
+
+# Use protmap to annotate glm_results with entrez Ids and gene symbols.
+for (i in 1:length(glm_results)) {
+  x <- glm_results[[i]]
+  idx <- match(rownames(x), protmap$ids)
+  x <- add_column(x, "Gene|Uniprot" = protmap$ids[idx], .before = 1)
+  x <- add_column(x, "Uniprot" = protmap$uniprot[idx], .after = 1)
+  x <- add_column(x, "Entrez" = protmap$entrez[idx], .after = 2)
+  x <- add_column(x, "Symbol" = protmap$gene[idx], .after = 3)
+  glm_results[[i]] <- x
+}
+
+# Add expression data.
+for (i in 1:length(glm_results)) {
+  namen <- names(glm_results)[i]
+  df <- glm_results[[i]]
+  comparison <- contrasts[[namen]]
+  groups <- rownames(comparison)[!comparison == 0]
+  samples <- traits$SampleID[traits$group %in% groups]
+  dat <- cleanDat[, samples]
+  colnames(dat) <- traits$ColumnName[match(colnames(dat), traits$SampleID)]
+  dat <- dat[, c(grep("HET|KO", colnames(dat)), grep("WT", colnames(dat)))]
+  out <- merge(df, log2(dat), by = "row.names")
+  glm_results[[i]] <- out
+}
+
+# Sort by pvalue.
+glm_results <- lapply(glm_results, function(x) x[order(x$PValue), ])
+
+# Reorder by genotype.
+idx <- c(
+  grep("Shank2", names(glm_results)),
+  grep("Shank3", names(glm_results)),
+  grep("Syngap1", names(glm_results)),
+  grep("Ube3a", names(glm_results))
+)
+glm_results <- glm_results[idx]
+
+# Final renaming.
+namen <- unlist({
+  lapply(
+    lapply(strsplit(gsub("HET.|KO.", "", names(glm_results)), "\\."), rev),
+    function(x) paste(x, collapse = " ")
+  )
+})
+names(glm_results) <- namen
+
+# Remove Row.names column.
+f <- function(x) {
+  x$Row.names <- NULL
+  return(x)
+}
+glm_results <- lapply(glm_results, f)
+
+# Save results to file.
+myfile <- file.path(rdatdir,paste0(output_name,"_GLM_Results.RData"))
+saveRDS(glm_results, myfile)
+
+# Save results to file as spreadsheet.
+myfile <- file.path(tabsdir,paste0(output_name,"_TMT_Results.xlsx"))
+write_excel(glm_results, myfile)
