@@ -78,9 +78,9 @@ datadir <- file.path(root,"data") # Input/Output data.
 rdatdir <- file.path(root,"rdata") # Temporary data files.
 
 # Load the data.
-data(cortex)
+data(cortex) # tidy_prot
 
-# Cast tp into data matrix for EdgeR.
+# Cast tp into data matrix for EdgeR. Don't log!
 dm <- tidy_prot %>% 
 	dcast(Accession ~ Sample, value.var="Intensity") %>% 
 	as.matrix(rownames=TRUE)
@@ -88,83 +88,68 @@ dm <- tidy_prot %>%
 # Create dge object.
 dge <- DGEList(counts=dm)
 
-	# Perform TMM normalization.
-	dge <- calcNormFactors(dge)
+# Perform TMM normalization.
+dge <- calcNormFactors(dge)
 
-	# Drop samples to ignore from dge object.
-	# We dont want to utilize QC when estimating dispersion or 
-	# performing statistical testing.
-	drop <- grepl(samples_to_ignore,rownames(dge$samples))
-	dge$samples <- dge$samples[!drop,]
-	drop <- grepl(samples_to_ignore,colnames(dge$counts))
-	dge$counts <- dge$counts[,!drop]
+# Create sample groupings given contrasts of interest.
+colnames(tidy_prot)
+dt <- tidy_prot %>% dplyr::select(Sample,Genotype,Treatment) %>% unique() 
+idx <- match(rownames(dge$samples),dt$Sample)
+genotype <- dt$Genotype[idx]
+treatment <- dt$Treatment[idx]
+dge$samples$group <- as.character(interaction(genotype,treatment))[idx]
 
-	# Create sample groupings given contrasts of interest.
-	subsamples <- samples %>% filter(Treatment != samples_to_ignore)
-	contrasts <- unlist(strsplit(comparisons,"\\."))
-	subsamples$Group <- apply(subsamples[,contrasts],1,paste,collapse=".")
-	groups <- subsamples$Group
-	names(groups) <- subsamples$Sample
-	idx <- rownames(dge$samples)
-	dge$samples$group <- as.factor(groups[idx])
-	dge$samples$fraction <- sapply(strsplit(groups,"\\."),"[",2)[idx]
-	dge$samples$treatment <- sapply(strsplit(groups,"\\."),"[",1)[idx]
+# Create a design matrix for GLM.
+design <- model.matrix(~ 0 + group, data = dge$samples)
 
-	# Create a design matrix for GLM.
-	design <- model.matrix(~ 0 + group, data = dge$samples)
-	colnames(design) <- levels(dge$samples$group)
+# Estimate dispersion.
+dge <- estimateDisp(dge, design, robust = TRUE)
 
-	# Estimate dispersion.
-	dge <- estimateDisp(dge, design, robust = TRUE)
+# Fit a general linear model.
+fit <- glmQLFit(dge, design, robust = TRUE)
 
-	# Fit a general linear model.
-	fit <- glmQLFit(dge, design, robust = TRUE)
+# Evaluate differences within genotypes.
+genotypes = unique(genotype)
+qlf_list <- list()
+for (geno in genotypes){
+	qlf <-  glmQLFTest(fit,coef=grep(geno,colnames(design)))
+	qlf_list[[geno]] <- qlf
+}
 
-	# Generate contrasts list.
-	g <- as.character(groups)
-	idx <- sapply(strsplit(g,"\\."),"[",2)
-	contrast_list <- split(g,idx)
-	contrast_list <- lapply(contrast_list,unique)
-	contrast_list <- lapply(contrast_list,function(x) x[order(x)])
-	contrast_list <- lapply(contrast_list,function(x) { 
-					 paste(x,collapse="-") })
+# Call topTags to add FDR. Gather tabularized results.
+glm_results <- lapply(qlf_list, function(x) {
+			      topTags(x, n = Inf, sort.by = "PValue")$table })
 
-	# Loop to generate contrasts for edgeR::glm.
-	for (i in 1:length(contrast_list)) {
-		contrast <- contrast_list[[i]]
-		cmd <- paste0("makeContrasts(",contrast,", levels = design)")
-		contrast_list[[i]] <- eval(parse(text=cmd))
-	}
+# Insure first column is Accession.
+glm_results <- lapply(glm_results,function(x) {
+			      as.data.table(x,keep.rownames="Accession") })
 
-	# Call glmQLFTest() to evaluate differences in contrasts.
-	contrasts <- colnames(design)
-	qlf <- lapply(contrast_list,function(x) glmQLFTest(fit, contrast = x))
+# Add percent WT and sort by pvalue.
+glm_results <- lapply(glm_results,function(x) {
+			      x[["Percent Control"]] <- 2^x$logFC
+			      return(x) })
 
-	# Determine number of significant results with decideTests().
-	summary_tables <- lapply(qlf, function(x) summary(decideTests(x)))
+# Create gene map.
+uniprot <- unique(glm_results[[1]]$Accession)
+entrez <- mgi_batch_query(ids=uniprot)
+symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
+gene_map <- as.data.table(keep.rownames="uniprot",entrez)
+gene_map$symbol <- symbols[as.character(gene_map$entrez)]
 
-	# Call topTags to add FDR. Gather tabularized results.
-	glm_results <- lapply(qlf, function(x) {
-				      topTags(x, n = Inf, sort.by = "none")$table
-			  })
+# Add gene annotations.
+results_list <- list()
+for (i in c(1:length(glm_results))) {
+	df <- glm_results[[i]]
+	idx <- match(df$Accession,gene_map$uniprot)
+	Entrez <- gene_map$entrez[idx]
+	Symbol <- gene_map$symbol[idx]
+	df <- tibble::add_column(df,Entrez,.after=1)
+	df <- tibble::add_column(df,Symbol,.after=2)
+	results_list[[i]] <- df
+}
 
-	# Insure first column is Accession.
-	glm_results <- lapply(glm_results,function(x) {
-				      Accession <- rownames(x)
-				      x <- add_column(x,Accession,.before=1)
-				      rownames(x) <- NULL
-				      return(x)
-			  })
+names(results_list) <- gsub("\\(|\\)","",colnames(design))
 
-	# Add percent WT and sort by pvalue.
-	glm_results <- lapply(glm_results,function(x) {
-				      x$logCPM <- 2^x$logFC
-				      idy <- grep("logCPM",colnames(x))
-				      colnames(x)[idy] <- "PercentWT"
-				      x <- x[order(x$PValue,decreasing=FALSE),]
-				      return(x)
-			  })
-
-	# Return list of normalized data and results.
-	return(list("stats"=glm_results,"dge"=dge,"qlf"=qlf,"fit"=fit))
-
+# Save.
+myfile <- file.path(root,"tables",paste0(tissue,"_GLM_Results.xlsx"))
+write_excel(results_list,file=myfile)

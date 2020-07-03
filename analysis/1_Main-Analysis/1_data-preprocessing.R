@@ -483,7 +483,7 @@ save(ne_adjm,file=myfile,version=2)
 
 # tidy_prot.rda
 myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
-tidy_prot <- tidy_prot %>% filter(grepl("QC",Sample)) %>% as.data.table() # Drop QC!
+tidy_prot <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() # Drop QC!
 save(tidy_prot,file=myfile,version=2)
 
 message("\nDone.")
