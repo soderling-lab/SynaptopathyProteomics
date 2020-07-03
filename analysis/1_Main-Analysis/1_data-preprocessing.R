@@ -13,9 +13,8 @@ oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 ## Overview of Data Preprocessing:
 #---------------------------------------------------------------------
 
-
-# Intra-Experiment processing.
-#     Peptide-level processing:
+# INTRA-Experiment processing.
+#     Peptide-level operations:
 #     |* SL normalization
 #     |* Remove QC outliers
 #     |* Impute missing values 
@@ -23,7 +22,7 @@ oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 #     |* Summarize proteins
 #     |* SL normalization
 #     |* Remove intra-batch batch-effect.
-# Inter-Experiment processing.
+# INTER-Experiment operations
 #     |* Remove QC sample outliers
 #     |* IRS normalization
 #     |* Filter proteins
@@ -74,6 +73,15 @@ parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
 	}
 }
 
+# This function would be really helpful... scan your directories and return
+# an indexable list that contains structure of your repo.
+set_directories <- function(root=getrd()){
+	#root = getrd()
+	#list.dirs(root,recursive=FALSE)
+	#git_ignore <- readLines(file.path(root,".gitignore"))
+	#$grep("^#*",git_ignore)
+}
+
 #---------------------------------------------------------------------
 ## Prepare the workspace.
 #---------------------------------------------------------------------
@@ -84,8 +92,8 @@ parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
 tissue <- parse_args()
 
 # Load the R env.
-rootdir <- getrd()
-renv::load(rootdir,quiet=TRUE)
+root <- getrd()
+renv::load(root,quiet=TRUE)
 
 # Load required packages.
 suppressPackageStartupMessages({
@@ -103,6 +111,10 @@ suppressPackageStartupMessages({
 
 # Load project specific data and functions.
 suppressWarnings({ devtools::load_all() })
+
+# Project directories.
+datadir <- file.path(root,"data")
+rdatdir <- file.path(root,"rdata")
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
@@ -124,7 +136,7 @@ meta_files <- c(
 		)
 
 # Load the data from PD and sample meta data.
-raw_peptide <- fread(file = file.path(datdir, data_files[tissue]))
+raw_peptide <- fread(file = file.path(datadir, data_files[tissue]))
 sample_info <- fread(file = file.path(datadir, meta_files[tissue]))
 
 # Insure traits are in matching order.
@@ -154,9 +166,6 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 # The data are binned by intensity, and measurments that are 4xSD from the mean
 # ratio of the intensity bin are considered outliers and removed.
 
-# Define experimental groups for checking QC variability:
-groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
-
 # Filter peptides based on QC precision.
 message("\nRemoving outlier QC peptides...")
 filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
@@ -184,9 +193,6 @@ mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 # replicates or any missing quality control (QC) replicates will be
 # censored and are not imputed.
 message("\nImputing missing peptide values...")
-
-# Define experimental groups for checking QC variability:
-groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 
 # Impute missing values using KNN algorithm for MNAR data.
 # Rows with missing QC replicates are ingored (qc_threshold=0).
@@ -217,7 +223,7 @@ mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
 raw_protein <- summarize_protein(impute_peptide)
 
 # Normalize across all columns.
-SL_protein <- normalize_SL(raw_protein, "Abundance", "Abundance")
+SL_protein <- normalize_SL(raw_protein, colID="Abundance", group="Abundance")
 
 #---------------------------------------------------------------------
 ## IntraBatch Protein-lavel ComBat.
@@ -233,7 +239,6 @@ SL_protein <- normalize_SL(raw_protein, "Abundance", "Abundance")
 # ComBat is not applied.
 
 # Define experimental groups and column ID for expression data.
-colID <- "Abundance"
 data_in <- SL_protein
 
 # Loop to perform ComBat on intraBatch batch effect (prep date).
@@ -243,7 +248,6 @@ data_in <- SL_protein
 # Note: The values of QC samples are not adjusted by ComBat.
 # QC samples were prepared from a seperate batch of mice and
 # represent a single batch.
-
 data_out <- list() # ComBat data.
 plot_list <- list() # MDS plots.
 R <- list() # Bicor stats [bicor(batch,PC1)]
@@ -378,7 +382,6 @@ mytable <- tableGrob(df, rows = NULL)
 message("\nPerforming IRS normalization...")
 
 # Perform IRS normalization.
-groups <- c("Shank2", "Shank3", "Syngap1", "Ube3a")
 IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
 
 #---------------------------------------------------------------------
@@ -399,9 +402,11 @@ sample_connectivity <- ggplotSampleConnectivity(data_in,
   threshold = oldham_threshold
 )
 
+# Check sample connectivity
 tab <- sample_connectivity$table
 df <- tibble::add_column(tab, SampleName = rownames(tab), .before = 1)
 rownames(df) <- NULL
+knitr::kable(df)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
@@ -428,13 +433,14 @@ for (i in 1:n_iter) {
 
 # Outlier samples.
 bad_samples <- unlist(out_samples)
-message(paste("\nTotal number of outlier QC samples identified:", sum(bad_samples != "none")))
+message(paste("\nTotal number of outlier QC samples identified:", 
+	      sum(bad_samples != "none")))
 
 # Remove outliers from data.
 samples_out <- paste(bad_samples, collapse = "|")
 out <- grepl(samples_out, colnames(SL_protein))
 
-# Redo IRS after outlier removal..
+# Redo IRS after outlier removal.
 IRS_OutRemoved_protein <- normalize_IRS(combat_protein[, !out],
   "QC", groups,
   robust = TRUE
@@ -468,19 +474,24 @@ impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 tidy_prot <- reshape2::melt(impute_protein,id.var=c("Accession","Peptides"),
 			    value.var="Intensity", variable.name="Sample",
 			    value.name = "Intensity") %>% as.data.table()
-left_join(tidy_prot,samples,by="Sample")
+# Merge data and meta data by sample name.
+sample_info$Sample <- sample_info$ColumnName
+tidy_prot <- left_join(tidy_prot,sample_info,by="Sample")
+tidy_prot$SampleID <- NULL
+tidy_prot$ColumnName <- NULL
 
 #---------------------------------------------------------------------
 ## Create protein networks.
 #---------------------------------------------------------------------
 
-# Bicor
+message("\nBuilding protein networks.")
+
+# Drop QC and do bicor.
 dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% 
 	as.data.table() %>% 
 	dcast(Sample ~ Accession, value.var="Intensity") %>% 
-	as.matrix(rownames="Sample") %>% log2()
-
-adjm <- WGCNA::bicor(dm)
+	as.matrix(rownames="Sample")
+adjm <- WGCNA::bicor(log2(dm))
 
 # Neten
 ne_adjm <- neten::neten(adjm)
@@ -489,7 +500,24 @@ ne_adjm <- neten::neten(adjm)
 ## Save protein networks.
 #---------------------------------------------------------------------
 
-# Save as a simple matrix.
+# Save adjmatrix in rdata.
+myfile <- file.path(rdatdir,"Cortex_Adjm.csv")
+adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+
+
+# Save adjm as rda.
+myfile <-file.path(datadir,paste0(tolower(tissue),"_adjm.rda"))
+save(adjm,file=myfile,version=2)
+
+# Save enhanced adjm as rda in root/data.
+myfile <-file.path(datadir, paste0(tolower(tissue),"_ne_adjm.rda"))
+save(ne_adjm,file=myfile,version=2)
+
+# Save tidy_prot
+myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
+tidy_prot <- tidy_prot %>% filter(grepl("QC",Sample)) %>% as.data.table()
+save(tidy_prot,file=myfile,version=2)
+
+# Save enhanced adjm as a matrix for Leidenalg in rdata.
 myfile <- file.path(rdatdir,"Cortex_NE_Adjm.csv")
 ne_adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
-

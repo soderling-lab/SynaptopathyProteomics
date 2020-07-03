@@ -6,9 +6,10 @@ authors: Tyler WA Bradshaw
 '''
 
 ## General optimization settings:
-max_size = 100
-optimization_method = 'Surprise'
-n_iterations = -1 # The number of optimization iter .-1=run until no improvement
+max_size = 100 # Maximum allowable size of a module.
+optimization_method = 'Modularity'
+n_iterations = -1 # The number of optimization iters 
+# If -1 then run until no improvement.
 
 ## Recursive option:
 recursive = True # If module_size > max_size, then cluster recursively.
@@ -17,6 +18,7 @@ recursive_method = 'Surprise'
 ## Input data:
 # Input adjacency matrix should be in root/rdata/
 adjm_file = 'Cortex_NE_Adjm.csv'
+#adjm_file = 'Striatum_NE_Adjm.csv'
 
 ## Output:
 # Saved in root/rdata/
