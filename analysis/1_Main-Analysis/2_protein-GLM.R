@@ -1,0 +1,170 @@
+#!/usr/bin/env Rscript
+
+#' ---
+#' title:
+#' description: Preprocessing of TMT data.
+#' authors: Tyler W Bradshaw
+#' ---
+
+## Optional Parameters:
+
+#---------------------------------------------------------------------
+## Misc function - getrd().
+#---------------------------------------------------------------------
+
+# Get the repository's root directory.
+getrd <- function(here=getwd(), dpat= ".git") {
+	in_root <- function(h=here, dir=dpat) { 
+		check <- any(grepl(dir,list.dirs(h,recursive=FALSE))) 
+		return(check)
+	}
+	# Loop to find root.
+	while (!in_root(here)) { 
+		here <- dirname(here) 
+	}
+	root <- here
+	return(root)
+}
+
+# Parse the command line arguments.
+parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
+	# Input must be Cortex or Striatum.
+	msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "Choose either 'Cortex' or 'Striatum'.")
+	# If interactive, return default tissue.
+	if (interactive()) { 
+		return("Cortex") 
+	} else {
+		# Check arguments.
+		check <- !is.na(match(args[1], c("Cortex", "Striatum")))
+		if (length(args == 1) & check) { 
+			tissue  <- args[1]
+			start <- Sys.time()
+			message(paste("Starting analysis at:", start))
+			message(paste0("Analyzing ", tissue,"..."))
+		} else {
+			stop(msg) 
+		}
+		return(tissue)
+	}
+}
+
+#---------------------------------------------------------------------
+## Prepare the workspace.
+#---------------------------------------------------------------------
+# Prepare the R workspace for the analysis. Load custom functions and prepare
+# the project directory for saving output files.
+
+# Parse input.
+tissue <- parse_args()
+
+# Load the R env.
+root <- getrd()
+renv::load(root,quiet=TRUE)
+
+# Load required packages.
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(edgeR)
+  library(data.table)
+  library(tibble)
+})
+
+# Load project specific data and functions.
+suppressWarnings({ devtools::load_all() })
+
+# Project directories.
+datadir <- file.path(root,"data") # Input/Output data.
+rdatdir <- file.path(root,"rdata") # Temporary data files.
+
+# Load the data.
+data(cortex)
+
+# Cast tp into data matrix for EdgeR.
+dm <- tidy_prot %>% 
+	dcast(Accession ~ Sample, value.var="Intensity") %>% 
+	as.matrix(rownames=TRUE)
+
+# Create dge object.
+dge <- DGEList(counts=dm)
+
+	# Perform TMM normalization.
+	dge <- calcNormFactors(dge)
+
+	# Drop samples to ignore from dge object.
+	# We dont want to utilize QC when estimating dispersion or 
+	# performing statistical testing.
+	drop <- grepl(samples_to_ignore,rownames(dge$samples))
+	dge$samples <- dge$samples[!drop,]
+	drop <- grepl(samples_to_ignore,colnames(dge$counts))
+	dge$counts <- dge$counts[,!drop]
+
+	# Create sample groupings given contrasts of interest.
+	subsamples <- samples %>% filter(Treatment != samples_to_ignore)
+	contrasts <- unlist(strsplit(comparisons,"\\."))
+	subsamples$Group <- apply(subsamples[,contrasts],1,paste,collapse=".")
+	groups <- subsamples$Group
+	names(groups) <- subsamples$Sample
+	idx <- rownames(dge$samples)
+	dge$samples$group <- as.factor(groups[idx])
+	dge$samples$fraction <- sapply(strsplit(groups,"\\."),"[",2)[idx]
+	dge$samples$treatment <- sapply(strsplit(groups,"\\."),"[",1)[idx]
+
+	# Create a design matrix for GLM.
+	design <- model.matrix(~ 0 + group, data = dge$samples)
+	colnames(design) <- levels(dge$samples$group)
+
+	# Estimate dispersion.
+	dge <- estimateDisp(dge, design, robust = TRUE)
+
+	# Fit a general linear model.
+	fit <- glmQLFit(dge, design, robust = TRUE)
+
+	# Generate contrasts list.
+	g <- as.character(groups)
+	idx <- sapply(strsplit(g,"\\."),"[",2)
+	contrast_list <- split(g,idx)
+	contrast_list <- lapply(contrast_list,unique)
+	contrast_list <- lapply(contrast_list,function(x) x[order(x)])
+	contrast_list <- lapply(contrast_list,function(x) { 
+					 paste(x,collapse="-") })
+
+	# Loop to generate contrasts for edgeR::glm.
+	for (i in 1:length(contrast_list)) {
+		contrast <- contrast_list[[i]]
+		cmd <- paste0("makeContrasts(",contrast,", levels = design)")
+		contrast_list[[i]] <- eval(parse(text=cmd))
+	}
+
+	# Call glmQLFTest() to evaluate differences in contrasts.
+	contrasts <- colnames(design)
+	qlf <- lapply(contrast_list,function(x) glmQLFTest(fit, contrast = x))
+
+	# Determine number of significant results with decideTests().
+	summary_tables <- lapply(qlf, function(x) summary(decideTests(x)))
+
+	# Call topTags to add FDR. Gather tabularized results.
+	glm_results <- lapply(qlf, function(x) {
+				      topTags(x, n = Inf, sort.by = "none")$table
+			  })
+
+	# Insure first column is Accession.
+	glm_results <- lapply(glm_results,function(x) {
+				      Accession <- rownames(x)
+				      x <- add_column(x,Accession,.before=1)
+				      rownames(x) <- NULL
+				      return(x)
+			  })
+
+	# Add percent WT and sort by pvalue.
+	glm_results <- lapply(glm_results,function(x) {
+				      x$logCPM <- 2^x$logFC
+				      idy <- grep("logCPM",colnames(x))
+				      colnames(x)[idy] <- "PercentWT"
+				      x <- x[order(x$PValue,decreasing=FALSE),]
+				      return(x)
+			  })
+
+	# Return list of normalized data and results.
+	return(list("stats"=glm_results,"dge"=dge,"qlf"=qlf,"fit"=fit))
+
