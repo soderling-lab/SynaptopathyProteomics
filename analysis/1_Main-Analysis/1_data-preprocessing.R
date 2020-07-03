@@ -73,15 +73,6 @@ parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
 	}
 }
 
-# This function would be really helpful... scan your directories and return
-# an indexable list that contains structure of your repo.
-set_directories <- function(root=getrd()){
-	#root = getrd()
-	#list.dirs(root,recursive=FALSE)
-	#git_ignore <- readLines(file.path(root,".gitignore"))
-	#$grep("^#*",git_ignore)
-}
-
 #---------------------------------------------------------------------
 ## Prepare the workspace.
 #---------------------------------------------------------------------
@@ -113,8 +104,8 @@ suppressPackageStartupMessages({
 suppressWarnings({ devtools::load_all() })
 
 # Project directories.
-datadir <- file.path(root,"data")
-rdatdir <- file.path(root,"rdata")
+datadir <- file.path(root,"data") # Input/Output data.
+rdatdir <- file.path(root,"rdata") # Temporary data files.
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
@@ -138,9 +129,6 @@ meta_files <- c(
 # Load the data from PD and sample meta data.
 raw_peptide <- fread(file = file.path(datadir, data_files[tissue]))
 sample_info <- fread(file = file.path(datadir, meta_files[tissue]))
-
-# Insure traits are in matching order.
-sample_info <- sample_info[order(sample_info$Order), ]
 
 #---------------------------------------------------------------------
 ## Sample loading normalization within experiments.
@@ -249,7 +237,6 @@ data_in <- SL_protein
 # QC samples were prepared from a seperate batch of mice and
 # represent a single batch.
 data_out <- list() # ComBat data.
-plot_list <- list() # MDS plots.
 R <- list() # Bicor stats [bicor(batch,PC1)]
 
 # Loop:
@@ -267,9 +254,9 @@ for (i in 1:length(groups)) {
   rows_out <- apply(data_work, 1, function(x) sum(is.na(x) > 0))
   data <- data_work[!rows_out, ]
   # Get Traits info.
-  idx <- match(colnames(data), sample_info$ColumnName)
+  idx <- match(colnames(data), sample_info$Sample)
   traits_sub <- sample_info[idx, ]
-  rownames(traits_sub) <- traits_sub$ColumnName
+  rownames(traits_sub) <- traits_sub$Sample
   # QC Samples will be ignored.
   ignore <- is.na(traits_sub$PrepDate)
   data_QC <- data[, ignore]
@@ -289,25 +276,14 @@ for (i in 1:length(groups)) {
     r1 <- 0
   }
   # Check, in matching order?
-  if (!all(colnames(data) == CombatInfo$ColumnName)) {
+  if (!all(colnames(data) == CombatInfo$Sample)) {
     warning("Warning: Names of traits and expression data do not match.")
   }
-  # Check MDS plot prior to ComBat.
-  traits_sub$Sample.Model <- paste("b",
-    as.numeric(as.factor(traits_sub$PrepDate)),
-    sep = "."
-  )
-  title <- paste(gsub(" ", "", unique(traits_sub$Model)), "pre-ComBat", sep = " ")
-  plot1 <- ggplotMDS(log2(data),
-    colID = "b",
-    title = title, traits = traits_sub
-  )$plot + theme(legend.position = "none")
-  plot1 <- plot1 + scale_color_manual(values = unique(traits_sub$Color))
   # Apply ComBat.
   message(paste("\nPerforming", groups[i], "ComBat..."))
   if (length(unique(CombatInfo$PrepDate)) > 1 & abs(r1) > 0.1) {
     # Create ComBat model.
-    model <- model.matrix(~ as.factor(CombatInfo$SampleType),
+    model <- model.matrix(~ as.factor(CombatInfo$Treatment),
       data = as.data.frame(log2(data))
     )
     data_ComBat <- ComBat(
@@ -336,21 +312,11 @@ for (i in 1:length(groups)) {
     r2 <- 0
   }
   R[[i]] <- cbind(r1, r2)
-  # Check MDS plot after ComBat.
-  title <- paste(gsub(" ", "", unique(traits_sub$Model)), "post-ComBat", sep = " ")
-  plot2 <- ggplotMDS(
-    data_in = data_ComBat, colID = "Abundance",
-    title = title, traits = traits_sub
-  )$plot + theme(legend.position = "none")
-  plot2 <- plot2 + scale_color_manual(values = unique(traits_sub$Color))
   # Un-log.
   data_ComBat <- 2^data_ComBat
   # Recombine with QC data.
   data_out[[i]] <- cbind(info_cols[!rows_out, ], data_QC, data_ComBat)
   names(data_out)[[i]] <- group
-  plots <- list(plot1, plot2)
-  plot_list[[i]] <- plots
-  names(plot_list[[i]]) <- paste(groups[i], c("preComBat", "postComBat"))
 } # Ends ComBat loop.
 
 # Merge the data frames with purrr::reduce()
@@ -404,7 +370,7 @@ sample_connectivity <- ggplotSampleConnectivity(data_in,
 
 # Check sample connectivity
 tab <- sample_connectivity$table
-df <- tibble::add_column(tab, SampleName = rownames(tab), .before = 1)
+df <- tibble::add_column(tab, "Name" = rownames(tab), .before = 1)
 rownames(df) <- NULL
 knitr::kable(df)
 
@@ -474,11 +440,9 @@ impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 tidy_prot <- reshape2::melt(impute_protein,id.var=c("Accession","Peptides"),
 			    value.var="Intensity", variable.name="Sample",
 			    value.name = "Intensity") %>% as.data.table()
+
 # Merge data and meta data by sample name.
-sample_info$Sample <- sample_info$ColumnName
 tidy_prot <- left_join(tidy_prot,sample_info,by="Sample")
-tidy_prot$SampleID <- NULL
-tidy_prot$ColumnName <- NULL
 
 #---------------------------------------------------------------------
 ## Create protein networks.
@@ -521,3 +485,5 @@ save(ne_adjm,file=myfile,version=2)
 myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
 tidy_prot <- tidy_prot %>% filter(grepl("QC",Sample)) %>% as.data.table() # Drop QC!
 save(tidy_prot,file=myfile,version=2)
+
+message("\nDone.")
