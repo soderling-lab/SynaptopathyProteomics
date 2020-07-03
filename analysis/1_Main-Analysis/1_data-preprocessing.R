@@ -497,27 +497,27 @@ adjm <- WGCNA::bicor(log2(dm))
 ne_adjm <- neten::neten(adjm)
 
 #---------------------------------------------------------------------
-## Save protein networks.
+## Save output.
 #---------------------------------------------------------------------
+message("\nSaving data.")
 
-# Save adjmatrix in rdata.
-myfile <- file.path(rdatdir,"Cortex_Adjm.csv")
-adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+## Output in root/rdata
 
+# ne_adjm.csv - adjacency matrix saved as csv for Leidenalg.
+myfile <- file.path(rdatdir,paste0(tolower(tissue),"_ne_adjm.csv"))
+ne_adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+
+## Output in root/data
 
 # Save adjm as rda.
 myfile <-file.path(datadir,paste0(tolower(tissue),"_adjm.rda"))
 save(adjm,file=myfile,version=2)
 
-# Save enhanced adjm as rda in root/data.
+# ne_adjm.rda
 myfile <-file.path(datadir, paste0(tolower(tissue),"_ne_adjm.rda"))
 save(ne_adjm,file=myfile,version=2)
 
-# Save tidy_prot
+# tidy_prot.rda
 myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
-tidy_prot <- tidy_prot %>% filter(grepl("QC",Sample)) %>% as.data.table()
+tidy_prot <- tidy_prot %>% filter(grepl("QC",Sample)) %>% as.data.table() # Drop QC!
 save(tidy_prot,file=myfile,version=2)
-
-# Save enhanced adjm as a matrix for Leidenalg in rdata.
-myfile <- file.path(rdatdir,"Cortex_NE_Adjm.csv")
-ne_adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
