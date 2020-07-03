@@ -6,49 +6,30 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-# Parse command line input:
-# Analysis (tissue) type: cortex (1) or striatum(2).
-parse_args <- function(){
-	args <- commandArgs(trailingOnly = TRUE)
-	msg <- c("Please specify a tissue type to be analyzed:\n",
-	 "Choose either 'Cortex' or 'Striatum'.")
-check <- !is.na(match(args[1], c("Cortex", "Striatum")))
-if (length(args == 1) & check) { 
-	tissue  <- args[1]
-	start <- Sys.time()
-	message(paste("Starting analysis at:", start))
-	message(paste0("Analyzing ", tissue,"..."))
-} else {
-	stop(msg) 
-}
-
-## Other Parameters:
+## Optional Parameters:
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocessing:
 #---------------------------------------------------------------------
 
-# All done within an experiment...
-#    * SL normalization
-#    * Peptide QC filtering (remove highly variable peptides)
-#    * Peptide imputing (replace small number of missing values)
 
-#    * Protein summarization
-#    * SL normalization
-#    * Intra-Batch ComBat
+# Intra-Experiment processing.
+#     Peptide-level processing:
+#     |* SL normalization
+#     |* Remove QC outliers
+#     |* Impute missing values 
+#     Protein-level proessing:
+#     |* Summarize proteins
+#     |* SL normalization
+#     |* Remove intra-batch batch-effect.
+# Inter-Experiment processing.
+#     |* Remove QC sample outliers
+#     |* IRS normalization
+#     |* Filter proteins
+#     |* Protein imputing
 
-# All done across experiments...
-#    * Outlier QC sample removal
-#    * IRS normalization
-#    * Protein filtering
-#    * Protein imputing
-
-# Combine cortex and striatum data:
-#    * TAMPOR normalization
-#    * Outlier sample removal
-
-## Statistical analysis:
+# Statistical analysis:
 #    * Final TMM normalization
 #    * GLM for differential abundance.
 
@@ -70,11 +51,37 @@ getrd <- function(here=getwd(), dpat= ".git") {
 	return(root)
 }
 
+# Parse the command line arguments.
+parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
+	# Input must be Cortex or Striatum.
+	msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "Choose either 'Cortex' or 'Striatum'.")
+	# If interactive, return default tissue.
+	if (interactive()) { 
+		return("Cortex") 
+	} else {
+		# Check arguments.
+		check <- !is.na(match(args[1], c("Cortex", "Striatum")))
+		if (length(args == 1) & check) { 
+			tissue  <- args[1]
+			start <- Sys.time()
+			message(paste("Starting analysis at:", start))
+			message(paste0("Analyzing ", tissue,"..."))
+		} else {
+			stop(msg) 
+		}
+		return(tissue)
+	}
+}
+
 #---------------------------------------------------------------------
 ## Prepare the workspace.
 #---------------------------------------------------------------------
 # Prepare the R workspace for the analysis. Load custom functions and prepare
 # the project directory for saving output files.
+
+# Parse input.
+tissue <- parse_args()
 
 # Load the R env.
 rootdir <- getrd()
@@ -94,28 +101,8 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Load functions in root/R.
+# Load project specific data and functions.
 suppressWarnings({ devtools::load_all() })
-
-# Directories:
-fontdir <- file.path(rootdir, "fonts")
-rdatdir <- file.path(rootdir, "rdata")
-rawddir <- file.path(rootdir, "raw-data")
-figsdir <- file.path(rootdir, "figs","Data-preprocessing",tissue)
-
-output_name = tissue # Prefix of output files.
-
-# Create directory for figures if it doesn't exist.
-if (!dir.exists(figsdir)) { dir.create(figsdir) }
-
-# Remove any existing figures and tables.
-if (clean_figsdir) {
-	invisible(sapply(list.files(figsdir,full.names=TRUE),unlink))
-}
-
-# Globally set ggplots theme.
-# Utilize arial font.
-ggtheme(); set_font("Arial", font_path = fontdir)
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
@@ -125,20 +112,20 @@ ggtheme(); set_font("Arial", font_path = fontdir)
 # noise ratio, and it is not recommended to use ths for quantification.
 
 # Load the TMT data.
-datafile <- c(
+data_files <- c(
 	      "Cortex" = "Cortex_Raw_Peptides.csv",
 	      "Striatum" = "Striatum_Raw_Peptides.csv"
 	      )
 
 # Load sample information.
-samplefile <- c(
+meta_files <- c(
 		"Cortex" = "Cortex_Samples.csv",
 		"Striatum" = "Striatum_Samples.csv"
 		)
 
-# Load the data from PD and sample info.
-raw_peptide <- fread(file = file.path(rawddir, datafile[tissue]))
-sample_info <- fread(file = file.path(rawddir, samplefile[tissue]))
+# Load the data from PD and sample meta data.
+raw_peptide <- fread(file = file.path(datdir, data_files[tissue]))
+sample_info <- fread(file = file.path(datadir, meta_files[tissue]))
 
 # Insure traits are in matching order.
 sample_info <- sample_info[order(sample_info$Order), ]
