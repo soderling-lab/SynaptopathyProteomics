@@ -78,9 +78,7 @@ datadir <- file.path(root,"data") # Input/Output data.
 rdatdir <- file.path(root,"rdata") # Temporary data files.
 
 # Load the data.
-data(cortex) # tidy_prot
-#data(striatum)
-
+data(list=tolower(tissue)) # tidy_prot
 data(gene_map)
 
 #--------------------------------------------------------------------
@@ -90,7 +88,7 @@ data(gene_map)
 # Cast tp into data matrix for EdgeR. Don't log!
 groups <- unique(tidy_prot$Genotype)
 
-# Loop:
+# Loop to perform intra-genotype WT v MUT comparisons:
 results_list <- list()
 for (geno in groups){
 	dm <- tidy_prot %>% filter(Genotype==geno) %>%
@@ -136,3 +134,7 @@ for (geno in groups){
 	results_list[[geno]] <- glm_results
 }
 
+# Save as excel.
+names(results_list) <- paste(names(results_list),tissue,"Results")
+myfile <- file.path(root,"tables","TMT_Protein_GLM_Results.xlsx")
+write_excel(results_list,myfile)
