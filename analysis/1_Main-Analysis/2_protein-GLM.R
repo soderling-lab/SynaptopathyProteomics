@@ -78,30 +78,23 @@ rdatdir <- file.path(root,"rdata") # Temporary data files.
 
 # Load the data.
 data(cortex) # tidy_prot
+#data(striatum)
 
-# Cast tp into data matrix for EdgeR. Don't log!
-dm <- tidy_prot %>%
-	dcast(Accession ~ Sample, value.var="Intensity") %>% 
-	as.matrix(rownames=TRUE)
-
-#---------------------------------------------------------------------
-## Create protein identifier map.
-#---------------------------------------------------------------------
-
-# Create gene map.
-uniprot <- rownames(dm)
-entrez <- mgi_batch_query(ids=uniprot)
-symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
-gene_map <- as.data.table(keep.rownames="uniprot",entrez)
-gene_map$symbol <- symbols[as.character(gene_map$entrez)]
-
-# Save as rda.
-#myfile <- file.path(datadir,"gene_map.rda")
-#save(gene_map,file=myfile,version=2)
+data(gene_map)
 
 #--------------------------------------------------------------------
 ## EdgeR glm
 #--------------------------------------------------------------------
+
+# Cast tp into data matrix for EdgeR. Don't log!
+groups <- unique(tidy_prot$Genotype)
+
+# Loop:
+#for (geno in groups){
+geno = "Shank2"
+dm <- tidy_prot %>% filter(Genotype==geno) %>%
+	dcast(Accession ~ Sample, value.var="Intensity") %>% 
+	as.matrix(rownames=TRUE)
 
 # Create dge object.
 dge <- DGEList(counts=dm)
@@ -112,13 +105,12 @@ dge <- calcNormFactors(dge)
 # Sample mapping.
 samples <- rownames(dge$samples)
 idx <- match(samples,tidy_prot$Sample)
-dge$samples$genotype <- tidy_prot$Genotype[idx]
-dge$samples$treatment <- tidy_prot$Treatment[idx]
-idx <- grepl("KO|HET",dge$samples$treatment)
-dge$samples$treatment[idx] <- "MUT"
+genotype <- tidy_prot$Genotype[idx]
+treatment <- tidy_prot$Treatment[idx]
+dge$samples$group <- interaction(genotype,treatment)
 
 # Basic design matrix for GLM -- all groups treated seperately.
-design <- model.matrix(~ genotype + treatment, data = dge$samples)
+design <- model.matrix(~ 0 + group, data = dge$samples)
 
 # Estimate dispersion:
 dge <- estimateDisp(dge, design, robust = TRUE)
@@ -129,7 +121,7 @@ fit <- glmQLFit(dge, design, robust = TRUE)
 # Assess differences.
 qlf <- glmQLFTest(fit)
 
-## Determine number icant results with decideTests().
+## Determine number of significant results with decideTests().
 summary_table <- summary(decideTests(qlf))
 
 # Call topTags to add FDR. Gather tabularized results.
@@ -140,14 +132,14 @@ glm_results <- lapply(qlf, function(x){
 # Convert logCPM column to percent WT and annotate with candidate column.
 glm_results <- lapply(glm_results, function(x) annotateTopTags(x))
 
-# Use protmap to annotate glm_results with entrez Ids and gene symbols.
+# Use gene map to annotate glm_results with entrez Ids and gene symbols.
 for (i in 1:length(glm_results)) {
   x <- glm_results[[i]]
-  idx <- match(rownames(x), protmap$ids)
-  x <- add_column(x, "Gene|Uniprot" = protmap$ids[idx], .before = 1)
-  x <- add_column(x, "Uniprot" = protmap$uniprot[idx], .after = 1)
-  x <- add_column(x, "Entrez" = protmap$entrez[idx], .after = 2)
-  x <- add_column(x, "Symbol" = protmap$gene[idx], .after = 3)
+  idx <- match(rownames(x), gene_map$ids)
+  x <- tibble::add_column(x, "Gene|Uniprot" = gene_map$ids[idx], .before = 1)
+  x <- tibble::add_column(x, "Uniprot" = gene_map$uniprot[idx], .after = 1)
+  x <- tibble::add_column(x, "Entrez" = gene_map$entrez[idx], .after = 2)
+  x <- tibble::add_column(x, "Symbol" = gene_map$gene[idx], .after = 3)
   glm_results[[i]] <- x
 }
 

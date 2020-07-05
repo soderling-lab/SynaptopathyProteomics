@@ -13,7 +13,7 @@ oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 ## Overview of Data Preprocessing:
 #---------------------------------------------------------------------
 
-# INTRA-Experiment processing.
+# [INTRA-Experiment processing]
 #     Peptide-level operations:
 #     |* SL normalization
 #     |* Remove QC outliers
@@ -22,7 +22,7 @@ oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 #     |* Summarize proteins
 #     |* SL normalization
 #     |* Remove intra-batch batch-effect.
-# INTER-Experiment operations
+# [INTER-Experiment operations]
 #     |* Remove QC sample outliers
 #     |* IRS normalization
 #     |* Filter proteins
@@ -129,6 +129,22 @@ meta_files <- c(
 # Load the data from PD and sample meta data.
 raw_peptide <- fread(file = file.path(datadir, data_files[tissue]))
 sample_info <- fread(file = file.path(datadir, meta_files[tissue]))
+
+#---------------------------------------------------------------------
+## Create protein identifier map.
+#---------------------------------------------------------------------
+
+# Create gene map.
+message("\nCreating gene identifier map.")
+uniprot <- rownames(raw_peptide$Accession)
+entrez <- mgi_batch_query(ids=uniprot)
+symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
+gene_map <- as.data.table(keep.rownames="uniprot",entrez)
+gene_map$symbol <- symbols[as.character(gene_map$entrez)]
+
+# Save as rda.
+myfile <- file.path(datadir,"gene_map.rda")
+save(gene_map,file=myfile,version=2)
 
 #---------------------------------------------------------------------
 ## Sample loading normalization within experiments.
