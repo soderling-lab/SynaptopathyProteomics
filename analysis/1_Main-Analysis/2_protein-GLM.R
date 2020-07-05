@@ -67,11 +67,10 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(edgeR)
   library(data.table)
-  library(tibble)
 })
 
 # Load project specific data and functions.
-suppressWarnings({ devtools::load_all() })
+devtools::load_all(quiet=TRUE)
 
 # Project directories.
 datadir <- file.path(root,"data") # Input/Output data.
@@ -81,7 +80,7 @@ rdatdir <- file.path(root,"rdata") # Temporary data files.
 data(cortex) # tidy_prot
 
 # Cast tp into data matrix for EdgeR. Don't log!
-dm <- tidy_prot %>% 
+dm <- tidy_prot %>%
 	dcast(Accession ~ Sample, value.var="Intensity") %>% 
 	as.matrix(rownames=TRUE)
 
@@ -97,8 +96,8 @@ gene_map <- as.data.table(keep.rownames="uniprot",entrez)
 gene_map$symbol <- symbols[as.character(gene_map$entrez)]
 
 # Save as rda.
-myfile <- file.path(datadir,"gene_map.rda")
-save(gene_map,file=myfile,version=2)
+#myfile <- file.path(datadir,"gene_map.rda")
+#save(gene_map,file=myfile,version=2)
 
 #--------------------------------------------------------------------
 ## EdgeR glm
@@ -110,17 +109,16 @@ dge <- DGEList(counts=dm)
 # Perform TMM normalization.
 dge <- calcNormFactors(dge)
 
-samples <- unique(rownames(dge$samples))
-replicate <- as.numeric(as.factor(samples))
+# Sample mapping.
+samples <- rownames(dge$samples)
 idx <- match(samples,tidy_prot$Sample)
-genotype <- tidy_prot$Genotype[idx]
-treatment <- tidy_prot$Treatment[idx]
-group <- paste(genotype,treatment,sep = ".")
-dge$samples$group <- as.factor(group)
+dge$samples$genotype <- tidy_prot$Genotype[idx]
+dge$samples$treatment <- tidy_prot$Treatment[idx]
+idx <- grepl("KO|HET",dge$samples$treatment)
+dge$samples$treatment[idx] <- "MUT"
 
 # Basic design matrix for GLM -- all groups treated seperately.
-design <- model.matrix(~ 0 + group, data = dge$samples)
-colnames(design) <- levels(dge$samples$group)
+design <- model.matrix(~ genotype + treatment, data = dge$samples)
 
 # Estimate dispersion:
 dge <- estimateDisp(dge, design, robust = TRUE)
@@ -128,76 +126,14 @@ dge <- estimateDisp(dge, design, robust = TRUE)
 # Fit a general linear model.
 fit <- glmQLFit(dge, design, robust = TRUE)
 
-# Generate contrasts.
-g <- colnames(design)
-g <- g[!grepl("WT",g)]
-contrasts <- paste(g,paste0(sapply(strsplit(g,"\\."),"[",1),".WT"),sep="-")
+# Assess differences.
+qlf <- glmQLFTest(fit)
 
-# Make contrasts for EdgeR.
-# For some reason loops or lapply dont work with the makeContrasts function.
-
-contrast_list <- list(
-  makeContrasts(contrasts[1], levels = design),
-  makeContrasts(contrasts[2], levels = design),
-  makeContrasts(contrasts[3], levels = design),
-  makeContrasts(contrasts[4], levels = design))
-
-names(contrasts) <- unlist({
-  lapply(contrasts, function(x) sapply(strsplit(colnames(x), " "), "[", 1))
-})
-
-# Call glmQLFTest() to evaluate differences in contrasts.
-contrasts<-colnames(design)
-qlf <- lapply(contrasts, function(x) glmQLFTest(fit, coef = x))
-names(qlf) <- contrasts
-
-## Determine number of significant results with decideTests().
-summary_table <- lapply(qlf, function(x) summary(decideTests(x)))
-overall <- t(matrix(unlist(summary_table), nrow = 3, ncol = 8))
-rownames(overall) <- unlist(lapply(contrasts, function(x) colnames(x)))
-colnames(overall) <- c("Down", "NS", "Up")
-overall <- as.data.frame(overall)
-row_names <- sapply(strsplit(rownames(overall), " - "), "[", 1)
-row_names <- gsub(".KO.|.HET.", " ", row_names)
-overall <- add_column(overall, Experiment = row_names, .before = 1)
-overall <- overall[, c(1, 3, 2, 4)]
-overall$"Total Sig" <- rowSums(overall[, c(3, 4)])
-overall <- overall[c(2, 6, 3, 7, 1, 5, 4, 8), ] # Reorder.
-
-# Pretty summary:
-message("\nSummary of differentially abundant proteins (FDR<0.1):")
-knitr::kable(overall,row.names=FALSE)
-
-# Table of DA candidates.
-# Modify tables theme to change font size.
-# Cex is a scaling factor relative to the defaults.
-mytheme <- gridExtra::ttheme_default(
-  core = list(fg_params = list(cex = 0.75)),
-  colhead = list(fg_params = list(cex = 0.75)),
-  rowhead = list(fg_params = list(cex = 0.75))
-)
-
-# Create table and add borders.
-mytable <- tableGrob(overall, rows = NULL, theme = mytheme)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 2, b = nrow(mytable), l = 1, r = ncol(mytable)
-)
-mytable <- gtable_add_grob(mytable,
-  grobs = rectGrob(gp = gpar(fill = NA, lwd = 2)),
-  t = 1, l = 1, r = ncol(mytable)
-)
-
-# Check the table.
-plot <- cowplot::plot_grid(mytable)
-
-# Save.
-if (save_plots) {
-	myfile <- file.path(figsdir,"Sig_Prots_Summary.pdf")
-	ggsaveTable(mytable,myfile)
-}
+## Determine number icant results with decideTests().
+summary_table <- summary(decideTests(qlf))
 
 # Call topTags to add FDR. Gather tabularized results.
+qlf <- list(qlf)
 glm_results <- lapply(qlf, function(x){ 
 			      topTags(x, n = Inf, sort.by = "none")$table })
 
