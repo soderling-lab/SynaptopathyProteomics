@@ -100,11 +100,9 @@ module_sizes <- sapply(split(partition,partition), length)
 tidy_prot$Module <- partition[tidy_prot$Accession]
 
 # Cast data into a dm, summarize a module as the sum of its proteins.
-groups <- unique(tidy_prot$Genotype)
-geno = "Ube3a"
-dm <- tidy_prot %>% filter(Genotype == geno) %>%
+dm <- tidy_prot %>%
 	group_by(Module, Genotype, Sample, Treatment) %>%
-	dplyr::summarize(Sum.Intensity=sum(Intensity),.groups="drop") %>% 
+	dplyr::summarize(Sum.Intensity=sum(TAMPOR.Intensity),.groups="drop") %>% 
 	as.data.table() %>%
 	dcast(Module ~ Sample,value.var="Sum.Intensity") %>%
 	as.matrix(rownames=TRUE)
@@ -114,18 +112,14 @@ dge <- DGEList(counts=dm)
 
 # Sample to group mapping.
 idx <- match(rownames(dge$samples),tidy_prot$Sample)
-
 treatment <- tidy_prot$Treatment[idx]
 genotype <- tidy_prot$Genotype[idx]
-dge$samples$group <- interaction(genotype,treatment)
+groups <- as.character(interaction(genotype,treatment))
+groups[grepl("WT",groups)] <- "WT"
+dge$samples$group <- groups
 
 # Create design matrix.
 design <- model.matrix( ~ 0 + group, data=dge$samples)
-
-# Create contrast.
-wt <- colnames(design)[grepl("WT",colnames(design))]
-mut <- colnames(design)[grepl("HET|KO",colnames(design))]
-contr <- limma::makeContrasts(paste0(c(mut,wt),collapse="-"),levels=design)
 
 # Estimate dispersion.
 dge <- estimateDisp(dge, design, robust=TRUE)
@@ -133,55 +127,60 @@ dge <- estimateDisp(dge, design, robust=TRUE)
 # Fit a model.
 fit <- glmQLFit(dge, design, robust=TRUE)
 
-# Default comparison is last contrast: genotype.
-#qlf <- glmQLFTest(fit,contrast=contr)
-qlf <- glmQLFTest(fit,contrast=contr)
+# Create contrasts.
+contr_list <- list(
+		   "Shank2" = limma::makeContrasts('groupWT-groupShank2.KO',
+						   levels=design),
+		   "Shank3" = limma::makeContrasts('groupWT-groupShank3.KO',
+						   levels=design),
+		   "Syngap1" = limma::makeContrasts('groupWT-groupSyngap1.HET',
+						    levels=design),
+		   "Ube3a" = limma::makeContrasts('groupWT-groupUbe3a.KO',
+						  levels=design)
+		   )
+
+# Assess differences.
+qlf <- lapply(contr_list,function(x) glmQLFTest(fit,contrast=x))
 
 # Collect results.
-glm_results <- topTags(qlf,n=Inf,sort.by="p.value")$table %>%
-	as.data.table(keep.rownames="Module")
+glm_results <- lapply(qlf, function(x) {
+			      topTags(x,n=Inf,sort.by="p.value")$table
+		   })
+glm_results <- lapply(glm_results, as.data.table, keep.rownames="Module")
 
 # Drop M0.
-glm_results <- glm_results %>% filter(Module != 0)
+glm_results <- lapply(glm_results, function(x) x %>% filter(Module != 0))
 
 # Adjust p-values for n module comparisons.
-glm_results$PAdjust <- p.adjust(glm_results$PValue,method="bonferroni")
-
-# Fix logCPM column -- > convert to percentWT.
-idy <- which(colnames(glm_results)=="logCPM")
-colnames(glm_results)[idy] <- "PercentWT"
-glm_results$PercentWT <- 2^glm_results$logFC
+glm_results <- lapply(glm_results, function(x) {
+			      x$PAdjust <- p.adjust(x$PValue,method="bonferroni")
+			      return(x) })
 
 # Number of nodes per module:
-n <- module_sizes[as.character(glm_results$Module)]
-glm_results <- tibble::add_column(glm_results,Nodes=n,.after="Module")
-
-# Number of significant modules.
-message(paste("\nTotal number of modules:",length(unique(partition)) -1))
-nsig <- sum(glm_results$PAdjust < BF_alpha)
-message(paste0("\nNumber of significant ",
-	      "(p-adjust < ", BF_alpha,") ",
-	      "modules: ", nsig,"."))
-
-# Pretty print sig results:
-glm_results %>% filter(PAdjust < BF_alpha) %>%
-	knitr::kable()
+glm_results <- lapply(glm_results, function(x) {
+			      n <- module_sizes[as.character(x$Module)]
+			      x <- tibble::add_column(x,Nodes=n,.after="Module")
+			      })
 
 # Annotate with module proteins.
-modules <- split(partition,partition)
+modules <- split(names(partition),partition)
 module_ids <- lapply(modules,function(x) {
-	       paste(gene_map$symbol[match(names(x),gene_map$uniprot)],names(x),sep="|")
-})
-glm_results$Proteins <- sapply(module_ids[glm_results$Module],paste,collapse=";")
+	       paste(gene_map$symbol[match(x,gene_map$uniprot)],x,sep="|")
+			      })
+glm_results <- lapply(glm_results, function(x){
+			      x$Proteins <- sapply(module_ids[x$Module],
+						   paste,collapse=";")
+			      return(x)
+			      })
 
-# Save sig modules.
-#myfile <- file.path(root,"data","sig_modules.rda")
-#sig_modules <- paste0("M",glm_results$Module[glm_results$PAdjust < BF_alpha])
-#save(sig_modules,file=myfile,version=2)
+# Save as excel document.
+#myfile <- file.path(root,"tables","TMT_Module_GLM_Results.xlsx")
+##write_excel(glm_results, myfile)
 
 #--------------------------------------------------------------------
 ## Calculate Module PVE
 #--------------------------------------------------------------------
+# NOTE: the data pre-TAMPOR was used to create the networks!
 
 # Calculate module eigengenes.
 dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() %>% 
@@ -197,37 +196,13 @@ pve <- as.numeric(ME_data$varExplained)
 names(pve) <- gsub("X","M",names(ME_data$varExplained))
 
 # Add to glm_results.
-glm_results <- tibble::add_column(glm_results,
-				  PVE=pve[paste0("M",glm_results$Module)],
-				  .after="Nodes")
+glm_results <- lapply(glm_results, function(x) {
+			      PVE <- pve[paste0("M",x$Module)]
+			      x <- tibble::add_column(x,PVE,.after="Nodes")
+			      return(x)
+				   })
+quit()
 
-# Status.
-message(paste("\nMedian module PVE:",
-	      round(100*median(glm_results$PVE),3),"%."))
-
-#--------------------------------------------------------------------
-# Determine module hubs.
-#--------------------------------------------------------------------
-
-# All modules.
-module_list <- split(partition,partition)
-names(module_list) <- paste0("M",names(module_list))
-
-# Get top three proteins.
-# Sorted by node weighted degree.
-module_hubs <- lapply(module_list, function(x) {
-	       prots <- names(x)
-	       subadjm <- ne_adjm[prots,prots]
-	       node_degree <- apply(subadjm,2,sum)
-	       node_degree <- node_degree[order(node_degree,decreasing=TRUE)]
-	       hubs <- names(head(node_degree,3))
-	       symbols <- gene_map$gene[match(hubs,gene_map$uniprot)]
-	       ids <- paste(symbols,hubs,sep="|")
-	       return(ids)
-				  } )
-
-# We will add hubs to the data in the code below.
-				  
 #--------------------------------------------------------------------
 ## Add module level data.
 #--------------------------------------------------------------------

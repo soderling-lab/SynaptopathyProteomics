@@ -221,11 +221,10 @@ suppressWarnings({
 
 # Remove NS modules--set NS modules to 0.
 preservedParts <- check_modules(selfPreservation, strength, stats)
-
 nModules <- length(unique(partition))
 out <- names(preservedParts)[preservedParts == "ns"]
 partition[partition %in% out] <- 0
-partition <- reset_index(partition)
+partition <- reset_index(partition) # reset partition index before saving.
 nPreserved <- nModules - length(out)
 message(paste0("\n",nPreserved, " of ", nModules, " modules are preserved."))
 
