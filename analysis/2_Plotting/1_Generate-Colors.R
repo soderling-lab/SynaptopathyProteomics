@@ -7,11 +7,14 @@
 #' ---
 
 ## OPTIONS:
-swip = "Q3UMB9" # uniprot accession of swip.
-swip_color = "#B86FAD" # color of swip/wash module.
+# Uniprot Accession and color of mutant mice.
+#Shank2 = c("Q80Z38"="yellow") 
+#Shank3 = c("Q4ACU6"="blue") 
+#Syngap1 = c("F6SEU4"="green") 
+#Ube3a = c("O08759"="purple") 
 
 ## OUTPUT:
-# * Updated module color assignemnts.
+# * Protein and module color assignemnts.
 
 #---------------------------------------------------------------------
 ## Misc functions
