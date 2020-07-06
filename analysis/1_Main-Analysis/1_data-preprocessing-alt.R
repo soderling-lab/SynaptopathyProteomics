@@ -445,6 +445,10 @@ adjm <- WGCNA::bicor(log2(dm))
 # Network enhancment of the bicor adjacency matrix.
 ne_adjm <- neten::neten(adjm)
 
+# Generate protein network.
+
+
+
 #--------------------------------------------------------------------
 ## EdgeR protein-level GLM to evaluate intra-genotype contrats.
 #--------------------------------------------------------------------

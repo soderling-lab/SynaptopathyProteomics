@@ -7,7 +7,6 @@
 #' ---
 
 ## Analysis options:
-file_prefix  = "alt"
 
 #--------------------------------------------------------------------
 ## Misc function - getrd
@@ -27,9 +26,35 @@ getrd <- function(here=getwd(), dpat= ".git") {
 	return(root)
 }
 
+# Parse the command line arguments.
+parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
+	# Input must be Cortex or Striatum.
+	msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "Choose either 'Cortex' or 'Striatum'.")
+	# If interactive, return default tissue.
+	if (interactive()) { 
+		return("Cortex") 
+	} else {
+		# Check arguments.
+		check <- !is.na(match(args[1], c("Cortex", "Striatum")))
+		if (length(args == 1) & check) { 
+			tissue  <- args[1]
+			start <- Sys.time()
+			message(paste("Starting analysis at:", start))
+			message(paste0("Analyzing ", tissue,"..."))
+		} else {
+			stop(msg) 
+		}
+		return(tissue)
+	}
+}
+
 #--------------------------------------------------------------------
 ## Set-up the workspace.
 #--------------------------------------------------------------------
+
+tissue <- parse_args()
+file_prefix = tissue
 
 # Load renv.
 root <- getrd()
@@ -49,8 +74,6 @@ suppressWarnings({ devtools::load_all() })
 # Project directories.
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
-tabsdir <- file.path(root, "tables")
-figsdir <- file.path(root, "figs","Networks")
 
 # Output directory for cytoscape networks.
 netwdir <- file.path(root,"networks")
@@ -63,18 +86,14 @@ if (!dir.exists(netwdir)) {
 #--------------------------------------------------------------------
 
 # Load the data from root/data.
-data(tmt_protein)
+data(list=tolower(tissue))
 
 # Load the graph partition:
-data(partition)
-
-# Load wash interactome.
-data(wash_interactome)
-wash_prots <- unique(wash_interactome$Accession) # Get uniprot accession
+data(list=paste0(tolower(tissue),"_partition"))
 
 # Load networks.
-data(ne_adjm) # loads "edges", then cast to adjm.
-ne_adjm <- convert_to_adjm(edges)
+data(list=paste0(tolower(tissue),"_ne_adjm"))
+
 data(ppi_adjm)
 ppi_adjm <- convert_to_adjm(edges)
 
