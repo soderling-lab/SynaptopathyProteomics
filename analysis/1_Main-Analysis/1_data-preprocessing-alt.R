@@ -15,22 +15,21 @@ oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
 
 # [INTRA-Experiment processing]
 #     Peptide-level operations:
-#     |* SL normalization
-#     |* Remove QC outliers
-#     |* Impute missing values 
+#     | * SL normalization
+#     | * Remove QC outliers
+#     | * Impute missing values 
 #     Protein-level proessing:
-#     |* Summarize proteins
-#     |* SL normalization
-#     |* Remove intra-batch batch-effect.
+#     | * Summarize proteins
+#     | * SL normalization
+#     | * Remove intra-batch batch-effect.
 # [INTER-Experiment operations]
-#     |* Remove QC sample outliers
-#     |* IRS normalization
-#     |* Filter proteins
-#     |* Protein imputing
-
-# Statistical analysis:
-#    * Final TMM normalization
-#    * GLM for differential abundance.
+#     | * Remove QC sample outliers
+#     | * IRS normalization
+#     | * Filter proteins
+#     | * Protein imputing
+# [edgeR STATISTICAL analysis]
+#       * Final TMM normalization
+#       * GLM for differential abundance.
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
@@ -176,18 +175,6 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 message("\nRemoving outlier QC peptides...")
 filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
 
-# Generate table.
-# Summarize number of Cortex and Striatum peptides removed.
-out <- list("Cortex"=c(94, 78, 134, 59), 
-	    "Striatum"=c(182, 67, 73, 75))[[tissue]] 
-mytable <- data.frame(cbind(groups, out))
-mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
-
-# Save the table.
-#myfile <- file.path(figsdir,
-#		    paste0("N_Peptides_Removed_Table",image_format))
-#ggsaveTable(mytable,prefix_file(myfile))
-
 #---------------------------------------------------------------------
 ## Impute missing peptide values within an experiment.
 #---------------------------------------------------------------------
@@ -206,17 +193,6 @@ message("\nImputing missing peptide values...")
 # ignored (bio_threshold=2).
 data_impute <- impute_peptides(filter_peptide, groups, method = "knn")
 impute_peptide <- data_impute$data_imputed
-
-# Table of n imputed peptides.
-n_out <- data_impute$n_out
-mytable <- as.data.frame(do.call(rbind, n_out))
-mytable <- tibble::add_column(mytable, rownames(mytable), .before = 1)
-colnames(mytable) <- c("Experiment", "N Imputed")
-mytable <- tableGrob(mytable, rows = NULL, theme = ttheme_default())
-
-# Save table.
-#myfile <- file.path(figsdir,paste0("N_Imputed_Peptides",image_format))
-#ggsaveTable(mytable,prefix_file(myfile))
 
 #---------------------------------------------------------------------
 ## Protein level summarization and normalization across all batches.
@@ -341,20 +317,6 @@ for (i in 1:length(groups)) {
 combat_protein <- data_out %>% 
 	purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
 
-# Quantifying the batch effect.
-# Check bicor correlation with batch before and after ComBat.
-df <- do.call(rbind, lapply(R, function(x) x[1, ]))
-df <- as.data.frame(t(apply(df, 1, function(x) round(abs(as.numeric(x)), 3))))
-rownames(df) <- groups
-df <- tibble::add_column(df, rownames(df), .before = 1)
-colnames(df) <- c("Experiment", "preComBat", "postComBat")
-mytable <- tableGrob(df, rows = NULL)
-
-# Save table quantifying batch effects.
-#myfile <- file.path(figsdir,
-#		    paste0("Batch_Effect_Quant_Table",image_format))
-#ggsaveTable(mytable,prefix_file(myfile))
-
 #---------------------------------------------------------------------
 ## IRS Normalization.
 #---------------------------------------------------------------------
@@ -468,15 +430,76 @@ tidy_prot <- left_join(tidy_prot,sample_info,by="Sample")
 
 message("\nBuilding protein networks.")
 
-# Drop QC and do bicor.
+# Drop QC, log2 transform, and do bicor.
 dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% 
 	as.data.table() %>% 
 	dcast(Sample ~ Accession, value.var="Intensity") %>% 
 	as.matrix(rownames="Sample")
 adjm <- WGCNA::bicor(log2(dm))
 
-# Neten
+# Network enhancment of the bicor adjacency matrix.
 ne_adjm <- neten::neten(adjm)
+
+#--------------------------------------------------------------------
+## EdgeR protein-level GLM to evaluate intra-genotype contrats.
+#--------------------------------------------------------------------
+
+message("\nEdgeR!")
+
+# Loop to perform intra-genotype WT v MUT comparisons:
+results_list <- list()
+for (geno in groups){
+	# Cast data into matrix.
+	dm <- tidy_prot %>% filter(Treatment != "QC") %>% 
+		filter(Genotype == geno) %>%
+		dcast(Accession ~ Sample, value.var="Intensity") %>% 
+		as.matrix(rownames=TRUE)
+	# Create dge object.
+	dge <- DGEList(counts=dm)
+	# Perform TMM normalization.
+	dge <- calcNormFactors(dge)
+	# Sample to group mapping.
+	samples <- rownames(dge$samples)
+	idx <- match(samples,tidy_prot$Sample)
+	genotype <- tidy_prot$Genotype[idx]
+	treatment <- tidy_prot$Treatment[idx]
+	#batch <- as.factor(tidy_prot$PrepDate[idx])
+	dge$samples$group <- interaction(genotype,treatment)
+	# Basic design matrix for GLM -- all groups treated seperately.
+	design <- model.matrix(~ 0 + group, data = dge$samples)
+	# Estimate dispersion:
+	dge <- estimateDisp(dge, design, robust = TRUE)
+	# Fit a general linear model.
+	fit <- glmQLFit(dge, design, robust = TRUE)
+	# Create contrast.
+	wt <- colnames(design)[grepl("WT",colnames(design))]
+	mut <- colnames(design)[grepl("HET|KO",colnames(design))]
+	contr <- limma::makeContrasts(paste(mut,wt,sep="-"),levels=design)
+	# Assess differences.
+	qlf <- glmQLFTest(fit,contrast=contr)
+	#qlf <- glmQLFTest(fit)
+	# Call topTags to add FDR. Gather tabularized results.
+	glm_results <- topTags(qlf, n = Inf, sort.by = "PValue")$table
+	# Use gene map to annotate glm_results with entrez Ids and gene symbols.
+	idx <- match(rownames(glm_results), gene_map$uniprot)
+	glm_results <- add_column(glm_results, "Accession"=rownames(glm_results),
+				  .before = 1)
+	glm_results <- add_column(glm_results, "Entrez" = gene_map$entrez[idx], 
+				  .after = 1)
+	glm_results <- add_column(glm_results, "Symbol" = gene_map$symbol[idx], 
+				  .after = 2)
+	# Add expression data.
+	wt_cols <- grep("WT",colnames(dm))
+	mut_cols <- grep("HET|KO",colnames(dm))
+	dt <- as.data.table(dm[,c(wt_cols,mut_cols)],keep.rownames="Accession")
+	glm_results <- left_join(glm_results,dt,by="Accession")
+	results_list[[geno]] <- glm_results
+}
+
+# Save as excel.
+names(results_list) <- paste(names(results_list),tissue,"Results")
+myfile <- file.path(root,"tables","TMT_Protein_GLM_Results.xlsx")
+write_excel(results_list,myfile)
 
 #---------------------------------------------------------------------
 ## Save output.
@@ -504,62 +527,3 @@ myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
 tidy_prot <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() # Drop QC!
 save(tidy_prot,file=myfile,version=2)
 
-#--------------------------------------------------------------------
-## EdgeR protein-level GLM to evaluate intra-genotype contrats.
-#--------------------------------------------------------------------
-
-# Cast tp into data matrix for EdgeR. Don't log!
-groups <- unique(tidy_prot$Genotype)
-
-# Loop to perform intra-genotype WT v MUT comparisons:
-results_list <- list()
-for (geno in groups){
-	dm <- tidy_prot %>%
-		dcast(Accession ~ Sample, value.var="Intensity") %>% 
-		as.matrix(rownames=TRUE)
-	# Create dge object.
-	dge <- DGEList(counts=dm)
-	# Perform TMM normalization.
-	dge <- calcNormFactors(dge)
-	# Sample mapping.
-	samples <- rownames(dge$samples)
-	idx <- match(samples,tidy_prot$Sample)
-	genotype <- tidy_prot$Genotype[idx]
-	treatment <- tidy_prot$Treatment[idx]
-	batch <- as.factor(tidy_prot$PrepDate[idx])
-	dge$samples$group <- interaction(genotype,treatment)
-	# Basic design matrix for GLM -- all groups treated seperately.
-	design <- model.matrix(~ batch + group, data = dge$samples)
-	# Estimate dispersion:
-	dge <- estimateDisp(dge, design, robust = TRUE)
-	# Fit a general linear model.
-	fit <- glmQLFit(dge, design, robust = TRUE)
-	# Create contrast.
-	#wt <- colnames(design)[grepl("WT",colnames(design))]
-	#mut <- colnames(design)[grepl("HET|KO",colnames(design))]
-	#contr <- limma::makeContrasts(paste(mut,wt,sep="-"),levels=design)
-	# Assess differences.
-	#qlf <- glmQLFTest(fit,contrast=contr)
-	qlf <- glmQLFTest(fit)
-	# Call topTags to add FDR. Gather tabularized results.
-	glm_results <- topTags(qlf, n = Inf, sort.by = "PValue")$table
-	# Use gene map to annotate glm_results with entrez Ids and gene symbols.
-	idx <- match(rownames(glm_results), gene_map$uniprot)
-	glm_results <- add_column(glm_results, "Accession"=rownames(glm_results),
-				  .before = 1)
-	glm_results <- add_column(glm_results, "Entrez" = gene_map$entrez[idx], 
-				  .after = 1)
-	glm_results <- add_column(glm_results, "Symbol" = gene_map$symbol[idx], 
-				  .after = 2)
-	# Add expression data.
-	wt_cols <- grep("WT",colnames(dm))
-	mut_cols <- grep("HET|KO",colnames(dm))
-	dt <- as.data.table(dm[,c(wt_cols,mut_cols)],keep.rownames="Accession")
-	glm_results <- left_join(glm_results,dt,by="Accession")
-	results_list[[geno]] <- glm_results
-}
-
-# Save as excel.
-names(results_list) <- paste(names(results_list),tissue,"Results")
-myfile <- file.path(root,"tables","TMT_Protein_GLM_Results.xlsx")
-write_excel(results_list,myfile)

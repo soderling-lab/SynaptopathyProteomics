@@ -7,7 +7,7 @@
 #' ---
 
 ## OPTIONS:
-BF_alpha = 0.05
+BF_alpha = 0.05 # significance threshold for modules
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
@@ -100,7 +100,9 @@ module_sizes <- sapply(split(partition,partition), length)
 tidy_prot$Module <- partition[tidy_prot$Accession]
 
 # Cast data into a dm, summarize a module as the sum of its proteins.
-dm <- tidy_prot %>% 
+groups <- unique(tidy_prot$Genotype)
+geno = "Ube3a"
+dm <- tidy_prot %>% filter(Genotype == geno) %>%
 	group_by(Module, Genotype, Sample, Treatment) %>%
 	dplyr::summarize(Sum.Intensity=sum(Intensity),.groups="drop") %>% 
 	as.data.table() %>%
@@ -111,19 +113,19 @@ dm <- tidy_prot %>%
 dge <- DGEList(counts=dm)
 
 # Sample to group mapping.
-groups <- rownames(dge$samples)
-idx <- match(groups,tidy_prot$Sample)
+idx <- match(rownames(dge$samples),tidy_prot$Sample)
+
 treatment <- tidy_prot$Treatment[idx]
-treatment[grepl("KO|HET",treatment)] <- "MUT"
-dge$samples$Batch <- tidy_prot$PrepDate[idx]
-dge$samples$Genotype <- tidy_prot$Genotype[idx]
-dge$samples$Treatment <- treatment
+genotype <- tidy_prot$Genotype[idx]
+dge$samples$group <- interaction(genotype,treatment)
 
 # Create design matrix.
-design <- model.matrix( ~ Batch + Genotype + Treatment, data=dge$samples)
+design <- model.matrix( ~ 0 + group, data=dge$samples)
 
 # Create contrast.
-#contr <- limma::makeContrasts("GenotypeKO - GenotypeWT",levels=design)
+wt <- colnames(design)[grepl("WT",colnames(design))]
+mut <- colnames(design)[grepl("HET|KO",colnames(design))]
+contr <- limma::makeContrasts(paste0(c(mut,wt),collapse="-"),levels=design)
 
 # Estimate dispersion.
 dge <- estimateDisp(dge, design, robust=TRUE)
@@ -133,7 +135,7 @@ fit <- glmQLFit(dge, design, robust=TRUE)
 
 # Default comparison is last contrast: genotype.
 #qlf <- glmQLFTest(fit,contrast=contr)
-qlf <- glmQLFTest(fit)
+qlf <- glmQLFTest(fit,contrast=contr)
 
 # Collect results.
 glm_results <- topTags(qlf,n=Inf,sort.by="p.value")$table %>%
@@ -165,10 +167,17 @@ message(paste0("\nNumber of significant ",
 glm_results %>% filter(PAdjust < BF_alpha) %>%
 	knitr::kable()
 
+# Annotate with module proteins.
+modules <- split(partition,partition)
+module_ids <- lapply(modules,function(x) {
+	       paste(gene_map$symbol[match(names(x),gene_map$uniprot)],names(x),sep="|")
+})
+glm_results$Proteins <- sapply(module_ids[glm_results$Module],paste,collapse=";")
+
 # Save sig modules.
-myfile <- file.path(root,"data","sig_modules.rda")
-sig_modules <- paste0("M",glm_results$Module[glm_results$PAdjust < BF_alpha])
-save(sig_modules,file=myfile,version=2)
+#myfile <- file.path(root,"data","sig_modules.rda")
+#sig_modules <- paste0("M",glm_results$Module[glm_results$PAdjust < BF_alpha])
+#save(sig_modules,file=myfile,version=2)
 
 #--------------------------------------------------------------------
 ## Calculate Module PVE
