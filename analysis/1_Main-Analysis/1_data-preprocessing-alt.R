@@ -94,6 +94,7 @@ suppressPackageStartupMessages({
   library(edgeR)
   library(tibble)
   library(gtable)
+  library(getPPIs)
   library(cowplot)
   library(ggplot2)
   library(gridExtra)
@@ -343,10 +344,8 @@ IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
 # identified. The method used by __Oldham et al., 2016__ is used to identify
 # QC sample outliers. A threshold of -2.5 is used.
 
-# Data is...
-data_in <- IRS_protein
-
 # Illustrate Oldham's sample connectivity.
+data_in <- IRS_protein
 sample_connectivity <- ggplotSampleConnectivity(data_in,
   colID = "QC",
   threshold = oldham_threshold
@@ -445,7 +444,6 @@ adjm <- WGCNA::bicor(log2(dm))
 # Network enhancment of the bicor adjacency matrix.
 ne_adjm <- neten::neten(adjm)
 
-
 #--------------------------------------------------------------------
 ## Create PPI network.
 #--------------------------------------------------------------------
@@ -456,10 +454,11 @@ data(musInteractome)
 
 # Collect all entrez cooresponding to proteins in our network.
 proteins <- colnames(adjm)
-entrez <- tmt_protein$Entrez[match(proteins,tmt_protein$Accession)]
+entrez <- gene_map$entrez[match(proteins,gene_map$uniprot)]
 names(proteins) <- entrez
 
 # Collect PPIs among all proteins.
+os_keep = c(96006,10116,1090)
 ppi_data <- musInteractome %>%
 	filter(Interactor_B_Taxonomy %in% os_keep) %>%
 	filter(Interactor_B_Taxonomy %in% os_keep) %>%
@@ -467,11 +466,11 @@ ppi_data <- musInteractome %>%
 	filter(osEntrezB %in% entrez)
 
 # Save to excel.
-myfile <- file.path(root,"tables","Swip_TMT_Network_PPIs.xlsx")
-write_excel(list("Network PPIs" = ppi_data),file=myfile)
+#myfile <- file.path(root,"tables","Swip_TMT_Network_PPIs.xlsx")
+#write_excel(list("Network PPIs" = ppi_data),file=myfile)
 
 # Create simple edge list (sif) and matrix with node attributes (noa).
-sif <- ppi_data %>% select(osEntrezA, osEntrezB)
+sif <- ppi_data %>% dplyr::select(osEntrezA, osEntrezB)
 sif$uniprotA <- proteins[as.character(sif$osEntrezA)]
 sif$uniprotB <- proteins[as.character(sif$osEntrezB)]
 
@@ -502,6 +501,11 @@ if (!(c1 & c2)){ stop() }
 # Number of edges and nodes.
 n_edges <- sum(ppi_adjm[upper.tri(ppi_adjm)])
 n_nodes <- ncol(ppi_adjm)
+data.table("Nodes"=n_nodes,"Edges"=n_edges) %>% knitr::kable()
+
+# Save as rda.
+myfile <- file.path(datadir,paste0(tolower(tissue),"_ppi_adjm"))
+save(ppi_adjm,file=myfile,version=2)
 
 #--------------------------------------------------------------------
 ## EdgeR protein-level GLM to evaluate intra-genotype contrats.
