@@ -445,9 +445,63 @@ adjm <- WGCNA::bicor(log2(dm))
 # Network enhancment of the bicor adjacency matrix.
 ne_adjm <- neten::neten(adjm)
 
-# Generate protein network.
 
+#--------------------------------------------------------------------
+## Create PPI network.
+#--------------------------------------------------------------------
 
+# Load mouse PPIs.
+message("\nCreating protein-protein interaction network.")
+data(musInteractome)
+
+# Collect all entrez cooresponding to proteins in our network.
+proteins <- colnames(adjm)
+entrez <- tmt_protein$Entrez[match(proteins,tmt_protein$Accession)]
+names(proteins) <- entrez
+
+# Collect PPIs among all proteins.
+ppi_data <- musInteractome %>%
+	filter(Interactor_B_Taxonomy %in% os_keep) %>%
+	filter(Interactor_B_Taxonomy %in% os_keep) %>%
+	filter(osEntrezA %in% entrez) %>% 
+	filter(osEntrezB %in% entrez)
+
+# Save to excel.
+myfile <- file.path(root,"tables","Swip_TMT_Network_PPIs.xlsx")
+write_excel(list("Network PPIs" = ppi_data),file=myfile)
+
+# Create simple edge list (sif) and matrix with node attributes (noa).
+sif <- ppi_data %>% select(osEntrezA, osEntrezB)
+sif$uniprotA <- proteins[as.character(sif$osEntrezA)]
+sif$uniprotB <- proteins[as.character(sif$osEntrezB)]
+
+# Create igraph object from sif.
+g <- graph_from_data_frame(sif[,c("uniprotA","uniprotB")], directed = FALSE)
+g <- simplify(g)
+
+# Extract as adjm.
+ppi_adjm <- as.matrix(as_adjacency_matrix(g))
+
+# Fill matrix.
+all_proteins <- colnames(adjm)
+missing <- all_proteins[all_proteins %notin% colnames(ppi_adjm)]
+x <- matrix(nrow=dim(ppi_adjm)[1],ncol=length(missing))
+colnames(x) <- missing
+ppi_adjm <- cbind(ppi_adjm,x)
+y <- matrix(nrow=length(missing),ncol=dim(ppi_adjm)[2])
+rownames(y) <- missing
+ppi_adjm <- rbind(ppi_adjm,y)
+ppi_adjm <- ppi_adjm[all_proteins,all_proteins]
+ppi_adjm[is.na(ppi_adjm)] <- 0
+
+# Check, all should be the same.
+c1 <- all(colnames(adjm) == colnames(ne_adjm)) 
+c2 <- all(colnames(ne_adjm) == colnames(ppi_adjm))
+if (!(c1 & c2)){ stop() }
+
+# Number of edges and nodes.
+n_edges <- sum(ppi_adjm[upper.tri(ppi_adjm)])
+n_nodes <- ncol(ppi_adjm)
 
 #--------------------------------------------------------------------
 ## EdgeR protein-level GLM to evaluate intra-genotype contrats.
