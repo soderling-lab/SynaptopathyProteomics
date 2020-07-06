@@ -35,7 +35,7 @@ getrd <- function(here=getwd(), dpat= ".git") {
 }
 
 # Parse the python dictionary returned as a string from 
-# system(random_color.py)
+# system('random_color.py').
 str_to_vec <- function(response) {
 	vec <- gsub("'","",gsub("\\[|\\]","",
 				trimws(unlist(strsplit(response,",")))))
@@ -107,13 +107,14 @@ n_colors <- length(communities)
 script <- file.path(root,"Py","random_color.py")
 
 # Generate n random colors.
-cmd <- paste(script,"--count", n_colors)
-response <- system(cmd, intern = TRUE)
+colors <- random_color(count=n_colors,luminosity='bright',
+		       script=file.path(root,"Py","random_color.py"))
+scales::show_col(colors)
 
-#  Parse the response.
-colors <- toupper(str_to_vec(response))
-random_color(count=n_colors,script=file.path(root,"Py","random_color.py"))
+# Convert each to string, and get colors for the modules of the same hue.
+hex2str(colors)
 
+# Now generate subcolors.
 
 # Module color assignments.
 # Initialize a vector for the module colors.
