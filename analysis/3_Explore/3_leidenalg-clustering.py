@@ -165,5 +165,7 @@ df.columns = profile[0].graph.vs['name']
 df.to_csv(myfile)
 
 # Save other information about each partition.
-results['Resolution']
-results['Modularity']
+myfile = os.path.join(rdatdir, output_name + "_quality.csv")
+df = DataFrame({"Resolution" : results['Resolution'], 
+    'Modularity' : results['Modularity']})
+df.to_csv(myfile)

@@ -95,13 +95,6 @@
       "Source": "Bioconductor",
       "Hash": "8c3ce65b8535566d01499971a054d7ce"
     },
-    "DescTools": {
-      "Package": "DescTools",
-      "Version": "0.99.36",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "3ea19c7c0e913c251f3fc053da2fb2cb"
-    },
     "FSA": {
       "Package": "FSA",
       "Version": "0.8.30",
@@ -710,13 +703,6 @@
       "Repository": "CRAN",
       "Hash": "ec8ca05cffcc70569eaaad8469d2a3a7"
     },
-    "expm": {
-      "Package": "expm",
-      "Version": "0.999-4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "d4e0e839218ca1fa869f807b8668576e"
-    },
     "extrafont": {
       "Package": "extrafont",
       "Version": "0.17",
@@ -807,18 +793,6 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "0d9bf02413ddc2bbe8da9ce369dcdd2b"
-    },
-    "geneLists": {
-      "Package": "geneLists",
-      "Version": "0.0.0.9000",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteUsername": "twesleyb",
-      "RemoteRepo": "geneLists",
-      "RemoteRef": "master",
-      "RemoteSha": "e48699635ec4e20d0b7322b968a353017e4f717e",
-      "Hash": "6a3ec21bca383f00996dc5d705b61dee"
     },
     "genefilter": {
       "Package": "genefilter",

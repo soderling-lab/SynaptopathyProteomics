@@ -42,9 +42,35 @@ str_to_vec <- function(response) {
 	return(vec)
 }
 
+# Parse the command line arguments.
+parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
+	# Input must be Cortex or Striatum.
+	msg <- c("Please specify a tissue type to be analyzed:\n",
+	 "Choose either 'Cortex' or 'Striatum'.")
+	# If interactive, return default tissue.
+	if (interactive()) { 
+		return("Cortex") 
+	} else {
+		# Check arguments.
+		check <- !is.na(match(args[1], c("Cortex", "Striatum")))
+		if (length(args == 1) & check) { 
+			tissue  <- args[1]
+			start <- Sys.time()
+			message(paste("Starting analysis at:", start))
+			message(paste0("Analyzing ", tissue,"..."))
+		} else {
+			stop(msg) 
+		}
+		return(tissue)
+	}
+}
+
 #---------------------------------------------------------------------
 ## Prepare the workspace.
 #---------------------------------------------------------------------
+
+# Parse input arguments.
+tissue <- parse_args()
 
 # Load renv.
 root <- getrd()
@@ -60,20 +86,24 @@ suppressPackageStartupMessages({
 suppressMessages({ devtools::load_all() })
 
 # Load TMT data and partition.
-data(tmt_protein)
-data(partition)
+data(list=tolower(tissue)) # tidy_prot
+data(list=paste0(tolower(tissue),"_partition")) # [tissue]_partition
+
+# Load initial partition into large communities.
+myfile <- file.path(root,"rdata","Cortex_initial_partition.csv")
+comm_part <- fread(myfile,drop=1) %>% unlist()
+communities <- split(names(comm_part),comm_part)
 
 #---------------------------------------------------------------------
 ## Generate colors.
 #---------------------------------------------------------------------
 
 # The number of colors we need.
-modules <- split(names(partition),partition)
-names(modules) <- paste0("M",names(modules))
-n_colors <- length(modules) - 2 # M0 will be gray. M19 will be purple.
+n_colors <- length(communities)
 
 # Path to python script which is a simple script that uses the python 
 # port of randomcolors to generate random colors.
+# NOTE: requires python randomcolor library. See random_color.py.
 script <- file.path(root,"Py","random_color.py")
 
 # Generate n random colors.
@@ -82,13 +112,14 @@ response <- system(cmd, intern = TRUE)
 
 #  Parse the response.
 colors <- toupper(str_to_vec(response))
+random_color(count=n_colors,script=file.path(root,"Py","random_color.py"))
 
-if (swip_color %in% colors) { stop("Duplicate colors.") }
 
 # Module color assignments.
 # Initialize a vector for the module colors.
 module_colors <- rep(NA,length(modules))
 names(module_colors) <- names(modules)
+
 
 # Insure that M0 is gray and WASH community/module is #B86FAD.
 module_colors["M0"] <- col2hex("gray")

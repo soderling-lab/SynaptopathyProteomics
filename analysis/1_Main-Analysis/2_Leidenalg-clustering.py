@@ -146,9 +146,6 @@ while any(too_big):
     too_big = [subg.vcount() > max_size for subg in subgraphs]
     n_iter += 1
 
-# How many iterations?
-#print("Performed {} iteration(s).".format(n_iter),file=stderr)
-
 # Collect subgraph membership as a single partition.
 nodes = [subg.vs['name'] for subg in subgraphs]
 parts = [dict(zip(n,[i]*len(n))) for i, n in enumerate(nodes)]
