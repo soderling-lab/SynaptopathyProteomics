@@ -159,6 +159,7 @@ save(gene_map,file=myfile,version=2)
 # Sample loading normalization is performed within an experiment under the
 # assumption that equal amounts of protein were used for each of the 11 TMT
 # channels.
+message("\nPerforming peptide-level sample loading normalization.")
 
 # Define data columns for SL within experiments:
 colID <- "Abundance"
@@ -175,7 +176,7 @@ SL_peptide <- normalize_SL(raw_peptide, colID, groups)
 # ratio of the intensity bin are considered outliers and removed.
 
 # Filter peptides based on QC precision.
-message("\nRemoving outlier QC peptides...")
+message("\nRemoving outlier QC peptides.")
 filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
 
 #---------------------------------------------------------------------
@@ -188,7 +189,7 @@ filter_peptide <- filter_QC(SL_peptide, groups, nbins = 5, threshold = 4)
 # and will not be imputed. Peptides with more than 2 missing biological
 # replicates or any missing quality control (QC) replicates will be
 # censored and are not imputed.
-message("\nImputing missing peptide values...")
+message("\nImputing missing peptide values with KNN algorithm.")
 
 # Impute missing values using KNN algorithm for MNAR data.
 # Rows with missing QC replicates are ingored (qc_threshold=0).
@@ -205,9 +206,11 @@ impute_peptide <- data_impute$data_imputed
 # peptides identified for a given protein across all experiments.
 
 # Summarize to protein level:
+message("\nSummarizing proteins as the sum of their peptides.")
 raw_protein <- summarize_protein(impute_peptide)
 
 # Normalize across all columns.
+message("\nPerforming protein-level sample loading normalization.")
 SL_protein <- normalize_SL(raw_protein, colID="Abundance", group="Abundance")
 
 #---------------------------------------------------------------------
@@ -222,21 +225,19 @@ SL_protein <- normalize_SL(raw_protein, colID="Abundance", group="Abundance")
 # the absence of evidence of a batch effect 
 # (not annotated or cor(PCA,batch)<0.1),
 # ComBat is not applied.
-
-# Define experimental groups and column ID for expression data.
-data_in <- SL_protein
+message("\nUsing ComBat to remove intra-batch batch effect")
 
 # Loop to perform ComBat on intraBatch batch effect (prep date).
 # If there is no known batch effect (bicor(batch,PC1)<0.1) then
 # the data is returned un-regressed.
-
-# Note: The values of QC samples are not adjusted by ComBat.
+# NOTE: The values of QC samples are not adjusted by ComBat.
 # QC samples were prepared from a seperate batch of mice and
 # represent a single batch.
-data_out <- list() # ComBat data.
-R <- list() # Bicor stats [bicor(batch,PC1)]
 
 # Loop:
+data_in <- SL_protein
+data_out <- list() # ComBat data.
+R <- list() # Bicor stats [bicor(batch,PC1)]
 for (i in 1:length(groups)) {
   # Meta data.
   info_cols <- data_in[, !grepl(colID, colnames(data_in))]
@@ -328,7 +329,7 @@ combat_protein <- data_out %>%
 # for the random sampling of peptides at the MS2 level which results in the
 # identification/quantificaiton of proteins by different peptides in each
 # experiment. IRS normalization was first described by __Plubell et al., 2017__.
-message("\nPerforming IRS normalization...")
+message("\nPerforming IRS normalization.")
 
 # Perform IRS normalization.
 IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
@@ -362,8 +363,6 @@ n_iter <- 5
 data_in <- IRS_protein
 out_samples <- list()
 plots <- list()
-
-# Loop:
 for (i in 1:n_iter) {
   data_temp <- quiet(normalize_IRS(data_in, "QC", groups, robust = TRUE))
   oldham <- ggplotSampleConnectivity(data_temp, log = TRUE, colID = "QC")
@@ -405,18 +404,18 @@ IRS_protein <- IRS_OutRemoved_protein
 # that are identified in less than 50% of all samples are also removed. The
 # nature of the remaining missng values are examined by density plot and
 # imputed with the KNN algorithm for MNAR data.
-message("\nRemoving irroproducibly quantified proteins...")
+message("\nRemoving irroproducibly quantified proteins.")
 
 # Remove proteins that are identified by only 1 peptide as well as
 # proteins identified in less than 50% of samples.
 filter_protein <- filter_proteins(IRS_protein, "Abundance")
 
 # Impute the remaining number of missing values with KNN.
-message("\nImputing missing protein values...")
+message("\nImputing missing protein values.")
 impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 
 #---------------------------------------------------------------------
-## Save the proteomics data in tidy format.
+## Collect the preprocessed data in a tidy format.
 #---------------------------------------------------------------------
 
 # Tidy.
@@ -426,6 +425,9 @@ tidy_prot <- reshape2::melt(impute_protein,id.var=c("Accession","Peptides"),
 
 # Merge data and meta data by sample name.
 tidy_prot <- left_join(tidy_prot,sample_info,by="Sample")
+
+# Drop QC.
+tidy_prot <- tidy_prot %>% filter(Treatment != "QC")
 
 #---------------------------------------------------------------------
 ## Create protein networks.
@@ -447,7 +449,7 @@ ne_adjm <- neten::neten(adjm)
 ## EdgeR protein-level GLM to evaluate intra-genotype contrats.
 #--------------------------------------------------------------------
 
-message("\nEdgeR!")
+message("\nAssessing intra-genotype differential abundance with EdgeR GLM.")
 
 # Loop to perform intra-genotype WT v MUT comparisons:
 results_list <- list()
@@ -499,40 +501,15 @@ for (geno in groups){
 	results_list[[geno]] <- glm_results
 }
 
-# Save as excel.
+# Save results as excel document.
 names(results_list) <- paste(names(results_list),tissue,"Results")
-myfile <- file.path(root,"tables","TMT_Protein_GLM_Results.xlsx")
+myfile <- file.path(root,"tables","TMT_IntraBatch_Protein_GLM_Results.xlsx")
 write_excel(results_list,myfile)
-
-#---------------------------------------------------------------------
-## Save output data.
-#---------------------------------------------------------------------
-message("\nSaving data.")
-
-## Output in root/rdata
-
-# ne_adjm.csv - adjacency matrix saved as csv for Leidenalg.
-myfile <- file.path(rdatdir,paste0(tolower(tissue),"_ne_adjm.csv"))
-ne_adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
-
-## Output in root/data
-
-# Save adjm as rda.
-myfile <-file.path(datadir,paste0(tolower(tissue),"_adjm.rda"))
-save(adjm,file=myfile,version=2)
-
-# ne_adjm.rda
-myfile <-file.path(datadir, paste0(tolower(tissue),"_ne_adjm.rda"))
-save(ne_adjm,file=myfile,version=2)
-
-# tidy_prot.rda
-myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
-tidy_prot <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() # Drop QC!
-save(tidy_prot,file=myfile,version=2)
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
 #---------------------------------------------------------------------
+message("\nPerforming TAMPOR normalization.")
 
 # batch.channel annotations
 sample_info$Batch <- paste0("b",as.numeric(as.factor(sample_info$Genotype)))
@@ -543,9 +520,10 @@ dm <- tidy_prot %>% filter(Treatment != "QC") %>%
 	dcast(Accession ~ Sample, value.var="Intensity") %>% 
 	as.matrix(rownames=TRUE)
 idx <- match(colnames(dm),sample_info$Sample)
-colnames(dm) <- sample_info$batch.channel[idx]
+colnames(dm) <- sample_info$Batch.Channel[idx]
 
-#  remove samples from traits.
+# traits to be passed to TAMPOR.
+# remove any samples that were dropped from traits.
 traits <- sample_info[sample_info$Batch.Channel %in% colnames(dm),]
 traits <- traits %>% dplyr::select(Sample,Batch,Channel,Batch.Channel,
 				   Genotype,Treatment)
@@ -564,10 +542,12 @@ results <- TAMPOR(
   parallelThreads = nThreads
 )
 
-# Collect normalize relative abundance data.
+# Collect normalized abundance data.
 TAMPOR_dm <- results$cleanRelAbun
 idy <- match(colnames(TAMPOR_dm),traits$Batch.Channel)
-colnames(TAMPOR_dm) <- traits$Sample[idy]
+colnames(TAMPOR_dm) <- traits$Sample[idy] # map back to sample name
+
+# Merge with tidy_prot.
 norm_prot <- TAMPOR_dm %>% as.data.table(keep.rownames="Accession") %>%
 	reshape2::melt(id.var="Accession")
 colnames(norm_prot) <- c("Accession", "Sample","TAMPOR.Intensity")
@@ -577,10 +557,8 @@ tidy_prot <- left_join(tidy_prot %>% filter(Treatment != "QC"),
 #---------------------------------------------------------------------
 ## EdgeR statistical comparisons post-TAMPOR.
 #---------------------------------------------------------------------
-
-message("\nPerforming statistical testing with EdgeR glm...")
-
 # Statistical comparisons are KO/HET versus all WT of a tissue type.
+message("\nAssessing differential abundance using combined WT controls with EdgeR GLM.")
 
 # Prepare data for EdgeR.
 # Data should NOT be log2 transformed.
@@ -641,10 +619,8 @@ glm_results <- lapply(glm_results,function(x) {
 })
 names(glm_results) <- groups
 
-# Combine stats.
+# Combine stats into single df and merge with tidy_prot.
 glm_stats <- bind_rows(glm_results,.id="Genotype")
-
-# Merge with tidy_prot.
 tidy_prot <- left_join(tidy_prot,glm_stats,by=c("Accession","Genotype"))
 
 # Add expression data to glm_results.
@@ -656,6 +632,34 @@ glm_results <- lapply(names(glm_results),function(x) {
 })
 names(glm_results) <- groups
 
-# Save results to file as spreadsheet.
-myfile <- file.path(root,"tables","Combined_WT_TMT_Results.xlsx")
+# Save results to file as excel spreadsheet.
+myfile <- file.path(root,"tables","TMT_Combined_WT_Protein_GLM_Results.xlsx")
 write_excel(glm_results, myfile)
+
+#---------------------------------------------------------------------
+## Save output data.
+#---------------------------------------------------------------------
+message("\nSaving data for downstream analysis.")
+
+## Output in root/rdata
+
+# ne_adjm.csv - adjacency matrix saved as csv for Leidenalg.
+myfile <- file.path(rdatdir,paste0(tolower(tissue),"_ne_adjm.csv"))
+ne_adjm %>% as.data.table(keep.rownames="Accession") %>% fwrite(myfile)
+
+## Output in root/data
+
+# Save adjm as rda.
+myfile <-file.path(datadir,paste0(tolower(tissue),"_adjm.rda"))
+save(adjm,file=myfile,version=2)
+
+# ne_adjm.rda
+myfile <-file.path(datadir, paste0(tolower(tissue),"_ne_adjm.rda"))
+save(ne_adjm,file=myfile,version=2)
+
+# tidy_prot.rda
+myfile <- file.path(datadir,paste0(tolower(tissue),".rda"))
+tidy_prot <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() # Drop QC!
+save(tidy_prot,file=myfile,version=2)
+
+message("\nDone!")
