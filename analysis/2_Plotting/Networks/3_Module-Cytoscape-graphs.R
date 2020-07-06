@@ -7,6 +7,7 @@
 #' ---
 
 ## Analysis options:
+FDR_threshold = 0.05
 
 #--------------------------------------------------------------------
 ## Misc function - getrd
@@ -53,8 +54,8 @@ parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
 ## Set-up the workspace.
 #--------------------------------------------------------------------
 
+# Parse input.
 tissue <- parse_args()
-file_prefix = tissue
 
 # Load renv.
 root <- getrd()
@@ -98,8 +99,8 @@ data(list=paste0(tolower(tissue),"_ppi_adjm"))
 # Load gene map.
 data(gene_map)
 
-# Load sig prots.
-data(sig_proteins)
+# Load module colors.
+data(list=paste0(tolower(tissue),"_module_colors"))
 
 #--------------------------------------------------------------------
 ## Create igraph graph objects.
@@ -132,23 +133,18 @@ ppi_g <- set_vertex_attr(ppi_g,"protein",value = proteins)
 # Collect meta data from tmt_protein.
 tmp_dt <- data.table(Accession = names(V(netw_g)),
 		  Module = paste0("M",partition[names(V(netw_g))]))
-noa <- left_join(tmp_dt, tmt_protein, by = "Accession") %>% 
+noa <- left_join(tmp_dt, tidy_prot, by = "Accession") %>% 
 	filter(!duplicated(Accession))
-noa <- noa %>% select(Accession, Symbol, Entrez, Module, Adjusted.logFC, 
-		      Adjusted.PercentWT, Adjusted.F, Adjusted.PValue, 
-		      Adjusted.FDR)
+noa <- noa %>% select(Accession, Symbol, Entrez, Module, logFC, 
+		      logCPM, F, PValue, 
+		      FDR)
 
 # Add module colors.
-data(module_colors)
 noa$Color <- module_colors[noa$Module]
 
-# Add WASH annotation.
-noa$isWASH <- as.numeric(noa$Accession %in% wash_prots)
-
 # Add sig prot annotations.
-noa$sig85 <- as.numeric(noa$Accession %in% sig_proteins$sig85)
-noa$sig62 <- as.numeric(noa$Accession %in% sig_proteins$sig62)
-noa$sig968 <- as.numeric(noa$Accession %in% sig_proteins$sig968)
+sig_prots <- tidy_prot %>% filter(FDR<FDR_threshold) %>% 
+	select(Accession) %>% unlist() %>% unique()
 
 # Loop to add node attributes to netw_graph.
 for (i in c(1:ncol(noa))) {
@@ -161,23 +157,13 @@ for (i in c(1:ncol(noa))) {
 ## Create Cytoscape graphs.
 #--------------------------------------------------------------------
 
-# Network images will be saved in networks/Modules:
-imgsdir <- file.path(figsdir,"SVG")
-if (!dir.exists(imgsdir)) {
-	# Create the directory.
-	dir.create(imgsdir)
-} else {
-	# Remove any existing figures.
-	invisible({ file.remove(list.files(imgsdir,full.name=TRUE)) })
-}
-
 # Loop to create graphs:
 message("\nCreating Cytoscape graphs!")
 pbar <- txtProgressBar(max=length(module_list),style=3)
 for (module_name in names(module_list)){ 
 	nodes <- module_list[[module_name]]
 	createCytoscapeGraph(netw_g, ppi_g, nodes, module_name, 
-			     netwdir=netwdir,imgsdir=imgsdir)
+			     netwdir=netwdir)
 	setTxtProgressBar(pbar, value = match(module_name,names(module_list)))
 }
 close(pbar)
@@ -185,7 +171,7 @@ close(pbar)
 # When done, save Cytoscape session.
 # NOTE: When on WSL, need to use Windows path format bc
 # Cytoscape is a Windows program.
-myfile <- file.path(netwdir,paste0(file_prefix,"Modules.cys"))
+myfile <- file.path(netwdir,paste0(file_prefix,"_Modules.cys"))
 winfile <- gsub("/mnt/d/","D:/",myfile) 
 saveSession(winfile)
 

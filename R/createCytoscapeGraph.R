@@ -1,161 +1,175 @@
-createCytoscapeGraph <- function(exp_graph,
-                                 ppi_graph,
-                                 nodes,
-                                 module_kme,
-                                 module_name,
-                                 module_colors,
-                                 network_layout,
-                                 output_file = NULL,
-                                 image_file = NULL,
-                                 image_format = NULL) {
-  ## NOTE: Sys.sleep()'s are important to prevent R from getting
-  # ahead of Cytoscape!
+#' createCytoscapeGraph
+createCytoscapeGraph <- function(netw_g, ppi_g, nodes, module_name,
+				 n_cutoffs=5000, netwdir=getwd(), 
+				 netw_layout=NULL) {
 
-  suppressPackageStartupMessages({
-    library(RCy3)
-    cytoscapePing()
-  })
-  # Subset graph.
-  idx <- match(nodes, names(V(exp_graph)))
-  g <- induced_subgraph(exp_graph, vids = V(exp_graph)[idx])
-  # Add node color attribute.
-  g <- set_vertex_attr(g, "color", value = module_colors[module_name])
-  # Add node module attribute.
-  g <- set_vertex_attr(g, "module", value = module_name)
-  # Add hubiness (KME) attributes.
-  g <- set_vertex_attr(g, "kme", value = module_kme[names(V(g))])
-  # Prune weak edges.
-  nEdges <- length(E(g))
-  e_max <- max(E(g)$weight)
-  e_min <- min(E(g)$weight)
-  cut_off <- seq(e_min, e_max, by = 0.01)
-  check <- vector("logical", length = length(cut_off))
-  # Loop to find threshold.
-  for (k in seq_along(cut_off)) {
-    threshold <- cut_off[k]
-    g_temp <- g
-    g_temp <- delete.edges(g_temp, which(E(g_temp)$weight <= threshold))
-    check[k] <- is.connected(g_temp)
-  }
-  cutoff_limit <- cut_off[max(which(check))]
-  # Prune edges -- this removes all edge types...
-  g <- delete.edges(g, which(E(g)$weight <= cutoff_limit))
+	# Imports
+	suppressPackageStartupMessages({
+		library(RCy3)
+	})
 
-  # Write graph to file this is faster than sending to cytoscape.
-  myfile <- file.path(netsdir, paste0(module_name, ".gml"))
-  write_graph(g, myfile, format = "gml")
-  # Send to Cytoscape.
-  ## FIXME: underscores from edge weight attributes are removed!
-  winfile <- gsub("/mnt/d/", "D:/", myfile)
-  cys_net <- importNetworkFromFile(winfile)
-  Sys.sleep(2)
-  unlink(myfile)
-  # Create a visual style.
-  style.name <- paste(module_name, "style", sep = "-")
-  # DEFAULTS:
-  defaults <- list(
-    NODE_FILL_COLOR = col2hex("gray"),
-    NODE_TRANSPARENCY = 200,
-    NODE_SIZE = 35,
-    NODE_SHAPE = "ellipse",
-    NODE_LABEL_TRANSPARENCY = 255,
-    NODE_LABEL_FONT_SIZE = 12,
-    NODE_LABEL_COLOR = col2hex("black"),
-    NODE_BORDER_TRANSPARENCY = 200,
-    NODE_BORDER_WIDTH = 4,
-    NODE_BORDER_PAINT = col2hex("black"),
-    NODE_TRANSPARENCY = 200,
-    EDGE_STROKE_UNSELECTED_PAINT = col2hex("black"),
-    EDGE_WIDTH = 2,
-    NETWORK_BACKGROUND_PAINT = col2hex("white")
-  )
-  # MAPPED PROPERTIES:
-  mappings <- list(
-    NODE_LABEL = mapVisualProperty("node label", "symbol", "p"),
-    NODE_FILL_COLOR = mapVisualProperty("node fill color", "color", "p"),
-    NODE_SIZE = mapVisualProperty(
-      "node size",
-      "kme",
-      "c",
-      c(min(V(g)$kme), max(V(g)$kme)),
-      c(25, 75)
-    ),
-    EDGE_TRANSPARENCY = mapVisualProperty(
-      "edge transparency",
-      "weight",
-      "c",
-      c(min(E(g)$weight), max(E(g)$weight)),
-      c(155, 255)
-    ),
-    EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty(
-      "edge stroke unselected paint",
-      "weight", "c",
-      c(min(E(g)$weight), max(E(g)$weight)),
-      c(col2hex("gray"), col2hex("dark red"))
-    )
-  )
-  # Create a visual style.
-  createVisualStyle(style.name, defaults = defaults, mappings = mappings)
-  # Apply to graph.
-  setVisualStyle(style.name)
-  Sys.sleep(3)
-  # Set NS nodes to gray.
-  anyNS <- length(names(V(g))[which(V(g)$sigProt == 0)]) > 0
-  if (anyNS) {
-    setNodePropertyBypass(
-      node.names = names(V(g))[which(V(g)$sigProt == 0)],
-      new.values = col2hex("gray"),
-      visual.property = "NODE_FILL_COLOR",
-      bypass = TRUE,
-    )
-    setNodePropertyBypass(
-      node.names = names(V(g))[which(V(g)$sigProt == 0)],
-      new.values = 200,
-      visual.property = "NODE_TRANSPARENCY",
-      bypass = TRUE,
-    )
-  }
-  # Collect PPI edges.
-  subg <- induced_subgraph(ppi_graph, vids = V(ppi_graph)[match(nodes, names(V(ppi_graph)))])
-  edge_list <- apply(as_edgelist(subg, names = TRUE), 1, as.list)
-  # If edge list is only of length 1, unnest it to avoid problems.
-  if (length(edge_list) == 1) {
-    edge_list <- unlist(edge_list, recursive = FALSE)
-  }
-  # Add PPI edges to Cytoscape graph.
-  if (length(edge_list) > 0) {
-    ppi_edges <- addCyEdges(edge_list)
-    # Add PPIs and set to black.
-    selected_edges <- selectEdges(ppi_edges, by.col = "SUID")
-    # Set to black with edge bend.
-    setEdgePropertyBypass(
-      edge.names = selected_edges$edges,
-      new.values = col2hex("black"),
-      visual.property = "EDGE_STROKE_UNSELECTED_PAINT",
-      bypass = TRUE
-    )
-    setEdgePropertyBypass(
-      edge.names = selected_edges$edges,
-      new.values = TRUE,
-      visual.property = "EDGE_BEND",
-      bypass = TRUE
-    )
-  } # Ends IF statement.
-  clearSelection()
-  Sys.sleep(2)
-  # Apply layout.
-  layoutNetwork(network_layout)
-  Sys.sleep(2)
-  fitContent()
-  # Save Image..
-  if (!is.null(image_file)) {
-    # If image exists, first remove it.
-    if (file.exists(paste(image_file, image_format, sep = "."))) {
-      unlink(paste(image_file, image_format, sep = "."))
-    }
-    winfile <- gsub("/mnt/d/", "D:/", image_file)
-    exportImage(winfile, image_format)
-  }
-  # Free up some memory.
-  cytoscapeFreeMemory()
+	# Default layout.
+	if (is.null(netw_layout)) { 
+		netw_layout <- 'force-directed edgeAttribute=weight' 
+	}
+
+	# Check that we are connected to Cytoscape.
+	response <- cytoscapePing()
+	if (response != "You are connected to Cytoscape!") { 
+		stop("Start Cytoscape first!") 
+	}
+
+	# Subset graph: keep nodes in module.
+	graph <- netw_g
+	idx <- match(nodes, names(V(graph)))
+	subg <- induced_subgraph(graph, vids = V(graph)[idx])
+
+	# Node Size ~ hubbiness or importance in its subgraph.
+	adjm <- as.matrix(as_adjacency_matrix(subg,attr="weight"))
+	node_importance <- apply(adjm,2,sum)
+	subg <- set_vertex_attr(subg,"size",
+				value=node_importance[names(V(subg))])
+
+	# Prune weak edges.
+	# Seq from min(edge.weight) to max to generate cutoffs.
+	n_edges <- length(E(subg))
+	min_weight <- min(E(subg)$weight)
+	max_weight <- max(E(subg)$weight)
+	cutoffs <- seq(min_weight, max_weight, length.out = n_cutoffs)
+
+	# Define a function that checks if graph is connnected at a 
+	# given edge weight threshold.
+	is_connected <- function(graph,threshold) {
+		filt_graph <- delete.edges(graph, 
+				       which(E(graph)$weight <= threshold))
+		return(is.connected(filt_graph))
+	}
+
+	# Check if graph is connected or not at various thresholds.
+	checks <- sapply(cutoffs, function(threshold) {
+				 is_connected(subg,threshold)
+				       })
+
+	# Limit is max(cutoff) at which the graph is still connected.
+	limit <- cutoffs[max(which(checks==TRUE))]
+	if (all(checks)) { stop("Error thesholding graph.") }
+
+	# Prune edges. NOTE: This removes all edge types.
+	g <- delete.edges(subg, which(E(subg)$weight <= limit))
+	n_edges <- length(E(g))
+
+	# Write graph to file this is faster than sending to cytoscape.
+	myfile <- file.path(netwdir, paste0(module_name, ".gml"))
+	write_graph(g, myfile, format = "gml")
+
+	# Send to Cytoscape.
+	# NOTE: underscores in attribute names are removed. 
+	winfile <- gsub("/mnt/d/", "D:/", myfile)
+	cysnetw <- importNetworkFromFile(winfile)
+	Sys.sleep(2); unlink(myfile)
+
+	####################################################################
+	## VISUAL STYLE DEFAULTS:
+	####################################################################
+
+	# Create a visual style.
+	style.name <- paste(module_name, "style", sep = "-")
+
+	# VISUAL STYLE DEFAULTS:
+	defaults <- list(
+		 NETWORK_TITLE = "Module Subnetworks",
+		 NODE_FILL_COLOR = col2hex("gray"),
+		 NODE_TRANSPARENCY = 200,
+		 NODE_SIZE = 35,
+		 NODE_SHAPE = "ellipse",
+		 NODE_LABEL_TRANSPARENCY = 255,
+		 NODE_LABEL_FONT_SIZE = 12,
+		 NODE_LABEL_COLOR = col2hex("black"),
+		 NODE_BORDER_TRANSPARENCY = 200,
+		 NODE_BORDER_WIDTH = 4,
+		 NODE_BORDER_PAINT = col2hex("black"),
+		 NODE_TRANSPARENCY = 200,
+		 EDGE_STROKE_UNSELECTED_PAINT = col2hex("black"),
+		 EDGE_WIDTH = 2,
+		 NETWORK_BACKGROUND_PAINT = col2hex("white")
+		)
+
+	####################################################################
+	## VISUAL STYLE MAPPINGS:
+	####################################################################
+
+# MAPPED PROPERTIES:
+weight_range <- c(min(E(g)$weight), max(E(g)$weight))
+size_range <- c(min(V(g)$size),max(V(g)$size))
+edge_colors <- c(col2hex("gray"), col2hex("dark red"))
+
+# List of mapped params.
+mappings <- list(
+NODE_FILL_COLOR = mapVisualProperty("node fill color","Color","p"),
+NODE_LABEL = mapVisualProperty("node label","protein", "p"),
+EDGE_TRANSPARENCY = mapVisualProperty("edge transparency", "weight", 
+				      "c", weight_range, c(155, 255)),
+EDGE_STROKE_UNSELECTED_PAINT = mapVisualProperty("edge stroke unselected paint",
+						 "weight", "c",weight_range,
+						 edge_colors),
+NODE_SIZE = mapVisualProperty("node size", "size", "c", size_range, c(35, 100)))
+
+	# Create a visual style.
+	createVisualStyle(style.name, defaults = defaults, 
+			  mappings = mappings)
+
+	# Apply to graph.
+	setVisualStyle(style.name)
+	Sys.sleep(3)
+
+	# Collect PPI edges.
+	idx <- match(nodes, names(V(ppi_g)))
+		subg <- induced_subgraph(ppi_g, 
+					 vids = V(ppi_g)[idx])
+	edge_list <- apply(as_edgelist(subg, names = TRUE), 1, as.list)
+
+	# If edge list is only of length 1, unnest it to avoid problems.
+	if (length(edge_list) == 1) {
+		edge_list <- unlist(edge_list, recursive = FALSE)
+	}
+	# Add PPI edges to Cytoscape graph.
+	if (length(edge_list) > 0) {
+		ppi_edges <- addCyEdges(edge_list)
+		# Add PPIs and set to black.
+		selected_edges <- selectEdges(ppi_edges, by.col = "SUID")
+		# Set to black with edge bend.
+		namen <- "EDGE_STROKE_UNSELECTED_PAINT"
+		setEdgePropertyBypass(
+				      edge.names = selected_edges$edges,
+				      new.values = col2hex("black"), 
+				      visual.property = namen,
+				      bypass = TRUE
+				      )
+		setEdgePropertyBypass(
+				      edge.names = selected_edges$edges,
+				      new.values = TRUE,
+				      visual.property = "EDGE_BEND",
+				      bypass = TRUE
+				      )
+	} # Ends IF statement.
+
+	#  Clean-up.
+	clearSelection()
+	Sys.sleep(2) 
+
+	# Apply layout.
+	layoutNetwork(netw_layout)
+	Sys.sleep(2)
+	fitContent()
+
+	# Mask color of non-significant nodes.
+	sig <- names(V(g))[V(g)$sig85 == 1 | V(g)$sig62 == 1 | V(g)$sig968 == 1]
+	ns <- names(V(g))[names(V(g)) %notin% sig]
+	if (length(ns) > 0) {
+		setNodeColorBypass(ns,new.colors=col2hex("gray"))
+	}
+
+	# Free up some memory.
+	suppressMessages({cytoscapeFreeMemory()})
+
 }
