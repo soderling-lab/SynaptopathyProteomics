@@ -44,15 +44,14 @@ def filterModules(partition,min_size=5,unassigned=0):
 #--------------------------------------------------------------------
 # graph_from_adjm
 def graph_from_adjm(adjm,weighted=True,signed=True):
-    # Simplifing graph seems to mess things up.
+    """ Melts adjm into an edge list and then uses igraph Graph.TupleList
+    to create an igraph graph. Done this way bc I was struggling with a lack of
+    reproducibility using other methods.
+    """
     import numpy as np
     from igraph import Graph
     from pandas import DataFrame
     if not signed: adjm = abs(adjm)
-    # Simplify graph by keeping only upper tri...
-    # Melt upper triangle into edges df.
-    #idx = np.triu(np.ones(adjm.shape)).astype(np.bool)
-    #adjm = adjm.where(idx)
     edges = adjm.stack().reset_index()
     edges.columns = ['nodeA','nodeB','weight']
     edges = edges[edges.weight != 0]
