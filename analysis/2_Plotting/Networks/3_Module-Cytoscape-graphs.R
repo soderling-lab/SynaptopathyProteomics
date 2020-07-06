@@ -93,9 +93,7 @@ data(list=paste0(tolower(tissue),"_partition"))
 
 # Load networks.
 data(list=paste0(tolower(tissue),"_ne_adjm"))
-
-data(ppi_adjm)
-ppi_adjm <- convert_to_adjm(edges)
+data(list=paste0(tolower(tissue),"_ppi_adjm"))
 
 # Load gene map.
 data(gene_map)

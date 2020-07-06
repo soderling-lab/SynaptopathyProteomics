@@ -504,7 +504,7 @@ n_nodes <- ncol(ppi_adjm)
 data.table("Nodes"=n_nodes,"Edges"=n_edges) %>% knitr::kable()
 
 # Save as rda.
-myfile <- file.path(datadir,paste0(tolower(tissue),"_ppi_adjm"))
+myfile <- file.path(datadir,paste0(tolower(tissue),"_ppi_adjm.rda"))
 save(ppi_adjm,file=myfile,version=2)
 
 #--------------------------------------------------------------------
