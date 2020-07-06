@@ -4,6 +4,7 @@
 
 random_color <-  function(count=1,hue=NULL,luminosity="light",
 			  script="random_color.py"){
+
        # Count - number of colors to generate.
        # Hue - a string 
        # luminosity - a string, one of c(light,dark,bright).
@@ -25,6 +26,7 @@ random_color <-  function(count=1,hue=NULL,luminosity="light",
 
 	# Evaluate call to random_color.py
 	cmd <- paste(script, options_)
+
 	response <- system(cmd,intern=TRUE)
 
 	# Return the hex color(s).

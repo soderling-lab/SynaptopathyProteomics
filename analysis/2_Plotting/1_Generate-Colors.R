@@ -83,7 +83,7 @@ suppressPackageStartupMessages({
 })
 
 # Local Imports.
-suppressMessages({ devtools::load_all() })
+suppressWarnings({ devtools::load_all() })
 
 # Load TMT data and partition.
 data(list=tolower(tissue)) # tidy_prot
@@ -106,30 +106,33 @@ n_colors <- length(communities)
 # NOTE: requires python randomcolor library. See random_color.py.
 script <- file.path(root,"Py","random_color.py")
 
-# Generate n random colors.
+# Generate n random colors for each community.
 colors <- random_color(count=n_colors,luminosity='bright',
 		       script=file.path(root,"Py","random_color.py"))
-scales::show_col(colors)
+#scales::show_col(colors)
 
 # Convert each to string, and get colors for the modules of the same hue.
-hex2str(colors)
+hues <- hex2str(colors)
 
 # Now generate subcolors.
-
-# Module color assignments.
-# Initialize a vector for the module colors.
-module_colors <- rep(NA,length(modules))
-names(module_colors) <- names(modules)
-
+color_list <- list()
+for (i in c(1:length(communities))){
+	community <- communities[[i]]
+	modules <- unique(partition[community])
+	modules <- modules[modules != 0]
+	n <- length(modules)
+	colors <- random_color(count=n,luminosity='bright',hue=hues[i],
+			       script=file.path(root,"Py","random_color.py"))
+	names(colors) <- paste0("M",modules)
+	color_list[[i]] <- colors
+}
+module_colors <- unlist(color_list)
+if (any(duplicated(module_colors))) { stop("Duplicate colors.") }
+idx <- order(as.numeric(gsub("M","",names(module_colors))))
+module_colors <- module_colors[idx] # Sort.
 
 # Insure that M0 is gray and WASH community/module is #B86FAD.
 module_colors["M0"] <- col2hex("gray")
-wash_module <- names(which(sapply(modules, function(x) swip %in% x)))
-module_colors[wash_module] <- swip_color
-
-# The reamining colors are random.
-idx <- is.na(module_colors)
-module_colors[idx] <- sample(colors,sum(idx))
 
 #--------------------------------------------------------------------
 ## Save the data.

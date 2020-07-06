@@ -24,7 +24,7 @@ fix_hex <- function(hex){
 	if (substring(hex[1],1,1) != "#") {
 		return(paste0("#",hex))
 	} else {
-		return(x)
+		return(hex)
 	}
 }
 
