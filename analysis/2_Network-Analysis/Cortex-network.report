@@ -1,238 +1,0 @@
-
-<<<<<<< HEAD
-Starting analysis at: 2020-06-01 07:15:09
-=======
-Starting analysis at: 2020-05-30 13:34:26
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-WARNING: One or more problems were discovered while enumerating dependencies.
-
-/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
------------------------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
-5: # Check if an argument was passed.
-6: if [
-      ^
-
-<<<<<<< HEAD
-/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/1_Plot-protein-pca.R
--------------------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/1_Plot-protein-pca.R:32:39: unexpected string constant
-33: 
-34: dataset <- paste0(tissue,"
-                                          ^
-
-=======
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
-----------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
-964: # Remove that pesky Rplots.
-965: # unlink("Rplots.pdf")
-    ^
-
-Please see `?renv::dependencies` for more information.
-<<<<<<< HEAD
-=======
-* The project and lockfile are out of sync -- use `renv::status()` for more details.
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-Loading SynaptopathyProteomics
-
-Performing network enhancement, this will take several minutes...
-
-Building PPI graph...
-33,232 edges identified among 2,917 nodes!
-
-Scale free fit of PPI graph: 0.966
-               ProtA           ProtB       bicor
-2919  Arfgef2|A2A5R2    Tanc2|A2A690 -0.20272630
-5837  Arfgef2|A2A5R2 Fam171a2|A2A699 -0.01846445
-5838    Tanc2|A2A690 Fam171a2|A2A699  0.39098378
-8755  Arfgef2|A2A5R2    Ptprf|A2A8L5  0.02212161
-8756    Tanc2|A2A690    Ptprf|A2A8L5  0.43236558
-8757 Fam171a2|A2A699    Ptprf|A2A8L5  0.33843720
-# A tibble: 2 x 2
-    PPI `median(bicor)`
-  <dbl>           <dbl>
-1     0        -0.00814
-2     1         0.103  
-
-<<<<<<< HEAD
-Completed analysis at: 2020-06-01 07:18:15
-Elapsed time: 185.49 seconds.
-=======
-Completed analysis at: 2020-05-30 13:35:29
-Elapsed time: 62.61 seconds.
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-Performing Leidenalg clustering of the Cortex graph utilizing the SurpriseVertexPartition method to find optimal partition(s)...
-Recursively spliting 5 large module(s)...
-... Initial partition: Clustering with 2918 elements and 117 clusters.
-... Final partition: Clustering with 2918 elements and 196 clusters.
-
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-WARNING: One or more problems were discovered while enumerating dependencies.
-
-/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
------------------------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
-5: # Check if an argument was passed.
-6: if [
-      ^
-
-<<<<<<< HEAD
-/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
-----------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
-=======
-/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R
--------------------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R:966:0: unexpected end of input
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-964: # Remove that pesky Rplots.
-965: # unlink("Rplots.pdf")
-    ^
-
-Please see `?renv::dependencies` for more information.
-<<<<<<< HEAD
-=======
-* The project and lockfile are out of sync -- use `renv::status()` for more details.
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-Loading SynaptopathyProteomics
-
-
-Evaluating self-preservation of Cortex modules in the Cortex network.
-
-Module statistic(s) used to evaluate module preservation: avg.weight, coherence, avg.cor, avg.contrib.
-
-Criterion for module preservation/divergence: strong.
-
-<<<<<<< HEAD
-[2020-06-01 07:20:56 EDT] Validating user input...
-[2020-06-01 07:20:56 EDT]   Checking matrices for problems...
-[2020-06-01 07:20:56 EDT] Input ok!
-[2020-06-01 07:20:56 EDT] Calculating preservation of network subsets from
-                          dataset "self" in dataset "self".
-[2020-06-01 07:20:56 EDT]   Pre-computing network properties in dataset
-                            "self"...
-[2020-06-01 07:20:56 EDT]   Calculating observed test statistics...
-[2020-06-01 07:20:57 EDT]   Generating null distributions from 10000
-                            permutations using 7 threads...
-
-    0% completed.    1% completed.    2% completed.    3% completed.    3% completed.    4% completed.    5% completed.    6% completed.    7% completed.    8% completed.    9% completed.   10% completed.   10% completed.   11% completed.   12% completed.   13% completed.   14% completed.   15% completed.   16% completed.   17% completed.   18% completed.   18% completed.   19% completed.   20% completed.   21% completed.   22% completed.   23% completed.   24% completed.   25% completed.   26% completed.   26% completed.   27% completed.   28% completed.   29% completed.   30% completed.   31% completed.   32% completed.   33% completed.   33% completed.   34% completed.   35% completed.   36% completed.   36% completed.   37% completed.   38% completed.   39% completed.   39% completed.   40% completed.   41% completed.   42% completed.   42% completed.   43% completed.   44% completed.   45% completed.   45% completed.   46% completed.   47% completed.   48% completed.   49% completed.   49% completed.   50% completed.   51% completed.   52% completed.   52% completed.   53% completed.   54% completed.   55% completed.   55% completed.   56% completed.   57% completed.   58% completed.   59% completed.   59% completed.   60% completed.   61% completed.   62% completed.   63% completed.   64% completed.   65% completed.   66% completed.   66% completed.   67% completed.   68% completed.   69% completed.   70% completed.   71% completed.   71% completed.   72% completed.   73% completed.   74% completed.   75% completed.   76% completed.   77% completed.   77% completed.   78% completed.   79% completed.   80% completed.   80% completed.   81% completed.   82% completed.   83% completed.   83% completed.   84% completed.   85% completed.   86% completed.   87% completed.   88% completed.   89% completed.   89% completed.   90% completed.   91% completed.   92% completed.   93% completed.   94% completed.   95% completed.   96% completed.   96% completed.   97% completed.   98% completed.   98% completed.   99% completed.   99% completed.  100% completed.  100% completed.
-
-[2020-06-01 07:23:01 EDT]   Calculating P-values...
-[2020-06-01 07:23:10 EDT]   Collating results...
-[2020-06-01 07:23:11 EDT] Done!
-=======
-[2020-05-30 13:36:17 EDT] Validating user input...
-[2020-05-30 13:36:17 EDT]   Checking matrices for problems...
-[2020-05-30 13:36:17 EDT] Input ok!
-[2020-05-30 13:36:17 EDT] Calculating preservation of network subsets from
-                          dataset "self" in dataset "self".
-[2020-05-30 13:36:17 EDT]   Pre-computing network properties in dataset
-                            "self"...
-[2020-05-30 13:36:17 EDT]   Calculating observed test statistics...
-[2020-05-30 13:36:17 EDT]   Generating null distributions from 10000
-                            permutations using 23 threads...
-
-    0% completed.    9% completed.   17% completed.   26% completed.   35% completed.   43% completed.   52% completed.   61% completed.   70% completed.   78% completed.   87% completed.   96% completed.  100% completed.
-
-[2020-05-30 13:36:29 EDT]   Calculating P-values...
-[2020-05-30 13:36:32 EDT]   Collating results...
-[2020-05-30 13:36:33 EDT] Done!
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-
-116 of 157 modules are preserved.
-
-Done!
-<<<<<<< HEAD
-Starting analysis at: 2020-06-01 07:23:14
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-WARNING: One or more problems were discovered while enumerating dependencies.
-
-/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
------------------------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
-5: # Check if an argument was passed.
-6: if [
-      ^
-
-/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R
-----------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/cytoscape.R:966:0: unexpected end of input
-964: # Remove that pesky Rplots.
-965: # unlink("Rplots.pdf")
-    ^
-
-Please see `?renv::dependencies` for more information.
-Loading SynaptopathyProteomics
-=======
-Starting analysis at: 2020-05-30 13:36:34
-Analyzing Cortex...
-* Project '/mnt/d/projects/SynaptopathyProteomics' loaded. [renv 0.10.0]
-WARNING: One or more problems were discovered while enumerating dependencies.
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-
-/mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R
------------------------------------------------------------------------------------
-
-<<<<<<< HEAD
-Percent proteins clustered: 80.67%.
-=======
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/2_Network-Analysis/0_run-analysis.R:6:4: unexpected '['
-5: # Check if an argument was passed.
-6: if [
-      ^
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-
-/mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R
--------------------------------------------------------------------------------
-
-ERROR 1: /mnt/d/projects/SynaptopathyProteomics/analysis/3_Plotting/4_cytoscape-graphs.R:966:0: unexpected end of input
-964: # Remove that pesky Rplots.
-965: # unlink("Rplots.pdf")
-    ^
-
-<<<<<<< HEAD
-| M1| M4| M9| M14| M21| M35| M50| M102| M104| M105| M106|
-|--:|--:|--:|---:|---:|---:|---:|----:|----:|----:|----:|
-|  3|  2|  3|   2|   2|   2|   3|    2|    2|    2|    2|
-
-Completed analysis at: 2020-06-01 07:24:18
-Elapsed time: 64.09 seconds.
-=======
-Please see `?renv::dependencies` for more information.
-* The project and lockfile are out of sync -- use `renv::status()` for more details.
-Loading SynaptopathyProteomics
-
-Total number of modules: 115
-
-Percent proteins clustered: 79.75%.
-
-Median module coherence (PVE): 62.76%.
-
-Number of modules with significant (p.adj < 0.1) Kruskal-Wallis test: 11.
-
-Number of significant (p.adj < 0.1) Dunnett's test post-hoc test(s): 11.
-
-
-| M1| M4| M9| M14| M21| M35| M49| M100| M102| M103| M104|
-|--:|--:|--:|---:|---:|---:|---:|----:|----:|----:|----:|
-|  3|  2|  3|   2|   2|   2|   3|    2|    2|    2|    2|
-
-Completed analysis at: 2020-05-30 13:36:56
-Elapsed time: 21.94 seconds.
->>>>>>> 50b680d50d5193b2f64130f5bd65168e31bd4c33
-./0_run-analysis.R: line 91: ./5_module_GO-enrichment.R: No such file or directory
-./0_run-analysis.R: line 104: ./6_module_DBD-enrichment.R: No such file or directory
