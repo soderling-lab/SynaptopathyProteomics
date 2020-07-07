@@ -357,7 +357,7 @@ IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
 # create unwanted variability. Thus, outlier QC samples are removed, if
 # identified. The method used by __Oldham et al., 2016__ is used to identify
 # QC sample outliers. A threshold of -2.5 is used.
-message("\nExamining QC samples for potential outliers.")
+message("\nExamining QC samples for potential outliers using Oldham's method.")
 
 # Illustrate Oldham's sample connectivity.
 data_in <- IRS_protein
