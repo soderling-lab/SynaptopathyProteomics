@@ -2,13 +2,14 @@
 #'
 #' @export
 #'
-oldham_outliers <- function(data_in,colID="Abundance",threshold = 2.5) {
+oldham_outliers <- function(data_in,colID="Abundance",threshold = 3.0) {
 
   # Calculate ZKi (standardized sample connectivity).
   # This quanityty describes the overall strength of connections between a 
   # given sample and all of the other samples.
   # The total connectivity of a sample is the sum of all of its connections.
   # NOTE: the function assumes that the data has not been log transformed.
+  # Originally taken from the code in the Oldham paper... I think.
 
   suppressPackageStartupMessages({
     library(WGCNA)

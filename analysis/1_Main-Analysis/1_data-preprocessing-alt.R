@@ -6,9 +6,11 @@
 #' authors: Tyler W Bradshaw
 #' ---
 
-## Optional Parameters:
+## PARAMETERS:
 oldham_threshold = 3.0 # Threshold for detecting sample level outliers.
 FDR_threshold = 0.05 # Threshold for protein differential abundance.
+# NOTE: the oldham_outliers f(x) defaults to 2.5 for QC sample outliers.
+# This threshold is more sensitive for removal of variable QC measurments.
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocessing:
@@ -29,8 +31,8 @@ FDR_threshold = 0.05 # Threshold for protein differential abundance.
 #     | * Filter proteins
 #     | * Protein imputing
 # [edgeR STATISTICAL analysis]
-#       * Final TMM normalization
-#       * GLM for differential abundance.
+#     | * Final TMM normalization
+#     | * GLM for differential abundance.
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
@@ -167,6 +169,18 @@ myfile <- file.path(datadir,paste0(tolower(tissue),"_gene_map.rda"))
 save(gene_map,file=myfile,version=2)
 
 #---------------------------------------------------------------------
+## Summarize initial number of peptides and proteins.
+#---------------------------------------------------------------------
+# The initial number of unique proteins and unique peptides quantified
+# in all four experiments.
+
+message("\nInitial number of peptides and proteins:")
+f <- function(x) { formatC(x,big.mark=",",format="d") }
+data.table("Number of Peptides:"=f(length(unique(raw_peptide$Sequence))),
+	   "Number of Proteins:"=f(length(unique(raw_peptide$Accession)))) %>%
+knitr::kable()
+
+#---------------------------------------------------------------------
 ## Sample loading normalization within experiments.
 #---------------------------------------------------------------------
 # The function normalize_SL performs sample loading (SL) normalization to
@@ -234,13 +248,13 @@ SL_protein <- normalize_SL(raw_protein, colID="Abundance", group="Abundance")
 ## IntraBatch Protein-lavel ComBat.
 #---------------------------------------------------------------------
 # Each experimental cohort of 8 samples was prepared in two batches. 
-# This was necessary because the ultra-centrifuge rotor used to prepare purified synaptosomes
-# holds a maximum of 6 samples. This intra-batch batch effect was recorded for
-# 6/8 experiments. Here I will utilize the ComBat() function from the sva
-# package to remove this batch effect before correcting for inter-batch batch
-# effects between batches with IRS normalization. NOTE: that in
-# the absence of evidence of a batch effect (not annotated or cor(PCA,batch)<0.1),
-# ComBat is not applied.
+# This was necessary because the ultra-centrifuge rotor used to prepare 
+# purified synaptosomes holds a maximum of 6 samples. This 'intra-batch' 
+# batch effect was recorded for 6/8 experiments. Here I will utilize the 
+# ComBat() function from the sva package to remove this batch effect before 
+# correcting for 'inter-batch' protein-level batch effects between with IRS 
+# normalization. NOTE: that in the absence of evidence of a batch effect 
+# (batch was not known or cor(PCA,batch)<0.1), ComBat is not applied.
 message("\nUsing ComBat to remove intra-batch batch effect")
 
 # Loop to perform ComBat on intraBatch batch effect (prep date).
@@ -338,6 +352,36 @@ combat_protein <- data_out %>%
 	purrr::reduce(left_join, by = c(colnames(data_in)[c(1, 2)]))
 
 #---------------------------------------------------------------------
+## Identify and remove QC sample outliers.
+#---------------------------------------------------------------------
+# IRS normalization utilizes QC samples as reference samples. Outlier QC
+# measurements (caused by interference or other artifact) would influence the
+# create unwanted variability. Thus, outlier QC samples are removed, if
+# identified. The method used by Oldham et al., (2016) is used to identify
+# QC sample outliers.
+message("\nExamining QC samples for potential outliers using Oldham's method.")
+
+# Loop to identify Sample outliers using Oldham's connectivity method.
+n_iter = 5; bad_QC = list()
+data_in = combat_protein
+for (i in 1:n_iter) {
+  bad_samples <- oldham_outliers(data_in, colID = "QC")
+  if (length(bad_samples) == 0) { bad_samples <- "none" }
+  bad_QC[[i]] <- bad_samples
+  idy <- colnames(data_in) %in% bad_QC
+  data_in <- data_in[,!idy]
+}
+
+# Summarize outlier QC samples.
+bad_samples <- unlist(bad_QC)
+message(paste("\nTotal number of outlier QC samples identified:", 
+	      sum(bad_samples != "none")))
+
+# Remove QC outlier samples from the data.
+idy <- colnames(combat_protein) %in% bad_samples
+QCfilt_prot <- combat_protein[,!idy]
+
+#---------------------------------------------------------------------
 ## IRS Normalization.
 #---------------------------------------------------------------------
 # Internal reference sclaing (IRS) normalization equalizes the protein-wise means
@@ -348,53 +392,7 @@ combat_protein <- data_out %>%
 message("\nPerforming IRS normalization.")
 
 # Perform IRS normalization.
-IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
-
-#---------------------------------------------------------------------
-## Identify and remove QC sample outliers.
-#---------------------------------------------------------------------
-# IRS normalization utilizes QC samples as reference samples. Outlier QC
-# measurements (caused by interference or other artifact) would influence the
-# create unwanted variability. Thus, outlier QC samples are removed, if
-# identified. The method used by Oldham et al., (2016) is used to identify
-# QC sample outliers.
-message("\nExamining QC samples for potential outliers using Oldham's method.")
-
-
-# Check sample connectivity
-oldham_outliers(IRS_protein,colID="QC",threshold = oldham_threshold)
-
-# Loop to identify Sample outliers using Oldham's connectivity method.
-n_iter <- 5
-data_in <- IRS_protein
-out_samples <- list()
-plots <- list()
-for (i in 1:n_iter) {
-  data_temp <- quiet(normalize_IRS(IRS_protein, "QC", groups, robust = TRUE))
-  bad_samples <- oldham_outliers(data_temp, colID = "QC")
-  if (length(bad_samples) == 0) { bad_samples <- "none" }
-  out_samples[[i]] <- bad_samples
-  out <- grepl(paste(unlist(out_samples), collapse = "|"), colnames(data_in))
-  data_in <- quiet(normalize_IRS(data_in[, !out], "QC", groups, robust = TRUE))
-}
-
-# Outlier samples.
-bad_samples <- unlist(out_samples)
-message(paste("\nTotal number of outlier QC samples identified:", 
-	      sum(bad_samples != "none")))
-
-# Remove outliers from data.
-samples_out <- paste(bad_samples, collapse = "|")
-out <- grepl(samples_out, colnames(SL_protein))
-
-# Redo IRS after outlier removal.
-IRS_OutRemoved_protein <- normalize_IRS(combat_protein[, !out],
-  "QC", groups,
-  robust = TRUE
-)
-
-# Write over IRS_data
-IRS_protein <- IRS_OutRemoved_protein
+IRS_protein <- normalize_IRS(QCfilt_prot, "QC", groups, robust = TRUE)
 
 #---------------------------------------------------------------------
 ## Protein level filtering, and imputing.
@@ -418,33 +416,34 @@ impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 #---------------------------------------------------------------------
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
-data_in <- impute_protein
-i=1; outliers = TRUE
-outlier_samples = list()
-while (outliers == TRUE & i < 5) {
-	bad_samples <- oldham_outliers(data_in,colID="Abundance",
-					   threshold = oldham_threshold)
-	outlier_samples[[i]] <- bad_samples
-	if (length(bad_samples)==0) { outliers = FALSE; next }
-	message(paste0(length(bad_samples),
-		       " outlier sample(s) identified in iteration ", i, "."))
-	idy <- colnames(data_in) %notin% bad_samples
-	data_in <- data_in[,idy]
-	i = i+1
+n_iter = 5; bad_samples = list()
+data_in = impute_protein
+for (i in 1:n_iter) {
+  drop <- oldham_outliers(data_in, colID = "QC")
+  if (length(drop) == 0) { 
+	  bad_samples[[i]] <- "none" 
+  } else {
+	  bad_samples <- drop
+  }
+  idy <- colnames(data_in) %in% bad_samples
+  data_in <- data_in[,!idy]
 }
 
-# Outlier samples.
-outlier_samples <- unlist(outlier_samples)
+# Summarize outlier samples.
+bad_samples <- unlist(bad_samples)
 message(paste("\nTotal number of outlier samples identified:", 
-	     length(outlier_samples)))
-message(paste("Outlier samples:",paste(outlier_samples,collapse=", ")))
+	      sum(bad_samples != "none")))
+
+# Remove QC outlier samples from the data.
+idy <- colnames(impute_protein) %in% bad_samples
+sampleFilt_prot <- impute_protein[,!idy]
 
 #---------------------------------------------------------------------
 ## Collect the preprocessed data in a tidy format.
 #---------------------------------------------------------------------
 
 # Tidy the data.
-tidy_prot <- reshape2::melt(impute_protein,id.var=c("Accession","Peptides"),
+tidy_prot <- reshape2::melt(sampleFilt_prot,id.var=c("Accession","Peptides"),
 			    value.var="Intensity", variable.name="Sample",
 			    value.name = "Intensity") %>% as.data.table()
 
@@ -460,7 +459,7 @@ tidy_prot <- left_join(tidy_prot,sample_info,by="Sample")
 tidy_prot <- tidy_prot %>% filter(Treatment != "QC")
 
 #--------------------------------------------------------------------
-## Intra-genotype contrats with EdgeR GLM.
+## Intra-genotype contrasts with EdgeR GLM.
 #--------------------------------------------------------------------
 
 message("\nAssessing intra-genotype differential abundance with EdgeR GLM.")

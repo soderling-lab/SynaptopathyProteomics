@@ -6,8 +6,8 @@
 #' authors: Tyler W A Bradshaw
 #' ---
 
-## OPTIONS:
-BF_alpha = 0.05 # bonferonni significance threshold for module DA
+## PARAMETERS:
+BF_alpha = 0.05 # bonferonni significance threshold for module differential abundance.
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
