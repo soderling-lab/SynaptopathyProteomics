@@ -109,7 +109,7 @@ script <- file.path(root,"Py","random_color.py")
 # Generate n random colors for each community.
 colors <- random_color(count=n_colors,luminosity='bright',
 		       script=file.path(root,"Py","random_color.py"))
-#scales::show_col(colors)
+scales::show_col(colors)
 
 # Convert each to string, and get colors for the modules of the same hue.
 hues <- hex2str(colors)

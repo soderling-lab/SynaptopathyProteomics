@@ -7,7 +7,7 @@
 #' ---
 
 ## OPTIONS:
-BF_alpha = 0.05 # bonferonni significance threshold for module DA
+BF_alpha = 0.1 # bonferonni significance threshold for module DA
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
@@ -98,7 +98,6 @@ data(list=paste0(tolower(tissue),"_ppi_adjm")) # ppi_adjm
 #---------------------------------------------------------------------
 message("\nPerforming module-level analysis of differential abundance with EdgeR GLM.")
 
-
 # Annotate data with module membership.
 tidy_prot$Module <- partition[tidy_prot$Accession]
 
@@ -159,10 +158,8 @@ glm_results <- lapply(glm_results, function(x) {
 			      x$PAdjust <- p.adjust(x$PValue,method="bonferroni")
 			      return(x) })
 
-# Calculate the number of proteins per module.
-module_sizes <- sapply(split(partition,partition), length)
-
 # Annotate results with the number of nodes per module:
+module_sizes <- sapply(split(partition,partition), length)
 glm_results <- lapply(glm_results, function(x) {
 			      n <- module_sizes[as.character(x$Module)]
 			      x <- tibble::add_column(x,Nodes=n,.after="Module")
@@ -188,7 +185,6 @@ glm_results <- lapply(glm_results, function(x){
 dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() %>% 
 	dcast(Sample ~ Accession, value.var = "Intensity") %>% 
 	as.matrix(rownames="Sample") %>% log2()
-
 ME_data <- WGCNA::moduleEigengenes(dm, colors = partition, 
 				   excludeGrey = TRUE, softPower = 1 ,
 				   impute = FALSE)
@@ -214,11 +210,15 @@ df <- data.table("Tissue"= tissue,
 knitr::kable(df)
 
 # Summary of sig modules.
-lapply(names(glm_results),function(x) {
+message("\nNumber of significant modules (PAdjust < 0.05):")
+knitr::kable(t(sapply(glm_results,function(x) sum(x$PAdjust < BF_alpha))))
+
+message("\nSignificant modules:")
+sapply(names(glm_results),function(x) {
 	       df <- glm_results[[x]] %>% filter(PAdjust < BF_alpha) %>% 
 		       select(-one_of("Proteins"))
 	       df <- tibble::add_column(df,"Genotype"=x,.before=1)
-	       return(knitr::kable(df))
+	      knitr::kable(df)
 })
 
 #--------------------------------------------------------------------
@@ -251,7 +251,17 @@ module_df <- df
 
 # Add to the data.
 for (i in c(1:length(glm_results))){
-	glm_results[[i]] <- left_join(glm_results[[i]],module_df,by="Module")
+	idy <- c(1,which(grepl(names(glm_results)[i],colnames(module_df)) | grepl("WT",colnames(module_df))))
+	glm_results[[i]] <- left_join(glm_results[[i]],module_df %>% select(all_of(idy)),by="Module")
+}
+
+# Fix logCPM column
+for (i in c(1:length(glm_results))){
+	df <- glm_results[[i]]
+	df$logCPM <- 2^df$logFC
+	idy <- which(colnames(df) == "logCPM")
+	colnames(df)[idy] <- "Percent Control (%)"
+	glm_results[[i]] <- df
 }
 
 #--------------------------------------------------------------------
@@ -273,6 +283,27 @@ for (i in c(1:length(glm_results))){
 #df <- tibble::add_column(df,"MUT Mean" = MUT_means, .after="WT SEM")
 #df <- tibble::add_column(df,"MUT SEM" = MUT_SEM, .after="MUT Mean")
 #glm_results <- df
+
+#--------------------------------------------------------------------
+## Assess any overlap.
+#--------------------------------------------------------------------
+
+assess_overlap <- function(contrast) {
+	a <- contrast[1]; b <- contrast[2]
+	length(intersect(sig_modules[[a]],sig_modules[[b]]))
+}
+
+sig_modules <- sapply(glm_results, function(x) {
+			      x %>% filter(PAdjust < BF_alpha) %>% select(Module) %>% unlist()
+		  })
+
+all_contrasts <- combn(c("Shank2","Shank3","Syngap1","Ube3a"),2,simplify=FALSE)
+overlap <- sapply(all_contrasts,assess_overlap)
+names(overlap) <- sapply(all_contrasts,function(x) paste(x,collapse=" U "))
+
+message("\nPotential module-level convergence:")
+knitr::kable(t(overlap))
+
 
 #--------------------------------------------------------------------
 # Save results.

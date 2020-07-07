@@ -109,6 +109,7 @@ suppressWarnings({ devtools::load_all() })
 # Project directories.
 datadir <- file.path(root,"data") # Input/Output data.
 rdatdir <- file.path(root,"rdata") # Temporary data files.
+tabsdir <- file.path(root,"tables") # Output excel tables.
 
 # Number of threads for parallel processing.
 nThreads <- parallel::detectCores() - 1
@@ -483,7 +484,7 @@ ppi_data <- musInteractome %>%
 	filter(osEntrezB %in% entrez)
 
 # Save to excel.
-myfile <- file.path(root,"tables",paste0(tissue,"_TMT_Network_PPIs.xlsx"))
+myfile <- file.path(root,"tables",paste0(tissue,"_Network_PPIs.xlsx"))
 write_excel(list("Network PPIs" = ppi_data),file=myfile)
 
 # Create simple edge list (sif) and matrix with node attributes (noa).
@@ -588,10 +589,7 @@ message("\nSummary of DA proteins for intra-genotype contrasts:")
 df <- sapply(results_list,function(x) sum(x$FDR<FDR_threshold))
 knitr::kable(t(df))
 
-# Save results as excel document.
-names(results_list) <- paste(names(results_list),tissue,"Results")
-myfile <- file.path(root,"tables",paste0(tissue,"_TMT_Protein_GLM_Results.xlsx"))
-write_excel(results_list,myfile)
+intrabatch_results <- results_list
 
 #---------------------------------------------------------------------
 ## Perform TAMPOR normalization.
@@ -726,9 +724,14 @@ df <- sapply(glm_results,function(x) sum(x$FDR<FDR_threshold))
 knitr::kable(t(df))
 
 # Save results to file as excel spreadsheet.
-myfile <- file.path(root,"tables",
-		    paste0(tissue,"_TMT_Combined_WT_Protein_GLM_Results.xlsx"))
-write_excel(glm_results, myfile)
+myfile <- file.path(tabsdir,paste0(tissue,"_Protein_GLM_Results.xlsx"))
+names(intrabatch_results) <- paste(names(intrabatch_results),"intrabatch")
+names(glm_results) <- paste(names(glm_results),"Results")
+results_list <- c("Raw peptide" = list(raw_peptide),
+		  "Normalized protein" = list(as.data.table(dm,keep.rownames="Accession")),
+		  intrabatch_results,
+		  glm_results)
+write_excel(results_list,myfile)
 
 #---------------------------------------------------------------------
 ## Save output data.
