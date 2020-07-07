@@ -20,6 +20,7 @@
 #' ggplotSampleConnectivity(data_in, log = TRUE, colID, threshold = -2.5)
 ggplotSampleConnectivity <- function(data_in, log = TRUE, colID,
                                      threshold = -2.5) {
+
   suppressPackageStartupMessages({
     library(ggdendro)
     library(WGCNA)
@@ -33,6 +34,7 @@ ggplotSampleConnectivity <- function(data_in, log = TRUE, colID,
   } else {
     dm <- dm
   }
+
   # Calcualte adjacency matrix.
   adjm <- (0.5 + 0.5 * WGCNA::bicor(dm, use = "pairwise.complete.obs")^2)
   # Generate a dendrogram.

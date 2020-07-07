@@ -7,7 +7,7 @@
 #' ---
 
 ## OPTIONS:
-BF_alpha = 0.1 # bonferonni significance threshold for module DA
+BF_alpha = 0.05 # bonferonni significance threshold for module DA
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
@@ -304,7 +304,6 @@ names(overlap) <- sapply(all_contrasts,function(x) paste(x,collapse=" U "))
 message("\nPotential module-level convergence:")
 knitr::kable(t(overlap))
 
-
 #--------------------------------------------------------------------
 # Save results.
 #--------------------------------------------------------------------
@@ -318,5 +317,7 @@ part_dt <- data.table(Uniprot,Entrez,Symbol,Module=partition)
 
 # Save as excel table.
 myfile <- file.path(tabsdir,paste0(tissue,"_Module_GLM_Results.xlsx"))
-results <- c(list("Network Partition" = part_dt), glm_results)
+results <- c(list("Network Partition" = part_dt), 
+	     list("Module Abundance" = module_df),
+	     glm_results)
 write_excel(results,file=myfile)
