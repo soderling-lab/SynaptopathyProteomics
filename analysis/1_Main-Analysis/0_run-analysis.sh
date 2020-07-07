@@ -19,12 +19,12 @@ spin() {
 rm -f *.report
 
 # Output log files:
-CORTEX="Cortex-preprocessing.report"
-STRIATUM="Striatum-preprocessing.report"
+CORTEX="Cortex.report"
+STRIATUM="Striatum.report"
 
 # STEP 1a.
 echo "Processing raw Cortex data."
-./1_data-preprocessing.R Cortex &> "$CORTEX" & spin
+./1_*.R Cortex &> "$CORTEX" & spin
 
 # Check if completed successfully?
 if [ $? -eq 0 ]
@@ -37,26 +37,20 @@ fi
 
 # STEP 1b.
 echo "Processing raw Striatum data."
-./1_data-preprocessing.R Striatum &> "$STRIATUM" & spin
+./1_*.R Striatum &> "$STRIATUM" & spin
 
-# Check if completed successfully?
-if [ $? -eq 0 ]
-then
-	echo -e "\tSuccessfully processed Striatum data."
-else
-	echo -e "\tError: Failed to process Striatum data."
-	exit 0
-fi
 
 # STEP 2.
-echo "Combing datasets with TAMPOR."
-./2_TAMPOR-normalization.R 2>&1 | tee --append "$CORTEX" "$STRIATUM" > /dev/null & spin
+echo "Clustering co-expression networks."
+./2_*.py Cortex &> "$CORTEX" & spin
+./2_*.py Striatum &> "$STRIATUM" & spin
 
-# Check if completed successfully?
-if [ $? -eq 0 ]
-then
-	echo -e "\tData preprocessing is complete!"
-else
-	echo -e "\tFailed to combine datasets with TAMPOR."
-	exit
-fi
+# STEP 3.
+echo "Enforcing module self-preservation."
+./3_*.R Cortex &> "$CORTEX" & spin
+./3_*.R Striatum &> "$STRIATUM" & spin
+
+# STEP 4.
+echo "Analyzing modules for differential abundance in Shank2, Shank3, Syngap1 and Ube3a groups."
+./4_*.R Cortex &> "$CORTEX" & spin
+./4_*.R Striatum &> "$STRIATUM" & spin
