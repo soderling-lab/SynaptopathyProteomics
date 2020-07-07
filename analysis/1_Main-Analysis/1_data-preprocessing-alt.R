@@ -8,6 +8,7 @@
 
 ## Optional Parameters:
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
+FDR_threshold = 0.1
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocessing:
@@ -356,6 +357,7 @@ IRS_protein <- normalize_IRS(combat_protein, "QC", groups, robust = TRUE)
 # create unwanted variability. Thus, outlier QC samples are removed, if
 # identified. The method used by __Oldham et al., 2016__ is used to identify
 # QC sample outliers. A threshold of -2.5 is used.
+message("\nExamining QC samples for potential outliers.")
 
 # Illustrate Oldham's sample connectivity.
 data_in <- IRS_protein
@@ -368,7 +370,7 @@ sample_connectivity <- ggplotSampleConnectivity(data_in,
 tab <- sample_connectivity$table
 df <- tibble::add_column(tab, "Name" = rownames(tab), .before = 1)
 rownames(df) <- NULL
-knitr::kable(df)
+#knitr::kable(df)
 
 # Loop to identify Sample outliers using Oldham's connectivity method.
 n_iter <- 5
@@ -436,6 +438,8 @@ tidy_prot <- reshape2::melt(impute_protein,id.var=c("Accession","Peptides"),
 			    value.name = "Intensity") %>% as.data.table()
 
 # Merge data and meta data by sample name.
+sample_info$Sample <- as.character(sample_info$Sample)
+tidy_prot$Sample <- as.character(tidy_prot$Sample)
 tidy_prot <- left_join(tidy_prot,sample_info,by="Sample")
 
 # Drop QC.
@@ -445,9 +449,8 @@ tidy_prot <- tidy_prot %>% filter(Treatment != "QC")
 ## Create protein networks.
 #---------------------------------------------------------------------
 
-message("\nBuilding protein networks.")
-
 # Drop QC, log2 transform, and do bicor.
+message("\nBuilding protein covariation network.")
 dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% 
 	as.data.table() %>% 
 	dcast(Sample ~ Accession, value.var="Intensity") %>% 
@@ -455,6 +458,7 @@ dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>%
 adjm <- WGCNA::bicor(log2(dm))
 
 # Network enhancment of the bicor adjacency matrix.
+message("\nPerforming network enhancment.")
 ne_adjm <- neten::neten(adjm)
 
 #--------------------------------------------------------------------
@@ -462,8 +466,8 @@ ne_adjm <- neten::neten(adjm)
 #--------------------------------------------------------------------
 
 # Load mouse PPIs.
-message("\nCreating protein-protein interaction network.")
-data(musInteractome)
+message("\nBuilding PPI network.")
+data(musInteractome) # from twesleyb/getPPIs.
 
 # Collect all entrez cooresponding to proteins in our network.
 proteins <- colnames(adjm)
@@ -471,7 +475,7 @@ entrez <- gene_map$entrez[match(proteins,gene_map$uniprot)]
 names(proteins) <- entrez
 
 # Collect PPIs among all proteins.
-os_keep = c(96006,10116,10090)
+os_keep <- c(9606,10116,10090)
 ppi_data <- musInteractome %>%
 	filter(Interactor_B_Taxonomy %in% os_keep) %>%
 	filter(Interactor_B_Taxonomy %in% os_keep) %>%
@@ -512,9 +516,12 @@ c2 <- all(colnames(ne_adjm) == colnames(ppi_adjm))
 if (!(c1 & c2)){ stop() }
 
 # Number of edges and nodes.
-n_edges <- sum(ppi_adjm[upper.tri(ppi_adjm)])
+n_edges <- sum(ppi_adjm[upper.tri(ppi_adjm,diag=FALSE)])
 n_nodes <- ncol(ppi_adjm)
-data.table("Nodes"=n_nodes,"Edges"=n_edges) %>% knitr::kable()
+data.table("Nodes"=formatC(n_nodes,big.mark=",",format="d"),
+	   "Edges"=formatC(n_edges,big.mark=",",format="d")) %>% knitr::kable()
+
+# FIXME: examine topology of the ppi graph.
 
 # Save as rda.
 myfile <- file.path(datadir,paste0(tolower(tissue),"_ppi_adjm.rda"))
@@ -531,7 +538,7 @@ results_list <- list()
 for (geno in groups){
 	# Cast data into matrix.
 	dm <- tidy_prot %>% filter(Treatment != "QC") %>% 
-		filter(Genotype == geno) %>%
+		filter(Genotype == geno) %>% as.data.table() %>%
 		dcast(Accession ~ Sample, value.var="Intensity") %>% 
 		as.matrix(rownames=TRUE)
 	# Create dge object.
@@ -576,6 +583,11 @@ for (geno in groups){
 	results_list[[geno]] <- glm_results
 }
 
+# Examine results.
+message("\nSummary of DA proteins for intra-genotype contrasts:")
+df <- sapply(results_list,function(x) sum(x$FDR<FDR_threshold))
+knitr::kable(t(df))
+
 # Save results as excel document.
 names(results_list) <- paste(names(results_list),tissue,"Results")
 myfile <- file.path(root,"tables",paste0(tissue,"_TMT_Protein_GLM_Results.xlsx"))
@@ -591,7 +603,7 @@ sample_info$Batch <- paste0("b",as.numeric(as.factor(sample_info$Genotype)))
 sample_info$Batch.Channel <- as.character(interaction(sample_info$Batch,sample_info$Channel))
 
 # The data, with batch.channel names.
-dm <- tidy_prot %>% filter(Treatment != "QC") %>% 
+dm <- tidy_prot %>% filter(Treatment != "QC") %>% as.data.table() %>%
 	dcast(Accession ~ Sample, value.var="Intensity") %>% 
 	as.matrix(rownames=TRUE)
 idx <- match(colnames(dm),sample_info$Sample)
@@ -626,6 +638,7 @@ colnames(TAMPOR_dm) <- traits$Sample[idy] # map back to sample name
 norm_prot <- TAMPOR_dm %>% as.data.table(keep.rownames="Accession") %>%
 	reshape2::melt(id.var="Accession")
 colnames(norm_prot) <- c("Accession", "Sample","TAMPOR.Intensity")
+norm_prot$Sample <- as.character(norm_prot$Sample)
 tidy_prot <- left_join(tidy_prot %>% filter(Treatment != "QC"),
 		       norm_prot,by=c("Accession","Sample"))
 
@@ -637,7 +650,7 @@ message("\nAssessing differential abundance using combined WT controls with Edge
 
 # Prepare data for EdgeR.
 # Data should NOT be log2 transformed.
-dm <- tidy_prot %>% 
+dm <- tidy_prot %>% as.data.table() %>%
 	dcast(Accession ~ Sample, value.var="TAMPOR.Intensity") %>%
 	as.matrix(rownames="Accession")
 
@@ -706,6 +719,11 @@ glm_results <- lapply(names(glm_results),function(x) {
 	glm_results[[x]] <- left_join(glm_results[[x]],dt,by="Accession")
 })
 names(glm_results) <- groups
+
+# Summary of DA proteins.
+message("\nSummary of DA proteins:")
+df <- sapply(glm_results,function(x) sum(x$FDR<FDR_threshold))
+knitr::kable(t(df))
 
 # Save results to file as excel spreadsheet.
 myfile <- file.path(root,"tables",

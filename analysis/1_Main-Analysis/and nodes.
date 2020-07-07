@@ -1,0 +1,324 @@
+formatC                  package:base                  R Documentation
+
+_F_o_r_m_a_t_t_i_n_g _U_s_i_n_g _C-_s_t_y_l_e _F_o_r_m_a_t_s
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     ‘formatC()’ formats numbers individually and flexibly using ‘C’
+     style format specifications.
+
+     ‘prettyNum()’ is used for “prettifying” (possibly formatted)
+     numbers, also in ‘format.default’.
+
+     ‘.format.zeros(x)’, an auxiliary function of ‘prettyNum()’,
+     re-formats the zeros in a vector ‘x’ of formatted numbers.
+
+_U_s_a_g_e:
+
+     formatC(x, digits = NULL, width = NULL,
+             format = NULL, flag = "", mode = NULL,
+             big.mark = "", big.interval = 3L,
+             small.mark = "", small.interval = 5L,
+             decimal.mark = getOption("OutDec"),
+             preserve.width = "individual",
+             zero.print = NULL, replace.zero = TRUE,
+             drop0trailing = FALSE)
+     
+     prettyNum(x, big.mark = "",   big.interval = 3L,
+               small.mark  = "", small.interval = 5L,
+               decimal.mark = getOption("OutDec"), input.d.mark = decimal.mark,
+               preserve.width = c("common", "individual", "none"),
+               zero.print = NULL, replace.zero = FALSE,
+               drop0trailing = FALSE, is.cmplx = NA,
+               ...)
+     
+     .format.zeros(x, zero.print, nx = suppressWarnings(as.numeric(x)),
+                   replace = FALSE, warn.non.fitting = TRUE)
+     
+_A_r_g_u_m_e_n_t_s:
+
+       x: an atomic numerical or character object, possibly ‘complex’
+          only for ‘prettyNum()’, typically a vector of real numbers.
+          Any class is discarded, with a warning.
+
+  digits: the desired number of digits after the decimal point (‘format
+          = "f"’) or _significant_ digits (‘format = "g"’, ‘= "e"’ or
+          ‘= "fg"’).
+
+          Default: 2 for integer, 4 for real numbers.  If less than 0,
+          the C default of 6 digits is used.  If specified as more than
+          50, 50 will be used with a warning unless ‘format = "f"’
+          where it is limited to typically 324. (Not more than 15-21
+          digits need be accurate, depending on the OS and compiler
+          used.  This limit is just a precaution against segfaults in
+          the underlying C runtime.)
+
+   width: the total field width; if both ‘digits’ and ‘width’ are
+          unspecified, ‘width’ defaults to 1, otherwise to ‘digits +
+          1’.  ‘width = 0’ will use ‘width = digits’, ‘width < 0’ means
+          left justify the number in this field (equivalent to ‘flag =
+          "-"’).  If necessary, the result will have more characters
+          than ‘width’.  For character data this is interpreted in
+          characters (not bytes nor display width).
+
+  format: equal to ‘"d"’ (for integers), ‘"f"’, ‘"e"’, ‘"E"’, ‘"g"’,
+          ‘"G"’, ‘"fg"’ (for reals), or ‘"s"’ (for strings).  Default
+          is ‘"d"’ for integers, ‘"g"’ for reals.
+
+          ‘"f"’ gives numbers in the usual ‘xxx.xxx’ format; ‘"e"’ and
+          ‘"E"’ give ‘n.ddde+nn’ or ‘n.dddE+nn’ (scientific format);
+          ‘"g"’ and ‘"G"’ put ‘x[i]’ into scientific format only if it
+          saves space to do so _and_ drop trailing zeros and decimal
+          point - unless ‘flag’ contains ‘"#"’ which keeps trailing
+          zeros for the ‘"g", "G"’ formats.
+
+          ‘"fg"’ (our own hybrid format) uses fixed format as ‘"f"’,
+          but ‘digits’ as the minimum number of _significant_ digits.
+          This can lead to quite long result strings, see examples
+          below.  Note that unlike ‘signif’ this prints large numbers
+          with more significant digits than ‘digits’.  Trailing zeros
+          are _dropped_ in this format, unless ‘flag’ contains ‘"#"’.
+
+    flag: for ‘formatC’, a character string giving a format modifier as
+          in Kernighan and Ritchie (1988, page 243) or the C+99
+          standard.
+
+          ‘"0"’ pads leading zeros;
+
+          ‘"-"’ does left adjustment,
+
+          ‘"+"’ ensures a sign in all cases, i.e., ‘"+"’ for positive
+              numbers ,
+
+          ‘" "’ if the first character is not a sign, the space
+              character ‘" "’ will be used instead.
+
+          ‘"#"’ specifies “an alternative output form”, specifically
+              depending on ‘format’.
+
+          ‘"'"’ on some platform-locale combination, activates
+              “thousands' grouping” for decimal conversion,
+
+          ‘"I"’ in some versions of ‘glibc’ allow for integer
+              conversion to use the locale's alternative output digits,
+              if any.
+
+          There can be more than one of these flags, in any order.
+          Other characters used to have no effect for ‘character’
+          formatting, but signal an error since R 3.4.0.
+
+    mode: ‘"double"’ (or ‘"real"’), ‘"integer"’ or ‘"character"’.
+          Default: Determined from the storage mode of ‘x’.
+
+big.mark: character; if not empty used as mark between every
+          ‘big.interval’ decimals _before_ (hence ‘big’) the decimal
+          point.
+
+big.interval: see ‘big.mark’ above; defaults to 3.
+
+small.mark: character; if not empty used as mark between every
+          ‘small.interval’ decimals _after_ (hence ‘small’) the decimal
+          point.
+
+small.interval: see ‘small.mark’ above; defaults to 5.
+
+decimal.mark: the character to be used to indicate the numeric decimal
+          point.
+
+input.d.mark: if ‘x’ is ‘character’, the character known to have been
+          used as the numeric decimal point in ‘x’.
+
+preserve.width: string specifying if the string widths should be
+          preserved where possible in those cases where marks
+          (‘big.mark’ or ‘small.mark’) are added.  ‘"common"’, the
+          default, corresponds to ‘format’-like behavior whereas
+          ‘"individual"’ is the default in ‘formatC()’. Value can be
+          abbreviated.
+
+zero.print: logical, character string or ‘NULL’ specifying if and how
+          _zeros_ should be formatted specially.  Useful for pretty
+          printing ‘sparse’ objects.
+
+replace.zero, replace: logical; if ‘zero.print’ is a character string,
+          indicates if the exact zero entries in ‘x’ should be simply
+          replaced by ‘zero.print’.  Otherwise, depending on the widths
+          of the respective strings, the (formatted) zeroes are
+          _partly_ replaced by ‘zero.print’ and then padded with ‘" "’
+          to the right were applicable.  In that case (false
+          ‘replace[.zero]’), if the ‘zero.print’ string does not fit, a
+          warning is produced (if ‘warn.non.fitting’ is true).
+
+          This works via ‘prettyNum()’, which calls ‘.format.zeros(*,
+          replace=replace.zero)’ three times in this case, see the
+          ‘Details’.
+
+warn.non.fitting: logical; if it is true, ‘replace[.zero]’ is false and
+          the ‘zero.print’ string does not fit, a ‘warning’ is
+          signalled.
+
+drop0trailing: logical, indicating if trailing zeros, i.e., ‘"0"’
+          _after_ the decimal mark, should be removed; also drops
+          ‘"e+00"’ in exponential formats.  This is simply passed to
+          ‘prettyNum()’, see the ‘Details’.
+
+is.cmplx: optional logical, to be used when ‘x’ is ‘"character"’ to
+          indicate if it stems from ‘complex’ vector or not.  By
+          default (‘NA’), ‘x’ is checked to ‘look like’ complex.
+
+     ...: arguments passed to ‘format’.
+
+      nx: numeric vector of the same length as ‘x’, typically the
+          numbers of which the character vector ‘x’ is the pre-format.
+
+_D_e_t_a_i_l_s:
+
+     For numbers, ‘formatC()’ calls ‘prettyNum()’ when needed which
+     itself calls ‘.format.zeros(*, replace=replace.zero)’.  (_“when
+     needed”_: when ‘zero.print’ is not ‘NULL’, ‘drop0trailing’ is
+     true, or one of ‘big.mark’, ‘small.mark’, or ‘decimal.mark’ is not
+     at default.)
+
+     If you set ‘format’ it overrides the setting of ‘mode’, so
+     ‘formatC(123.45, mode = "double", format = "d")’ gives ‘123’.
+
+     The rendering of scientific format is platform-dependent: some
+     systems use ‘n.ddde+nnn’ or ‘n.dddenn’ rather than ‘n.ddde+nn’.
+
+     ‘formatC’ does not necessarily align the numbers on the decimal
+     point, so ‘formatC(c(6.11, 13.1), digits = 2, format = "fg")’
+     gives ‘c("6.1", " 13")’.  If you want common formatting for
+     several numbers, use ‘format’.
+
+     ‘prettyNum’ is the utility function for prettifying ‘x’.  ‘x’ can
+     be complex (or ‘format(<complex>)’), here.  If ‘x’ is not a
+     character, ‘format(x[i], ...)’ is applied to each element, and
+     then it is left unchanged if all the other arguments are at their
+     defaults.  Use the ‘input.d.mark’ argument for ‘prettyNum(x)’ when
+     ‘x’ is a ‘character’ vector not resulting from something like
+     ‘format(<number>)’ with a period as decimal mark.
+
+     Because ‘gsub’ is used to insert the ‘big.mark’ and ‘small.mark’,
+     special characters need escaping.  In particular, to insert a
+     single backslash, use ‘"\\\\"’.
+
+     The C doubles used for R numerical vectors have signed zeros,
+     which ‘formatC’ may output as ‘-0’, ‘-0.000’ ....
+
+     There is a warning if ‘big.mark’ and ‘decimal.mark’ are the same:
+     that would be confusing to those reading the output.
+
+_V_a_l_u_e:
+
+     A character object of same size and attributes as ‘x’ (after
+     discarding any class), in the current locale's encoding.
+
+     Unlike ‘format’, each number is formatted individually.  Looping
+     over each element of ‘x’, the C function ‘sprintf(...)’ is called
+     for numeric inputs (inside the C function ‘str_signif’).
+
+     ‘formatC’: for character ‘x’, do simple (left or right) padding
+     with white space.
+
+_N_o_t_e:
+
+     The default for ‘decimal.mark’ in ‘formatC()’ was changed in R
+     3.2.0: for use within ‘print’ methods in packages which might be
+     used with earlier versions: use ‘decimal.mark =
+     getOption("OutDec")’ explicitly.
+
+_A_u_t_h_o_r(_s):
+
+     ‘formatC’ was originally written by Bill Dunlap for S-PLUS, later
+     much improved by Martin Maechler.
+
+     It was first adapted for R by Friedrich Leisch and since much
+     improved by the R Core team.
+
+_R_e_f_e_r_e_n_c_e_s:
+
+     Kernighan, B. W. and Ritchie, D. M. (1988) _The C Programming
+     Language._ Second edition.  Prentice Hall.
+
+_S_e_e _A_l_s_o:
+
+     ‘format’.
+
+     ‘sprintf’ for more general C-like formatting.
+
+_E_x_a_m_p_l_e_s:
+
+     xx <- pi * 10^(-5:4)
+     cbind(format(xx, digits = 4), formatC(xx))
+     cbind(formatC(xx, width = 9, flag = "-"))
+     cbind(formatC(xx, digits = 5, width = 8, format = "f", flag = "0"))
+     cbind(format(xx, digits = 4), formatC(xx, digits = 4, format = "fg"))
+     
+     f <- (-2:4); f <- f*16^f
+     # Default ("g") format:
+     formatC(pi*f)
+     # Fixed ("f") format, more than one flag ('width' partly "enlarged"):
+     cbind(formatC(pi*f, digits = 3, width=9, format = "f", flag = "0+"))
+     
+     formatC(    c("a", "Abc", "no way"), width = -7)  # <=> flag = "-"
+     formatC(c((-1:1)/0,c(1,100)*pi), width = 8, digits = 1)
+     
+     ## note that some of the results here depend on the implementation
+     ## of long-double arithmetic, which is platform-specific.
+     xx <- c(1e-12,-3.98765e-10,1.45645e-69,1e-70,pi*1e37,3.44e4)
+     ##       1        2             3        4      5       6
+     formatC(xx)
+     formatC(xx, format = "fg")       # special "fixed" format.
+     formatC(xx[1:4], format = "f", digits = 75) #>> even longer strings
+     
+     formatC(c(3.24, 2.3e-6), format = "f", digits = 11)
+     formatC(c(3.24, 2.3e-6), format = "f", digits = 11, drop0trailing = TRUE)
+     
+     r <- c("76491283764.97430", "29.12345678901", "-7.1234", "-100.1","1123")
+     ## American:
+     prettyNum(r, big.mark = ",")
+     ## Some Europeans:
+     prettyNum(r, big.mark = "'", decimal.mark = ",")
+     
+     (dd <- sapply(1:10, function(i) paste((9:0)[1:i], collapse = "")))
+     prettyNum(dd, big.mark = "'")
+     
+     ## examples of 'small.mark'
+     pN <- stats::pnorm(1:7, lower.tail = FALSE)
+     cbind(format (pN, small.mark = " ", digits = 15))
+     cbind(formatC(pN, small.mark = " ", digits = 17, format = "f"))
+     
+     cbind(ff <- format(1.2345 + 10^(0:5), width = 11, big.mark = "'"))
+     ## all with same width (one more than the specified minimum)
+     
+     ## individual formatting to common width:
+     fc <- formatC(1.234 + 10^(0:8), format = "fg", width = 11, big.mark = "'")
+     cbind(fc)
+     ## Powers of two, stored exactly, formatted individually:
+     pow.2 <- formatC(2^-(1:32), digits = 24, width = 1, format = "fg")
+     ## nicely printed (the last line showing 5^32 exactly):
+     noquote(cbind(pow.2))
+     
+     ## complex numbers:
+     r <- 10.0000001; rv <- (r/10)^(1:10)
+     (zv <- (rv + 1i*rv))
+     op <- options(digits = 7) ## (system default)
+     (pnv <- prettyNum(zv))
+     stopifnot(pnv == "1+1i", pnv == format(zv),
+               pnv == prettyNum(zv, drop0trailing = TRUE))
+     ## more digits change the picture:
+     options(digits = 8)
+     head(fv <- format(zv), 3)
+     prettyNum(fv)
+     prettyNum(fv, drop0trailing = TRUE) # a bit nicer
+     options(op)
+     
+     ## The  '  flag :
+     doLC <- FALSE # <= R warns, so change to TRUE manually if you want see the effect
+     if(doLC)
+       oldLC <- Sys.setlocale("LC_NUMERIC", "de_CH.UTF-8")
+     formatC(1.234 + 10^(0:4), format = "fg", width = 11, flag = "'")
+     ## -->  .....  "      1'001" "     10'001"   on supported platforms
+     if(doLC) ## revert, typically to  "C"  :
+       Sys.setlocale("LC_NUMERIC", oldLC)
+     
+
