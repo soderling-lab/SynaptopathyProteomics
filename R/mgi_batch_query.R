@@ -89,8 +89,10 @@ mgi_batch_query <- function(ids,from="Uniprot",to="Entrez",
 	idx <- match(ids,dtC$UniProt)
 	entrez <- dtC$Entrez[idx]
 	n_missing <- sum(is.na(entrez))
+	if (n_missing > 0) {
 	message(paste("Warning, unable to map",n_missing,
 		      "gene identifiers to entrez."))
+	}
 	names(entrez) <- ids
 
 	# Return entrez ids.

@@ -50,13 +50,13 @@ getrd <- function(here=getwd(), dpat= ".git") {
 }
 
 # Parse the command line arguments.
-parse_args <- function(default="Cortex", args=commandArgs(trailingOnly=TRUE)){
+parse_args <- function(default="Striatum", args=commandArgs(trailingOnly=TRUE)){
 	# Input must be Cortex or Striatum.
 	msg <- c("Please specify a tissue type to be analyzed:\n",
 	 "Choose either 'Cortex' or 'Striatum'.")
 	# If interactive, return default tissue.
 	if (interactive()) { 
-		return("Cortex") 
+		return(default) 
 	} else {
 		# Check arguments.
 		check <- !is.na(match(args[1], c("Cortex", "Striatum")))
@@ -109,8 +109,8 @@ suppressWarnings({ devtools::load_all() })
 datadir <- file.path(root,"data") # Input/Output data.
 rdatdir <- file.path(root,"rdata") # Temporary data files.
 
-# Number of threads.
-nThreads = parallel::detectCores() - 1
+# Number of threads for parallel processing.
+nThreads <- parallel::detectCores() - 1
 
 #---------------------------------------------------------------------
 ## Load the raw data and sample info (traits).
@@ -135,20 +135,33 @@ meta_files <- c(
 raw_peptide <- fread(file = file.path(datadir, data_files[tissue]))
 sample_info <- fread(file = file.path(datadir, meta_files[tissue]))
 
+# Remove Iap immunoglobin protein.
+drop <- c("P03975","")
+raw_peptide <- raw_peptide %>% filter(Accession %notin% drop)
+
 #---------------------------------------------------------------------
 ## Create gene identifier map.
 #---------------------------------------------------------------------
+message("\nCreating protein/gene identifier map.")
 
 # Create gene map.
-message("\nCreating gene identifier map.")
-uniprot <- raw_peptide$Accession
+uniprot <- unique(raw_peptide$Accession)
 entrez <- mgi_batch_query(ids=uniprot)
+
+# Map missing ids by hand.
+message("Mapping missing ids by hand.")
+is_missing <- is.na(entrez)
+missing <- c("P10853" = 319180) # H2bc7
+entrez[names(missing)] <- missing
+if (sum(is.na(entrez))>0) { stop("Missing identifiers.") }
+
+# Map entrez to gene symbols.
 symbols <- getPPIs::getIDs(entrez,from="entrez",to="symbol",species="mouse")
 gene_map <- as.data.table(keep.rownames="uniprot",entrez)
 gene_map$symbol <- symbols[as.character(gene_map$entrez)]
 
 # Save gene_map as rda.
-myfile <- file.path(datadir,"gene_map.rda")
+myfile <- file.path(datadir,paste0(tolower(tissue),"_gene_map.rda"))
 save(gene_map,file=myfile,version=2)
 
 #---------------------------------------------------------------------
