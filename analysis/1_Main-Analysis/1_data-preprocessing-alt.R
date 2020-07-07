@@ -417,7 +417,7 @@ impute_protein <- impute_proteins(filter_protein, "Abundance", method = "knn")
 ## Collect the preprocessed data in a tidy format.
 #---------------------------------------------------------------------
 
-# Tidy.
+# Tidy the data.
 tidy_prot <- reshape2::melt(impute_protein,id.var=c("Accession","Peptides"),
 			    value.var="Intensity", variable.name="Sample",
 			    value.name = "Intensity") %>% as.data.table()
@@ -458,7 +458,7 @@ entrez <- gene_map$entrez[match(proteins,gene_map$uniprot)]
 names(proteins) <- entrez
 
 # Collect PPIs among all proteins.
-os_keep = c(96006,10116,1090)
+os_keep = c(96006,10116,10090)
 ppi_data <- musInteractome %>%
 	filter(Interactor_B_Taxonomy %in% os_keep) %>%
 	filter(Interactor_B_Taxonomy %in% os_keep) %>%
@@ -466,8 +466,8 @@ ppi_data <- musInteractome %>%
 	filter(osEntrezB %in% entrez)
 
 # Save to excel.
-#myfile <- file.path(root,"tables","Swip_TMT_Network_PPIs.xlsx")
-#write_excel(list("Network PPIs" = ppi_data),file=myfile)
+myfile <- file.path(root,"tables",paste0(tissue,"_TMT_Network_PPIs.xlsx"))
+write_excel(list("Network PPIs" = ppi_data),file=myfile)
 
 # Create simple edge list (sif) and matrix with node attributes (noa).
 sif <- ppi_data %>% dplyr::select(osEntrezA, osEntrezB)
@@ -508,7 +508,7 @@ myfile <- file.path(datadir,paste0(tolower(tissue),"_ppi_adjm.rda"))
 save(ppi_adjm,file=myfile,version=2)
 
 #--------------------------------------------------------------------
-## EdgeR protein-level GLM to evaluate intra-genotype contrats.
+## Intra-genotype contrats with EdgeR GLM.
 #--------------------------------------------------------------------
 
 message("\nAssessing intra-genotype differential abundance with EdgeR GLM.")
@@ -565,7 +565,7 @@ for (geno in groups){
 
 # Save results as excel document.
 names(results_list) <- paste(names(results_list),tissue,"Results")
-myfile <- file.path(root,"tables","TMT_IntraBatch_Protein_GLM_Results.xlsx")
+myfile <- file.path(root,"tables",paste0(tissue,"_TMT_Protein_GLM_Results.xlsx"))
 write_excel(results_list,myfile)
 
 #---------------------------------------------------------------------
@@ -695,7 +695,8 @@ glm_results <- lapply(names(glm_results),function(x) {
 names(glm_results) <- groups
 
 # Save results to file as excel spreadsheet.
-myfile <- file.path(root,"tables","TMT_Combined_WT_Protein_GLM_Results.xlsx")
+myfile <- file.path(root,"tables",
+		    paste0(tissue,"_TMT_Combined_WT_Protein_GLM_Results.xlsx"))
 write_excel(glm_results, myfile)
 
 #---------------------------------------------------------------------
