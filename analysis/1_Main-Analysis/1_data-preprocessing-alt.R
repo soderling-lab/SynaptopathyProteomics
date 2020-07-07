@@ -8,7 +8,7 @@
 
 ## Optional Parameters:
 oldham_threshold = -2.5 # Threshold for detecting sample level outliers.
-FDR_threshold = 0.1
+FDR_threshold = 0.05 # Threshold for protein differential abundance.
 
 #---------------------------------------------------------------------
 ## Overview of Data Preprocessing:
