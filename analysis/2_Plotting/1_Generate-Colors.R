@@ -141,5 +141,5 @@ module_colors["M0"] <- col2hex("gray")
 message(paste("\nSaving colors."))
 
 # Save updated module colors.
-myfile <- file.path(root,"data",paste0(tolower(tissue),"module_colors.rda"))
+myfile <- file.path(root,"data",paste0(tolower(tissue),"_module_colors.rda"))
 save(module_colors,file=myfile,version=2)
