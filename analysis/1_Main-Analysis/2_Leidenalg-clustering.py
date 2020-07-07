@@ -17,13 +17,27 @@ recursive_method = 'Surprise'
 
 ## Input data:
 # Input adjacency matrix should be in root/rdata/
-adjm_file = 'Cortex_NE_Adjm.csv'
-#adjm_file = 'Striatum_NE_Adjm.csv'
+adjm_files = {'Cortex' : 'Cortex_NE_Adjm.csv', 
+        'Striatum' : 'Striatum_NE_Adjm.csv'}
 
 ## Output:
 # Saved in root/rdata/
 # [output_name]_partitions.csv
-output_name = 'Cortex' # Prefix out output partition, saved as .csv.
+
+#------------------------------------------------------------------------------
+## Parse input arguments.
+#------------------------------------------------------------------------------
+
+from argparse import ArgumentParser
+
+ap = ArgumentParser('./2_Leidenalg-clustering.py [TISSUE]')
+ap.add_argument('tissue', type=str, help='The tissue type to be analyzed.')
+
+args=vars(ap.parse_args())
+
+# The tissue type to be analyzed:
+tissue = output_name = args['tissue']
+adjm_file = adjm_files.get(tissue)
 
 #------------------------------------------------------------------------------
 ## Prepare the workspace.

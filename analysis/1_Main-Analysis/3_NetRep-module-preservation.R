@@ -8,10 +8,9 @@
 
 ## User parameters to change:
 stats = c(1,2,6,7) # Module statistics to use for permutation testing.
-strength = "strong" # Criterion for preservation: strong or weak.
+strength = "strong" # Criterion for preservation: strong or weak, see NOTE:.
 min_size = 5 # minimum allowable size for a module.
 verbose = TRUE # verbosity
-replace_negative = "zero" # How should negative weights be handled?
 nThreads = parallel::detectCores() - 1 # number of cores
 # NOTE: strong = all preservation statistics must be significant. Weak = any.
 

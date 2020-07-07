@@ -7,7 +7,7 @@
 #' ---
 
 ## OPTIONS:
-BF_alpha = 0.05 # significance threshold for modules
+BF_alpha = 0.05 # bonferonni significance threshold for module DA
 
 #---------------------------------------------------------------------
 ## Misc function - getrd().
@@ -76,25 +76,28 @@ suppressWarnings({ devtools::load_all() })
 # Project directories:
 datadir <- file.path(root, "data")
 rdatdir <- file.path(root, "rdata")
+tabsdir <- file.path(root, "tables")
 
 # Load the data.
 data(list=tolower(tissue)) # tidy_prot
 
 # Load the gene map.
-data(gene_map) # gene_map
+data(list=paste0(tolower(tissue),"_gene_map")) # gene_map
 
 # Load the graph partition.
 data(list=paste0(tolower(tissue),"_partition")) # partition
 
-# Load the network.
+# Load the protein covariation network.
 data(list=paste0(tolower(tissue),"_ne_adjm")) # ne_adjm
+
+# Load the ppi network.
+data(list=paste0(tolower(tissue),"_ppi_adjm")) # ppi_adjm
 
 #---------------------------------------------------------------------
 ## Perform module level statistical analysis.
 #---------------------------------------------------------------------
+message("\nPerforming module-level analysis of differential abundance with EdgeR GLM.")
 
-# Calculate the number of proteins per module.
-module_sizes <- sapply(split(partition,partition), length)
 
 # Annotate data with module membership.
 tidy_prot$Module <- partition[tidy_prot$Accession]
@@ -156,13 +159,16 @@ glm_results <- lapply(glm_results, function(x) {
 			      x$PAdjust <- p.adjust(x$PValue,method="bonferroni")
 			      return(x) })
 
-# Number of nodes per module:
+# Calculate the number of proteins per module.
+module_sizes <- sapply(split(partition,partition), length)
+
+# Annotate results with the number of nodes per module:
 glm_results <- lapply(glm_results, function(x) {
 			      n <- module_sizes[as.character(x$Module)]
 			      x <- tibble::add_column(x,Nodes=n,.after="Module")
 			      })
 
-# Annotate with module proteins.
+# Annotate results with module proteins.
 modules <- split(names(partition),partition)
 module_ids <- lapply(modules,function(x) {
 	       paste(gene_map$symbol[match(x,gene_map$uniprot)],x,sep="|")
@@ -173,16 +179,12 @@ glm_results <- lapply(glm_results, function(x){
 			      return(x)
 			      })
 
-# Save as excel document.
-#myfile <- file.path(root,"tables","TMT_Module_GLM_Results.xlsx")
-##write_excel(glm_results, myfile)
-
 #--------------------------------------------------------------------
 ## Calculate Module PVE
 #--------------------------------------------------------------------
 # NOTE: the data pre-TAMPOR was used to create the networks!
 
-# Calculate module eigengenes.
+# Calculate module eigengenes using  WGCNA functions.
 dm <- tidy_prot %>% filter(!grepl("QC",Sample)) %>% as.data.table() %>% 
 	dcast(Sample ~ Accession, value.var = "Intensity") %>% 
 	as.matrix(rownames="Sample") %>% log2()
@@ -201,80 +203,89 @@ glm_results <- lapply(glm_results, function(x) {
 			      x <- tibble::add_column(x,PVE,.after="Nodes")
 			      return(x)
 				   })
-quit()
+
+# Summary of network:
+df <- data.table("Tissue"= tissue,
+		 "Number of Nodes" = formatC(length(partition),big.mark=","),
+		 "Number of Modules" = length(module_sizes[-1]),
+		 "Median Module Size" = median(module_sizes[-1]),
+		 "Median Module PVE" = round(median(pve),3),
+		 "Percent Clustered" = round(100*(sum(partition != 0)/length(partition)),3))
+knitr::kable(df)
+
+# Summary of sig modules.
+lapply(names(glm_results),function(x) {
+	       df <- glm_results[[x]] %>% filter(PAdjust < BF_alpha) %>% 
+		       select(-one_of("Proteins"))
+	       df <- tibble::add_column(df,"Genotype"=x,.before=1)
+	       return(knitr::kable(df))
+})
 
 #--------------------------------------------------------------------
-## Add module level data.
+## Add module level data to glm results.
 #--------------------------------------------------------------------
 
-df <- tmt_protein %>% group_by(Module,Genotype,Treatment) %>% 
-	dplyr::summarize(Intensity = sum(Adjusted.Intensity),.groups="drop")
-df$.groups <- NULL
-dm <- df %>% as.data.table() %>%
-	dcast(Module ~ Fraction + Genotype, value.var = "Intensity")
-dm$Module <- as.character(dm$Module)
+# Summarize a module as the sum of its proteins.
+df <- tidy_prot %>%
+	group_by(Module, Genotype, Sample, Treatment) %>%
+	dplyr::summarize(Sum.Intensity=sum(TAMPOR.Intensity),.groups="drop") %>% 
+	as.data.table() %>%
+	dcast(Module ~ Sample,value.var="Sum.Intensity")
+df$Module <- as.character(df$Module)
 
 # Sort columns.
-idy <- grepl("F[0-9]{1,2}",colnames(dm))
-lvls <- c("F4","F5","F6","F7","F8","F9","F10")
-f <- factor(sapply(strsplit(colnames(dm)[idy],"_"),"[",1),levels=lvls)
-g <- factor(sapply(strsplit(colnames(dm)[idy],"_"),"[",2),levels=c("WT","MUT"))
-idy <- c("Module",gsub("\\.","_",as.character(levels(interaction(f,g)))))
-dm <- dm %>% select(all_of(idy))
+column_order <- c(1, # 'Module' 
+		  # WT columns:
+		  which(grepl("Shank2",colnames(df)) & grepl("WT",colnames(df))),
+		  which(grepl("Shank3",colnames(df)) & grepl("WT",colnames(df))),
+		  which(grepl("Syngap1",colnames(df)) & grepl("WT",colnames(df))),
+		  which(grepl("Ube3a",colnames(df)) & grepl("WT",colnames(df))),
+		  # KO columns
+		  which(grepl("Shank2",colnames(df)) & grepl("KO|HET",colnames(df))),
+		  which(grepl("Shank3",colnames(df)) & grepl("KO|HET",colnames(df))),
+		  which(grepl("Syngap1",colnames(df)) & grepl("KO|HET",colnames(df))),
+		  which(grepl("Ube3a",colnames(df)) & grepl("KO|HET",colnames(df)))
+		  )
+df <- df %>% select(all_of(column_order))
+module_df <- df
 
 # Add to the data.
-glm_results <- left_join(glm_results,dm,by="Module")
-
-# Annotate with hubs.
-hubs_list <- module_hubs[paste0("M",glm_results$Module)]
-glm_results$Hubs <- sapply(hubs_list,paste,collapse="; ")
-
-# Annotate with module proteins.
+for (i in c(1:length(glm_results))){
+	glm_results[[i]] <- left_join(glm_results[[i]],module_df,by="Module")
+}
 
 #--------------------------------------------------------------------
 ## Calculate mean and SEM of groups.
 #--------------------------------------------------------------------
 
-df <- glm_results
-cols <- c(grep("F[0-9]{1,2}_WT",colnames(df)),grep("MUT",colnames(df)))
-dm <- df %>% dplyr::select(Module,all_of(cols)) %>% 
-	as.data.table() %>% as.matrix(rownames="Module")
-idy <- grepl("WT",colnames(dm))
-WT_means <- apply(dm,1,function(x) log2(mean(x[idy])))
-WT_SEM <- apply(dm,1,function(x) sd(log2(x[idy])))/WT_means
-idy <- grepl("MUT",colnames(dm))
-MUT_means <- apply(dm,1,function(x) log2(mean(x[idy])))
-MUT_SEM <- apply(dm,1,function(x) sd(log2(x[idy])))/MUT_means
-df <- tibble::add_column(df,"WT Mean" = WT_means, .after="PVE")
-df <- tibble::add_column(df,"WT SEM" = WT_SEM, .after="WT Mean")
-df <- tibble::add_column(df,"MUT Mean" = MUT_means, .after="WT SEM")
-df <- tibble::add_column(df,"MUT SEM" = MUT_SEM, .after="MUT Mean")
-glm_results <- df
+#df <- glm_results
+#cols <- c(grep("F[0-9]{1,2}_WT",colnames(df)),grep("MUT",colnames(df)))
+#dm <- df %>% dplyr::select(Module,all_of(cols)) %>% 
+#	as.data.table() %>% as.matrix(rownames="Module")
+#idy <- grepl("WT",colnames(dm))
+#WT_means <- apply(dm,1,function(x) log2(mean(x[idy])))
+#WT_SEM <- apply(dm,1,function(x) sd(log2(x[idy])))/WT_means
+#idy <- grepl("MUT",colnames(dm))
+#MUT_means <- apply(dm,1,function(x) log2(mean(x[idy])))
+#MUT_SEM <- apply(dm,1,function(x) sd(log2(x[idy])))/MUT_means
+#df <- tibble::add_column(df,"WT Mean" = WT_means, .after="PVE")
+#df <- tibble::add_column(df,"WT SEM" = WT_SEM, .after="WT Mean")
+#df <- tibble::add_column(df,"MUT Mean" = MUT_means, .after="WT SEM")
+#df <- tibble::add_column(df,"MUT SEM" = MUT_SEM, .after="MUT Mean")
+#glm_results <- df
 
 #--------------------------------------------------------------------
 # Save results.
 #--------------------------------------------------------------------
 
-# Save sig proteins.
-sig_proteins <- unique(tmt_protein$Accession[tmt_protein$PAdjust < 0.05])
-myfile <- file.path(root,"data","sig_proteins.rda")
-save(sig_proteins,file=myfile,version=2)
-print(length(sig_proteins))
-
 # Data.table describing graph partition.
 Uniprot <- names(partition)
 idx <- match(Uniprot,gene_map$uniprot)
 Entrez <- gene_map$entrez[idx]
-Symbol <- gene_map$gene[idx]
+Symbol <- gene_map$symbol[idx]
 part_dt <- data.table(Uniprot,Entrez,Symbol,Module=partition)
 
 # Save as excel table.
-myfile <- file.path(tabsdir,"S3_Swip_TMT_Module_GLM_Results.xlsx")
-results <- list("Network Partition" = part_dt,
-		"Module GLM Results" = glm_results)
+myfile <- file.path(tabsdir,paste0(tissue,"_Module_GLM_Results.xlsx"))
+results <- c(list("Network Partition" = part_dt), glm_results)
 write_excel(results,file=myfile)
-
-# Save as rda object.
-module_stats <- glm_results
-myfile <- file.path(datadir,"module_stats.rda")
-save(module_stats,file=myfile,version=2)
