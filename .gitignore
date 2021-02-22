@@ -1,0 +1,49 @@
+# ignore temporary files passed from R to Cytoscape
+*.gml
+
+# ignore archived files
+ARCHIVE/
+
+# misc R files to ignore
+*.Rproj
+.Rproj.user
+.Rhistory
+*.RData
+.RData
+*.Rproj
+.Rprofile
+.Ruserdata
+.Renviron
+
+# ignore temporary files
+*.sw*
+
+# misc python files to ignore
+__pycache__/
+pydata
+
+# project dirs to ignore
+refs/
+tables/
+downloads/
+figures/
+tables/
+rdata/
+figs/
+work/
+
+# ignore reports
+*.report
+
+# ignore virtual environment stuff
+venv/
+pyenv/
+renv/
+renv.lock
+packrat/lib*/
+
+# ignore some latex junk
+*.aux
+*.log
+*.out
+*.suppinfo
