@@ -4,10 +4,20 @@
 # author: twab
 # description: examine variance attributable to major experimental covariates
 
+# generates plot for a given geno and tissue
+geno <- "Syngap1"
+tissue <- "Cortex"
+
+# protein identifier column
+prot_col <- "Accession" 
+
+# fx defining experimental covariates
+fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex)
+
 ## ---- prepare the env
 
 #library(SynaptopathyProteomics)
-root <- "~/projects/SynaptopathyProteomics"
+root <- "~/projects/soderling-lab/SynaptopathyProteomics"
 devtools::load_all(root)
 
 # imports
@@ -18,35 +28,48 @@ suppressPackageStartupMessages({
   library(doParallel)
 })
 
+ggtheme()
+setFont("Arial", font_path=file.path(root,"fonts"))
 
 ## ---- inputs
 
-data(cortex) # tidy_prot
+data(list=tolower(tissue)) # tidy_prot
+data(list=c("shank2","shank3","syngap1","ube3a"))
 
-prot_col <- "Accession" # protein identifier column
-
-# loop through all proteins, fit the model with all
-# experimental covariates modeled as random effects
-fx <- log2(Intensity) ~ (1|Condition) + (1|Batch)
-
-# FIXME: see what the results look like for a single mixture, try dropping Genotype
+# loop through all proteins, fit the model with
+# experimental covariates modeled as random effects, e.g
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age)
 
 # * Genotype = which genetic background
 # * Batch = which Synaptosome purification batch
-# * Condition = Shank2.WT and Syngap1.HET for example
+# * Condition = Shank2.WT and Syngap1.HET, for example
 
 # it don't matter how you you model things, residuals are very high for some
-# reason
+# reason... meaning there is some source of unexplained variance
 
 tidy_prot  <- tidy_prot %>% 
-	# drop QC
+	# drop QC - don't include QC samples in modeling
 	filter(!grepl("QC",Condition)) %>% 
 	# input munge
 	mutate(Condition=interaction(Genotype,Condition)) %>%
 	# subset
-	filter(Genotype == "Ube3a")
+	filter(Genotype == geno)
 
 
+# examine a goi
+fm <- lmerTest::lmer(fx, data=tidy_prot %>% subset(Accession==eval(parse(text=tolower(geno))))) 
+vp <- getVariance(fm)
+pve <- vp/sum(vp)
+data.table(factor=names(pve),pve=pve) %>% knitr::kable()
+
+# examine a random protein
+prot = sample(unique(tidy_prot[[prot_col]]),1)
+fm <- lmerTest::lmer(fx, data=tidy_prot %>% subset(Accession==prot)) 
+vp <- getVariance(fm)
+pve <- vp/sum(vp)
+data.table(factor=names(pve),pve=pve) %>% knitr::kable()
+
+# why are residuals so high for most proteins?
 
 ## ---- loop to do work
 
@@ -59,7 +82,6 @@ proteins <- unique(tidy_prot[[prot_col]])
 # NOTE: this can take a couple minutes
 pve_list <- foreach(prot = proteins) %dopar% {
   lmer_control <- lme4::lmerControl(check.conv.singular="ignore")
-  # FIXME: this line depends upon prot_col!
   fm <- lme4::lmer(fx, tidy_prot %>% subset(Accession == prot), 
 		   control = lmer_control)
   vp <- getVariance(fm)
@@ -118,17 +140,8 @@ plot <- plot + scale_x_continuous(expand=c(0,0))
 plot <- plot + scale_y_continuous(expand=c(0,0))
 
 
-ggsave("ube3a-batch.pdf",plot)
-
-
 ## --- save the plot
 
-stop()
-
-ggtheme()
-
-setFont("Arial", font_path=file.path(root,"fonts"))
-
-# NOTE: warnings probs bc plot is really huge and gets saved w/o labels
-myfile <- file.path(root,"figs","Variance","protein-varpart.pdf")
+myfile <- file.path(root,"figs","variance",
+		    paste0(tissue,"_",geno,"_varpart.pdf"))
 ggsave(myfile, plot)
