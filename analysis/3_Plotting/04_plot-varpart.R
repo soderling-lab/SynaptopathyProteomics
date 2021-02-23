@@ -5,14 +5,23 @@
 # description: examine variance attributable to major experimental covariates
 
 # generates plot for a given geno and tissue
-geno <- "Syngap1"
-tissue <- "Cortex"
+geno <- "Ube3a"
+tissue <- "Striatum"
+
+# define fx specifying experimental covariates
+# cortex models:
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age)
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) # Syngap1, Ube3a (no age)
+
+# striatum models:
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age) # Shank2
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Age) + (1|Sex) # Shank3 (no batch)
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Sex) # Syngap1 (no batch or age)
+fx <- log2(Intensity) ~ (1|Condition) + (1|Sex) + (1|Batch) # Ube3a (no age)
 
 # protein identifier column
 prot_col <- "Accession" 
 
-# fx defining experimental covariates
-fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex)
 
 ## ---- prepare the env
 
@@ -28,8 +37,10 @@ suppressPackageStartupMessages({
   library(doParallel)
 })
 
+# set plotting theme
 ggtheme()
 setFont("Arial", font_path=file.path(root,"fonts"))
+
 
 ## ---- inputs
 
@@ -37,8 +48,7 @@ data(list=tolower(tissue)) # tidy_prot
 data(list=c("shank2","shank3","syngap1","ube3a"))
 
 # loop through all proteins, fit the model with
-# experimental covariates modeled as random effects, e.g
-#fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age)
+# experimental covariates modeled as random effects
 
 # * Genotype = which genetic background
 # * Batch = which Synaptosome purification batch
@@ -47,6 +57,7 @@ data(list=c("shank2","shank3","syngap1","ube3a"))
 # it don't matter how you you model things, residuals are very high for some
 # reason... meaning there is some source of unexplained variance
 
+# subset the data 
 tidy_prot  <- tidy_prot %>% 
 	# drop QC - don't include QC samples in modeling
 	filter(!grepl("QC",Condition)) %>% 
@@ -111,11 +122,9 @@ prot_pve %>% group_by(Parameter) %>%
 df <- prot_pve
 
 # set the order
-sort_by <- "Batch" # usually sort by max
+sort_by <- "Residual" # usually sort by max
 xpos <- df %>% filter(Parameter == sort_by) %>%
-  # FIXME: this line depends upon prot_col!
 	arrange(desc(Variance)) %>% select(Accession) %>% unlist(use.names=FALSE)
-  # FIXME: this line depends upon prot_col!
 df$xpos <- match(df$Accession,xpos)
 
 # generate the plot
@@ -138,10 +147,10 @@ plot <- plot + theme(axis.text.y = element_text(angle=0,hjust=1,family="Arial"))
 plot <- plot + theme(panel.border = element_rect(colour = "black", fill=NA))
 plot <- plot + scale_x_continuous(expand=c(0,0))
 plot <- plot + scale_y_continuous(expand=c(0,0))
-
+plot <- plot + ggtitle(paste(geno,tissue))
 
 ## --- save the plot
 
 myfile <- file.path(root,"figs","variance",
 		    paste0(tissue,"_",geno,"_varpart.pdf"))
-ggsave(myfile, plot)
+ggsave(myfile, plot, height=5, width=5)
