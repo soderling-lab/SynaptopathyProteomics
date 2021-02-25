@@ -5,19 +5,19 @@
 # description: examine variance attributable to major experimental covariates
 
 # generates plot for a given geno and tissue
-geno <- "Ube3a"
-tissue <- "Striatum"
+geno <- "Shank2"
+tissue <- "Cortex"
 
 # define fx specifying experimental covariates
 # cortex models:
-#fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age)
+fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age)
 #fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) # Syngap1, Ube3a (no age)
 
 # striatum models:
 #fx <- log2(Intensity) ~ (1|Condition) + (1|Batch) + (1|Sex) + (1|Age) # Shank2
 #fx <- log2(Intensity) ~ (1|Condition) + (1|Age) + (1|Sex) # Shank3 (no batch)
 #fx <- log2(Intensity) ~ (1|Condition) + (1|Sex) # Syngap1 (no batch or age)
-fx <- log2(Intensity) ~ (1|Condition) + (1|Sex) + (1|Batch) # Ube3a (no age)
+#fx <- log2(Intensity) ~ (1|Condition) + (1|Sex) + (1|Batch) # Ube3a (no age)
 
 # protein identifier column
 prot_col <- "Accession" 
