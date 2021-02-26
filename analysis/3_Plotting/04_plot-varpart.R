@@ -33,6 +33,7 @@ devtools::load_all(root)
 suppressPackageStartupMessages({
   library(dplyr)
   library(ggplot2)
+  library(tidyProt)
   library(data.table)
   library(doParallel)
 })
@@ -66,7 +67,6 @@ tidy_prot  <- tidy_prot %>%
 	# subset
 	filter(Genotype == geno)
 
-
 # examine a goi
 fm <- lmerTest::lmer(fx, data=tidy_prot %>% subset(Accession==eval(parse(text=tolower(geno))))) 
 vp <- getVariance(fm)
@@ -80,7 +80,6 @@ vp <- getVariance(fm)
 pve <- vp/sum(vp)
 data.table(factor=names(pve),pve=pve) %>% knitr::kable()
 
-# why are residuals so high for most proteins?
 
 ## ---- loop to do work
 
@@ -112,14 +111,14 @@ prot_pve <- do.call(rbind, pve_list) %>%
 # examine summary
 prot_pve %>% group_by(Parameter) %>%
 	summarize(Min=min(Variance), 
+		  Mean = mean(Variance),
 		  Median=median(Variance), 
+		  SD=sd(Variance),
 		  Max=max(Variance), .groups="drop") %>%
 	knitr::kable()
 
 
 ## ---- generate a plot
-
-df <- prot_pve
 
 # set the order
 sort_by <- "Residual" # usually sort by max
