@@ -25,7 +25,6 @@ pydata
 # project dirs to ignore
 refs/
 downloads/
-figures/
 rdata/
 figs/
 work/
